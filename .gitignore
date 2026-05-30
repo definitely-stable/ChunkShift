@@ -1,0 +1,35 @@
+# Build results
+**/bin/
+**/obj/
+**/artifacts/
+**/nuget
+
+# BenchmarkDotNet
+**/BenchmarkDotNet.Artifacts/
+
+# NuGet
+*.nupkg
+*.snupkg
+
+# IDE
+*.user
+*.suo
+*.cache
+.vs/
+.vscode/
+*.DotSettings.user
+.idea/
+*.sln.docstates
+.kilocode
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+tools/
+
+
+TestResults/
+backups/
+/.work
