@@ -75,13 +75,21 @@ public static class LabRunner
                 measurement.AllocatedBytes,
                 measurement.ProcessPeakRssBytes);
 
+            var evidence = new ExperimentEvidence(
+                LabEvidenceDigest.ComputeBytes(source),
+                LabEvidenceDigest.ComputeBytes(mutation.Target),
+                LabEvidenceDigest.ComputeChunkSequence(measurement.SourceChunks),
+                LabEvidenceDigest.ComputeChunkSequence(measurement.TargetChunks));
+
             results.Add(new ExperimentResult(
-                ExperimentFingerprint.Compute(experiment),
+                ExperimentFingerprint.Compute(experiment, entry),
                 experiment.Id,
                 experiment.CorpusId,
                 "fixed.reference.v1",
                 experiment.HashSuite,
                 experiment.Mutation,
+                evidence,
+                measurement.Samples,
                 metrics));
 
             Console.WriteLine(
@@ -92,12 +100,13 @@ public static class LabRunner
         LabSummary summary = CreateSummary(results);
 
         var run = new LabRun(
-            1,
+            2,
             DateTimeOffset.UtcNow,
             new MeasurementProtocol(
                 WarmupIterations,
                 MeasurementIterations,
-                "median"),
+                "median",
+                "same-process observational working-set samples; release decisions require isolated streaming evidence"),
             new EnvironmentSnapshot(
                 RuntimeInformation.OSDescription,
                 RuntimeInformation.OSArchitecture.ToString(),
@@ -139,6 +148,7 @@ public static class LabRunner
             process.Refresh();
             TimeSpan cpuBefore = process.TotalProcessorTime;
             long allocatedBefore = GC.GetTotalAllocatedBytes(precise: true);
+            long workingSetBefore = process.WorkingSet64;
             long started = Stopwatch.GetTimestamp();
 
             sourceChunks = FixedSizeReferenceChunker.Chunk(source, chunkSize, hashSuite);
@@ -152,6 +162,8 @@ public static class LabRunner
                 Stopwatch.GetElapsedTime(started, finished).TotalSeconds,
                 (process.TotalProcessorTime - cpuBefore).TotalSeconds,
                 allocatedAfter - allocatedBefore,
+                workingSetBefore,
+                process.WorkingSet64,
                 process.PeakWorkingSet64);
         }
 
@@ -161,7 +173,8 @@ public static class LabRunner
             Median(samples.Select(static sample => sample.WallSeconds)),
             Median(samples.Select(static sample => sample.CpuSeconds)),
             checked((long)Math.Round(Median(samples.Select(static sample => (double)sample.AllocatedBytes)))),
-            samples.Max(static sample => sample.ProcessPeakRssBytes));
+            samples.Max(static sample => sample.ProcessPeakRssBytes),
+            samples);
     }
 
     private static void WarmUpHashSuites()
@@ -269,17 +282,12 @@ public static class LabRunner
         return false;
     }
 
-    private readonly record struct MeasurementSample(
-        double WallSeconds,
-        double CpuSeconds,
-        long AllocatedBytes,
-        long ProcessPeakRssBytes);
-
     private sealed record Measurement(
         ChunkRecord[] SourceChunks,
         ChunkRecord[] TargetChunks,
         double WallSeconds,
         double CpuSeconds,
         long AllocatedBytes,
-        long ProcessPeakRssBytes);
+        long ProcessPeakRssBytes,
+        MeasurementSample[] Samples);
 }
