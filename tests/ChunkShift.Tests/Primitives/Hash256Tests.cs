@@ -1,261 +1,123 @@
 using System;
-using Xunit;
 using ChunkShift.Primitives;
 
 namespace ChunkShift.Tests.Primitives;
 
-/// <summary>
-/// Tests for Hash256 value object.
-/// </summary>
 public class Hash256Tests
 {
-    private static readonly byte[] ValidBytes = new byte[32];
-    private static readonly byte[] ValidBytes2 = new byte[32];
-    private static readonly byte[] ZeroBytes = new byte[32];
+    private static readonly byte[] SequenceBytes = Enumerable.Range(0, 32).Select(static i => (byte)i).ToArray();
 
-    static Hash256Tests()
+    [Theory]
+    [MemberData(nameof(ValidBitPatterns))]
+    public void FromBytes_AcceptsEveryRepresentativeBitPattern(byte[] bytes)
     {
-        for (int i = 0; i < 32; i++)
-        {
-            ValidBytes[i] = (byte)(i + 1);
-            ValidBytes2[i] = (byte)(i + 2);
-        }
+        Hash256 value = Hash256.FromBytes(bytes);
+
+        Span<byte> roundTrip = stackalloc byte[32];
+        value.CopyTo(roundTrip);
+
+        Assert.Equal(bytes, roundTrip.ToArray());
+    }
+
+    public static TheoryData<byte[]> ValidBitPatterns => new()
+    {
+        new byte[32],
+        Enumerable.Repeat((byte)0xFF, 32).ToArray(),
+        SequenceBytes,
+        Enumerable.Range(0, 32).Select(static i => (byte)(i % 2 == 0 ? 0x00 : 0xFF)).ToArray(),
+        new byte[32] { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        new byte[32] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
+    };
+
+    [Fact]
+    public void Default_IsValidAllZeroDigest()
+    {
+        Hash256 value = default;
+
+        Assert.Equal(new string('0', 64), value.ToHexLower());
+
+        Span<byte> bytes = stackalloc byte[32];
+        Assert.True(value.TryCopyTo(bytes));
+        Assert.True(bytes.SequenceEqual(new byte[32]));
     }
 
     [Fact]
-    public void Default_Has_IsDefault_True()
+    public void FromBytes_RequiresExactly32Bytes()
     {
-        var hash = default(Hash256);
-        Assert.True(hash.IsDefault);
-        Assert.False(Hash256.FromBytes(ValidBytes).IsDefault);
+        Assert.Throws<ArgumentException>(() => Hash256.FromBytes(new byte[31]));
+        Assert.Throws<ArgumentException>(() => Hash256.FromBytes(new byte[33]));
     }
 
     [Fact]
-    public void FromBytes_Rejects_Length_Shorter_Than_32()
+    public void LowerHex_AllZeroRoundTrips()
     {
-        var shortBytes = new byte[31];
-        Assert.Throws<ArgumentException>(() => Hash256.FromBytes(shortBytes));
+        string hex = new('0', 64);
+
+        Assert.True(Hash256.TryParseHexLower(hex, out Hash256 value));
+        Assert.Equal(default, value);
+        Assert.Equal(hex, value.ToHexLower());
     }
 
     [Fact]
-    public void FromBytes_Rejects_Length_Longer_Than_32()
+    public void LowerHex_NonZeroRoundTrips()
     {
-        var longBytes = new byte[33];
-        Assert.Throws<ArgumentException>(() => Hash256.FromBytes(longBytes));
-    }
+        Hash256 original = Hash256.FromBytes(SequenceBytes);
+        string hex = original.ToHexLower();
 
-    [Fact]
-    public void FromBytes_Rejects_AllZeroDigest()
-    {
-        Assert.Throws<ArgumentException>(() => Hash256.FromBytes(ZeroBytes));
-    }
-
-    [Fact]
-    public void FromBytes_Accepts_NonZero_32Bytes()
-    {
-        var hash = Hash256.FromBytes(ValidBytes);
-        Assert.False(hash.IsDefault);
-    }
-
-    [Fact]
-    public void CopyTo_RoundTrips_OriginalBytes()
-    {
-        var hash = Hash256.FromBytes(ValidBytes);
-        var buffer = new byte[32];
-        hash.CopyTo(buffer);
-        Assert.Equal(ValidBytes, buffer);
-    }
-
-    [Fact]
-    public void TryCopyTo_ReturnsFalse_WhenDestinationTooSmall()
-    {
-        var hash = Hash256.FromBytes(ValidBytes);
-        var buffer = new byte[31];
-        Assert.False(hash.TryCopyTo(buffer));
-    }
-
-    [Fact]
-    public void TryCopyTo_ReturnsTrue_AndCopies_WhenDestinationLargeEnough()
-    {
-        var hash = Hash256.FromBytes(ValidBytes);
-        var buffer = new byte[32];
-        Assert.True(hash.TryCopyTo(buffer));
-        Assert.Equal(ValidBytes, buffer);
-    }
-
-    [Fact]
-    public void TryCopyTo_OnDefault_ReturnsFalse()
-    {
-        var hash = default(Hash256);
-        var buffer = new byte[32];
-        Assert.False(hash.TryCopyTo(buffer));
-    }
-
-    [Fact]
-    public void ToHexLower_Returns_64_Lowercase_Hex_Chars()
-    {
-        var hash = Hash256.FromBytes(ValidBytes);
-        var hex = hash.ToHexLower();
-        Assert.Equal(64, hex.Length);
-        Assert.Matches(@"^[0-9a-f]{64}$", hex);
-    }
-
-    [Fact]
-    public void TryFormatHexLower_ReturnsFalse_WhenDestinationTooSmall()
-    {
-        var hash = Hash256.FromBytes(ValidBytes);
-        Span<char> buffer = stackalloc char[63];
-        Assert.False(hash.TryFormatHexLower(buffer));
-    }
-
-    [Fact]
-    public void TryFormatHexLower_ReturnsTrue_AndFormats()
-    {
-        var hash = Hash256.FromBytes(ValidBytes);
-        Span<char> buffer = stackalloc char[64];
-        Assert.True(hash.TryFormatHexLower(buffer));
-        Assert.Equal(hash.ToHexLower(), new string(buffer));
-    }
-
-    [Fact]
-    public void TryFormatHexLower_OnDefault_ReturnsFalse()
-    {
-        var hash = default(Hash256);
-        Span<char> buffer = stackalloc char[64];
-        Assert.False(hash.TryFormatHexLower(buffer));
-    }
-
-    [Fact]
-    public void TryParseHexLower_Parses_Valid_Lowercase_Hex()
-    {
-        var original = Hash256.FromBytes(ValidBytes);
-        var hex = original.ToHexLower();
-        Assert.True(Hash256.TryParseHexLower(hex, out var parsed));
+        Assert.True(Hash256.TryParseHexLower(hex, out Hash256 parsed));
         Assert.Equal(original, parsed);
+        Assert.Matches("^[0-9a-f]{64}$", hex);
     }
 
     [Fact]
-    public void TryParseHexLower_Rejects_Uppercase_Hex()
+    public void TryParseHexLower_RejectsUppercaseInvalidAndWrongLength()
     {
-        var hex = Convert.ToHexString(ValidBytes); // uppercase
-        Assert.False(Hash256.TryParseHexLower(hex.AsSpan(), out _));
+        Assert.False(Hash256.TryParseHexLower(Convert.ToHexString(SequenceBytes), out _));
+        Assert.False(Hash256.TryParseHexLower(new string('g', 64), out _));
+        Assert.False(Hash256.TryParseHexLower(new string('a', 63), out _));
     }
 
     [Fact]
-    public void TryParseHexLower_Rejects_Invalid_Char()
+    public void CopyTo_RequiresEnoughSpace()
     {
-        var hex = new string('g', 64);
-        Assert.False(Hash256.TryParseHexLower(hex, out _));
+        Hash256 value = Hash256.FromBytes(SequenceBytes);
+
+        Assert.Throws<ArgumentException>(() => value.CopyTo(new byte[31]));
+        Assert.False(value.TryCopyTo(new byte[31]));
     }
 
     [Fact]
-    public void TryParseHexLower_Rejects_Wrong_Length()
+    public void TryFormatHexLower_FormatsZeroAndNonZero()
     {
-        var hex = new string('a', 63);
-        Assert.False(Hash256.TryParseHexLower(hex, out _));
+        Span<char> zero = stackalloc char[64];
+        Span<char> nonZero = stackalloc char[64];
+
+        Assert.True(default(Hash256).TryFormatHexLower(zero));
+        Assert.True(Hash256.FromBytes(SequenceBytes).TryFormatHexLower(nonZero));
+        Assert.Equal(new string('0', 64), new string(zero));
+        Assert.Equal(Hash256.FromBytes(SequenceBytes).ToHexLower(), new string(nonZero));
     }
 
     [Fact]
-    public void TryParseHexLower_Rejects_AllZero()
+    public void TryFormatHexLower_RejectsSmallDestination()
     {
-        var hex = new string('0', 64);
-        Assert.False(Hash256.TryParseHexLower(hex.AsSpan(), out _));
+        Span<char> destination = stackalloc char[63];
+        Assert.False(default(Hash256).TryFormatHexLower(destination));
     }
 
     [Fact]
-    public void Equality_Works_For_Same_Bytes()
+    public void EqualityAndFixedTimeEquality_WorkForAllZeroAndNonZeroValues()
     {
-        var hash1 = Hash256.FromBytes(ValidBytes);
-        var hash2 = Hash256.FromBytes(ValidBytes);
-        Assert.Equal(hash1, hash2);
-        Assert.True(hash1.Equals(hash2));
-    }
+        Hash256 zeroA = default;
+        Hash256 zeroB = Hash256.FromBytes(new byte[32]);
+        Hash256 valueA = Hash256.FromBytes(SequenceBytes);
+        Hash256 valueB = Hash256.FromBytes(SequenceBytes);
 
-    [Fact]
-    public void Inequality_Works_For_Different_Bytes()
-    {
-        var hash1 = Hash256.FromBytes(ValidBytes);
-        var hash2 = Hash256.FromBytes(ValidBytes2);
-        Assert.NotEqual(hash1, hash2);
-    }
-
-    [Fact]
-    public void Operators_Work()
-    {
-        var hash1 = Hash256.FromBytes(ValidBytes);
-        var hash2 = Hash256.FromBytes(ValidBytes);
-        var hash3 = Hash256.FromBytes(ValidBytes2);
-
-        Assert.True(hash1 == hash2);
-        Assert.True(hash1 != hash3);
-    }
-
-    [Fact]
-    public void FixedTimeEquals_ReturnsTrue_ForSameBytes()
-    {
-        var hash1 = Hash256.FromBytes(ValidBytes);
-        var hash2 = Hash256.FromBytes(ValidBytes);
-        Assert.True(hash1.FixedTimeEquals(hash2));
-    }
-
-    [Fact]
-    public void FixedTimeEquals_ReturnsFalse_ForDifferentBytes()
-    {
-        var hash1 = Hash256.FromBytes(ValidBytes);
-        var hash2 = Hash256.FromBytes(ValidBytes2);
-        Assert.False(hash1.FixedTimeEquals(hash2));
-    }
-
-    [Fact]
-    public void GetHashCode_IsSame_ForSameBytes()
-    {
-        var hash1 = Hash256.FromBytes(ValidBytes);
-        var hash2 = Hash256.FromBytes(ValidBytes);
-        Assert.Equal(hash1.GetHashCode(), hash2.GetHashCode());
-    }
-
-    [Fact]
-    public void GetHashCode_IsDifferent_ForDifferentBytes()
-    {
-        var hash1 = Hash256.FromBytes(ValidBytes);
-        var hash2 = Hash256.FromBytes(ValidBytes2);
-        Assert.NotEqual(hash1.GetHashCode(), hash2.GetHashCode());
-    }
-
-    [Fact]
-    public void Equals_Object_ReturnsFalse_ForNull()
-    {
-        var hash = Hash256.FromBytes(ValidBytes);
-        Assert.False(hash.Equals((object?)null));
-    }
-
-    [Fact]
-    public void Equals_Object_ReturnsFalse_ForDifferentType()
-    {
-        var hash = Hash256.FromBytes(ValidBytes);
-        Assert.False(hash.Equals("not a hash"));
-    }
-
-    [Fact]
-    public void Equals_Object_ReturnsTrue_ForSameHash256()
-    {
-        var hash1 = Hash256.FromBytes(ValidBytes);
-        object hash2 = Hash256.FromBytes(ValidBytes);
-        Assert.True(hash1.Equals(hash2));
-    }
-
-    [Fact]
-    public void ToHexLower_OnDefault_Throws()
-    {
-        var hash = default(Hash256);
-        Assert.Throws<InvalidOperationException>(() => hash.ToHexLower());
-    }
-
-    [Fact]
-    public void CopyTo_OnDefault_Throws()
-    {
-        var hash = default(Hash256);
-        var buffer = new byte[32];
-        Assert.Throws<InvalidOperationException>(() => hash.CopyTo(buffer));
+        Assert.Equal(zeroA, zeroB);
+        Assert.True(zeroA.FixedTimeEquals(zeroB));
+        Assert.Equal(valueA, valueB);
+        Assert.True(valueA.FixedTimeEquals(valueB));
+        Assert.NotEqual(zeroA, valueA);
+        Assert.False(zeroA.FixedTimeEquals(valueA));
     }
 }

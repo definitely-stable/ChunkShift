@@ -16,6 +16,8 @@ public class IdGrammarTests
     [InlineData("fixed.v1.64k")]
     [InlineData("chunkshift.manifest.v1")]
     [InlineData("blake3-256")]
+    [InlineData("chunkshift.blake3-256.v1")]
+    [InlineData("chunkshift.sha256.v1")]
     [InlineData("test_profile_1")]
     [InlineData("a")]
     [InlineData("a.b-c_d")]

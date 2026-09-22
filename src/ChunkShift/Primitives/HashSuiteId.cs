@@ -3,33 +3,32 @@ using System;
 namespace ChunkShift.Primitives;
 
 /// <summary>
-/// Identifies a hash algorithm used in ChunkShift manifests (e.g., "sha256").
+/// Identifies the complete hashing semantics used by a manifest or repository.
 /// </summary>
-public readonly struct HashAlgorithmId : IEquatable<HashAlgorithmId>
+public readonly struct HashSuiteId : IEquatable<HashSuiteId>
 {
     /// <summary>
-    /// The string value of this hash algorithm identifier.
+    /// Gets the stable lowercase identifier.
     /// </summary>
     public string Value { get; }
 
     /// <summary>
-    /// Returns true if this is the default (uninitialized) instance.
+    /// Gets whether this is the default, uninitialized identifier value.
     /// </summary>
     public bool IsDefault => Value is null;
 
     /// <summary>
-    /// Creates a new <see cref="HashAlgorithmId"/> from a string value.
+    /// Creates a hash-suite identifier.
     /// </summary>
-    /// <param name="value">The hash algorithm identifier string. Must satisfy the ChunkShift ID grammar.</param>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="value"/> does not satisfy the ID grammar.</exception>
-    public HashAlgorithmId(string value)
+    /// <param name="value">A stable identifier satisfying the ChunkShift ID grammar.</param>
+    public HashSuiteId(string value)
     {
         IdGrammar.Validate(value, nameof(value));
         Value = value;
     }
 
     /// <inheritdoc />
-    public bool Equals(HashAlgorithmId other)
+    public bool Equals(HashSuiteId other)
     {
         return string.Equals(Value, other.Value, StringComparison.Ordinal);
     }
@@ -37,7 +36,7 @@ public readonly struct HashAlgorithmId : IEquatable<HashAlgorithmId>
     /// <inheritdoc />
     public override bool Equals(object? obj)
     {
-        return obj is HashAlgorithmId other && Equals(other);
+        return obj is HashSuiteId other && Equals(other);
     }
 
     /// <inheritdoc />
@@ -55,7 +54,7 @@ public readonly struct HashAlgorithmId : IEquatable<HashAlgorithmId>
     /// <summary>
     /// Equality comparison operator.
     /// </summary>
-    public static bool operator ==(HashAlgorithmId left, HashAlgorithmId right)
+    public static bool operator ==(HashSuiteId left, HashSuiteId right)
     {
         return left.Equals(right);
     }
@@ -63,7 +62,7 @@ public readonly struct HashAlgorithmId : IEquatable<HashAlgorithmId>
     /// <summary>
     /// Inequality comparison operator.
     /// </summary>
-    public static bool operator !=(HashAlgorithmId left, HashAlgorithmId right)
+    public static bool operator !=(HashSuiteId left, HashSuiteId right)
     {
         return !left.Equals(right);
     }
