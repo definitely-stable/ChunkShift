@@ -57,7 +57,7 @@ Do not duplicate detailed byte layouts here; reference the governing RFC/spec.
 
 ## 3. M0 foundation — complete
 
-Issues: #2, #3.
+Issues: [#2](https://github.com/definitely-stable/ChunkShift/issues/2), [#3](https://github.com/definitely-stable/ChunkShift/issues/3).
 
 Evidence already delivered:
 
@@ -71,7 +71,7 @@ Evidence already delivered:
 
 M0 is a foundation, not final performance/profile evidence.
 
-## 4. Preparation — #33
+## 4. Preparation — [#33](https://github.com/definitely-stable/ChunkShift/issues/33)
 
 Goal: correct confirmed M0 defects and make Core-first execution unambiguous before M1.
 
@@ -84,15 +84,15 @@ Deliverables:
 - unique missing-payload metric distinct from actual CSP bytes;
 - individual measurement samples retained;
 - RFC-0003 and synchronized Core-first roadmap/issues;
-- #4/#5/#16 implementation-ready.
+- [#4](https://github.com/definitely-stable/ChunkShift/issues/4)/[#5](https://github.com/definitely-stable/ChunkShift/issues/5)/[#16](https://github.com/definitely-stable/ChunkShift/issues/16) implementation-ready.
 
 Exit:
 
 - regression tests cover each confirmed defect;
-- no release dependency on #7/CSP remains in #8/#9/#17;
-- #4 is the next critical-path implementation issue.
+- no release dependency on [#7](https://github.com/definitely-stable/ChunkShift/issues/7)/CSP remains in [#8](https://github.com/definitely-stable/ChunkShift/issues/8)/[#9](https://github.com/definitely-stable/ChunkShift/issues/9)/[#17](https://github.com/definitely-stable/ChunkShift/issues/17);
+- [#4](https://github.com/definitely-stable/ChunkShift/issues/4) is the next critical-path implementation issue.
 
-## 5. Core kernels — #4
+## 5. Core kernels — [#4](https://github.com/definitely-stable/ChunkShift/issues/4)
 
 Goal: one canonical deterministic chunk/hash kernel used by every later Core path.
 
@@ -128,12 +128,12 @@ Required measurements:
 
 Exit:
 
-- canonical scalar behavior is normative enough for #5/#16;
+- canonical scalar behavior is normative enough for [#5](https://github.com/definitely-stable/ChunkShift/issues/5)/[#16](https://github.com/definitely-stable/ChunkShift/issues/16);
 - no optimized backend is accepted unless it matches reference vectors.
 
-## 6. CSM candidate — #5
+## 6. CSM candidate — [#5](https://github.com/definitely-stable/ChunkShift/issues/5)
 
-Goal: streaming binary manifest create/read/verify over the #4 canonical kernel.
+Goal: streaming binary manifest create/read/verify over the [#4](https://github.com/definitely-stable/ChunkShift/issues/4) canonical kernel.
 
 Deliverables:
 
@@ -162,13 +162,13 @@ Independent evidence:
 - vectors contain enough information for an independent decoder/checker;
 - before Core 0.1.0, at least one small independent vector verifier/generator must validate the frozen fixtures.
 
-## 7. Raw scanner — #16
+## 7. Raw scanner — [#16](https://github.com/definitely-stable/ChunkShift/issues/16)
 
 Goal: make Core useful without manifest materialization.
 
-Leading candidate remains callback + borrowed contiguous memory; #20 decides the final public shape.
+Leading candidate remains callback + borrowed contiguous memory; [#20](https://github.com/definitely-stable/ChunkShift/issues/20) decides the final public shape.
 
-Required semantics/tests are owned by RFC-0002/#16 and include:
+Required semantics/tests are owned by RFC-0002/[#16](https://github.com/definitely-stable/ChunkShift/issues/16) and include:
 
 - caller-owned source;
 - sequential ordered callbacks;
@@ -188,7 +188,7 @@ Additional Core release requirement:
 - heavy validation installs the produced NuGet package into a clean NativeAOT consumer and executes real scanning with both BLAKE3 and SHA-256;
 - primitive-only AOT smoke is not sufficient once scanner exists.
 
-## 8. Scanner API bake-off — #20
+## 8. Scanner API bake-off — [#20](https://github.com/definitely-stable/ChunkShift/issues/20)
 
 Compare prototypes sequentially rather than running a maximal matrix immediately.
 
@@ -208,9 +208,9 @@ Measure throughput, CPU, allocations, copy bytes, first-chunk latency, cancellat
 
 When measured differences are inside calibrated noise, choose the simpler contract.
 
-## 9. Minimal public Core API — #6
+## 9. Minimal public Core API — [#6](https://github.com/definitely-stable/ChunkShift/issues/6)
 
-After #5/#16/#20, freeze the smallest candidate API needed by real consumers.
+After [#5](https://github.com/definitely-stable/ChunkShift/issues/5)/[#16](https://github.com/definitely-stable/ChunkShift/issues/16)/[#20](https://github.com/definitely-stable/ChunkShift/issues/20), freeze the smallest candidate API needed by real consumers.
 
 Acceptance:
 
@@ -223,17 +223,17 @@ Acceptance:
 
 ## 10. Core release evidence
 
-### #8 — profile bake-off
+### [#8](https://github.com/definitely-stable/ChunkShift/issues/8) — profile bake-off
 
-Dependencies: #3, #4. Patching is not a dependency.
+Dependencies: [#3](https://github.com/definitely-stable/ChunkShift/issues/3), [#4](https://github.com/definitely-stable/ChunkShift/issues/4). Patching is not a dependency.
 
 Use equal-mean calibration and both synthetic + real/local product corpus evidence. Compare at least 64/128/256 KiB actual means and required CDC/reference candidates.
 
 Output is the selected Core 0.1.0 profile semantics/ProfileId plus evidence, not a package release by itself.
 
-### #17 — direct ASP.NET Core host proof
+### [#17](https://github.com/definitely-stable/ChunkShift/issues/17) — direct ASP.NET Core host proof
 
-Dependencies: #5, #16, #20.
+Dependencies: [#5](https://github.com/definitely-stable/ChunkShift/issues/5), [#16](https://github.com/definitely-stable/ChunkShift/issues/16), [#20](https://github.com/definitely-stable/ChunkShift/issues/20).
 
 Before Core release validate:
 
@@ -248,9 +248,9 @@ Before Core release validate:
 
 CSP/Patching delivery is deferred.
 
-### #9 — Core 0.1.0 release gate
+### [#9](https://github.com/definitely-stable/ChunkShift/issues/9) — Core 0.1.0 release gate
 
-Dependencies: #5, #6, #8, #17, #20.
+Dependencies: [#5](https://github.com/definitely-stable/ChunkShift/issues/5), [#6](https://github.com/definitely-stable/ChunkShift/issues/6), [#8](https://github.com/definitely-stable/ChunkShift/issues/8), [#17](https://github.com/definitely-stable/ChunkShift/issues/17), [#20](https://github.com/definitely-stable/ChunkShift/issues/20).
 
 Must close:
 
@@ -269,9 +269,9 @@ Must close:
 
 CSP is **not** part of this gate.
 
-## 11. Patching — #7
+## 11. Patching — [#7](https://github.com/definitely-stable/ChunkShift/issues/7)
 
-Starts after #9.
+Starts after [#9](https://github.com/definitely-stable/ChunkShift/issues/9).
 
 Deliverables:
 
@@ -295,12 +295,12 @@ Evidence:
 
 Keep these concise until the preceding evidence exists:
 
-- #10 — immutable self-indexed Repository packs; starts after useful Patching evidence;
-- #11 — global index/catalog/crash/concurrency;
-- #12 — reachability GC/repack/lifecycle;
-- #13 — HTTP Range and S3/R2;
-- #18 — optional ASP.NET package only if repeated integration behavior justifies one;
-- #14 — research CDC/index/filter candidates; no promotion without normal evidence gates.
+- [#10](https://github.com/definitely-stable/ChunkShift/issues/10) — immutable self-indexed Repository packs; starts after useful Patching evidence;
+- [#11](https://github.com/definitely-stable/ChunkShift/issues/11) — global index/catalog/crash/concurrency;
+- [#12](https://github.com/definitely-stable/ChunkShift/issues/12) — reachability GC/repack/lifecycle;
+- [#13](https://github.com/definitely-stable/ChunkShift/issues/13) — HTTP Range and S3/R2;
+- [#18](https://github.com/definitely-stable/ChunkShift/issues/18) — optional ASP.NET package only if repeated integration behavior justifies one;
+- [#14](https://github.com/definitely-stable/ChunkShift/issues/14) — research CDC/index/filter candidates; no promotion without normal evidence gates.
 
 ## 13. Benchmark and corpus policy
 
