@@ -141,7 +141,7 @@ public class ChunkScannerTests
     [Fact]
     public async Task BorrowedContent_RemainsStableUntilAsyncHandlerCompletes()
     {
-        byte[] input = CreateXorShiftBytes(768 * 1024, 0xB0FF3Ru);
+        byte[] input = CreateXorShiftBytes(768 * 1024, 0xB0FF3u);
         int callbackCount = 0;
 
         await ChunkScanner.ScanAsync(
@@ -189,7 +189,7 @@ public class ChunkScannerTests
     {
         byte[] input = new byte[1024 * 1024];
         using var cancellation = new CancellationTokenSource();
-        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         int calls = 0;
 
         Task scan = ChunkScanner.ScanAsync(
@@ -197,7 +197,7 @@ public class ChunkScannerTests
             async (_, _, cancellationToken) =>
             {
                 calls++;
-                entered.TrySetResult();
+                entered.TrySetResult(true);
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             },
             cancellationToken: cancellation.Token);
