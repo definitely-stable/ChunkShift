@@ -1,7 +1,8 @@
 # ChunkShift 2026 implementation plan
 
 Status: Proposed  
-Architecture authority: [RFC-0001: ChunkShift Target Architecture 2026](docs/architecture/RFC-0001-target-architecture-2026.md) and [RFC-0002: Embedded Chunk Stream API and ASP.NET Core Integration](docs/architecture/RFC-0002-embedded-sdk-aspnet-core.md)
+Architecture authority: [RFC-0001: ChunkShift Target Architecture 2026](docs/architecture/RFC-0001-target-architecture-2026.md) and [RFC-0002: Embedded Chunk Stream API and ASP.NET Core Integration](docs/architecture/RFC-0002-embedded-sdk-aspnet-core.md)  
+Program roadmap: [ROADMAP.md](ROADMAP.md)
 
 This plan replaces the previous manifest/diff/verify-first roadmap. It intentionally contains no implementation detail beyond what is required to define sequencing, invariants and exit criteria.
 
