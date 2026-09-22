@@ -2,13 +2,14 @@
 
 Status: Proposed  
 Architecture authority: [RFC-0001: ChunkShift Target Architecture 2026](docs/architecture/RFC-0001-target-architecture-2026.md) and [RFC-0002: Embedded Chunk Stream API and ASP.NET Core Integration](docs/architecture/RFC-0002-embedded-sdk-aspnet-core.md)  
-Program roadmap: [ROADMAP.md](ROADMAP.md)
+Program roadmap: [ROADMAP.md](ROADMAP.md)  
+Release policy: [docs/RELEASES.md](docs/RELEASES.md)
 
 This plan replaces the previous manifest/diff/verify-first roadmap. It intentionally contains no implementation detail beyond what is required to define sequencing, invariants and exit criteria.
 
 ## 1. Product target
 
-ChunkShift 1.0 is a .NET content-aware binary update engine.
+ChunkShift's first public release target, `0.1.0`, is a .NET content-aware binary update engine.
 
 The first complete user loop is:
 
@@ -33,7 +34,7 @@ The future content-addressed repository reuses the same ChunkId/manifest model. 
 
 ## 2. Stable package intent
 
-Target stable 1.0:
+First public release target (`0.1.0`):
 
 ```text
 ChunkShift              # standalone embedded/local SDK + manifest operations
@@ -42,6 +43,10 @@ ChunkShift.Cli
 ```
 
 The core package must be useful without Patching, Repository, ASP.NET Core or DI.
+
+### Pre-1.0 version train
+
+Normal public releases begin at `0.1.0` and then increment PATCH only: `0.1.1`, `0.1.2`, and so on. This is a project-specific policy within SemVer's major-zero development phase. Breaking changes before `1.0.0` must still be explicitly documented. Package versioning is independent from persisted format/profile/hash versioning. See [docs/RELEASES.md](docs/RELEASES.md).
 
 Integration candidate after Core/Patching freeze:
 
@@ -73,7 +78,7 @@ The implementation backlog is tracked by [#1 — ChunkShift 2026 architecture sy
 | M0 | #2 identity/HashSuite/profile semantics; #3 benchmark lab/corpus |
 | M1 | #4 deterministic chunk/hash kernels; #5 CSM candidate; #16 embedded chunk-stream API; #20 chunk-stream API bake-off; #6 minimal public API/AOT |
 | M2 | #7 declarative patch/reconstruction loop; #17 ASP.NET host validation/sample |
-| M3 | #8 CDC bake-off/profile selection; #9 Core/Patching 1.0 freeze |
+| M3 | #8 CDC bake-off/profile selection; #9 Core/Patching 0.1.0 freeze |
 | M4A | #18 ASP.NET Core integration package/protocol spike |
 | M4 | #10 immutable self-indexed pack repository |
 | M5 | #11 global index/catalog/crash/concurrency |
@@ -444,7 +449,7 @@ Primary evidence:
 
 - stable repository API.
 
-This is the gate for `ChunkShift 1.0`, `ChunkShift.Patching 1.0` and stable CLI contracts.
+This is the gate for `ChunkShift 0.1.0`, `ChunkShift.Patching 0.1.0` and stable CLI contracts.
 
 The `ChunkShift.AspNetCore` package is not required to be stable at this gate.
 
