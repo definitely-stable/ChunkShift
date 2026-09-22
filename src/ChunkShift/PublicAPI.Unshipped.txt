@@ -1,11 +1,12 @@
 #nullable enable
 ChunkShift.Primitives.ChunkerId
+ChunkShift.Primitives.ChunkerId.ChunkerId() -> void
 ChunkShift.Primitives.ChunkerId.ChunkerId(string! value) -> void
 ChunkShift.Primitives.ChunkerId.Equals(ChunkShift.Primitives.ChunkerId other) -> bool
-ChunkShift.Primitives.ChunkerId.Equals(object? obj) -> bool
-ChunkShift.Primitives.ChunkerId.GetHashCode() -> int
+override ChunkShift.Primitives.ChunkerId.Equals(object? obj) -> bool
+override ChunkShift.Primitives.ChunkerId.GetHashCode() -> int
 ChunkShift.Primitives.ChunkerId.IsDefault.get -> bool
-ChunkShift.Primitives.ChunkerId.ToString() -> string!
+override ChunkShift.Primitives.ChunkerId.ToString() -> string!
 ChunkShift.Primitives.ChunkerId.Value.get -> string!
 static ChunkShift.Primitives.ChunkerId.operator !=(ChunkShift.Primitives.ChunkerId left, ChunkShift.Primitives.ChunkerId right) -> bool
 static ChunkShift.Primitives.ChunkerId.operator ==(ChunkShift.Primitives.ChunkerId left, ChunkShift.Primitives.ChunkerId right) -> bool
@@ -13,22 +14,24 @@ ChunkShift.Primitives.ChunkerIds
 static readonly ChunkShift.Primitives.ChunkerIds.FastCdcGear -> ChunkShift.Primitives.ChunkerId
 static readonly ChunkShift.Primitives.ChunkerIds.Fixed -> ChunkShift.Primitives.ChunkerId
 ChunkShift.Primitives.ChunkingProfileId
+ChunkShift.Primitives.ChunkingProfileId.ChunkingProfileId() -> void
 ChunkShift.Primitives.ChunkingProfileId.ChunkingProfileId(string! value) -> void
 ChunkShift.Primitives.ChunkingProfileId.Equals(ChunkShift.Primitives.ChunkingProfileId other) -> bool
-ChunkShift.Primitives.ChunkingProfileId.Equals(object? obj) -> bool
-ChunkShift.Primitives.ChunkingProfileId.GetHashCode() -> int
+override ChunkShift.Primitives.ChunkingProfileId.Equals(object? obj) -> bool
+override ChunkShift.Primitives.ChunkingProfileId.GetHashCode() -> int
 ChunkShift.Primitives.ChunkingProfileId.IsDefault.get -> bool
-ChunkShift.Primitives.ChunkingProfileId.ToString() -> string!
+override ChunkShift.Primitives.ChunkingProfileId.ToString() -> string!
 ChunkShift.Primitives.ChunkingProfileId.Value.get -> string!
 static ChunkShift.Primitives.ChunkingProfileId.operator !=(ChunkShift.Primitives.ChunkingProfileId left, ChunkShift.Primitives.ChunkingProfileId right) -> bool
 static ChunkShift.Primitives.ChunkingProfileId.operator ==(ChunkShift.Primitives.ChunkingProfileId left, ChunkShift.Primitives.ChunkingProfileId right) -> bool
 ChunkShift.Primitives.Hash256
+ChunkShift.Primitives.Hash256.Hash256() -> void
 ChunkShift.Primitives.Hash256.CopyTo(System.Span<byte> destination) -> void
 ChunkShift.Primitives.Hash256.Equals(ChunkShift.Primitives.Hash256 other) -> bool
-ChunkShift.Primitives.Hash256.Equals(object? obj) -> bool
+override ChunkShift.Primitives.Hash256.Equals(object? obj) -> bool
 ChunkShift.Primitives.Hash256.FixedTimeEquals(ChunkShift.Primitives.Hash256 other) -> bool
 static ChunkShift.Primitives.Hash256.FromBytes(System.ReadOnlySpan<byte> bytes) -> ChunkShift.Primitives.Hash256
-ChunkShift.Primitives.Hash256.GetHashCode() -> int
+override ChunkShift.Primitives.Hash256.GetHashCode() -> int
 ChunkShift.Primitives.Hash256.IsDefault.get -> bool
 ChunkShift.Primitives.Hash256.ToHexLower() -> string!
 ChunkShift.Primitives.Hash256.TryCopyTo(System.Span<byte> destination) -> bool
@@ -37,24 +40,26 @@ static ChunkShift.Primitives.Hash256.TryParseHexLower(System.ReadOnlySpan<char> 
 static ChunkShift.Primitives.Hash256.operator !=(ChunkShift.Primitives.Hash256 left, ChunkShift.Primitives.Hash256 right) -> bool
 static ChunkShift.Primitives.Hash256.operator ==(ChunkShift.Primitives.Hash256 left, ChunkShift.Primitives.Hash256 right) -> bool
 ChunkShift.Primitives.HashAlgorithmId
+ChunkShift.Primitives.HashAlgorithmId.HashAlgorithmId() -> void
 ChunkShift.Primitives.HashAlgorithmId.HashAlgorithmId(string! value) -> void
 ChunkShift.Primitives.HashAlgorithmId.Equals(ChunkShift.Primitives.HashAlgorithmId other) -> bool
-ChunkShift.Primitives.HashAlgorithmId.Equals(object? obj) -> bool
-ChunkShift.Primitives.HashAlgorithmId.GetHashCode() -> int
+override ChunkShift.Primitives.HashAlgorithmId.Equals(object? obj) -> bool
+override ChunkShift.Primitives.HashAlgorithmId.GetHashCode() -> int
 ChunkShift.Primitives.HashAlgorithmId.IsDefault.get -> bool
-ChunkShift.Primitives.HashAlgorithmId.ToString() -> string!
+override ChunkShift.Primitives.HashAlgorithmId.ToString() -> string!
 ChunkShift.Primitives.HashAlgorithmId.Value.get -> string!
 static ChunkShift.Primitives.HashAlgorithmId.operator !=(ChunkShift.Primitives.HashAlgorithmId left, ChunkShift.Primitives.HashAlgorithmId right) -> bool
 static ChunkShift.Primitives.HashAlgorithmId.operator ==(ChunkShift.Primitives.HashAlgorithmId left, ChunkShift.Primitives.HashAlgorithmId right) -> bool
 ChunkShift.Primitives.HashAlgorithmIds
 static readonly ChunkShift.Primitives.HashAlgorithmIds.Sha256 -> ChunkShift.Primitives.HashAlgorithmId
 ChunkShift.Primitives.ManifestSchemaVersion
+ChunkShift.Primitives.ManifestSchemaVersion.ManifestSchemaVersion() -> void
 ChunkShift.Primitives.ManifestSchemaVersion.ManifestSchemaVersion(string! value) -> void
 ChunkShift.Primitives.ManifestSchemaVersion.Equals(ChunkShift.Primitives.ManifestSchemaVersion other) -> bool
-ChunkShift.Primitives.ManifestSchemaVersion.Equals(object? obj) -> bool
-ChunkShift.Primitives.ManifestSchemaVersion.GetHashCode() -> int
+override ChunkShift.Primitives.ManifestSchemaVersion.Equals(object? obj) -> bool
+override ChunkShift.Primitives.ManifestSchemaVersion.GetHashCode() -> int
 ChunkShift.Primitives.ManifestSchemaVersion.IsDefault.get -> bool
-ChunkShift.Primitives.ManifestSchemaVersion.ToString() -> string!
+override ChunkShift.Primitives.ManifestSchemaVersion.ToString() -> string!
 ChunkShift.Primitives.ManifestSchemaVersion.Value.get -> string!
 static ChunkShift.Primitives.ManifestSchemaVersion.operator !=(ChunkShift.Primitives.ManifestSchemaVersion left, ChunkShift.Primitives.ManifestSchemaVersion right) -> bool
 static ChunkShift.Primitives.ManifestSchemaVersion.operator ==(ChunkShift.Primitives.ManifestSchemaVersion left, ChunkShift.Primitives.ManifestSchemaVersion right) -> bool
