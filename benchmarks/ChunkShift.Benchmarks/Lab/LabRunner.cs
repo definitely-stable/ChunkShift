@@ -77,11 +77,24 @@ public static class LabRunner
                 measurement.AllocatedBytes,
                 measurement.ProcessPeakRssBytes);
 
+            ChunkRecord[] streamingSourceChunks = LabChunker
+                .ChunkStreamingAsync(source, experiment, hashSuite)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+            ChunkRecord[] streamingTargetChunks = LabChunker
+                .ChunkStreamingAsync(mutation.Target, experiment, hashSuite)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+
             var evidence = new ExperimentEvidence(
                 LabEvidenceDigest.ComputeBytes(source),
                 LabEvidenceDigest.ComputeBytes(mutation.Target),
                 LabEvidenceDigest.ComputeChunkSequence(measurement.SourceChunks),
-                LabEvidenceDigest.ComputeChunkSequence(measurement.TargetChunks));
+                LabEvidenceDigest.ComputeChunkSequence(measurement.TargetChunks),
+                LabEvidenceDigest.ComputeChunkSequence(streamingSourceChunks),
+                LabEvidenceDigest.ComputeChunkSequence(streamingTargetChunks));
 
             results.Add(new ExperimentResult(
                 ExperimentFingerprint.Compute(experiment, entry),
