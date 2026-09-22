@@ -42,7 +42,11 @@ jobs:
           global-json-file: global.json
 
       - name: Restore
-        run: dotnet restore ChunkShift.slnx
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore ChunkShift.slnx
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
 
       - name: Build and test
         shell: bash
@@ -71,3 +75,28 @@ jobs:
       - name: Run NativeAOT smoke
         shell: bash
         run: ./artifacts/aot-publish/AotConsumer
+
+      - name: Build and test benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+          dotnet test benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-build --no-restore
+
+      - name: Run deterministic lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
+            lab \
+            --corpus benchmarks/corpus/corpus.v1.json \
+            --experiments benchmarks/experiments/experiments.v1.json \
+            --output "artifacts/benchmarks/lab-${{ matrix.rid }}.json"
+
+      - name: Upload lab result
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: benchmark-lab-${{ matrix.rid }}
+          path: artifacts/benchmarks/lab-${{ matrix.rid }}.json
+          if-no-files-found: error
+          retention-days: 30
