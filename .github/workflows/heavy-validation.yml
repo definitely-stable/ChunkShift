@@ -7,6 +7,11 @@ on:
     paths:
       - "benchmarks/**"
       - "docs/benchmarks/**"
+      - "src/ChunkShift/Hashing/**"
+      - "src/ChunkShift/Profiles/**"
+      - "docs/architecture/PROFILE-FINGERPRINT-V1.md"
+      - "docs/architecture/FASTCDC-*.md"
+      - "docs/architecture/FASTCDC-*.txt"
       - ".github/workflows/heavy-validation.yml"
   schedule:
     - cron: "17 3 * * 1"
