@@ -63,7 +63,7 @@ Completed semantic preflight: [#37](https://github.com/definitely-stable/ChunkSh
 
 Completed Core kernel implementation: [#4](https://github.com/definitely-stable/ChunkShift/issues/4) added scalar FastCDC/fixed reference kernels, bounded stream processing, HashSuite chunk identities, golden/segmentation tests and x64/ARM64 determinism; merged via PR #40.
 
-The next Core work can proceed in parallel: [#5](https://github.com/definitely-stable/ChunkShift/issues/5) CSM create/read/verify and [#16](https://github.com/definitely-stable/ChunkShift/issues/16) embedded raw scanner.
+Active post-#4 hardening: [#42](https://github.com/definitely-stable/ChunkShift/issues/42) fixes the confirmed FastCDC hot-loop allocation/evidence defects found by deep review. [#5](https://github.com/definitely-stable/ChunkShift/issues/5) and [#16](https://github.com/definitely-stable/ChunkShift/issues/16) start after #42 is green and merged.
 
 ## Critical path
 
@@ -76,6 +76,9 @@ The next Core work can proceed in parallel: [#5](https://github.com/definitely-s
                                     |
                                     v
                          #4 deterministic kernels
+                                    |
+                                    v
+                         #42 kernel hardening
                            /                 \
                           v                   v
                        #5 CSM             #16 scanner
