@@ -59,8 +59,8 @@ public class ProfileFingerprintComputerTests
     [InlineData("0", "-0.000e100")]
     public void EquivalentIntegerSpellings_AreCanonical(string firstNumber, string secondNumber)
     {
-        string first = $"""{"semantics":{"value":{{firstNumber}}}}""";
-        string second = $"""{"semantics":{"value":{{secondNumber}}}}""";
+        string first = "{\"semantics\":{\"value\":" + firstNumber + "}}";
+        string second = "{\"semantics\":{\"value\":" + secondNumber + "}}";
 
         Assert.Equal(Compute(first), Compute(second));
     }
@@ -73,7 +73,7 @@ public class ProfileFingerprintComputerTests
     [InlineData("-0.00000000000000000000000000001")]
     public void FractionalValuesBeyondDecimalPrecision_AreRejected(string number)
     {
-        string artifact = $"""{"semantics":{"value":{{number}}}}""";
+        string artifact = "{\"semantics\":{\"value\":" + number + "}}";
 
         Assert.Throws<FormatException>(() => Compute(artifact));
     }
@@ -83,7 +83,7 @@ public class ProfileFingerprintComputerTests
     [InlineData("1e-1025")]
     public void ExponentsOutsideResourceBound_AreRejected(string number)
     {
-        string artifact = $"""{"semantics":{"value":{{number}}}}""";
+        string artifact = "{\"semantics\":{\"value\":" + number + "}}";
 
         Assert.Throws<FormatException>(() => Compute(artifact));
     }
