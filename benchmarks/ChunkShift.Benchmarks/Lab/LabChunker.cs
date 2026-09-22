@@ -19,4 +19,14 @@ public static class LabChunker
             _ => throw new InvalidOperationException($"Unsupported lab algorithm '{experiment.Algorithm}'."),
         };
     }
+
+    public static int GetMaximumChunkSize(ExperimentDefinition experiment)
+    {
+        return experiment.Algorithm switch
+        {
+            FixedAlgorithm => experiment.ChunkSize,
+            FastCdcAlgorithm => checked(experiment.ChunkSize * 4),
+            _ => throw new InvalidOperationException($"Unsupported lab algorithm '{experiment.Algorithm}'."),
+        };
+    }
 }
