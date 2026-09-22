@@ -93,7 +93,29 @@ public static class MutationGenerator
             max = Math.Max(max, offset + 1);
         }
 
-        return new MutationResult(target, min, max, changes);
+        int actualChanges = 0;
+        min = source.Length;
+        max = 0;
+
+        for (int i = 0; i < source.Length; i++)
+        {
+            if (source[i] == target[i])
+            {
+                continue;
+            }
+
+            actualChanges++;
+            min = Math.Min(min, i);
+            max = Math.Max(max, i + 1);
+        }
+
+        if (actualChanges == 0)
+        {
+            min = 0;
+            max = 0;
+        }
+
+        return new MutationResult(target, min, max, actualChanges);
     }
 
     private static MutationResult Move(byte[] source, MutationDefinition definition)
