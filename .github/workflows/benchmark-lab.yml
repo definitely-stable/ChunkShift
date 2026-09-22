@@ -7,7 +7,9 @@ on:
       - "benchmarks/**"
       - "docs/benchmarks/**"
       - "src/ChunkShift/Hashing/**"
+      - "src/ChunkShift/Profiles/**"
       - "src/ChunkShift/Primitives/Hash256.cs"
+      - "docs/architecture/PROFILE-FINGERPRINT-V1.md"
       - "Directory.Packages.props"
       - ".github/workflows/benchmark-lab.yml"
       - ".github/workflows/heavy-validation.yml"
@@ -65,7 +67,7 @@ jobs:
           dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
             lab \
             --corpus benchmarks/corpus/corpus.v1.json \
-            --experiments benchmarks/experiments/experiments.v1.json \
+            --experiments benchmarks/experiments/experiments.v2.json \
             --output artifacts/benchmarks/lab-smoke.json
 
       - name: Upload result

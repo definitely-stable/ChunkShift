@@ -14,13 +14,15 @@ public static class FixedSizeReferenceChunker
             return Array.Empty<ChunkRecord>();
         }
 
-        int count = checked((data.Length + chunkSize - 1) / chunkSize);
+        int count = 1 + ((data.Length - 1) / chunkSize);
         var chunks = new ChunkRecord[count];
 
-        for (int index = 0, offset = 0; index < count; index++, offset += chunkSize)
+        for (int index = 0; index < count; index++)
         {
-            int length = Math.Min(chunkSize, data.Length - offset);
-            Hash256 id = HashSuiteHasher.Hash(hashSuite, data.Slice(offset, length));
+            long offset = checked((long)index * chunkSize);
+            int offsetInt = checked((int)offset);
+            int length = Math.Min(chunkSize, data.Length - offsetInt);
+            Hash256 id = HashSuiteHasher.Hash(hashSuite, data.Slice(offsetInt, length));
             chunks[index] = new ChunkRecord(offset, length, id);
         }
 

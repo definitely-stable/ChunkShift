@@ -11,13 +11,16 @@ public static class ExperimentFingerprint
         MutationDefinition? mutation = definition.Mutation;
         string canonical = string.Join(
             "\n",
-            "chunkshift.lab.experiment.v2",
+            "chunkshift.lab.experiment.v3",
             definition.Id,
             definition.CorpusId,
             corpus.Generator,
             corpus.GeneratorVersion.ToString(CultureInfo.InvariantCulture),
             corpus.SizeBytes.ToString(CultureInfo.InvariantCulture),
             corpus.Seed.ToString(CultureInfo.InvariantCulture),
+            definition.Algorithm,
+            definition.ProfileId,
+            definition.ProfileFingerprint,
             definition.ChunkSize.ToString(CultureInfo.InvariantCulture),
             definition.HashSuite,
             mutation?.Kind ?? "none",

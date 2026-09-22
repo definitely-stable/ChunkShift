@@ -52,6 +52,38 @@ public class MutationTests
     [Theory]
     [InlineData("overwrite")]
     [InlineData("localized-rewrite")]
+    public void OverwriteFamilyReportsActualChangedBytes(string kind)
+    {
+        MutationResult result = MutationGenerator.Apply(
+            Source,
+            new MutationDefinition(kind, 65536, 2011));
+
+        long actual = Source
+            .Zip(result.Target, static (left, right) => left != right ? 1L : 0L)
+            .Sum();
+
+        Assert.Equal(actual, result.LogicalChangedBytes);
+        Assert.InRange(actual, 1, 65536);
+    }
+
+    [Fact]
+    public void RandomRewriteReportsActualChangedBytesAfterRepeatedSelections()
+    {
+        MutationResult result = MutationGenerator.Apply(
+            Source,
+            new MutationDefinition("random-rewrite", 65536, 2012));
+
+        long actual = Source
+            .Zip(result.Target, static (left, right) => left != right ? 1L : 0L)
+            .Sum();
+
+        Assert.Equal(actual, result.LogicalChangedBytes);
+        Assert.InRange(actual, 1, 65536);
+    }
+
+    [Theory]
+    [InlineData("overwrite")]
+    [InlineData("localized-rewrite")]
     [InlineData("random-rewrite")]
     [InlineData("move")]
     [InlineData("reorder")]

@@ -18,6 +18,9 @@ public sealed record ExperimentManifest(int SchemaVersion, ExperimentDefinition[
 public sealed record ExperimentDefinition(
     string Id,
     string CorpusId,
+    string Algorithm,
+    string ProfileId,
+    string ProfileFingerprint,
     int ChunkSize,
     string HashSuite,
     MutationDefinition? Mutation);
@@ -33,7 +36,7 @@ public sealed record MutationResult(
     int AffectedTargetEnd,
     long LogicalChangedBytes);
 
-public readonly record struct ChunkRecord(int Offset, int Length, Hash256 Id);
+public readonly record struct ChunkRecord(long Offset, int Length, Hash256 Id);
 
 public sealed record LabMetrics(
     long SourceBytes,
@@ -108,6 +111,8 @@ public sealed record ExperimentResult(
     string ExperimentId,
     string CorpusId,
     string Algorithm,
+    string ProfileId,
+    string ProfileFingerprint,
     string HashSuite,
     MutationDefinition? Mutation,
     ExperimentEvidence Evidence,

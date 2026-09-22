@@ -1,9 +1,12 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "experiments": [
     {
       "id": "baseline-game-pak-8m",
       "corpusId": "game-pak-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": null
@@ -11,6 +14,9 @@
     {
       "id": "baseline-executable-app-8m",
       "corpusId": "executable-app-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": null
@@ -18,6 +24,9 @@
     {
       "id": "baseline-installer-archive-8m",
       "corpusId": "installer-archive-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": null
@@ -25,6 +34,9 @@
     {
       "id": "baseline-db-vm-8m",
       "corpusId": "db-vm-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": null
@@ -32,6 +44,9 @@
     {
       "id": "baseline-random-8m",
       "corpusId": "random-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": null
@@ -39,6 +54,9 @@
     {
       "id": "baseline-zero-8m",
       "corpusId": "zero-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": null
@@ -46,6 +64,9 @@
     {
       "id": "baseline-repeated-8m",
       "corpusId": "repeated-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": null
@@ -53,6 +74,9 @@
     {
       "id": "baseline-low-entropy-8m",
       "corpusId": "low-entropy-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": null
@@ -60,6 +84,9 @@
     {
       "id": "baseline-random-like-8m",
       "corpusId": "random-like-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": null
@@ -67,6 +94,9 @@
     {
       "id": "game-pak-insert-4k",
       "corpusId": "game-pak-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": {
@@ -78,6 +108,9 @@
     {
       "id": "game-pak-insert-64k",
       "corpusId": "game-pak-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": {
@@ -89,6 +122,9 @@
     {
       "id": "game-pak-delete-4k",
       "corpusId": "game-pak-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": {
@@ -100,6 +136,9 @@
     {
       "id": "game-pak-delete-64k",
       "corpusId": "game-pak-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": {
@@ -111,6 +150,9 @@
     {
       "id": "game-pak-overwrite-4k",
       "corpusId": "game-pak-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": {
@@ -122,6 +164,9 @@
     {
       "id": "game-pak-overwrite-64k",
       "corpusId": "game-pak-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": {
@@ -133,6 +178,9 @@
     {
       "id": "game-pak-prepend-4k",
       "corpusId": "game-pak-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": {
@@ -144,6 +192,9 @@
     {
       "id": "game-pak-append-4k",
       "corpusId": "game-pak-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": {
@@ -155,6 +206,9 @@
     {
       "id": "game-pak-move-64k",
       "corpusId": "game-pak-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": {
@@ -166,6 +220,9 @@
     {
       "id": "game-pak-reorder-64k",
       "corpusId": "game-pak-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": {
@@ -177,6 +234,9 @@
     {
       "id": "game-pak-localized-rewrite-256k",
       "corpusId": "game-pak-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": {
@@ -188,6 +248,9 @@
     {
       "id": "game-pak-random-rewrite-64k",
       "corpusId": "game-pak-8m",
+      "algorithm": "fixed.reference.v1",
+      "profileId": "fixed.v1.64k",
+      "profileFingerprint": "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
       "chunkSize": 65536,
       "hashSuite": "chunkshift.blake3-256.v1",
       "mutation": {

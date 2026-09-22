@@ -115,4 +115,118 @@ public class MetricsTests
     {
         Assert.Null(DistributionCalculator.Summarize(new long?[] { null, null }));
     }
+
+    [Fact]
+    public void BoundarySurvivalIsOccurrenceAwareForRepeatedPairs()
+    {
+        ChunkRecord[] source =
+        [
+            Chunk(0, 4, 1),
+            Chunk(4, 4, 2),
+            Chunk(8, 4, 1),
+            Chunk(12, 4, 2),
+        ];
+
+        ChunkRecord[] target =
+        [
+            Chunk(0, 4, 1),
+            Chunk(4, 4, 2),
+            Chunk(8, 4, 9),
+            Chunk(12, 4, 8),
+        ];
+
+        LabMetrics metrics = MetricsCalculator.Create(
+            source,
+            target,
+            new MutationResult(new byte[16], 8, 16, 8),
+            4,
+            16,
+            16,
+            32,
+            1,
+            1,
+            0,
+            0);
+
+        Assert.Equal(1d / 3d, metrics.BoundarySurvival, precision: 12);
+    }
+
+    [Fact]
+    public void ResynchronizationDoesNotAcceptAnUnrelatedRepeatedPair()
+    {
+        ChunkRecord[] source =
+        [
+            Chunk(0, 4, 1),
+            Chunk(4, 4, 2),
+            Chunk(8, 4, 3),
+            Chunk(12, 4, 4),
+        ];
+
+        ChunkRecord[] target =
+        [
+            Chunk(0, 4, 9),
+            Chunk(4, 4, 2),
+            Chunk(8, 4, 3),
+            Chunk(12, 4, 8),
+        ];
+
+        LabMetrics metrics = MetricsCalculator.Create(
+            source,
+            target,
+            new MutationResult(new byte[16], 0, 4, 4),
+            4,
+            16,
+            16,
+            32,
+            1,
+            1,
+            0,
+            0);
+
+        Assert.Null(metrics.ResynchronizationDistanceBytes);
+    }
+
+    [Fact]
+    public void ResynchronizationAcceptsAFullMatchingSuffix()
+    {
+        ChunkRecord[] source =
+        [
+            Chunk(0, 4, 1),
+            Chunk(4, 4, 2),
+            Chunk(8, 4, 3),
+            Chunk(12, 4, 4),
+        ];
+
+        ChunkRecord[] target =
+        [
+            Chunk(0, 4, 9),
+            Chunk(4, 4, 2),
+            Chunk(8, 4, 3),
+            Chunk(12, 4, 4),
+        ];
+
+        LabMetrics metrics = MetricsCalculator.Create(
+            source,
+            target,
+            new MutationResult(new byte[16], 0, 4, 4),
+            4,
+            16,
+            16,
+            32,
+            1,
+            1,
+            0,
+            0);
+
+        Assert.Equal(0, metrics.ResynchronizationDistanceBytes);
+    }
+
+    private static ChunkRecord Chunk(long offset, int length, byte fill)
+    {
+        return new ChunkRecord(
+            offset,
+            length,
+            Hash256.FromBytes(Enumerable.Repeat(fill, 32).ToArray()));
+    }
+
 }

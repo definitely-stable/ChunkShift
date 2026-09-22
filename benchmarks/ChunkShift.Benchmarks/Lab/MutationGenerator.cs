@@ -69,7 +69,7 @@ public static class MutationGenerator
         var random = new DeterministicPrng(definition.Seed ^ (localized ? 0x10CA1UL : 0x0A11UL));
         random.Fill(target.AsSpan(offset, size));
 
-        return new MutationResult(target, offset, checked(offset + size), size);
+        return MeasureActualSameLengthChanges(source, target);
     }
 
     private static MutationResult RandomRewrite(byte[] source, MutationDefinition definition)
@@ -93,7 +93,7 @@ public static class MutationGenerator
             max = Math.Max(max, offset + 1);
         }
 
-        return new MutationResult(target, min, max, changes);
+        return MeasureActualSameLengthChanges(source, target);
     }
 
     private static MutationResult Move(byte[] source, MutationDefinition definition)
@@ -163,6 +163,37 @@ public static class MutationGenerator
             Math.Min(firstOffset, secondOffset),
             checked(Math.Max(firstOffset, secondOffset) + blockSize),
             checked(blockSize * 2L));
+    }
+
+    private static MutationResult MeasureActualSameLengthChanges(byte[] source, byte[] target)
+    {
+        if (source.Length != target.Length)
+        {
+            throw new ArgumentException("Actual same-length change measurement requires equal source and target lengths.");
+        }
+
+        int actualChanges = 0;
+        int min = source.Length;
+        int max = 0;
+
+        for (int i = 0; i < source.Length; i++)
+        {
+            if (source[i] == target[i])
+            {
+                continue;
+            }
+
+            actualChanges++;
+            min = Math.Min(min, i);
+            max = Math.Max(max, i + 1);
+        }
+
+        if (actualChanges == 0)
+        {
+            min = 0;
+        }
+
+        return new MutationResult(target, min, max, actualChanges);
     }
 
     private static int ResolveOffset(int exclusiveMax, ulong seed)

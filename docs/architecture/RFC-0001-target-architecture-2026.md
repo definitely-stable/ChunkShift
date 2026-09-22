@@ -141,7 +141,7 @@ chunkshift.blake3-256.v1  -> default
 chunkshift.sha256.v1      -> compatibility/compliance
 ```
 
-The repository or manifest selects one 256-bit HashSuite. Hash selection is independent of chunking profile.
+The repository or manifest selects one 256-bit HashSuite for content/manifest identities. Hash selection is independent of chunking profile. ProfileFingerprint v1 uses a fixed SHA-256 identity function and therefore does not vary with the selected content HashSuite.
 
 ### 4.3 Profile identity
 
@@ -155,7 +155,7 @@ Target direction:
 
 ```text
 ProfileFingerprint =
-  H(domain || canonical semantic profile parameters)
+  SHA-256(domain || canonical semantic profile parameters)
 ```
 
 Whitespace, JSON property order and documentation edits must not change an algorithm identity.

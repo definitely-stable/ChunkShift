@@ -4,7 +4,7 @@ using System.Buffers.Binary;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
-using ChunkShift.Hashing;
+using System.Security.Cryptography;
 using ChunkShift.Primitives;
 
 namespace ChunkShift.Profiles;
@@ -20,7 +20,7 @@ internal static class ProfileFingerprintComputer
 
     private static ReadOnlySpan<byte> Domain => "chunkshift.profile-fingerprint.v1\0"u8;
 
-    public static ProfileFingerprint Compute(HashSuiteId hashSuite, ReadOnlySpan<byte> profileArtifactUtf8)
+    public static ProfileFingerprint Compute(ReadOnlySpan<byte> profileArtifactUtf8)
     {
         using var document = JsonDocument.Parse(profileArtifactUtf8.ToArray());
 
@@ -35,7 +35,9 @@ internal static class ProfileFingerprintComputer
         WriteBytes(writer, Domain);
         WriteElement(writer, semantics);
 
-        return new ProfileFingerprint(HashSuiteHasher.Hash(hashSuite, writer.WrittenSpan));
+        Span<byte> digest = stackalloc byte[32];
+        SHA256.HashData(writer.WrittenSpan, digest);
+        return new ProfileFingerprint(Hash256.FromBytes(digest));
     }
 
     private static void WriteElement(ArrayBufferWriter<byte> writer, JsonElement element)

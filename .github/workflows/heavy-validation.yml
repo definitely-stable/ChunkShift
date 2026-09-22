@@ -7,6 +7,11 @@ on:
     paths:
       - "benchmarks/**"
       - "docs/benchmarks/**"
+      - "src/ChunkShift/Hashing/**"
+      - "src/ChunkShift/Profiles/**"
+      - "docs/architecture/PROFILE-FINGERPRINT-V1.md"
+      - "docs/architecture/FASTCDC-*.md"
+      - "docs/architecture/FASTCDC-*.txt"
       - ".github/workflows/heavy-validation.yml"
   schedule:
     - cron: "17 3 * * 1"
@@ -96,7 +101,7 @@ jobs:
           dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
             lab \
             --corpus benchmarks/corpus/corpus.v1.json \
-            --experiments benchmarks/experiments/experiments.v1.json \
+            --experiments benchmarks/experiments/experiments.v2.json \
             --output "artifacts/benchmarks/lab-${{ matrix.rid }}.json"
 
       - name: Upload lab result
@@ -106,3 +111,44 @@ jobs:
           path: artifacts/benchmarks/lab-${{ matrix.rid }}.json
           if-no-files-found: error
           retention-days: 30
+
+  determinism:
+    name: cross-arch-determinism
+    needs: native
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore benchmark lab
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+
+      - name: Build benchmark lab
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Download x64 evidence
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: benchmark-lab-linux-x64
+          path: artifacts/compare/x64
+
+      - name: Download arm64 evidence
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: benchmark-lab-linux-arm64
+          path: artifacts/compare/arm64
+
+      - name: Compare deterministic evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
+            compare \
+            --left artifacts/compare/x64/lab-linux-x64.json \
+            --right artifacts/compare/arm64/lab-linux-arm64.json

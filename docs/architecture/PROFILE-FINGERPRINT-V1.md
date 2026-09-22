@@ -15,26 +15,17 @@ Fields such as profile description, documentation, comments stored outside `sema
 
 ```text
 ProfileFingerprint =
-  HashSuite.Hash(
+  SHA-256(
     UTF8("chunkshift.profile-fingerprint.v1\0")
     || CanonicalSemanticValue(profile.semantics)
   )
 ```
 
-The manifest/repository selects one `HashSuiteId`. The same selected suite is used for profile fingerprinting and the other logical identities governed by that manifest/repository.
+ProfileFingerprint v1 deliberately uses fixed SHA-256 as its identity function. It is metadata identity, not a content-hashing hot path.
 
-Hash-suite selection is orthogonal to `ChunkingProfileId`.
+The manifest/repository-selected `HashSuiteId` therefore does **not** change the fingerprint of the same chunking-profile semantics. HashSuite selection remains orthogonal to `ChunkingProfileId` and `ProfileFingerprint`.
 
-## Hash suites
-
-M0 defines these stable identifiers:
-
-```text
-chunkshift.blake3-256.v1  # default
-chunkshift.sha256.v1      # compatibility/compliance
-```
-
-Both produce exactly 256 persistent bits.
+Content identities such as ChunkId/ContentId/ManifestId continue to use the selected HashSuite where their specifications say so.
 
 ## Canonical semantic encoding
 

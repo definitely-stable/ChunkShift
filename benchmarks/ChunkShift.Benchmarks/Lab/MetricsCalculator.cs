@@ -33,7 +33,6 @@ public static class MetricsCalculator
             .Sum(static group => (long)group.First().Length);
 
         double reuseRatio = targetBytes == 0 ? 1 : reusedBytes / (double)targetBytes;
-
         double boundarySurvival = ComputeBoundarySurvival(source, target);
         long? resync = ComputeResynchronizationDistance(source, target, mutation.AffectedTargetEnd);
 
@@ -83,18 +82,31 @@ public static class MetricsCalculator
             return 1;
         }
 
-        var targetBoundaries = new HashSet<(ChunkShift.Primitives.Hash256 Left, ChunkShift.Primitives.Hash256 Right)>();
+        var targetOccurrences = new Dictionary<BoundarySignature, int>();
         for (int i = 1; i < target.Length; i++)
         {
-            targetBoundaries.Add((target[i - 1].Id, target[i].Id));
+            BoundarySignature signature = CreateBoundary(target[i - 1], target[i]);
+            targetOccurrences.TryGetValue(signature, out int count);
+            targetOccurrences[signature] = checked(count + 1);
         }
 
         int survived = 0;
         for (int i = 1; i < source.Length; i++)
         {
-            if (targetBoundaries.Contains((source[i - 1].Id, source[i].Id)))
+            BoundarySignature signature = CreateBoundary(source[i - 1], source[i]);
+            if (!targetOccurrences.TryGetValue(signature, out int remaining) || remaining == 0)
             {
-                survived++;
+                continue;
+            }
+
+            survived++;
+            if (remaining == 1)
+            {
+                targetOccurrences.Remove(signature);
+            }
+            else
+            {
+                targetOccurrences[signature] = remaining - 1;
             }
         }
 
@@ -106,31 +118,67 @@ public static class MetricsCalculator
         ChunkRecord[] target,
         int affectedTargetEnd)
     {
-        if (affectedTargetEnd >= target.Sum(static chunk => chunk.Length) || source.Length <= 1)
+        long targetBytes = target.Length == 0
+            ? 0
+            : checked(target[^1].Offset + target[^1].Length);
+
+        if (affectedTargetEnd >= targetBytes || source.Length == 0 || target.Length == 0)
         {
             return null;
         }
 
-        var sourceBoundaries = new HashSet<(ChunkShift.Primitives.Hash256 Left, ChunkShift.Primitives.Hash256 Right)>();
-        for (int i = 1; i < source.Length; i++)
+        for (int targetIndex = 1; targetIndex < target.Length; targetIndex++)
         {
-            sourceBoundaries.Add((source[i - 1].Id, source[i].Id));
-        }
-
-        for (int i = 1; i < target.Length; i++)
-        {
-            if (target[i].Offset < affectedTargetEnd)
+            if (target[targetIndex].Offset < affectedTargetEnd)
             {
                 continue;
             }
 
-            if (sourceBoundaries.Contains((target[i - 1].Id, target[i].Id)))
+            int remainingTarget = target.Length - targetIndex;
+
+            for (int sourceIndex = 0; sourceIndex < source.Length; sourceIndex++)
             {
-                return target[i].Offset - (long)affectedTargetEnd;
+                if (source.Length - sourceIndex != remainingTarget)
+                {
+                    continue;
+                }
+
+                if (SuffixEquals(source, sourceIndex, target, targetIndex))
+                {
+                    return target[targetIndex].Offset - affectedTargetEnd;
+                }
             }
         }
 
         return null;
+    }
+
+    private static bool SuffixEquals(
+        ChunkRecord[] source,
+        int sourceIndex,
+        ChunkRecord[] target,
+        int targetIndex)
+    {
+        while (sourceIndex < source.Length && targetIndex < target.Length)
+        {
+            ChunkRecord left = source[sourceIndex];
+            ChunkRecord right = target[targetIndex];
+
+            if (left.Id != right.Id || left.Length != right.Length)
+            {
+                return false;
+            }
+
+            sourceIndex++;
+            targetIndex++;
+        }
+
+        return sourceIndex == source.Length && targetIndex == target.Length;
+    }
+
+    private static BoundarySignature CreateBoundary(ChunkRecord left, ChunkRecord right)
+    {
+        return new BoundarySignature(left.Id, left.Length, right.Id, right.Length);
     }
 
     private static int Percentile(int[] sorted, double percentile)
@@ -143,4 +191,10 @@ public static class MetricsCalculator
         int index = (int)Math.Ceiling(percentile * sorted.Length) - 1;
         return sorted[Math.Clamp(index, 0, sorted.Length - 1)];
     }
+
+    private readonly record struct BoundarySignature(
+        ChunkShift.Primitives.Hash256 LeftId,
+        int LeftLength,
+        ChunkShift.Primitives.Hash256 RightId,
+        int RightLength);
 }

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using ChunkShift.Primitives;
+using ChunkShift.Profiles;
 
 namespace ChunkShift.Benchmarks.Lab;
 
@@ -29,7 +30,7 @@ public static class LabRunner
         CorpusManifest corpus = Load<CorpusManifest>(corpusPath!);
         ExperimentManifest experiments = Load<ExperimentManifest>(experimentsPath!);
 
-        if (corpus.SchemaVersion != 1 || experiments.SchemaVersion != 1)
+        if (corpus.SchemaVersion != 1 || experiments.SchemaVersion != 2)
         {
             throw new InvalidOperationException("Unsupported benchmark manifest schema.");
         }
@@ -46,6 +47,7 @@ public static class LabRunner
                 throw new InvalidOperationException($"Unknown corpus id '{experiment.CorpusId}'.");
             }
 
+            ValidateExperimentProfile(experiment);
             HashSuiteId hashSuite = ParseHashSuite(experiment.HashSuite);
             byte[] source = CorpusGenerator.Generate(entry);
             MutationResult mutation = experiment.Mutation is null
@@ -85,7 +87,9 @@ public static class LabRunner
                 ExperimentFingerprint.Compute(experiment, entry),
                 experiment.Id,
                 experiment.CorpusId,
-                "fixed.reference.v1",
+                experiment.Algorithm,
+                experiment.ProfileId,
+                experiment.ProfileFingerprint,
                 experiment.HashSuite,
                 experiment.Mutation,
                 evidence,
@@ -93,14 +97,14 @@ public static class LabRunner
                 metrics));
 
             Console.WriteLine(
-                $"{experiment.Id}: {metrics.GiBPerSecond:F3} GiB/s, reuse={metrics.ReuseRatio:P2}, " +
+                $"{experiment.Id} [{experiment.ProfileId}]: {metrics.GiBPerSecond:F3} GiB/s, reuse={metrics.ReuseRatio:P2}, " +
                 $"amplification={metrics.ChangeAmplification:F3}");
         }
 
         LabSummary summary = CreateSummary(results);
 
         var run = new LabRun(
-            2,
+            3,
             DateTimeOffset.UtcNow,
             new MeasurementProtocol(
                 WarmupIterations,
@@ -250,6 +254,32 @@ public static class LabRunner
         string json = File.ReadAllText(path);
         return JsonSerializer.Deserialize<T>(json, JsonOptions)
             ?? throw new InvalidOperationException($"Could not parse '{path}'.");
+    }
+
+    private static void ValidateExperimentProfile(ExperimentDefinition experiment)
+    {
+        if (!string.Equals(experiment.Algorithm, "fixed.reference.v1", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Unsupported lab algorithm '{experiment.Algorithm}'. #4 must add an explicit adapter before a new algorithm can run.");
+        }
+
+        string semanticArtifact =
+            "{\"semantics\":{\"algorithm\":\"fixed\",\"version\":1,\"size\":" +
+            experiment.ChunkSize.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+            "}}";
+
+        string actualFingerprint = ProfileFingerprintComputer
+            .Compute(System.Text.Encoding.UTF8.GetBytes(semanticArtifact))
+            .ToString();
+
+        if (!string.Equals(actualFingerprint, experiment.ProfileFingerprint, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Experiment '{experiment.Id}' profile fingerprint does not match its effective fixed-size semantics.");
+        }
+
+        _ = new ChunkingProfileId(experiment.ProfileId);
     }
 
     private static HashSuiteId ParseHashSuite(string value)

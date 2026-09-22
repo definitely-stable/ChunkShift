@@ -26,6 +26,11 @@ internal static class Program
             return LabRunner.Run(args[1..]);
         }
 
+        if (string.Equals(mode, "compare", StringComparison.OrdinalIgnoreCase))
+        {
+            return LabDeterminismComparer.Run(args[1..]);
+        }
+
         PrintUsage();
         return 2;
     }
@@ -35,5 +40,6 @@ internal static class Program
         Console.WriteLine("ChunkShift benchmark lab");
         Console.WriteLine("  micro [BenchmarkDotNet options]");
         Console.WriteLine("  lab --corpus <manifest.json> --experiments <experiments.json> --output <result.json>");
+        Console.WriteLine("  compare --left <lab.json> --right <lab.json>");
     }
 }
