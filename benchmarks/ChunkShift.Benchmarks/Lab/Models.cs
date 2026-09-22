@@ -61,6 +61,21 @@ public sealed record LabMetrics(
     long? BranchMispredictions,
     long? CacheMisses);
 
+public sealed record MeasurementProtocol(
+    int WarmupIterations,
+    int MeasurementIterations,
+    string Aggregation);
+
+public sealed record DistributionSummary(
+    int Count,
+    long P50,
+    long P95,
+    long P99,
+    long Max);
+
+public sealed record LabSummary(
+    DistributionSummary? ResynchronizationDistanceBytes);
+
 public sealed record EnvironmentSnapshot(
     string OsDescription,
     string OsArchitecture,
@@ -81,5 +96,7 @@ public sealed record ExperimentResult(
 public sealed record LabRun(
     int SchemaVersion,
     DateTimeOffset GeneratedUtc,
+    MeasurementProtocol Measurement,
     EnvironmentSnapshot Environment,
+    LabSummary Summary,
     ExperimentResult[] Results);
