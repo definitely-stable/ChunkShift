@@ -121,6 +121,8 @@ Exit met by PR #38: #4 can be implemented without choosing any known hidden pers
 
 Goal: one canonical deterministic chunk/hash kernel used by every later Core path.
 
+Post-#4 hardening issue #42 owns confirmed implementation/evidence defects found by deep review before #5/#16 treat this kernel as production-ready.
+
 Deliverables:
 
 - scalar FastCDC reference candidate;
@@ -143,7 +145,7 @@ Required correctness:
 
 Required measurements:
 
-- 64/128/256 KiB actual-mean candidates;
+- 64/128/256 KiB nominal target candidates, while recording empirical actual means;
 - fixed-size baseline;
 - BLAKE3 vs SHA-256;
 - throughput, CPU, allocations, bytes copied;
