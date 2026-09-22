@@ -1,6 +1,6 @@
 # ChunkShift 2026 implementation plan
 
-Status: Proposed  
+Status: Active  
 Architecture authority: [RFC-0001: ChunkShift Target Architecture 2026](docs/architecture/RFC-0001-target-architecture-2026.md) and [RFC-0002: Embedded Chunk Stream API and ASP.NET Core Integration](docs/architecture/RFC-0002-embedded-sdk-aspnet-core.md)  
 Program roadmap: [ROADMAP.md](ROADMAP.md)  
 Release policy: [docs/RELEASES.md](docs/RELEASES.md)
