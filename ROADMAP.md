@@ -114,10 +114,10 @@ The main critical path is:
  v                  v
 #5 CSM           #16 raw chunk-stream API
  |                  |
+ |                  v
+ |               #20 API bake-off and evidence
+ |                  |
  +--------+---------+
-          |
-          v
-#20 API bake-off and evidence
           |
           v
 #6 minimal Core public API + NativeAOT candidate
@@ -181,7 +181,7 @@ Remove ambiguity from identities and build the lab that every later architecture
 
 ### Why M0 is first
 
-Without [#2](https://github.com/definitely-stable/ChunkShift/issues/2), persisted identities can freeze the wrong semantics. Without [#3](https://github.com/definitely-stable/ChunkShift/issues/3), chunking, hashing, API and profile choices become opinion-driven and cannot be defended before 1.0.
+Without [#2](https://github.com/definitely-stable/ChunkShift/issues/2), persisted identities can freeze the wrong semantics. Without [#3](https://github.com/definitely-stable/ChunkShift/issues/3), chunking, hashing, API and profile choices become opinion-driven and cannot be defended before the first public release.
 
 ### Exit evidence
 
@@ -326,7 +326,7 @@ This is the release-readiness gate for the first public release:
 
 - `ChunkShift 0.1.0`;
 - `ChunkShift.Patching 0.1.0`;
-- stable `ChunkShift.Cli` contracts.
+- public `ChunkShift.Cli` baseline.
 
 Repository and ASP.NET integration packages do not have to be stable here.
 
@@ -480,7 +480,7 @@ M6 lifecycle-safe repository
 M7 remote-distribution evidence
         |
         v
-Repository 1.0 eligibility
+Repository public-release eligibility
 ```
 
 ## 17. What to work on next
@@ -494,7 +494,7 @@ Unless an issue uncovers a P0 architecture contradiction, execution should begin
 5. close [#6](https://github.com/definitely-stable/ChunkShift/issues/6) only after [#20](https://github.com/definitely-stable/ChunkShift/issues/20) evidence exists;
 6. implement [#7](https://github.com/definitely-stable/ChunkShift/issues/7) and validate the first full local patch loop;
 7. run [#17](https://github.com/definitely-stable/ChunkShift/issues/17) before public API freeze;
-8. run [#8](https://github.com/definitely-stable/ChunkShift/issues/8) and [#9](https://github.com/definitely-stable/ChunkShift/issues/9) as the final Core/Patching 1.0 evidence gate;
+8. run [#8](https://github.com/definitely-stable/ChunkShift/issues/8) and [#9](https://github.com/definitely-stable/ChunkShift/issues/9) as the final Core/Patching `0.1.0` evidence gate;
 9. only then make Repository M4+ the main implementation line.
 
 That sequence is the default plan. Deviations should be recorded in issue [#1](https://github.com/definitely-stable/ChunkShift/issues/1) or an architecture decision when they materially affect dependencies or compatibility.
