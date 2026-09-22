@@ -215,3 +215,15 @@ The scheduled heavy-validation matrix runs the same lab on Linux x64 and Linux A
 The checked-in M1 FastCDC presets are named by their **nominal target parameter**, not by measured mean chunk size. Their empirical mean depends on corpus and mask behavior.
 
 Do not compare fixed 64/128/256 KiB controls against FastCDC nominal targets as if their actual means were equal. Issue #8 owns calibration to comparable empirical actual means before profile-quality decisions.
+
+
+## Chunk hash strategy evidence
+
+Before #5 chooses a metadata-only CSM pipeline topology, the benchmark project compares:
+
+- one-shot BLAKE3 over each complete discovered chunk;
+- incremental BLAKE3 fed in 16 KiB segments over the same exact chunk boundaries.
+
+The `hash-strategy-micro` CI job captures BenchmarkDotNet artifacts for this comparison. The job is evidence capture, not a fixed throughput-threshold gate; shared-runner deltas are interpreted conservatively.
+
+This benchmark isolates hashing API/topology overhead. It does **not** by itself prove that a metadata-only streaming CSM path is faster, because avoiding the scanner's full-chunk payload buffer also changes copy behavior. #5 must consider both hash-strategy results and stream/copy topology before choosing its internal pipeline.
