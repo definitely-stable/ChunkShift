@@ -7,7 +7,8 @@ Architecture authority: [RFC-0001](docs/architecture/RFC-0001-target-architectur
 Program tracker: [#1](https://github.com/definitely-stable/ChunkShift/issues/1)  
 Release policy: [docs/RELEASES.md](docs/RELEASES.md)  
 Contribution policy: [CONTRIBUTING.md](CONTRIBUTING.md)  
-Repository hardening tracker: [#25](https://github.com/definitely-stable/ChunkShift/issues/25)
+Repository hardening tracker: [#25](https://github.com/definitely-stable/ChunkShift/issues/25)  
+M0 measurement methodology: [docs/benchmarks/M0-LAB.md](docs/benchmarks/M0-LAB.md)
 
 This document is the project-level delivery map. It answers **what becomes usable when, what blocks the next stage, and what evidence is required to advance**.
 
