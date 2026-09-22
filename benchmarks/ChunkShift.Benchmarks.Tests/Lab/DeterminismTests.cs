@@ -44,6 +44,9 @@ public class DeterminismTests
         var definition = new ExperimentDefinition(
             "exp-1",
             "corpus-1",
+            "fixed.reference.v1",
+            "fixed.v1.64k",
+            "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
             65536,
             "chunkshift.blake3-256.v1",
             new MutationDefinition("insert", 4096, 42));
@@ -70,6 +73,12 @@ public class DeterminismTests
         Assert.NotEqual(
             baseline,
             ExperimentFingerprint.Compute(definition, corpus with { GeneratorVersion = 2 }));
+        Assert.NotEqual(
+            baseline,
+            ExperimentFingerprint.Compute(definition with { Algorithm = "fastcdc.reference.v1" }, corpus));
+        Assert.NotEqual(
+            baseline,
+            ExperimentFingerprint.Compute(definition with { ProfileFingerprint = new string('0', 64) }, corpus));
     }
 
     [Fact]
