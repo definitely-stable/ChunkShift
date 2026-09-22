@@ -33,7 +33,8 @@ The current architecture sources of truth are:
 
 - [RFC-0001 — ChunkShift Target Architecture 2026](docs/architecture/RFC-0001-target-architecture-2026.md)
 - [RFC-0002 — Embedded Chunk Stream API and ASP.NET Core Integration](docs/architecture/RFC-0002-embedded-sdk-aspnet-core.md)
-- [PLAN.md](PLAN.md)
+- [ROADMAP.md](ROADMAP.md) — program sequence, release gates and current critical path
+- [PLAN.md](PLAN.md) — milestone deliverables, tests, benchmarks and exit criteria
 
 The low-level raw chunk-stream API is intentionally **not frozen yet**. A callback with borrowed `ReadOnlyMemory<byte>` is the leading candidate, but issue [#20](https://github.com/definitely-stable/ChunkShift/issues/20) must compare push/pull, contiguous/segmented payload and Task/ValueTask alternatives before public v1.
 
