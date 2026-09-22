@@ -59,7 +59,7 @@ Completed corrective preparation:
 
 - [#33](https://github.com/definitely-stable/ChunkShift/issues/33) — exact profile numeric canonicalization, stronger benchmark evidence and Core-first release correction; merged via PR #35.
 
-Active semantic preflight: [#37](https://github.com/definitely-stable/ChunkShift/issues/37) hardens measurement-oracle correctness, FastCDC semantics and cross-architecture determinism. [#4](https://github.com/definitely-stable/ChunkShift/issues/4) starts after #37 closes.
+Completed semantic preflight: [#37](https://github.com/definitely-stable/ChunkShift/issues/37) hardened measurement-oracle correctness, exact FastCDC candidate semantics and x64/ARM64 deterministic evidence; merged via PR #38. The next critical-path implementation is [#4](https://github.com/definitely-stable/ChunkShift/issues/4).
 
 ## Critical path
 
