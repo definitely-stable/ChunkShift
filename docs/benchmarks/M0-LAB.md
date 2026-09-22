@@ -1,0 +1,191 @@
+# M0 benchmark lab
+
+Status: Active M0 measurement infrastructure  
+Issue: #3  
+Last reviewed: 2026-09-22
+
+The benchmark lab exists to make algorithm/profile decisions evidence-driven before M1/M3 freeze anything.
+
+It has two modes:
+
+```text
+micro -> BenchmarkDotNet microbenchmarks
+lab   -> deterministic end-to-end corpus/mutation experiments
+```
+
+## Microbenchmarks
+
+Run:
+
+```bash
+dotnet run --project benchmarks/ChunkShift.Benchmarks -c Release -- micro --filter '*HashSuite*'
+```
+
+For supported environments, BenchmarkDotNet hardware counters can be requested explicitly:
+
+```bash
+dotnet run --project benchmarks/ChunkShift.Benchmarks -c Release -- micro \
+  --filter '*HashSuite*' \
+  --counters CacheMisses+BranchMispredictions+TotalCycles
+```
+
+Hardware counters are environment capabilities, not guaranteed portable fields. Do not substitute invented zero values when a runner cannot expose them.
+
+The initial microbenchmark compares the production/reference HashSuite dispatch for SHA-256 and BLAKE3 at 4 KiB, 64 KiB and 1 MiB inputs. CDC kernels are added by #4 rather than reimplemented inside the lab.
+
+## End-to-end lab
+
+Run:
+
+```bash
+dotnet run --project benchmarks/ChunkShift.Benchmarks -c Release -- lab \
+  --corpus benchmarks/corpus/corpus.v1.json \
+  --experiments benchmarks/experiments/experiments.v1.json \
+  --output artifacts/benchmarks/lab.json
+```
+
+The checked-in corpus contains deterministic synthetic proxies. They are for reproducibility, CI and pathological coverage; they are **not** sufficient evidence for final product profile selection.
+
+Final CDC/profile decisions must additionally run against locally/licensably obtained real product corpora representing game/PAK assets, application bundles, installers/archives and DB/VM/data workloads. Large real corpora must not be committed to Git.
+
+## Deterministic generation
+
+Synthetic data uses a specified SplitMix64 generator rather than `System.Random`, so runtime changes cannot silently change benchmark bytes.
+
+The corpus manifest records:
+
+- corpus id;
+- workload category;
+- generator;
+- byte size;
+- seed;
+- provenance.
+
+The experiment definition records:
+
+- experiment id;
+- corpus id;
+- reference chunk size/profile input;
+- HashSuiteId;
+- mutation kind/size/seed.
+
+Every experiment receives a SHA-256 definition fingerprint. x64/ARM64 result files are comparable only when this fingerprint is identical.
+
+## Mutations
+
+The v1 matrix covers:
+
+- insert;
+- delete;
+- overwrite;
+- prepend;
+- append;
+- move;
+- reorder;
+- localized rewrite;
+- random rewrite.
+
+Insert/delete/overwrite are represented at multiple sizes in the checked-in experiment matrix.
+
+## Current reference algorithm
+
+M0 uses `fixed.reference.v1` only to validate the measurement machinery.
+
+It is **not** a stable ChunkShift profile and is not evidence that fixed-size chunking is preferred.
+
+M1/#4 plugs FastCDC/reference candidates into the same layout/metric model.
+
+## Metrics
+
+Before each experiment, the exact source/target workload is warmed up three times. Each experiment is then measured five times; wall time, CPU time and managed-allocation deltas use the median sample. The measurement protocol is recorded in every result file so cross-run comparisons cannot silently mix protocols.
+
+The portable JSON result contains:
+
+- source/target/measured bytes;
+- wall-clock seconds;
+- process CPU seconds;
+- GiB/s;
+- process-wide managed allocation delta;
+- process lifetime peak RSS;
+- actual mean chunk size;
+- p50/p95/p99/max chunk length;
+- max-cut rate;
+- reuse ratio;
+- Resynchronization Distance;
+- Boundary Survival;
+- Change Amplification;
+- new payload bytes as the pre-CSP lower-bound patch payload;
+- logical manifest bytes and bytes per source GiB;
+- optional index bytes;
+- nullable CPU cycles/byte, branch mispredictions and cache misses.
+
+The nullable hardware fields are deliberately null in the portable system runner unless a platform-specific collector supplies trustworthy values. BenchmarkDotNet is the current hardware-counter collection path.
+
+### Reuse ratio
+
+```text
+bytes in target chunks whose ChunkId exists in source
+------------------------------------------------------
+                   target bytes
+```
+
+This is a content-reuse metric, not a final repository availability proof.
+
+### Boundary Survival
+
+For the current generic evaluator, a boundary is represented by the adjacent pair:
+
+```text
+(left ChunkId, right ChunkId)
+```
+
+Boundary Survival is the fraction of source adjacent pairs that also occur in the target layout. This survives global offset shifts better than comparing raw offsets.
+
+### Resynchronization Distance
+
+After the mutation's affected target range, the evaluator searches for the first target boundary whose adjacent ChunkId pair exists in the source layout.
+
+The reported distance is:
+
+```text
+first re-established boundary offset - affected target end
+```
+
+No value is reported when there is no post-mutation region (for example, some append cases) or no re-established adjacency.
+
+The run summary additionally reports Resynchronization Distance p50/p95/p99/max across all available mutation observations and grouped by mutation kind. The checked-in smoke matrix has only a small number of traces per kind; profile-selection evidence must add repeated deterministic traces before treating those percentiles as statistically representative.
+
+### Change Amplification
+
+```text
+new target chunk payload bytes
+------------------------------
+ logical mutation bytes
+```
+
+The exact mutation-byte denominator is recorded by the deterministic mutation generator.
+
+### Patch bytes
+
+Before CSP exists, `PatchPayloadBytes` is only the lower-bound new chunk payload. CSP framing/index/metadata overhead is not fabricated. Once #7 supplies CSP, the lab records actual patch bytes separately.
+
+### Manifest/index bytes
+
+Before CSM/index implementations exist:
+
+- logical manifest bytes use the stable logical record width `ChunkId(32) + Length(4)`;
+- index bytes remain null.
+
+M1/M4 replace those proxies with actual encoded artifact sizes.
+
+## Performance policy
+
+Threshold policy remains governed by [../PERFORMANCE.md](../PERFORMANCE.md).
+
+M0 establishes variance/noise first. Do not add a universal “5% regression” rule before repeated measurements justify per-metric thresholds.
+
+## CI
+
+`.github/workflows/benchmark-lab.yml` compiles/tests the lab and runs the deterministic experiment matrix when benchmark infrastructure changes.
+
+The scheduled heavy-validation matrix runs the same lab on Linux x64 and Linux ARM64 and uploads architecture-specific JSON results. Cross-architecture correctness compares experiment definitions and deterministic outputs; timing values are expected to differ.

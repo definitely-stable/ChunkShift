@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="ChunkShift.Tests" />
+    <InternalsVisibleTo Include="ChunkShift.Benchmarks" />
     <PackageReference Include="Blake3" />
     <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers"
                       PrivateAssets="all"
