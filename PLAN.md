@@ -92,7 +92,32 @@ Exit:
 - no release dependency on [#7](https://github.com/definitely-stable/ChunkShift/issues/7)/CSP remains in [#8](https://github.com/definitely-stable/ChunkShift/issues/8)/[#9](https://github.com/definitely-stable/ChunkShift/issues/9)/[#17](https://github.com/definitely-stable/ChunkShift/issues/17);
 - [#4](https://github.com/definitely-stable/ChunkShift/issues/4) is the next critical-path implementation issue.
 
-## 5. Core kernels — [#4](https://github.com/definitely-stable/ChunkShift/issues/4)
+## 5. M1 semantic preflight — [#37](https://github.com/definitely-stable/ChunkShift/issues/37)
+
+Before kernel implementation, freeze the **measurement and semantic oracle**, not the optimized implementation.
+
+Required outcomes:
+
+- ProfileFingerprint v1 independent from content HashSuite;
+- profile-aware experiment identities;
+- occurrence-aware Boundary Survival;
+- sequence-aware Resynchronization Distance;
+- actual random-rewrite changed-byte denominator;
+- Int64 benchmark offsets;
+- automated x64/ARM64 deterministic evidence comparison;
+- exact [FastCDC candidate semantics](docs/architecture/FASTCDC-V1-CANDIDATE.md) and pinned GEAR table;
+- CSM zero-only semantic-feature rule, strict section state machine and CRC-32C contract;
+- broader official BLAKE3 boundary vectors.
+
+Deferred intentionally:
+
+- incremental vs one-shot chunk cryptographic hashing -> benchmark in #4;
+- ChunkerId/ManifestSchemaVersion/nullability public-surface cleanup -> #6;
+- final real version-pair corpus decision -> #8.
+
+Exit: #4 can be implemented without choosing any hidden persisted semantic or relying on a known-false metric.
+
+## 6. Core kernels — [#4](https://github.com/definitely-stable/ChunkShift/issues/4)
 
 Goal: one canonical deterministic chunk/hash kernel used by every later Core path.
 
@@ -131,7 +156,7 @@ Exit:
 - canonical scalar behavior is normative enough for [#5](https://github.com/definitely-stable/ChunkShift/issues/5)/[#16](https://github.com/definitely-stable/ChunkShift/issues/16);
 - no optimized backend is accepted unless it matches reference vectors.
 
-## 6. CSM candidate — [#5](https://github.com/definitely-stable/ChunkShift/issues/5)
+## 7. CSM candidate — [#5](https://github.com/definitely-stable/ChunkShift/issues/5)
 
 Goal: streaming binary manifest create/read/verify over the [#4](https://github.com/definitely-stable/ChunkShift/issues/4) canonical kernel.
 
@@ -162,7 +187,7 @@ Independent evidence:
 - vectors contain enough information for an independent decoder/checker;
 - before Core 0.1.0, at least one small independent vector verifier/generator must validate the frozen fixtures.
 
-## 7. Raw scanner — [#16](https://github.com/definitely-stable/ChunkShift/issues/16)
+## 8. Raw scanner — [#16](https://github.com/definitely-stable/ChunkShift/issues/16)
 
 Goal: make Core useful without manifest materialization.
 
@@ -188,7 +213,7 @@ Additional Core release requirement:
 - heavy validation installs the produced NuGet package into a clean NativeAOT consumer and executes real scanning with both BLAKE3 and SHA-256;
 - primitive-only AOT smoke is not sufficient once scanner exists.
 
-## 8. Scanner API bake-off — [#20](https://github.com/definitely-stable/ChunkShift/issues/20)
+## 9. Scanner API bake-off — [#20](https://github.com/definitely-stable/ChunkShift/issues/20)
 
 Compare prototypes sequentially rather than running a maximal matrix immediately.
 
@@ -208,7 +233,7 @@ Measure throughput, CPU, allocations, copy bytes, first-chunk latency, cancellat
 
 When measured differences are inside calibrated noise, choose the simpler contract.
 
-## 9. Minimal public Core API — [#6](https://github.com/definitely-stable/ChunkShift/issues/6)
+## 10. Minimal public Core API — [#6](https://github.com/definitely-stable/ChunkShift/issues/6)
 
 After [#5](https://github.com/definitely-stable/ChunkShift/issues/5)/[#16](https://github.com/definitely-stable/ChunkShift/issues/16)/[#20](https://github.com/definitely-stable/ChunkShift/issues/20), freeze the smallest candidate API needed by real consumers.
 
@@ -221,7 +246,7 @@ Acceptance:
 - clean NuGet consumer compiles/runs;
 - trim/NativeAOT warnings are zero for supported Core scenario.
 
-## 10. Core release evidence
+## 11. Core release evidence
 
 ### [#8](https://github.com/definitely-stable/ChunkShift/issues/8) — profile bake-off
 
@@ -269,7 +294,7 @@ Must close:
 
 CSP is **not** part of this gate.
 
-## 11. Patching — [#7](https://github.com/definitely-stable/ChunkShift/issues/7)
+## 12. Patching — [#7](https://github.com/definitely-stable/ChunkShift/issues/7)
 
 Starts after [#9](https://github.com/definitely-stable/ChunkShift/issues/9).
 
@@ -291,7 +316,7 @@ Evidence:
 - compare against full target delivery and xdelta3 on identical file pairs;
 - publish Patching only when its own compatibility fixtures are ready.
 
-## 12. Later tracks
+## 13. Later tracks
 
 Keep these concise until the preceding evidence exists:
 
@@ -302,7 +327,7 @@ Keep these concise until the preceding evidence exists:
 - [#18](https://github.com/definitely-stable/ChunkShift/issues/18) — optional ASP.NET package only if repeated integration behavior justifies one;
 - [#14](https://github.com/definitely-stable/ChunkShift/issues/14) — research CDC/index/filter candidates; no promotion without normal evidence gates.
 
-## 13. Benchmark and corpus policy
+## 14. Benchmark and corpus policy
 
 The checked-in synthetic corpus is a deterministic smoke/evidence layer.
 
@@ -318,7 +343,7 @@ Result evidence must preserve:
 
 Same-process peak RSS is not sufficient for a release-sensitive memory conclusion; streaming/file scenarios use isolated process evidence when that decision matters.
 
-## 14. Runtime support
+## 15. Runtime support
 
 .NET 10 is the recommended development/runtime baseline.
 
