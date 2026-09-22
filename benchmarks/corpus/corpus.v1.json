@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "id": "game-pak-8m",
+      "category": "game/pak-like assets",
+      "generator": "game-pak-like",
+      "sizeBytes": 8388608,
+      "seed": 1001,
+      "provenance": "synthetic deterministic proxy"
+    },
+    {
+      "id": "executable-app-8m",
+      "category": "executable/app bundles",
+      "generator": "executable-app-like",
+      "sizeBytes": 8388608,
+      "seed": 1002,
+      "provenance": "synthetic deterministic proxy"
+    },
+    {
+      "id": "installer-archive-8m",
+      "category": "installers/archives",
+      "generator": "compressed-like",
+      "sizeBytes": 8388608,
+      "seed": 1003,
+      "provenance": "synthetic deterministic proxy"
+    },
+    {
+      "id": "db-vm-8m",
+      "category": "DB/VM/data files",
+      "generator": "db-vm-data-like",
+      "sizeBytes": 8388608,
+      "seed": 1004,
+      "provenance": "synthetic deterministic proxy"
+    },
+    {
+      "id": "random-8m",
+      "category": "random",
+      "generator": "random",
+      "sizeBytes": 8388608,
+      "seed": 1005,
+      "provenance": "synthetic deterministic pathological"
+    },
+    {
+      "id": "zero-8m",
+      "category": "zero",
+      "generator": "zero",
+      "sizeBytes": 8388608,
+      "seed": 1006,
+      "provenance": "synthetic deterministic pathological"
+    },
+    {
+      "id": "repeated-8m",
+      "category": "repeated",
+      "generator": "repeated",
+      "sizeBytes": 8388608,
+      "seed": 1007,
+      "provenance": "synthetic deterministic pathological"
+    },
+    {
+      "id": "low-entropy-8m",
+      "category": "low entropy",
+      "generator": "low-entropy",
+      "sizeBytes": 8388608,
+      "seed": 1008,
+      "provenance": "synthetic deterministic pathological"
+    },
+    {
+      "id": "random-like-8m",
+      "category": "compressed/random-like",
+      "generator": "random-like",
+      "sizeBytes": 8388608,
+      "seed": 1009,
+      "provenance": "synthetic deterministic proxy"
+    }
+  ]
+}
