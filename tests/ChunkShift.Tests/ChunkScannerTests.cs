@@ -246,52 +246,66 @@ public class ChunkScannerTests
     {
         ChunkScanHandler handler = static (_, _, _) => ValueTask.CompletedTask;
 
-        Assert.Throws<ArgumentNullException>(
-            () => ChunkScanner.ScanAsync(null!, handler));
+        Assert.Throws<ArgumentNullException>(() =>
+        {
+            _ = ChunkScanner.ScanAsync(null!, handler);
+        });
 
-        Assert.Throws<ArgumentNullException>(
-            () => ChunkScanner.ScanAsync(Stream.Null, null!));
+        Assert.Throws<ArgumentNullException>(() =>
+        {
+            _ = ChunkScanner.ScanAsync(Stream.Null, null!);
+        });
 
         using var unreadable = new MemoryStream();
         unreadable.Dispose();
-        Assert.Throws<ArgumentException>(
-            () => ChunkScanner.ScanAsync(unreadable, handler));
+        Assert.Throws<ArgumentException>(() =>
+        {
+            _ = ChunkScanner.ScanAsync(unreadable, handler);
+        });
 
-        Assert.Throws<NotSupportedException>(
-            () => ChunkScanner.ScanAsync(
+        Assert.Throws<NotSupportedException>(() =>
+        {
+            _ = ChunkScanner.ScanAsync(
                 Stream.Null,
                 handler,
                 new ChunkScanOptions
                 {
                     ProfileId = new ChunkingProfileId("unknown.profile.v1"),
-                }));
+                });
+        });
 
-        Assert.Throws<NotSupportedException>(
-            () => ChunkScanner.ScanAsync(
+        Assert.Throws<NotSupportedException>(() =>
+        {
+            _ = ChunkScanner.ScanAsync(
                 Stream.Null,
                 handler,
                 new ChunkScanOptions
                 {
                     HashSuite = new HashSuiteId("chunkshift.unknown-256.v1"),
-                }));
+                });
+        });
 
-        Assert.Throws<ArgumentException>(
-            () => ChunkScanner.ScanAsync(
+        Assert.Throws<ArgumentException>(() =>
+        {
+            _ = ChunkScanner.ScanAsync(
                 Stream.Null,
                 handler,
                 new ChunkScanOptions
                 {
                     ProfileId = default(ChunkingProfileId),
-                }));
+                });
+        });
 
-        Assert.Throws<ArgumentException>(
-            () => ChunkScanner.ScanAsync(
+        Assert.Throws<ArgumentException>(() =>
+        {
+            _ = ChunkScanner.ScanAsync(
                 Stream.Null,
                 handler,
                 new ChunkScanOptions
                 {
                     HashSuite = default(HashSuiteId),
-                }));
+                });
+        });
     }
 
     private static byte[] CreateXorShiftBytes(int length, uint seed)
