@@ -7,6 +7,9 @@ namespace ChunkShift.Benchmarks.Lab;
 
 public static class LabRunner
 {
+    private const int WarmupIterations = 3;
+    private const int MeasurementIterations = 5;
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
@@ -34,7 +37,7 @@ public static class LabRunner
         var corpusById = corpus.Entries.ToDictionary(static entry => entry.Id, StringComparer.Ordinal);
         var results = new List<ExperimentResult>(experiments.Experiments.Length);
 
-        WarmUpReferencePath();
+        WarmUpHashSuites();
 
         foreach (ExperimentDefinition experiment in experiments.Experiments)
         {
@@ -49,37 +52,28 @@ public static class LabRunner
                 ? MutationGenerator.Identity(source)
                 : MutationGenerator.Apply(source, experiment.Mutation);
 
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
+            WarmUpExactWorkload(source, mutation.Target, experiment.ChunkSize, hashSuite);
 
-            long allocatedBefore = GC.GetTotalAllocatedBytes(precise: true);
-            using Process process = Process.GetCurrentProcess();
-            TimeSpan cpuBefore = process.TotalProcessorTime;
-            var stopwatch = Stopwatch.StartNew();
+            Measurement measurement = Measure(
+                source,
+                mutation.Target,
+                experiment.ChunkSize,
+                hashSuite);
 
-            ChunkRecord[] sourceChunks = FixedSizeReferenceChunker.Chunk(source, experiment.ChunkSize, hashSuite);
-            ChunkRecord[] targetChunks = FixedSizeReferenceChunker.Chunk(mutation.Target, experiment.ChunkSize, hashSuite);
-
-            stopwatch.Stop();
-            process.Refresh();
-
-            long allocated = GC.GetTotalAllocatedBytes(precise: true) - allocatedBefore;
-            double cpuSeconds = (process.TotalProcessorTime - cpuBefore).TotalSeconds;
             long measuredBytes = checked((long)source.Length + mutation.Target.Length);
 
             LabMetrics metrics = MetricsCalculator.Create(
-                sourceChunks,
-                targetChunks,
+                measurement.SourceChunks,
+                measurement.TargetChunks,
                 mutation,
                 experiment.ChunkSize,
                 source.Length,
                 mutation.Target.Length,
                 measuredBytes,
-                stopwatch.Elapsed.TotalSeconds,
-                cpuSeconds,
-                allocated,
-                process.PeakWorkingSet64);
+                measurement.WallSeconds,
+                measurement.CpuSeconds,
+                measurement.AllocatedBytes,
+                measurement.ProcessPeakRssBytes);
 
             results.Add(new ExperimentResult(
                 ExperimentFingerprint.Compute(experiment),
@@ -95,9 +89,15 @@ public static class LabRunner
                 $"amplification={metrics.ChangeAmplification:F3}");
         }
 
+        LabSummary summary = CreateSummary(results);
+
         var run = new LabRun(
             1,
             DateTimeOffset.UtcNow,
+            new MeasurementProtocol(
+                WarmupIterations,
+                MeasurementIterations,
+                "median"),
             new EnvironmentSnapshot(
                 RuntimeInformation.OSDescription,
                 RuntimeInformation.OSArchitecture.ToString(),
@@ -105,6 +105,7 @@ public static class LabRunner
                 RuntimeInformation.FrameworkDescription,
                 Environment.ProcessorCount,
                 Environment.GetEnvironmentVariable("GITHUB_SHA")),
+            summary,
             results.ToArray());
 
         string? directory = Path.GetDirectoryName(Path.GetFullPath(outputPath!));
@@ -117,7 +118,53 @@ public static class LabRunner
         return 0;
     }
 
-    private static void WarmUpReferencePath()
+    private static Measurement Measure(
+        byte[] source,
+        byte[] target,
+        int chunkSize,
+        HashSuiteId hashSuite)
+    {
+        var samples = new MeasurementSample[MeasurementIterations];
+        ChunkRecord[] sourceChunks = Array.Empty<ChunkRecord>();
+        ChunkRecord[] targetChunks = Array.Empty<ChunkRecord>();
+
+        using Process process = Process.GetCurrentProcess();
+
+        for (int iteration = 0; iteration < MeasurementIterations; iteration++)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            process.Refresh();
+            TimeSpan cpuBefore = process.TotalProcessorTime;
+            long allocatedBefore = GC.GetTotalAllocatedBytes(precise: true);
+            long started = Stopwatch.GetTimestamp();
+
+            sourceChunks = FixedSizeReferenceChunker.Chunk(source, chunkSize, hashSuite);
+            targetChunks = FixedSizeReferenceChunker.Chunk(target, chunkSize, hashSuite);
+
+            long finished = Stopwatch.GetTimestamp();
+            long allocatedAfter = GC.GetTotalAllocatedBytes(precise: true);
+            process.Refresh();
+
+            samples[iteration] = new MeasurementSample(
+                Stopwatch.GetElapsedTime(started, finished).TotalSeconds,
+                (process.TotalProcessorTime - cpuBefore).TotalSeconds,
+                allocatedAfter - allocatedBefore,
+                process.PeakWorkingSet64);
+        }
+
+        return new Measurement(
+            sourceChunks,
+            targetChunks,
+            Median(samples.Select(static sample => sample.WallSeconds)),
+            Median(samples.Select(static sample => sample.CpuSeconds)),
+            checked((long)Math.Round(Median(samples.Select(static sample => (double)sample.AllocatedBytes)))),
+            samples.Max(static sample => sample.ProcessPeakRssBytes));
+    }
+
+    private static void WarmUpHashSuites()
     {
         byte[] warmup = CorpusGenerator.Generate(
             new CorpusEntry(
@@ -128,8 +175,61 @@ public static class LabRunner
                 0xC4855A11UL,
                 "internal warm-up"));
 
-        _ = FixedSizeReferenceChunker.Chunk(warmup, 64 * 1024, HashSuiteIds.Blake3256V1);
-        _ = FixedSizeReferenceChunker.Chunk(warmup, 64 * 1024, HashSuiteIds.Sha256V1);
+        for (int iteration = 0; iteration < WarmupIterations; iteration++)
+        {
+            _ = FixedSizeReferenceChunker.Chunk(warmup, 64 * 1024, HashSuiteIds.Blake3256V1);
+            _ = FixedSizeReferenceChunker.Chunk(warmup, 64 * 1024, HashSuiteIds.Sha256V1);
+        }
+    }
+
+    private static void WarmUpExactWorkload(
+        byte[] source,
+        byte[] target,
+        int chunkSize,
+        HashSuiteId hashSuite)
+    {
+        for (int iteration = 0; iteration < WarmupIterations; iteration++)
+        {
+            _ = FixedSizeReferenceChunker.Chunk(source, chunkSize, hashSuite);
+            _ = FixedSizeReferenceChunker.Chunk(target, chunkSize, hashSuite);
+        }
+    }
+
+    private static LabSummary CreateSummary(List<ExperimentResult> results)
+    {
+        DistributionSummary? all = DistributionCalculator.Summarize(
+            results.Select(static result => result.Metrics.ResynchronizationDistanceBytes));
+
+        Dictionary<string, DistributionSummary> byMutationKind = results
+            .Where(static result =>
+                result.Mutation is not null &&
+                result.Metrics.ResynchronizationDistanceBytes.HasValue)
+            .GroupBy(
+                static result => result.Mutation!.Kind,
+                StringComparer.Ordinal)
+            .OrderBy(static group => group.Key, StringComparer.Ordinal)
+            .ToDictionary(
+                static group => group.Key,
+                static group => DistributionCalculator.Summarize(
+                    group.Select(static result => result.Metrics.ResynchronizationDistanceBytes))!,
+                StringComparer.Ordinal);
+
+        return new LabSummary(all, byMutationKind);
+    }
+
+    private static double Median(IEnumerable<double> values)
+    {
+        double[] sorted = values.Order().ToArray();
+
+        if (sorted.Length == 0)
+        {
+            return 0;
+        }
+
+        int middle = sorted.Length / 2;
+        return sorted.Length % 2 == 0
+            ? (sorted[middle - 1] + sorted[middle]) / 2
+            : sorted[middle];
     }
 
     private static T Load<T>(string path)
@@ -168,4 +268,18 @@ public static class LabRunner
         value = null;
         return false;
     }
+
+    private readonly record struct MeasurementSample(
+        double WallSeconds,
+        double CpuSeconds,
+        long AllocatedBytes,
+        long ProcessPeakRssBytes);
+
+    private sealed record Measurement(
+        ChunkRecord[] SourceChunks,
+        ChunkRecord[] TargetChunks,
+        double WallSeconds,
+        double CpuSeconds,
+        long AllocatedBytes,
+        long ProcessPeakRssBytes);
 }
