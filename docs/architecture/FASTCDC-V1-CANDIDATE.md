@@ -50,7 +50,9 @@ For M1 measurement only, #4 defines three **non-stable calibration presets**:
 | 128 KiB | 32 KiB | 512 KiB |
 | 256 KiB | 64 KiB | 1 MiB |
 
-They use `minimum = target / 4` and `maximum = target * 4`. These values exist to run comparable lab evidence; #8 may select different release-profile values.
+They use `minimum = target / 4` and `maximum = target * 4`. These are nominal target presets, not claims that empirical mean chunk size equals 64/128/256 KiB. #8 must calibrate candidates to comparable **actual means** before final quality comparison and may select different release-profile values.
+
+Internal candidate ProfileIds bind all three size parameters (`minimum`, `target`, `maximum`) so two different candidate semantics cannot share an identifier merely because they have the same target. Stable 0.1.0 ProfileId naming remains owned by #8.
 
 ## 2. GEAR table
 
