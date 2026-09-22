@@ -7,9 +7,7 @@ internal static class FastCdcGearTable
     internal const string Id = "chunkshift.fastcdc.gear.v1";
     internal const string Sha256 = "91a3061015ae351cd3701852712bcd6aa4a1ce26c8a231d3969432b00f028f88";
 
-    internal static ulong Get(byte value) => Values[value];
-
-    internal static ReadOnlySpan<ulong> Values =>
+    private static readonly ulong[] Table =
     [
         0x3b5d3c7d207e37dcUL,
         0x784d68ba91123086UL,
@@ -268,4 +266,9 @@ internal static class FastCdcGearTable
         0xe1d830d3f16c5ddbUL,
         0xaabd2b2a451504e1UL
     ];
+
+    internal static ulong Get(byte value) => Table[value];
+
+    internal static ReadOnlySpan<ulong> Values => Table;
+
 }
