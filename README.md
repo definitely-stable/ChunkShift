@@ -1,8 +1,8 @@
 # ChunkShift
 
-ChunkShift is an early-stage .NET project for **content-aware binary updates and reusable content movement**.
+ChunkShift is an early-stage .NET project for **content-aware binary chunking, manifests and binary updates**.
 
-The target product is a small embeddable core that can map a byte stream into stable content chunks, build/verify binary manifests, and support exact delta reconstruction without requiring a ChunkShift server or repository.
+The first public product is a small embeddable Core that maps a byte stream into stable content chunks and creates, reads and verifies binary manifests without requiring Patching, a ChunkShift server or a repository. Exact delta reconstruction is the following Patching stage.
 
 > **Project status:** architecture and compatibility contracts are being frozen before the main implementation. The APIs and formats described in the RFCs are candidates until their milestone freeze gates are complete.
 
@@ -11,10 +11,12 @@ The target product is a small embeddable core that can map a byte stream into st
 ```text
 ChunkShift
   standalone embedded/local SDK
-  raw chunk stream + manifests + verify/diff
+  deterministic chunking + raw chunk stream
+  CSM create/read/verify
 
 ChunkShift.Patching
-  create/apply exact binary updates
+  compare/diff + reuse analysis
+  create/apply exact CSP binary updates
 
 ChunkShift.Cli
   engineering and end-user workflows
@@ -33,10 +35,11 @@ The current architecture sources of truth are:
 
 - [RFC-0001 — ChunkShift Target Architecture 2026](docs/architecture/RFC-0001-target-architecture-2026.md)
 - [RFC-0002 — Embedded Chunk Stream API and ASP.NET Core Integration](docs/architecture/RFC-0002-embedded-sdk-aspnet-core.md)
+- [RFC-0003 — Core-first Public Release](docs/architecture/RFC-0003-core-first-release.md)
 - [ROADMAP.md](ROADMAP.md) — program sequence, release gates and current critical path
 - [PLAN.md](PLAN.md) — milestone deliverables, tests, benchmarks and exit criteria
 
-The low-level raw chunk-stream API is intentionally **not frozen yet**. A callback with borrowed `ReadOnlyMemory<byte>` is the leading candidate, but issue [#20](https://github.com/definitely-stable/ChunkShift/issues/20) must compare push/pull, contiguous/segmented payload and Task/ValueTask alternatives before the `0.1.0` public baseline.
+The low-level raw chunk-stream API is intentionally **not frozen yet**. A callback with borrowed `ReadOnlyMemory<byte>` is the leading candidate, but issue [#20](https://github.com/definitely-stable/ChunkShift/issues/20) must compare push/pull, contiguous/segmented payload and Task/ValueTask alternatives before the Core `0.1.0` public baseline. Compare/diff is not part of Core `0.1.0`; it belongs to `ChunkShift.Patching`.
 
 ## Product boundaries
 
