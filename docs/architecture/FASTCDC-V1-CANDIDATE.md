@@ -244,7 +244,7 @@ ordered chunk-sequence evidence digest
 
 At least one vector set should be cross-checked against an independent FastCDC implementation configured to the same table/masks/parameters. Any difference must be explained before ChunkShift's own expected output is accepted.
 
-The repository includes `tools/reference/fastcdc-rs-probe`, pinned to `fastcdc = 5.0.0`. The probe generates the same deterministic 1 MiB xorshift input used by ChunkShift's scalar/Python vectors and asserts the complete ordered offset/length sequence through `fastcdc::v2016::FastCDC`. The x64 heavy lane runs this external oracle; its Cargo lockfile is checked in once captured from the first validated run.
+The repository includes `tools/reference/fastcdc-rs-probe`, pinned to `fastcdc = 5.0.0` with a checked-in `Cargo.lock`. The probe generates the same deterministic 1 MiB xorshift input used by ChunkShift's scalar/Python vectors and asserts the complete ordered offset/length sequence through `fastcdc::v2016::FastCDC`. The x64 heavy lane runs this external oracle with `--locked`.
 
 ## 11. External reference notes
 
