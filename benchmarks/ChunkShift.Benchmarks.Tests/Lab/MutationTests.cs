@@ -49,6 +49,21 @@ public class MutationTests
         Assert.Equal(Source.Length - 4096, result.Target.Length);
     }
 
+    [Fact]
+    public void RandomRewrite_ReportsActualChangedBytesAfterRepeatedSelections()
+    {
+        MutationResult result = MutationGenerator.Apply(
+            Source,
+            new MutationDefinition("random-rewrite", 65536, 2012));
+
+        long actual = Source
+            .Zip(result.Target, static (left, right) => left != right ? 1L : 0L)
+            .Sum();
+
+        Assert.Equal(actual, result.LogicalChangedBytes);
+        Assert.InRange(actual, 1, 65536);
+    }
+
     [Theory]
     [InlineData("overwrite")]
     [InlineData("localized-rewrite")]
