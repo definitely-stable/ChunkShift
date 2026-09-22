@@ -3,13 +3,14 @@ using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks.Lab;
 
-public static class FixedSizeReferenceChunker
+public static class FastCdcReferenceChunker
 {
-    public static ChunkRecord[] Chunk(ReadOnlySpan<byte> data, int chunkSize, HashSuiteId hashSuite)
+    public static ChunkRecord[] Chunk(ReadOnlySpan<byte> data, int targetSize, HashSuiteId hashSuite)
     {
+        FastCdcProfile fastCdc = FastCdcProfile.CreateM1Candidate(targetSize);
         ChunkKernelChunk[] chunks = ChunkingReference.Chunk(
             data,
-            ChunkingKernelProfile.Fixed(chunkSize),
+            ChunkingKernelProfile.FastCdcGear(fastCdc),
             hashSuite);
 
         var result = new ChunkRecord[chunks.Length];

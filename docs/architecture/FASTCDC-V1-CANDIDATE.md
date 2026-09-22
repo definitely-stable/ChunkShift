@@ -42,6 +42,16 @@ Validation:
 
 The public/stable 0.1.0 profile values are selected by #8. Implementing a parameter set in #4 does not make it the default.
 
+For M1 measurement only, #4 defines three **non-stable calibration presets**:
+
+| target | minimum | maximum |
+| ---: | ---: | ---: |
+| 64 KiB | 16 KiB | 256 KiB |
+| 128 KiB | 32 KiB | 512 KiB |
+| 256 KiB | 64 KiB | 1 MiB |
+
+They use `minimum = target / 4` and `maximum = target * 4`. These values exist to run comparable lab evidence; #8 may select different release-profile values.
+
 ## 2. GEAR table
 
 The normative 256-entry UInt64 table is [FASTCDC-GEAR-V1.txt](FASTCDC-GEAR-V1.txt).

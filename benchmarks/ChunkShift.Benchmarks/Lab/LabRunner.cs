@@ -54,12 +54,12 @@ public static class LabRunner
                 ? MutationGenerator.Identity(source)
                 : MutationGenerator.Apply(source, experiment.Mutation);
 
-            WarmUpExactWorkload(source, mutation.Target, experiment.ChunkSize, hashSuite);
+            WarmUpExactWorkload(source, mutation.Target, experiment, hashSuite);
 
             Measurement measurement = Measure(
                 source,
                 mutation.Target,
-                experiment.ChunkSize,
+                experiment,
                 hashSuite);
 
             long measuredBytes = checked((long)source.Length + mutation.Target.Length);
@@ -68,7 +68,7 @@ public static class LabRunner
                 measurement.SourceChunks,
                 measurement.TargetChunks,
                 mutation,
-                experiment.ChunkSize,
+                LabChunker.GetMaximumChunkSize(experiment),
                 source.Length,
                 mutation.Target.Length,
                 measuredBytes,
@@ -134,7 +134,7 @@ public static class LabRunner
     private static Measurement Measure(
         byte[] source,
         byte[] target,
-        int chunkSize,
+        ExperimentDefinition experiment,
         HashSuiteId hashSuite)
     {
         var samples = new MeasurementSample[MeasurementIterations];
@@ -155,8 +155,8 @@ public static class LabRunner
             long workingSetBefore = process.WorkingSet64;
             long started = Stopwatch.GetTimestamp();
 
-            sourceChunks = FixedSizeReferenceChunker.Chunk(source, chunkSize, hashSuite);
-            targetChunks = FixedSizeReferenceChunker.Chunk(target, chunkSize, hashSuite);
+            sourceChunks = LabChunker.Chunk(source, experiment, hashSuite);
+            targetChunks = LabChunker.Chunk(target, experiment, hashSuite);
 
             long finished = Stopwatch.GetTimestamp();
             long allocatedAfter = GC.GetTotalAllocatedBytes(precise: true);
@@ -202,13 +202,13 @@ public static class LabRunner
     private static void WarmUpExactWorkload(
         byte[] source,
         byte[] target,
-        int chunkSize,
+        ExperimentDefinition experiment,
         HashSuiteId hashSuite)
     {
         for (int iteration = 0; iteration < WarmupIterations; iteration++)
         {
-            _ = FixedSizeReferenceChunker.Chunk(source, chunkSize, hashSuite);
-            _ = FixedSizeReferenceChunker.Chunk(target, chunkSize, hashSuite);
+            _ = LabChunker.Chunk(source, experiment, hashSuite);
+            _ = LabChunker.Chunk(target, experiment, hashSuite);
         }
     }
 
@@ -258,28 +258,47 @@ public static class LabRunner
 
     private static void ValidateExperimentProfile(ExperimentDefinition experiment)
     {
-        if (!string.Equals(experiment.Algorithm, "fixed.reference.v1", StringComparison.Ordinal))
+        _ = new ChunkingProfileId(experiment.ProfileId);
+
+        string actualProfileId;
+        string actualFingerprint;
+
+        if (string.Equals(experiment.Algorithm, LabChunker.FixedAlgorithm, StringComparison.Ordinal))
         {
-            throw new InvalidOperationException(
-                $"Unsupported lab algorithm '{experiment.Algorithm}'. #4 must add an explicit adapter before a new algorithm can run.");
+            string semanticArtifact =
+                "{\"semantics\":{\"algorithm\":\"fixed\",\"version\":1,\"size\":" +
+                experiment.ChunkSize.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                "}}";
+
+            actualProfileId = $"fixed.v1.{experiment.ChunkSize / 1024}k";
+            actualFingerprint = ProfileFingerprintComputer
+                .Compute(System.Text.Encoding.UTF8.GetBytes(semanticArtifact))
+                .ToString();
+        }
+        else if (string.Equals(experiment.Algorithm, LabChunker.FastCdcAlgorithm, StringComparison.Ordinal))
+        {
+            ChunkShift.Chunking.FastCdcProfile profile =
+                ChunkShift.Chunking.FastCdcProfile.CreateM1Candidate(experiment.ChunkSize);
+
+            actualProfileId = profile.CandidateProfileId.Value;
+            actualFingerprint = profile.ComputeFingerprint().ToString();
+        }
+        else
+        {
+            throw new InvalidOperationException($"Unsupported lab algorithm '{experiment.Algorithm}'.");
         }
 
-        string semanticArtifact =
-            "{\"semantics\":{\"algorithm\":\"fixed\",\"version\":1,\"size\":" +
-            experiment.ChunkSize.ToString(System.Globalization.CultureInfo.InvariantCulture) +
-            "}}";
-
-        string actualFingerprint = ProfileFingerprintComputer
-            .Compute(System.Text.Encoding.UTF8.GetBytes(semanticArtifact))
-            .ToString();
+        if (!string.Equals(actualProfileId, experiment.ProfileId, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Experiment '{experiment.Id}' ProfileId '{experiment.ProfileId}' does not match effective semantics '{actualProfileId}'.");
+        }
 
         if (!string.Equals(actualFingerprint, experiment.ProfileFingerprint, StringComparison.Ordinal))
         {
             throw new InvalidOperationException(
-                $"Experiment '{experiment.Id}' profile fingerprint does not match its effective fixed-size semantics.");
+                $"Experiment '{experiment.Id}' profile fingerprint does not match its effective semantics.");
         }
-
-        _ = new ChunkingProfileId(experiment.ProfileId);
     }
 
     private static HashSuiteId ParseHashSuite(string value)
