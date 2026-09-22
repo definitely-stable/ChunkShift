@@ -173,7 +173,7 @@ Correct the existing primitives and create the evidence machinery needed before 
 - CSM logical model/spec candidate;
 - patch semantic model/spec candidate;
 - repository truth/index model ADR;
-- BenchmarkDotNet microbenchmark project;
+- BenchmarkDotNet microbenchmark project ([M0 lab methodology](docs/benchmarks/M0-LAB.md));
 - repeatable system-benchmark harness;
 - product corpus manifest and mutation generator;
 - cross-platform golden-vector framework.
