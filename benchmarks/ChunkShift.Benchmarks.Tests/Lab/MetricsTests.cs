@@ -27,10 +27,12 @@ public class MetricsTests
             0,
             0);
 
+        Assert.Equal(source.Length, metrics.ReusedTargetBytes);
         Assert.Equal(1, metrics.ReuseRatio);
         Assert.Equal(1, metrics.BoundarySurvival);
         Assert.Equal(0, metrics.ChangeAmplification);
-        Assert.Equal(0, metrics.PatchPayloadBytes);
+        Assert.Equal(0, metrics.UniqueMissingPayloadBytes);
+        Assert.Null(metrics.CspBytes);
         Assert.Equal(chunks.LongLength * 36, metrics.LogicalManifestBytes);
     }
 
@@ -63,6 +65,37 @@ public class MetricsTests
         Assert.InRange(metrics.ReuseRatio, 0, 1);
         Assert.InRange(metrics.BoundarySurvival, 0, 1);
     }
+    [Fact]
+    public void RepeatedMissingChunkCountsUniquePayloadOnce()
+    {
+        Hash256 missingId = Hash256.FromBytes(Enumerable.Repeat((byte)7, 32).ToArray());
+        ChunkRecord[] target =
+        [
+            new ChunkRecord(0, 4, missingId),
+            new ChunkRecord(4, 4, missingId),
+        ];
+
+        var mutation = new MutationResult(new byte[8], 0, 4, 4);
+
+        LabMetrics metrics = MetricsCalculator.Create(
+            [],
+            target,
+            mutation,
+            4,
+            0,
+            8,
+            8,
+            1,
+            1,
+            0,
+            0);
+
+        Assert.Equal(0, metrics.ReusedTargetBytes);
+        Assert.Equal(4, metrics.UniqueMissingPayloadBytes);
+        Assert.Equal(1, metrics.ChangeAmplification);
+        Assert.Null(metrics.CspBytes);
+    }
+
     [Fact]
     public void ResynchronizationDistributionReportsRequiredPercentiles()
     {

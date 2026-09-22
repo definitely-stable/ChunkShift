@@ -1,6 +1,8 @@
 # RFC-0002: Embedded Chunk Stream API and ASP.NET Core Integration
 
 Status: Accepted for implementation; public API candidate remains unfrozen until #20/#9  
+
+> **RFC-0003 supersession note:** [RFC-0003](RFC-0003-core-first-release.md) makes standalone Core `0.1.0` the first public release. Pre-release ASP.NET validation therefore proves Core scanner/CSM hosting only; CSP/Patching transport is deferred.
 Target: ChunkShift Core/Patching 1.0 API freeze; ASP.NET Core integration validation  
 Last updated: 2026-09-22  
 Parent architecture: [RFC-0001](RFC-0001-target-architecture-2026.md)

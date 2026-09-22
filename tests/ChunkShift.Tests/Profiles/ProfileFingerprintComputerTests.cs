@@ -50,13 +50,50 @@ public class ProfileFingerprintComputerTests
         Assert.NotEqual(Compute(first), Compute(second));
     }
 
-    [Fact]
-    public void EquivalentIntegerSpellings_AreCanonical()
+    [Theory]
+    [InlineData("1", "1.0")]
+    [InlineData("1", "1e0")]
+    [InlineData("1", "0.001e3")]
+    [InlineData("12", "1.20e1")]
+    [InlineData("1000", "1e3")]
+    [InlineData("0", "-0.000e100")]
+    public void EquivalentIntegerSpellings_AreCanonical(string firstNumber, string secondNumber)
     {
-        const string integer = """{"semantics":{"version":1}}""";
-        const string decimalInteger = """{"semantics":{"version":1.0}}""";
+        string first = "{\"semantics\":{\"value\":" + firstNumber + "}}";
+        string second = "{\"semantics\":{\"value\":" + secondNumber + "}}";
 
-        Assert.Equal(Compute(integer), Compute(decimalInteger));
+        Assert.Equal(Compute(first), Compute(second));
+    }
+
+    [Theory]
+    [InlineData("1.5")]
+    [InlineData("1.00000000000000000000000000001")]
+    [InlineData("1e-1000")]
+    [InlineData("100e-3")]
+    [InlineData("-0.00000000000000000000000000001")]
+    public void FractionalValuesBeyondDecimalPrecision_AreRejected(string number)
+    {
+        string artifact = "{\"semantics\":{\"value\":" + number + "}}";
+
+        Assert.Throws<FormatException>(() => Compute(artifact));
+    }
+
+    [Theory]
+    [InlineData("1e1025")]
+    [InlineData("1e-1025")]
+    public void ExponentsOutsideResourceBound_AreRejected(string number)
+    {
+        string artifact = "{\"semantics\":{\"value\":" + number + "}}";
+
+        Assert.Throws<FormatException>(() => Compute(artifact));
+    }
+
+    [Fact]
+    public void CanonicalIntegerOutsideDigitBound_IsRejected()
+    {
+        string artifact = """{"semantics":{"value":1e128}}""";
+
+        Assert.Throws<FormatException>(() => Compute(artifact));
     }
 
     [Fact]

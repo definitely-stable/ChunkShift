@@ -7,7 +7,8 @@
       "generator": "game-pak-like",
       "sizeBytes": 8388608,
       "seed": 1001,
-      "provenance": "synthetic deterministic proxy"
+      "provenance": "synthetic deterministic proxy",
+      "generatorVersion": 1
     },
     {
       "id": "executable-app-8m",
@@ -15,7 +16,8 @@
       "generator": "executable-app-like",
       "sizeBytes": 8388608,
       "seed": 1002,
-      "provenance": "synthetic deterministic proxy"
+      "provenance": "synthetic deterministic proxy",
+      "generatorVersion": 1
     },
     {
       "id": "installer-archive-8m",
@@ -23,7 +25,8 @@
       "generator": "compressed-like",
       "sizeBytes": 8388608,
       "seed": 1003,
-      "provenance": "synthetic deterministic proxy"
+      "provenance": "synthetic deterministic proxy",
+      "generatorVersion": 1
     },
     {
       "id": "db-vm-8m",
@@ -31,7 +34,8 @@
       "generator": "db-vm-data-like",
       "sizeBytes": 8388608,
       "seed": 1004,
-      "provenance": "synthetic deterministic proxy"
+      "provenance": "synthetic deterministic proxy",
+      "generatorVersion": 1
     },
     {
       "id": "random-8m",
@@ -39,7 +43,8 @@
       "generator": "random",
       "sizeBytes": 8388608,
       "seed": 1005,
-      "provenance": "synthetic deterministic pathological"
+      "provenance": "synthetic deterministic pathological",
+      "generatorVersion": 1
     },
     {
       "id": "zero-8m",
@@ -47,7 +52,8 @@
       "generator": "zero",
       "sizeBytes": 8388608,
       "seed": 1006,
-      "provenance": "synthetic deterministic pathological"
+      "provenance": "synthetic deterministic pathological",
+      "generatorVersion": 1
     },
     {
       "id": "repeated-8m",
@@ -55,7 +61,8 @@
       "generator": "repeated",
       "sizeBytes": 8388608,
       "seed": 1007,
-      "provenance": "synthetic deterministic pathological"
+      "provenance": "synthetic deterministic pathological",
+      "generatorVersion": 1
     },
     {
       "id": "low-entropy-8m",
@@ -63,7 +70,8 @@
       "generator": "low-entropy",
       "sizeBytes": 8388608,
       "seed": 1008,
-      "provenance": "synthetic deterministic pathological"
+      "provenance": "synthetic deterministic pathological",
+      "generatorVersion": 1
     },
     {
       "id": "random-like-8m",
@@ -71,7 +79,8 @@
       "generator": "random-like",
       "sizeBytes": 8388608,
       "seed": 1009,
-      "provenance": "synthetic deterministic proxy"
+      "provenance": "synthetic deterministic proxy",
+      "generatorVersion": 1
     }
   ]
 }

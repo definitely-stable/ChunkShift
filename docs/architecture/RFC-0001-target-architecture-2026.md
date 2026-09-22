@@ -1,6 +1,8 @@
 # RFC-0001: ChunkShift Target Architecture 2026
 
 Status: Accepted  
+
+> **RFC-0003 supersession note:** [RFC-0003](RFC-0003-core-first-release.md) owns first-public-release sequencing. Where this RFC couples the first public release to Patching/CSP/compare-diff, RFC-0003 takes precedence. The architecture and persisted-model decisions here remain authoritative.
 Target: ChunkShift 1.0 core and patching; repository architecture preview  
 Last updated: 2026-09-22
 
@@ -336,6 +338,8 @@ SeqCDC, VectorCDC, Chonkers and UltraCDC remain experimental until they pass:
 Rabin/Buzhash may be kept as reference baselines, not public stable profiles.
 
 ## 8. CSM v1 binary manifest
+
+The implementable M1 candidate layout is specified in [CSM-V1-CANDIDATE.md](CSM-V1-CANDIDATE.md). This RFC remains the architectural authority; #9 is the public format freeze gate.
 
 CSM is a bespoke streaming binary container.
 

@@ -1,8 +1,6 @@
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
-using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -16,6 +14,10 @@ namespace ChunkShift.Profiles;
 /// </summary>
 internal static class ProfileFingerprintComputer
 {
+    internal const int MaxNumericTokenChars = 128;
+    internal const int MaxCanonicalIntegerDigits = 128;
+    internal const int MaxExponentMagnitude = 1024;
+
     private static ReadOnlySpan<byte> Domain => "chunkshift.profile-fingerprint.v1\0"u8;
 
     public static ProfileFingerprint Compute(HashSuiteId hashSuite, ReadOnlySpan<byte> profileArtifactUtf8)
@@ -114,13 +116,175 @@ internal static class ProfileFingerprintComputer
     {
         string raw = element.GetRawText();
 
-        if (!decimal.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal value) ||
-            decimal.Truncate(value) != value)
+        if (raw.Length == 0 || raw.Length > MaxNumericTokenChars)
         {
-            throw new FormatException($"Profile semantic number '{raw}' must be an exact integer.");
+            throw InvalidSemanticNumber(raw, $"token length must be 1..{MaxNumericTokenChars} characters");
         }
 
-        return value.ToString("0", CultureInfo.InvariantCulture);
+        ReadOnlySpan<char> token = raw.AsSpan();
+        int index = 0;
+        bool negative = token[index] == '-';
+
+        if (negative)
+        {
+            index++;
+        }
+
+        int integerStart = index;
+        while (index < token.Length && IsAsciiDigit(token[index]))
+        {
+            index++;
+        }
+
+        int integerLength = index - integerStart;
+        if (integerLength == 0)
+        {
+            throw InvalidSemanticNumber(raw, "missing integer digits");
+        }
+
+        int fractionStart = index;
+        int fractionLength = 0;
+
+        if (index < token.Length && token[index] == '.')
+        {
+            index++;
+            fractionStart = index;
+
+            while (index < token.Length && IsAsciiDigit(token[index]))
+            {
+                index++;
+            }
+
+            fractionLength = index - fractionStart;
+            if (fractionLength == 0)
+            {
+                throw InvalidSemanticNumber(raw, "missing fractional digits");
+            }
+        }
+
+        int exponent = 0;
+        if (index < token.Length && (token[index] == 'e' || token[index] == 'E'))
+        {
+            index++;
+            bool exponentNegative = false;
+
+            if (index < token.Length && (token[index] == '+' || token[index] == '-'))
+            {
+                exponentNegative = token[index] == '-';
+                index++;
+            }
+
+            int exponentStart = index;
+            int magnitude = 0;
+
+            while (index < token.Length && IsAsciiDigit(token[index]))
+            {
+                int digit = token[index] - '0';
+                if (magnitude > ((MaxExponentMagnitude - digit) / 10))
+                {
+                    throw InvalidSemanticNumber(raw, $"exponent magnitude must be <= {MaxExponentMagnitude}");
+                }
+
+                magnitude = (magnitude * 10) + digit;
+                index++;
+            }
+
+            if (index == exponentStart)
+            {
+                throw InvalidSemanticNumber(raw, "missing exponent digits");
+            }
+
+            exponent = exponentNegative ? -magnitude : magnitude;
+        }
+
+        if (index != token.Length)
+        {
+            throw InvalidSemanticNumber(raw, "unsupported numeric syntax");
+        }
+
+        int digitCount = checked(integerLength + fractionLength);
+        Span<char> digits = digitCount <= 256
+            ? stackalloc char[digitCount]
+            : throw InvalidSemanticNumber(raw, "numeric token is too large");
+
+        token.Slice(integerStart, integerLength).CopyTo(digits);
+        if (fractionLength != 0)
+        {
+            token.Slice(fractionStart, fractionLength).CopyTo(digits.Slice(integerLength));
+        }
+
+        if (IsAllZero(digits))
+        {
+            return "0";
+        }
+
+        int scale = checked(fractionLength - exponent);
+        int significantLength = digitCount;
+
+        if (scale > 0)
+        {
+            if (scale > digitCount)
+            {
+                throw InvalidSemanticNumber(raw, "value is fractional");
+            }
+
+            ReadOnlySpan<char> fractionalTail = digits.Slice(digitCount - scale, scale);
+            if (!IsAllZero(fractionalTail))
+            {
+                throw InvalidSemanticNumber(raw, "value is fractional");
+            }
+
+            significantLength -= scale;
+        }
+
+        int leadingZeros = 0;
+        while (leadingZeros < significantLength && digits[leadingZeros] == '0')
+        {
+            leadingZeros++;
+        }
+
+        int coreDigits = significantLength - leadingZeros;
+        int appendedZeros = scale < 0 ? -scale : 0;
+        int canonicalDigits = checked(coreDigits + appendedZeros);
+
+        if (canonicalDigits <= 0)
+        {
+            return "0";
+        }
+
+        if (canonicalDigits > MaxCanonicalIntegerDigits)
+        {
+            throw InvalidSemanticNumber(
+                raw,
+                $"canonical integer must contain at most {MaxCanonicalIntegerDigits} digits");
+        }
+
+        string core = digits.Slice(leadingZeros, coreDigits).ToString();
+        string canonical = appendedZeros == 0
+            ? core
+            : string.Concat(core, new string('0', appendedZeros));
+
+        return negative ? string.Concat("-", canonical) : canonical;
+    }
+
+    private static bool IsAsciiDigit(char value) => (uint)(value - '0') <= 9;
+
+    private static bool IsAllZero(ReadOnlySpan<char> value)
+    {
+        foreach (char digit in value)
+        {
+            if (digit != '0')
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static FormatException InvalidSemanticNumber(string raw, string reason)
+    {
+        return new FormatException($"Profile semantic number '{raw}' is invalid: {reason}.");
     }
 
     private static void WriteString(ArrayBufferWriter<byte> writer, string value)
