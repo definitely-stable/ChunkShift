@@ -255,6 +255,8 @@ It hashes the semantic profile definition, including every parameter that can ch
 
 The source JSON/YAML/text used to author that definition is not itself the identity.
 
+The M0 canonical semantic encoding and domain-separation candidate are specified in [PROFILE-FINGERPRINT-V1.md](PROFILE-FINGERPRINT-V1.md). That candidate is exercised by normative tests now, while M3 remains the public compatibility freeze gate.
+
 ### 5.4 ManifestId
 
 ManifestId binds:
