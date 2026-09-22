@@ -50,7 +50,7 @@ For M1 measurement only, #4 defines three **non-stable calibration presets**:
 | 128 KiB | 32 KiB | 512 KiB |
 | 256 KiB | 64 KiB | 1 MiB |
 
-They use `minimum = target / 4` and `maximum = target * 4`. These values exist to run comparable lab evidence; #8 may select different release-profile values.
+They use `minimum = target / 4` and `maximum = target * 4`. These values exist to run comparable lab evidence; #8 may select different release-profile values.\n\nFor these non-stable candidates, `CandidateProfileId` includes minimum/target/maximum plus the full semantic `ProfileFingerprint`; changing any bound semantic therefore produces a different candidate identifier rather than colliding on target size alone.
 
 ## 2. GEAR table
 

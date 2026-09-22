@@ -44,9 +44,9 @@ public class FastCdcKernelTests
     }
 
     [Theory]
-    [InlineData(64 * 1024, "fastcdc.gear.candidate.v1.64k", "054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0")]
-    [InlineData(128 * 1024, "fastcdc.gear.candidate.v1.128k", "74d375951d3cd4d165fdad5866c6de0b7a9231c794f16444930ac5acdd65b3da")]
-    [InlineData(256 * 1024, "fastcdc.gear.candidate.v1.256k", "d8fc289d93f8f8b6308498891831638743cce8dde789417f25cf5f3d8f7fbae4")]
+    [InlineData(64 * 1024, "fastcdc.gear.candidate.v1.m16384.t65536.x262144.f054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0", "054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0")]
+    [InlineData(128 * 1024, "fastcdc.gear.candidate.v1.m32768.t131072.x524288.f74d375951d3cd4d165fdad5866c6de0b7a9231c794f16444930ac5acdd65b3da", "74d375951d3cd4d165fdad5866c6de0b7a9231c794f16444930ac5acdd65b3da")]
+    [InlineData(256 * 1024, "fastcdc.gear.candidate.v1.m65536.t262144.x1048576.fd8fc289d93f8f8b6308498891831638743cce8dde789417f25cf5f3d8f7fbae4", "d8fc289d93f8f8b6308498891831638743cce8dde789417f25cf5f3d8f7fbae4")]
     public void CandidateProfileIdentity_IsDeterministic(
         int target,
         string profileId,
@@ -56,6 +56,43 @@ public class FastCdcKernelTests
 
         Assert.Equal(profileId, profile.CandidateProfileId.Value);
         Assert.Equal(fingerprint, profile.ComputeFingerprint().ToString());
+    }
+
+    [Fact]
+    public void GearLookup_DoesNotAllocatePerLookup()
+    {
+        _ = FastCdcGearTable.Get(0);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        ulong accumulator = 0;
+
+        for (int iteration = 0; iteration < 1_000_000; iteration++)
+        {
+            accumulator ^= FastCdcGearTable.Get((byte)iteration);
+        }
+
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0, allocated);
+        GC.KeepAlive(accumulator);
+    }
+
+    [Fact]
+    public void CandidateProfileId_BindsCompleteSemanticFingerprint()
+    {
+        var baseline = new FastCdcProfile(16 * 1024, 64 * 1024, 256 * 1024);
+        var changedMinimum = new FastCdcProfile(8 * 1024, 64 * 1024, 256 * 1024);
+        var changedMaximum = new FastCdcProfile(16 * 1024, 64 * 1024, 128 * 1024);
+
+        Assert.NotEqual(baseline.ComputeFingerprint(), changedMinimum.ComputeFingerprint());
+        Assert.NotEqual(baseline.ComputeFingerprint(), changedMaximum.ComputeFingerprint());
+        Assert.NotEqual(baseline.CandidateProfileId, changedMinimum.CandidateProfileId);
+        Assert.NotEqual(baseline.CandidateProfileId, changedMaximum.CandidateProfileId);
+
+        Assert.True(
+            baseline.CandidateProfileId.Value.Contains(
+                baseline.ComputeFingerprint().ToString(),
+                StringComparison.Ordinal));
     }
 
     [Fact]

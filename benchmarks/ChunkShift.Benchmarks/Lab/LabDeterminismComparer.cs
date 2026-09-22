@@ -68,6 +68,16 @@ public static class LabDeterminismComparer
                 "TargetChunkSequenceSha256",
                 leftResult.Evidence.TargetChunkSequenceSha256,
                 rightResult.Evidence.TargetChunkSequenceSha256);
+            equal &= Compare(
+                id,
+                "SourceStreamingChunkSequenceSha256",
+                leftResult.Evidence.SourceStreamingChunkSequenceSha256,
+                rightResult.Evidence.SourceStreamingChunkSequenceSha256);
+            equal &= Compare(
+                id,
+                "TargetStreamingChunkSequenceSha256",
+                leftResult.Evidence.TargetStreamingChunkSequenceSha256,
+                rightResult.Evidence.TargetStreamingChunkSequenceSha256);
         }
 
         if (!equal)

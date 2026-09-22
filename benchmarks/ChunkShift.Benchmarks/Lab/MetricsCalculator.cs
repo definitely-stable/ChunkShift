@@ -34,7 +34,9 @@ public static class MetricsCalculator
 
         double reuseRatio = targetBytes == 0 ? 1 : reusedBytes / (double)targetBytes;
         double boundarySurvival = ComputeBoundarySurvival(source, target);
-        long? resync = ComputeResynchronizationDistance(source, target, mutation.AffectedTargetEnd);
+        long? resync = mutation.LogicalChangedBytes == 0
+            ? null
+            : ComputeResynchronizationDistance(source, target, mutation.AffectedTargetEnd);
 
         double changeAmplification = mutation.LogicalChangedBytes == 0
             ? 0
