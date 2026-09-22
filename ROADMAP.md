@@ -59,7 +59,7 @@ Completed corrective preparation:
 
 - [#33](https://github.com/definitely-stable/ChunkShift/issues/33) — exact profile numeric canonicalization, stronger benchmark evidence and Core-first release correction; merged via PR #35.
 
-The next critical-path implementation is [#4](https://github.com/definitely-stable/ChunkShift/issues/4): canonical deterministic chunking and HashSuite kernels.
+Active semantic preflight: [#37](https://github.com/definitely-stable/ChunkShift/issues/37) hardens measurement-oracle correctness, FastCDC semantics and cross-architecture determinism. [#4](https://github.com/definitely-stable/ChunkShift/issues/4) starts after #37 closes.
 
 ## Critical path
 
@@ -67,6 +67,9 @@ The next critical-path implementation is [#4](https://github.com/definitely-stab
 #2 identity semantics ──┐
                        ├─> #33 corrective preparation
 #3 measurement lab ────┘            |
+                                    v
+                         #37 M1 semantic preflight
+                                    |
                                     v
                          #4 deterministic kernels
                            /                 \
