@@ -1,10 +1,10 @@
 # CSM v1 candidate binary specification
 
-Status: Candidate for M1/#5; not public-frozen until #9  
+Status: Candidate for M1/[#5](https://github.com/definitely-stable/ChunkShift/issues/5); not public-frozen until [#9](https://github.com/definitely-stable/ChunkShift/issues/9)  
 Date: 2026-09-22  
 Authority: RFC-0001 section 8 + RFC-0003 release scope
 
-This document turns the high-level CSM architecture into an implementable candidate. Any incompatible change before #9 is permitted only with updated vectors/spec; after publication, format-version rules apply independently from the NuGet package version.
+This document turns the high-level CSM architecture into an implementable candidate. Any incompatible change before [#9](https://github.com/definitely-stable/ChunkShift/issues/9) is permitted only with updated vectors/spec; after publication, format-version rules apply independently from the NuGet package version.
 
 ## 1. Byte order and common rules
 
@@ -295,7 +295,7 @@ Writer:
 
 Reader must support forward streaming through CORE/CBLK/CEND without needing BIDX/FOOT materialization. Seek/tail-index use is an optimization, not a semantic requirement.
 
-## 16. Golden vectors before #9
+## 16. Golden vectors before [#9](https://github.com/definitely-stable/ChunkShift/issues/9)
 
 Frozen Core 0.1.0 fixtures must include at least:
 
@@ -313,4 +313,4 @@ Frozen Core 0.1.0 fixtures must include at least:
 - unknown optional section skip;
 - equivalent logical manifest encoded with permitted physical differences.
 
-At least one small independent verifier/generator must check the release-candidate vectors before #9 closes.
+At least one small independent verifier/generator must check the release-candidate vectors before [#9](https://github.com/definitely-stable/ChunkShift/issues/9) closes.
