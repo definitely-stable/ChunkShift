@@ -14,6 +14,7 @@ on:
       - "docs/architecture/FASTCDC-*.md"
       - "docs/architecture/FASTCDC-*.txt"
       - "tools/reference/fastcdc_reference.py"
+      - "tools/reference/fastcdc-rs-probe/**"
       - ".github/workflows/heavy-validation.yml"
   schedule:
     - cron: "17 3 * * 1"
@@ -71,6 +72,11 @@ jobs:
       - name: Verify independent FastCDC vector
         shell: bash
         run: python3 tools/reference/fastcdc_reference.py --verify
+
+      - name: Verify fastcdc-rs 5.0.0 external vector
+        if: matrix.rid == 'linux-x64'
+        shell: bash
+        run: cargo run --locked --manifest-path tools/reference/fastcdc-rs-probe/Cargo.toml --release
 
       - name: Pack
         run: dotnet pack src/ChunkShift/ChunkShift.csproj -c Release --no-build --no-restore -o artifacts/packages -p:PackageVersion=${PACKAGE_VERSION}
