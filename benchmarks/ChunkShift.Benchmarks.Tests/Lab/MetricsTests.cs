@@ -63,4 +63,23 @@ public class MetricsTests
         Assert.InRange(metrics.ReuseRatio, 0, 1);
         Assert.InRange(metrics.BoundarySurvival, 0, 1);
     }
+    [Fact]
+    public void ResynchronizationDistributionReportsRequiredPercentiles()
+    {
+        DistributionSummary? summary = DistributionCalculator.Summarize(
+            new long?[] { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100 });
+
+        Assert.NotNull(summary);
+        Assert.Equal(10, summary.Count);
+        Assert.Equal(50, summary.P50);
+        Assert.Equal(100, summary.P95);
+        Assert.Equal(100, summary.P99);
+        Assert.Equal(100, summary.Max);
+    }
+
+    [Fact]
+    public void EmptyResynchronizationDistributionIsNull()
+    {
+        Assert.Null(DistributionCalculator.Summarize(new long?[] { null, null }));
+    }
 }
