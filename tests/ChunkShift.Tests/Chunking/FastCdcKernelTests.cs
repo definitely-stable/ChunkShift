@@ -89,7 +89,10 @@ public class FastCdcKernelTests
         Assert.NotEqual(baseline.CandidateProfileId, changedMinimum.CandidateProfileId);
         Assert.NotEqual(baseline.CandidateProfileId, changedMaximum.CandidateProfileId);
 
-        Assert.Contains(baseline.ComputeFingerprint().ToString(), baseline.CandidateProfileId.Value, StringComparison.Ordinal);
+        Assert.True(
+            baseline.CandidateProfileId.Value.Contains(
+                baseline.ComputeFingerprint().ToString(),
+                StringComparison.Ordinal));
     }
 
     [Fact]
