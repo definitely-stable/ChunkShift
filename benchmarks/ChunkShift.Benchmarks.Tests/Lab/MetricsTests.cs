@@ -97,6 +97,32 @@ public class MetricsTests
     }
 
     [Fact]
+    public void IdentityMutationHasNoResynchronizationDistance()
+    {
+        ChunkRecord[] chunks =
+        [
+            Chunk(0, 4, 1),
+            Chunk(4, 4, 2),
+            Chunk(8, 4, 3),
+        ];
+
+        LabMetrics metrics = MetricsCalculator.Create(
+            chunks,
+            chunks,
+            MutationGenerator.Identity(new byte[12]),
+            4,
+            12,
+            12,
+            24,
+            1,
+            1,
+            0,
+            0);
+
+        Assert.Null(metrics.ResynchronizationDistanceBytes);
+    }
+
+    [Fact]
     public void ResynchronizationDistributionReportsRequiredPercentiles()
     {
         DistributionSummary? summary = DistributionCalculator.Summarize(
