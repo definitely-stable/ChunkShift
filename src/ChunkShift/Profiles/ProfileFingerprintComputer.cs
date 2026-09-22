@@ -259,22 +259,12 @@ internal static class ProfileFingerprintComputer
                 $"canonical integer must contain at most {MaxCanonicalIntegerDigits} digits");
         }
 
-        return string.Create(
-            canonicalDigits + (negative ? 1 : 0),
-            (raw, digits: digits.Slice(leadingZeros, coreDigits).ToString(), appendedZeros, negative),
-            static (destination, state) =>
-            {
-                int destinationOffset = 0;
+        string core = digits.Slice(leadingZeros, coreDigits).ToString();
+        string canonical = appendedZeros == 0
+            ? core
+            : string.Concat(core, new string('0', appendedZeros));
 
-                if (state.negative)
-                {
-                    destination[0] = '-';
-                    destinationOffset = 1;
-                }
-
-                state.digits.AsSpan().CopyTo(destination.Slice(destinationOffset));
-                destination.Slice(destinationOffset + state.digits.Length, state.appendedZeros).Fill('0');
-            });
+        return negative ? string.Concat("-", canonical) : canonical;
     }
 
     private static bool IsAsciiDigit(char value) => (uint)(value - '0') <= 9;
