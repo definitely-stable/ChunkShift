@@ -1,0 +1,120 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Exact SemVer package version (for example 0.1.0 or 0.1.1-rc.1)"
+        required: true
+        type: string
+      publish_nuget:
+        description: "Publish to NuGet.org after validation (requires trusted publishing setup)"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+  artifact-metadata: write
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+
+jobs:
+  release:
+    name: validate-package${{ inputs.publish_nuget && '-publish' || '' }}
+    runs-on: ubuntu-24.04
+    environment: release
+
+    steps:
+      - name: Require main
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "Release workflow must be dispatched from main." >&2
+            exit 1
+          fi
+
+      - name: Validate requested version
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${VERSION}" =~ ^0\.1\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Version must follow the current 0.1.Z release train." >&2
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore ChunkShift.slnx
+
+      - name: Build and test
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build ChunkShift.slnx -c Release --no-restore
+          dotnet test ChunkShift.slnx -c Release --no-build --no-restore
+
+      - name: Pack exact release artifacts
+        run: dotnet pack src/ChunkShift/ChunkShift.csproj -c Release --no-build --no-restore -o artifacts/packages -p:PackageVersion=${{ inputs.version }}
+
+      - name: Consume exact package
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet new console --name ReleaseConsumer --output artifacts/release-consumer --framework net10.0 --no-restore
+          dotnet add artifacts/release-consumer/ReleaseConsumer.csproj package ChunkShift --version "${{ inputs.version }}" --source "${GITHUB_WORKSPACE}/artifacts/packages"
+          cat > artifacts/release-consumer/Program.cs <<'CS'
+          using ChunkShift.Primitives;
+
+          Console.WriteLine(new ChunkerId("release.smoke").Value);
+          CS
+          dotnet publish artifacts/release-consumer/ReleaseConsumer.csproj -c Release -r linux-x64 --self-contained true -p:PublishAot=true -p:PublishTrimmed=true -o artifacts/release-consumer-publish
+          ./artifacts/release-consumer-publish/ReleaseConsumer
+
+      - name: Upload release candidate artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chunkshift-${{ inputs.version }}
+          path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attest package provenance
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
+
+      - name: NuGet trusted-publishing login
+        if: ${{ inputs.publish_nuget }}
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Publish to NuGet.org
+        if: ${{ inputs.publish_nuget }}
+        shell: bash
+        env:
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          dotnet nuget push "artifacts/packages/*.nupkg"             --api-key "${NUGET_API_KEY}"             --source "https://api.nuget.org/v3/index.json"             --skip-duplicate
