@@ -44,9 +44,9 @@ public class FastCdcKernelTests
     }
 
     [Theory]
-    [InlineData(64 * 1024, "fastcdc.gear.candidate.v1.64k", "054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0")]
-    [InlineData(128 * 1024, "fastcdc.gear.candidate.v1.128k", "74d375951d3cd4d165fdad5866c6de0b7a9231c794f16444930ac5acdd65b3da")]
-    [InlineData(256 * 1024, "fastcdc.gear.candidate.v1.256k", "d8fc289d93f8f8b6308498891831638743cce8dde789417f25cf5f3d8f7fbae4")]
+    [InlineData(64 * 1024, "fastcdc.gear.candidate.v1.min16384.target65536.max262144", "054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0")]
+    [InlineData(128 * 1024, "fastcdc.gear.candidate.v1.min32768.target131072.max524288", "74d375951d3cd4d165fdad5866c6de0b7a9231c794f16444930ac5acdd65b3da")]
+    [InlineData(256 * 1024, "fastcdc.gear.candidate.v1.min65536.target262144.max1048576", "d8fc289d93f8f8b6308498891831638743cce8dde789417f25cf5f3d8f7fbae4")]
     public void CandidateProfileIdentity_IsDeterministic(
         int target,
         string profileId,
@@ -56,6 +56,35 @@ public class FastCdcKernelTests
 
         Assert.Equal(profileId, profile.CandidateProfileId.Value);
         Assert.Equal(fingerprint, profile.ComputeFingerprint().ToString());
+    }
+
+    [Fact]
+    public void GearLookup_DoesNotAllocatePerCandidate()
+    {
+        _ = FastCdcGearTable.Get(0);
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        ulong checksum = 0;
+
+        for (int iteration = 0; iteration < 1_000_000; iteration++)
+        {
+            checksum ^= FastCdcGearTable.Get((byte)iteration);
+        }
+
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.NotEqual(0UL, checksum);
+        Assert.Equal(0, allocated);
+    }
+
+    [Fact]
+    public void CandidateProfileId_BindsMinimumTargetAndMaximum()
+    {
+        FastCdcProfile baseline = new(16 * 1024, 64 * 1024, 256 * 1024);
+        FastCdcProfile differentMinimum = new(32 * 1024, 64 * 1024, 256 * 1024);
+        FastCdcProfile differentMaximum = new(16 * 1024, 64 * 1024, 512 * 1024);
+
+        Assert.NotEqual(baseline.CandidateProfileId, differentMinimum.CandidateProfileId);
+        Assert.NotEqual(baseline.CandidateProfileId, differentMaximum.CandidateProfileId);
     }
 
     [Fact]
