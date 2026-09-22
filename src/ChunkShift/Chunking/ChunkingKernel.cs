@@ -176,7 +176,10 @@ internal static class ChunkingKernel
         ChunkKernelSink sink,
         CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         Hash256 hash = HashSuiteHasher.Hash(hashSuite, chunkBuffer.AsSpan(0, length));
+        cancellationToken.ThrowIfCancellationRequested();
+
         var chunk = new ChunkKernelChunk(offset, length, new ChunkId(hash));
         return sink(chunk, chunkBuffer.AsMemory(0, length), cancellationToken);
     }
