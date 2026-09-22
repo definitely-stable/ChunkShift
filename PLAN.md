@@ -136,7 +136,7 @@ M2 Minimum useful           Research track
 M3 Evidence + compatibility freeze gate
                |
                v
-        Core/Patching 1.0
+        Core/Patching 0.1.0
           /          \
          v            v
 M4 Repository      M4A ASP.NET Core
@@ -154,7 +154,7 @@ M6 GC/repack/lifecycle
 M7 HTTP/S3/R2 distribution
                |
                v
-       Repository 1.0 gate
+       Repository public-release gate
 ```
 
 ## 6. M0 — Architecture correction and measurement lab
@@ -214,7 +214,7 @@ At minimum:
 - repository implementation;
 - patch bundle implementation;
 - cloud;
-- public 1.0 freeze.
+- first public `0.1.0` release baseline.
 
 ## 7. M1 — Deterministic core and CSM candidate
 
@@ -402,7 +402,7 @@ Core/Patching can be hosted directly in ASP.NET Core without API workarounds, an
 - repository-backed negotiation;
 - resumable-upload protocol.
 
-## 9. M3 — Evidence and 1.0 freeze gate
+## 9. M3 — Evidence and 0.1.0 public-baseline gate
 
 ### Goal
 
@@ -412,10 +412,10 @@ Freeze only decisions supported by system evidence.
 
 - FastCDC 64/128/256 KiB calibrated comparison;
 - SeqCDC/VectorCDC/Chonkers/UltraCDC research comparison where implementations are reliable enough;
-- final stable profile selection;
+- final `0.1.0` profile selection and explicit ProfileId semantics;
 - CSM v1 spec;
 - CSP v1 spec;
-- stable Core and Patching public API review, including #20 evidence for the embedded raw chunk-stream API and ASP.NET host validation;
+- first-public Core and Patching API baseline review, including #20 evidence for the embedded raw chunk-stream API and ASP.NET host validation;
 - cross-language golden vectors;
 - compatibility policy;
 - fuzz/soak evidence.
@@ -424,7 +424,7 @@ Freeze only decisions supported by system evidence.
 
 - no winner is selected by raw GB/s alone;
 - actual mean chunk sizes are calibrated before comparison;
-- the stable profile must be deterministic across scalar/SIMD/x64/ARM64 implementations.
+- the published `0.1.0` profile must be deterministic across scalar/SIMD/x64/ARM64 implementations.
 
 ### Benchmarks
 
@@ -442,7 +442,7 @@ Primary evidence:
 ### Exit criteria
 
 - no unresolved P0 public API or CSM/CSP format issue;
-- exactly documented stable default profile;
+- exactly documented `0.1.0` default profile;
 - package/API compatibility baseline established.
 
 ### Intentionally not included
@@ -732,10 +732,10 @@ The M3 freeze gate must explicitly close:
 10. exact embedded raw chunk-stream shape chosen by #20: push/pull, contiguous/segmented, Task/ValueTask;
 11. borrowed-memory, exclusive-source, read-ahead, short-read invariance and post-failure-position contracts;
 12. proof that Core/Patching can be hosted directly in ASP.NET Core without host-specific leakage into Core;
-13. default profile/HashSuite resolution frozen for the 1.x compatibility line;
+13. default profile/HashSuite resolution recorded for `0.1.0`; later `0.1.Z` semantic changes require an explicit breaking-change decision and new persisted identifiers where identity semantics change;
 14. compatibility/golden-vector policy.
 
-Repository pack/index defaults are not required to freeze with Core/Patching 1.0 unless they are exposed as stable repository formats at the same time.
+Repository pack/index defaults are not required to freeze with the Core/Patching `0.1.0` baseline unless they are exposed as published repository formats at the same time.
 
 ## 16. Work-management rule
 
