@@ -10,6 +10,9 @@ permissions:
 jobs:
   dependency-review:
     name: dependency-review
+    # Advisory until repository Dependency Graph is enabled (tracked in #24).
+    # Remove continue-on-error when the GitHub-side prerequisite exists.
+    continue-on-error: true
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
