@@ -8,10 +8,12 @@ on:
       - "benchmarks/**"
       - "docs/benchmarks/**"
       - "src/ChunkShift/Hashing/**"
+      - "src/ChunkShift/Chunking/**"
       - "src/ChunkShift/Profiles/**"
       - "docs/architecture/PROFILE-FINGERPRINT-V1.md"
       - "docs/architecture/FASTCDC-*.md"
       - "docs/architecture/FASTCDC-*.txt"
+      - "tools/reference/fastcdc_reference.py"
       - ".github/workflows/heavy-validation.yml"
   schedule:
     - cron: "17 3 * * 1"
@@ -65,6 +67,10 @@ jobs:
           set -euo pipefail
           dotnet build ChunkShift.slnx -c Release --no-restore
           dotnet test ChunkShift.slnx -c Release --no-build --no-restore
+
+      - name: Verify independent FastCDC vector
+        shell: bash
+        run: python3 tools/reference/fastcdc_reference.py --verify
 
       - name: Pack
         run: dotnet pack src/ChunkShift/ChunkShift.csproj -c Release --no-build --no-restore -o artifacts/packages -p:PackageVersion=${PACKAGE_VERSION}
