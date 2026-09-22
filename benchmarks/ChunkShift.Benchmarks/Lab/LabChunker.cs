@@ -1,3 +1,4 @@
+using ChunkShift.Chunking;
 using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks.Lab;
@@ -18,6 +19,37 @@ public static class LabChunker
             FastCdcAlgorithm => FastCdcReferenceChunker.Chunk(data, experiment.ChunkSize, hashSuite),
             _ => throw new InvalidOperationException($"Unsupported lab algorithm '{experiment.Algorithm}'."),
         };
+    }
+
+    public static async ValueTask<ChunkRecord[]> ChunkStreamingAsync(
+        byte[] data,
+        ExperimentDefinition experiment,
+        HashSuiteId hashSuite,
+        CancellationToken cancellationToken = default)
+    {
+        ChunkingKernelProfile profile = experiment.Algorithm switch
+        {
+            FixedAlgorithm => ChunkingKernelProfile.Fixed(experiment.ChunkSize),
+            FastCdcAlgorithm => ChunkingKernelProfile.FastCdcGear(
+                FastCdcProfile.CreateM1Candidate(experiment.ChunkSize)),
+            _ => throw new InvalidOperationException($"Unsupported lab algorithm '{experiment.Algorithm}'."),
+        };
+
+        using var source = new MemoryStream(data, writable: false);
+        var chunks = new List<ChunkRecord>();
+
+        await ChunkingKernel.ScanAsync(
+            source,
+            profile,
+            hashSuite,
+            (chunk, _, _) =>
+            {
+                chunks.Add(new ChunkRecord(chunk.Offset, chunk.Length, chunk.Id.Value));
+                return ValueTask.CompletedTask;
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        return chunks.ToArray();
     }
 
     public static int GetMaximumChunkSize(ExperimentDefinition experiment)
