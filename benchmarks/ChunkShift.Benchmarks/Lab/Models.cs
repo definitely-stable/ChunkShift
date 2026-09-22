@@ -74,7 +74,8 @@ public sealed record DistributionSummary(
     long Max);
 
 public sealed record LabSummary(
-    DistributionSummary? ResynchronizationDistanceBytes);
+    DistributionSummary? ResynchronizationDistanceBytes,
+    Dictionary<string, DistributionSummary> ResynchronizationDistanceByMutationKind);
 
 public sealed record EnvironmentSnapshot(
     string OsDescription,
