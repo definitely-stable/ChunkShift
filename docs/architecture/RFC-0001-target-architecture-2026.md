@@ -339,6 +339,8 @@ Rabin/Buzhash may be kept as reference baselines, not public stable profiles.
 
 ## 8. CSM v1 binary manifest
 
+The implementable M1 candidate layout is specified in [CSM-V1-CANDIDATE.md](CSM-V1-CANDIDATE.md). This RFC remains the architectural authority; #9 is the public format freeze gate.
+
 CSM is a bespoke streaming binary container.
 
 High-level structure:
