@@ -68,7 +68,7 @@ public static class LabRunner
                 measurement.SourceChunks,
                 measurement.TargetChunks,
                 mutation,
-                experiment.ChunkSize,
+                LabChunker.GetMaximumChunkSize(experiment),
                 source.Length,
                 mutation.Target.Length,
                 measuredBytes,
