@@ -93,11 +93,11 @@ As of 2026-09-22:
 - embedded/local SDK and ASP.NET Core boundaries are documented in RFC-0002;
 - the milestone implementation plan is in PLAN.md;
 - architecture/API Red Team corrections were merged through PRs [#15](https://github.com/definitely-stable/ChunkShift/pull/15), [#19](https://github.com/definitely-stable/ChunkShift/pull/19) and [#21](https://github.com/definitely-stable/ChunkShift/pull/21);
-- implementation issues for M0-M7 are open;
+- M0 semantics and measurement foundation are complete via [#2](https://github.com/definitely-stable/ChunkShift/issues/2) and [#3](https://github.com/definitely-stable/ChunkShift/issues/3); M1 implementation is next;
 - the low-level raw chunk-stream API is intentionally not frozen;
 - M3 establishes the `0.1.0` public baseline; SemVer compatibility stability is not promised until an explicit future `1.0.0` decision.
 
-The next work is not another broad architecture redesign. The immediate objective is to turn the accepted architecture into measured implementation evidence.
+The next critical-path work is [#4](https://github.com/definitely-stable/ChunkShift/issues/4): deterministic chunking and hashing kernels built against the completed M0 semantics and measurement lab.
 
 ## 3. Critical path
 
