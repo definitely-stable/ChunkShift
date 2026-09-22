@@ -65,7 +65,17 @@ Objects are encoded with properties sorted by property name using ordinal compar
 
 Arrays retain order because array position can be semantic.
 
-Numbers must denote exact integers. Equivalent representations such as `1` and `1.0` canonicalize to the same decimal integer text. Fractional values are rejected in this candidate contract rather than relying on language-specific floating-point formatting.
+Numbers are canonicalized from the original JSON numeric token; floating-point and `decimal` parsing are not part of the identity algorithm.
+
+Numbers must denote exact integers. Equivalent representations such as `1`, `1.0`, `1e0`, `0.001e3` and `1.20e1` (for 12) canonicalize to the same mathematical integer text when they represent the same value. Values with any non-zero fractional remainder are rejected, including fractions smaller than `decimal` precision such as `1.00000000000000000000000000001` and `1e-1000`.
+
+The M0 candidate applies explicit resource bounds:
+
+- raw numeric token: at most 128 characters;
+- exponent magnitude: at most 1024;
+- canonical integer magnitude: at most 128 decimal digits (excluding sign).
+
+All representations of zero canonicalize to `0`, including negative zero. These limits are part of the candidate fingerprint semantics and prevent authoring input from forcing unbounded canonical expansion.
 
 JSON escapes are decoded before string canonicalization, so equivalent JSON escape spellings represent the same semantic string.
 
