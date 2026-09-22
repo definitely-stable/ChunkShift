@@ -23,8 +23,15 @@ public static class MetricsCalculator
             : lengths.Count(length => length == configuredMaxChunkSize) / (double)lengths.Length;
 
         var sourceIds = source.Select(static chunk => chunk.Id).ToHashSet();
-        long reusedBytes = target.Where(chunk => sourceIds.Contains(chunk.Id)).Sum(static chunk => (long)chunk.Length);
-        long newPayloadBytes = targetBytes - reusedBytes;
+        long reusedBytes = target
+            .Where(chunk => sourceIds.Contains(chunk.Id))
+            .Sum(static chunk => (long)chunk.Length);
+
+        long uniqueMissingPayloadBytes = target
+            .Where(chunk => !sourceIds.Contains(chunk.Id))
+            .GroupBy(static chunk => chunk.Id)
+            .Sum(static group => (long)group.First().Length);
+
         double reuseRatio = targetBytes == 0 ? 1 : reusedBytes / (double)targetBytes;
 
         double boundarySurvival = ComputeBoundarySurvival(source, target);
@@ -32,7 +39,7 @@ public static class MetricsCalculator
 
         double changeAmplification = mutation.LogicalChangedBytes == 0
             ? 0
-            : newPayloadBytes / (double)mutation.LogicalChangedBytes;
+            : uniqueMissingPayloadBytes / (double)mutation.LogicalChangedBytes;
 
         long logicalManifestBytes = checked(target.LongLength * 36L);
         double manifestPerGiB = sourceBytes == 0
@@ -54,11 +61,13 @@ public static class MetricsCalculator
             Percentile(lengths, 0.99),
             max,
             maxCutRate,
+            reusedBytes,
             reuseRatio,
             boundarySurvival,
             resync,
             changeAmplification,
-            newPayloadBytes,
+            uniqueMissingPayloadBytes,
+            null,
             logicalManifestBytes,
             manifestPerGiB,
             null,
