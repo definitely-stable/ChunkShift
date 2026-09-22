@@ -40,3 +40,29 @@ Security-sensitive changes include:
 - dependency or CI supply-chain changes.
 
 A cryptographic content hash is an integrity primitive, not a signature or authenticity proof.
+
+## In-process pooled-buffer residuals
+
+ChunkShift uses pooled buffers on streaming hot paths. Returned pooled storage is an implementation resource, not a confidentiality boundary.
+
+Current security contract:
+
+- borrowed chunk memory is valid only for its documented lease and must not be used after that lease ends;
+- ChunkShift may return backing storage to a pool without clearing every byte;
+- callers must not assume pooled memory is zeroed before or after use;
+- code with arbitrary execution inside the same process is outside the confidentiality boundary of ordinary pooled-memory reuse;
+- secrets that require stronger in-process erasure guarantees must not rely on the default high-throughput scanner path until a separately designed security mode exists.
+
+ChunkShift does not enable unconditional buffer scrubbing by default. Scrubbing can materially increase memory bandwidth on large streaming workloads and does not by itself create a process-isolation boundary.
+
+Any future secure-buffer/private-repository mode must define:
+
+- what data is cleared;
+- exactly when clearing occurs;
+- whether a private pool is used instead of a shared pool;
+- cancellation/exception behavior;
+- NativeAOT behavior;
+- measured throughput and CPU impact.
+
+Changing the ordinary implementation from one pool strategy to another does not change chunk identity or persisted formats, provided the documented borrowed-memory lifetime remains intact.
+
