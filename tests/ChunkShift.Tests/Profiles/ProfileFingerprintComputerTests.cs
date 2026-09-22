@@ -121,21 +121,16 @@ public class ProfileFingerprintComputerTests
     }
 
     [Fact]
-    public void HashSuiteSelection_IsOrthogonalAndExplicit()
+    public void ProfileFingerprint_IsIndependentOfContentHashSuite()
     {
         const string artifact = """{"semantics":{"algorithm":"fixed","version":1,"size":65536}}""";
-        byte[] utf8 = Encoding.UTF8.GetBytes(artifact);
+        ProfileFingerprint fingerprint = ProfileFingerprintComputer.Compute(Encoding.UTF8.GetBytes(artifact));
 
-        ProfileFingerprint blake3 = ProfileFingerprintComputer.Compute(HashSuiteIds.Blake3256V1, utf8);
-        ProfileFingerprint sha256 = ProfileFingerprintComputer.Compute(HashSuiteIds.Sha256V1, utf8);
-
-        Assert.NotEqual(blake3, sha256);
+        Assert.Equal(fingerprint, Compute(artifact));
     }
 
     private static ProfileFingerprint Compute(string artifact)
     {
-        return ProfileFingerprintComputer.Compute(
-            HashSuiteIds.Blake3256V1,
-            Encoding.UTF8.GetBytes(artifact));
+        return ProfileFingerprintComputer.Compute(Encoding.UTF8.GetBytes(artifact));
     }
 }
