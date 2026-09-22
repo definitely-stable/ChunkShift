@@ -77,6 +77,29 @@ public class FastCdcKernelTests
     }
 
     [Fact]
+    public void ScalarBoundaryHotLoop_DoesNotAllocate()
+    {
+        byte[] input = CreateXorShiftBytes(1024 * 1024, 0xCAFEBABEu);
+        _ = FastCdcScalar.FindCut(input, Profile64K);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        int offset = 0;
+        int chunks = 0;
+
+        while (offset < input.Length)
+        {
+            int length = FastCdcScalar.FindCut(input.AsSpan(offset), Profile64K);
+            offset += length;
+            chunks++;
+        }
+
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.True(chunks > 1);
+        Assert.Equal(0, allocated);
+    }
+
+    [Fact]
     public void CandidateProfileId_BindsMinimumTargetAndMaximum()
     {
         FastCdcProfile baseline = new(16 * 1024, 64 * 1024, 256 * 1024);
