@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/definitely-stable/ChunkShift/security/advisories/new
+    about: Report exploitable or sensitive security issues privately.
+  - name: Project roadmap
+    url: https://github.com/definitely-stable/ChunkShift/blob/main/ROADMAP.md
+    about: Check planned milestones and active dependencies before proposing broad work.
