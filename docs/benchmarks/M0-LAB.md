@@ -108,6 +108,8 @@ These are calibration presets, not the Core 0.1.0 default. #8 selects the stable
 
 `tools/reference/fastcdc_reference.py --verify` independently parses the normative GEAR table and verifies the 1 MiB deterministic golden boundary vector without calling the C# implementation.
 
+A second oracle, `tools/reference/fastcdc-rs-probe`, pins `fastcdc-rs 5.0.0` and verifies the same complete boundary sequence using its canonical `v2016` implementation. It runs only on the linux-x64 heavy lane to avoid duplicating Rust compilation on ARM64.
+
 ## Metrics
 
 Before each experiment, the exact source/target workload is warmed up three times. Each experiment is then measured five times; wall time, CPU time and managed-allocation deltas use the median sample. **All individual samples are also retained** so variance/outliers are not lost behind the median.
