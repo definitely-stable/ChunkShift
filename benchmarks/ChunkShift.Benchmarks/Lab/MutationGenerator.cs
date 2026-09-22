@@ -121,7 +121,7 @@ public static class MutationGenerator
         int insertAt = Math.Min(destination, without.Length);
         var target = new byte[source.Length];
         without.AsSpan(0, insertAt).CopyTo(target);
-        moved.CopyTo(target.AsSpan(insertAt));
+        moved.AsSpan().CopyTo(target.AsSpan(insertAt));
         without.AsSpan(insertAt).CopyTo(target.AsSpan(insertAt + size));
 
         int start = Math.Min(from, insertAt);
@@ -156,7 +156,7 @@ public static class MutationGenerator
         int secondOffset = second * blockSize;
         byte[] temp = target.AsSpan(firstOffset, blockSize).ToArray();
         target.AsSpan(secondOffset, blockSize).CopyTo(target.AsSpan(firstOffset, blockSize));
-        temp.CopyTo(target.AsSpan(secondOffset, blockSize));
+        temp.AsSpan().CopyTo(target.AsSpan(secondOffset, blockSize));
 
         return new MutationResult(
             target,
