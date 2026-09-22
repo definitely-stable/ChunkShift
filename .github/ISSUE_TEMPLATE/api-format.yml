@@ -1,0 +1,45 @@
+name: API or format proposal
+description: Propose a public API, persisted-format, identity or compatibility change
+title: "[API/Format] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the concrete use case or compatibility problem. Avoid starting with the desired abstraction.
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Current contract
+      description: Link the relevant RFC/PLAN section and explain why it is insufficient.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility impact
+      description: Cover API, CSM/CSP/pack/index, ProfileId/HashSuite, NativeAOT and cross-platform determinism as applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Include a smaller surface or no-change option.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence needed
+      description: What benchmark, prototype, corpus or consumer evidence should decide this?
+    validations:
+      required: true

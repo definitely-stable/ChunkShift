@@ -1,6 +1,6 @@
 # RFC-0001: ChunkShift Target Architecture 2026
 
-Status: Proposed  
+Status: Accepted  
 Target: ChunkShift 1.0 core and patching; repository architecture preview  
 Last updated: 2026-09-22
 

@@ -716,7 +716,7 @@ corpus evidence
 + compatibility review
 ```
 
-## 15. Decisions that must be closed before public v1
+## 15. Decisions that must be closed before the 0.1.0 public baseline
 
 The M3 freeze gate must explicitly close:
 

@@ -124,6 +124,8 @@ Performance claims require reproducible evidence from the project benchmark harn
 
 A public-format or profile change requires compatibility/golden-vector updates.
 
+See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) before making or reviewing a hot-path performance claim. See [docs/SUPPORT.md](docs/SUPPORT.md) before changing the tested/supported platform surface.
+
 ## Commit signing and contributor paperwork
 
 ChunkShift does not require signed contributor commits or a DCO sign-off by default. The release pipeline, protected `main`, immutable release tags and release attestations are the preferred supply-chain controls. This avoids unnecessary setup friction for first-time contributors.

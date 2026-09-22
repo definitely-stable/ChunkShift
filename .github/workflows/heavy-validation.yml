@@ -1,0 +1,73 @@
+name: Heavy validation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: heavy-validation
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+
+jobs:
+  native:
+    name: native (${{ matrix.rid }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rid: linux-x64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+    runs-on: ${{ matrix.os }}
+    env:
+      PACKAGE_VERSION: 0.0.0-heavy.${{ github.run_number }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore ChunkShift.slnx
+
+      - name: Build and test
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build ChunkShift.slnx -c Release --no-restore
+          dotnet test ChunkShift.slnx -c Release --no-build --no-restore
+
+      - name: Pack
+        run: dotnet pack src/ChunkShift/ChunkShift.csproj -c Release --no-build --no-restore -o artifacts/packages -p:PackageVersion=${PACKAGE_VERSION}
+
+      - name: NativeAOT package-consumer smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet new console --name AotConsumer --output artifacts/aot-consumer --framework net10.0 --no-restore
+          dotnet add artifacts/aot-consumer/AotConsumer.csproj package ChunkShift --version "${PACKAGE_VERSION}" --source "${GITHUB_WORKSPACE}/artifacts/packages"
+          cat > artifacts/aot-consumer/Program.cs <<'CS'
+          using ChunkShift.Primitives;
+
+          var id = new ChunkerId("aot.smoke");
+          Console.WriteLine(id.Value);
+          CS
+          dotnet publish artifacts/aot-consumer/AotConsumer.csproj -c Release -r "${{ matrix.rid }}" --self-contained true -p:PublishAot=true -p:PublishTrimmed=true -o artifacts/aot-publish
+
+      - name: Run NativeAOT smoke
+        shell: bash
+        run: ./artifacts/aot-publish/AotConsumer

@@ -6,7 +6,8 @@ Implementation authority: [PLAN.md](PLAN.md)
 Architecture authority: [RFC-0001](docs/architecture/RFC-0001-target-architecture-2026.md) and [RFC-0002](docs/architecture/RFC-0002-embedded-sdk-aspnet-core.md)  
 Program tracker: [#1](https://github.com/definitely-stable/ChunkShift/issues/1)  
 Release policy: [docs/RELEASES.md](docs/RELEASES.md)  
-Contribution policy: [CONTRIBUTING.md](CONTRIBUTING.md)
+Contribution policy: [CONTRIBUTING.md](CONTRIBUTING.md)  
+Repository hardening tracker: [#25](https://github.com/definitely-stable/ChunkShift/issues/25)
 
 This document is the project-level delivery map. It answers **what becomes usable when, what blocks the next stage, and what evidence is required to advance**.
 

@@ -1,0 +1,50 @@
+name: Performance regression
+description: Report a measured throughput, allocation, latency or amplification regression
+title: "[Perf] "
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Regression summary
+      description: Describe what became slower/larger and why it matters.
+    validations:
+      required: true
+  - type: input
+    id: baseline
+    attributes:
+      label: Baseline commit/version
+    validations:
+      required: true
+  - type: input
+    id: candidate
+    attributes:
+      label: Regressed commit/version
+    validations:
+      required: true
+  - type: textarea
+    id: workload
+    attributes:
+      label: Workload and corpus
+      description: Include chunk profile, HashSuite, input type/size and mutation trace when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Measurements
+      description: Include repeated measurements, noise/range and relevant GB/s, CPU/TiB, alloc/GiB, RSS, copy bytes or p95/p99 values.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Hardware / OS / architecture / runtime
+    validations:
+      required: true
+  - type: textarea
+    id: method
+    attributes:
+      label: Reproduction method
+      description: Prefer the repository benchmark harness over stopwatch-only measurements.
+    validations:
+      required: true

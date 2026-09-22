@@ -170,7 +170,23 @@ After `1.0.0`, normal SemVer meaning applies conventionally:
 - MINOR for backward-compatible public functionality;
 - MAJOR for incompatible public API changes.
 
-## 10. References
+## 10. Release automation
+
+The repository contains `.github/workflows/release.yml` as the controlled package validation/publishing entry point.
+
+Before enabling NuGet publication for the first time:
+
+1. create/configure the GitHub `release` environment;
+2. configure a nuget.org Trusted Publishing policy for this repository and workflow file `release.yml`;
+3. set `NUGET_USER` to the nuget.org profile name used by that policy;
+4. enable the repository/tag/immutable-release protections tracked by the governance issue;
+5. run the workflow with publication disabled and inspect the exact `.nupkg`/`.snupkg` artifacts first.
+
+The workflow exchanges GitHub OIDC identity for a short-lived nuget.org API key only when publication is explicitly requested. Do not add a long-lived NuGet API key secret as the normal release path.
+
+Normal CI artifacts are not releases and must not create permanent tags.
+
+## 11. References
 
 - Semantic Versioning 2.0.0: https://semver.org/spec/v2.0.0.html
 - NuGet package versioning: https://learn.microsoft.com/nuget/concepts/package-versioning
