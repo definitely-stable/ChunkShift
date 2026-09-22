@@ -215,7 +215,11 @@ public static class LabRunner
     private static LabSummary CreateSummary(List<ExperimentResult> results)
     {
         DistributionSummary? all = DistributionCalculator.Summarize(
-            results.Select(static result => result.Metrics.ResynchronizationDistanceBytes));
+            results
+                .Where(static result =>
+                    result.Mutation is not null &&
+                    result.Metrics.ResynchronizationDistanceBytes.HasValue)
+                .Select(static result => result.Metrics.ResynchronizationDistanceBytes));
 
         Dictionary<string, DistributionSummary> byMutationKind = results
             .Where(static result =>
