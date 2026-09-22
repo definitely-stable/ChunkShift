@@ -10,7 +10,8 @@ public sealed record CorpusEntry(
     string Generator,
     int SizeBytes,
     ulong Seed,
-    string Provenance);
+    string Provenance,
+    int GeneratorVersion = 1);
 
 public sealed record ExperimentManifest(int SchemaVersion, ExperimentDefinition[] Experiments);
 
@@ -49,11 +50,13 @@ public sealed record LabMetrics(
     int P99ChunkBytes,
     int MaxChunkBytes,
     double MaxCutRate,
+    long ReusedTargetBytes,
     double ReuseRatio,
     double BoundarySurvival,
     long? ResynchronizationDistanceBytes,
     double ChangeAmplification,
-    long PatchPayloadBytes,
+    long UniqueMissingPayloadBytes,
+    long? CspBytes,
     long LogicalManifestBytes,
     double ManifestBytesPerSourceGiB,
     long? IndexBytes,
@@ -61,10 +64,19 @@ public sealed record LabMetrics(
     long? BranchMispredictions,
     long? CacheMisses);
 
+public sealed record MeasurementSample(
+    double WallSeconds,
+    double CpuSeconds,
+    long AllocatedBytes,
+    long WorkingSetBeforeBytes,
+    long WorkingSetAfterBytes,
+    long ProcessPeakRssBytes);
+
 public sealed record MeasurementProtocol(
     int WarmupIterations,
     int MeasurementIterations,
-    string Aggregation);
+    string Aggregation,
+    string MemoryMeasurement);
 
 public sealed record DistributionSummary(
     int Count,
@@ -85,6 +97,12 @@ public sealed record EnvironmentSnapshot(
     int ProcessorCount,
     string? GitCommit);
 
+public sealed record ExperimentEvidence(
+    string SourceSha256,
+    string TargetSha256,
+    string SourceChunkSequenceSha256,
+    string TargetChunkSequenceSha256);
+
 public sealed record ExperimentResult(
     string DefinitionFingerprint,
     string ExperimentId,
@@ -92,6 +110,8 @@ public sealed record ExperimentResult(
     string Algorithm,
     string HashSuite,
     MutationDefinition? Mutation,
+    ExperimentEvidence Evidence,
+    MeasurementSample[] Samples,
     LabMetrics Metrics);
 
 public sealed record LabRun(
