@@ -6,7 +6,7 @@ using ChunkShift.Primitives;
 namespace ChunkShift.Benchmarks;
 
 [MemoryDiagnoser]
-public class FastCdcPipelineBenchmarks : IDisposable
+public sealed class FastCdcPipelineBenchmarks : IDisposable
 {
     private byte[] _data = null!;
     private MemoryStream _stream = null!;
