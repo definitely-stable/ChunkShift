@@ -97,6 +97,8 @@ M1/#4 plugs FastCDC/reference candidates into the same layout/metric model.
 
 ## Metrics
 
+Before each experiment, the exact source/target workload is warmed up three times. Each experiment is then measured five times; wall time, CPU time and managed-allocation deltas use the median sample. The measurement protocol is recorded in every result file so cross-run comparisons cannot silently mix protocols.
+
 The portable JSON result contains:
 
 - source/target/measured bytes;
@@ -150,6 +152,8 @@ first re-established boundary offset - affected target end
 ```
 
 No value is reported when there is no post-mutation region (for example, some append cases) or no re-established adjacency.
+
+The run summary additionally reports Resynchronization Distance p50/p95/p99/max across all available mutation observations and grouped by mutation kind. The checked-in smoke matrix has only a small number of traces per kind; profile-selection evidence must add repeated deterministic traces before treating those percentiles as statistically representative.
 
 ### Change Amplification
 
