@@ -81,7 +81,9 @@ public static class LabRunner
                 LabEvidenceDigest.ComputeBytes(source),
                 LabEvidenceDigest.ComputeBytes(mutation.Target),
                 LabEvidenceDigest.ComputeChunkSequence(measurement.SourceChunks),
-                LabEvidenceDigest.ComputeChunkSequence(measurement.TargetChunks));
+                LabEvidenceDigest.ComputeChunkSequence(measurement.TargetChunks),
+                StreamingEvidenceCollector.ComputeChunkSequence(source, experiment, hashSuite),
+                StreamingEvidenceCollector.ComputeChunkSequence(mutation.Target, experiment, hashSuite));
 
             results.Add(new ExperimentResult(
                 ExperimentFingerprint.Compute(experiment, entry),
@@ -104,7 +106,7 @@ public static class LabRunner
         LabSummary summary = CreateSummary(results);
 
         var run = new LabRun(
-            3,
+            4,
             DateTimeOffset.UtcNow,
             new MeasurementProtocol(
                 WarmupIterations,
