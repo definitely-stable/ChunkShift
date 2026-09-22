@@ -104,7 +104,9 @@ public sealed record ExperimentEvidence(
     string SourceSha256,
     string TargetSha256,
     string SourceChunkSequenceSha256,
-    string TargetChunkSequenceSha256);
+    string TargetChunkSequenceSha256,
+    string? SourceStreamingChunkSequenceSha256 = null,
+    string? TargetStreamingChunkSequenceSha256 = null);
 
 public sealed record ExperimentResult(
     string DefinitionFingerprint,
