@@ -1,3 +1,4 @@
+using ChunkShift.Chunking;
 using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks.Lab;
@@ -16,6 +17,17 @@ public static class LabChunker
         {
             FixedAlgorithm => FixedSizeReferenceChunker.Chunk(data, experiment.ChunkSize, hashSuite),
             FastCdcAlgorithm => FastCdcReferenceChunker.Chunk(data, experiment.ChunkSize, hashSuite),
+            _ => throw new InvalidOperationException($"Unsupported lab algorithm '{experiment.Algorithm}'."),
+        };
+    }
+
+    public static ChunkingKernelProfile GetKernelProfile(ExperimentDefinition experiment)
+    {
+        return experiment.Algorithm switch
+        {
+            FixedAlgorithm => ChunkingKernelProfile.Fixed(experiment.ChunkSize),
+            FastCdcAlgorithm => ChunkingKernelProfile.FastCdcGear(
+                FastCdcProfile.CreateM1Candidate(experiment.ChunkSize)),
             _ => throw new InvalidOperationException($"Unsupported lab algorithm '{experiment.Algorithm}'."),
         };
     }
