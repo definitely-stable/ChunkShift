@@ -106,6 +106,13 @@ jobs:
       - name: Build
         run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
 
+      - name: Verify production Release optimization
+        shell: bash
+        run: |
+          set -euo pipefail
+          value="$(dotnet msbuild src/ChunkShift/ChunkShift.csproj -p:Configuration=Release -p:TargetFramework=net10.0 -getProperty:Optimize | tail -n 1 | tr -d '\r')"
+          test "$value" = "true"
+
       - name: Run BLAKE3 chunk hash strategy microbenchmarks
         shell: bash
         run: |
