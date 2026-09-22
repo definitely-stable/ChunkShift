@@ -97,7 +97,7 @@ Rules:
 - unknown required semantic feature bits fail;
 - canonical TLVs are cold semantic metadata only, never per-chunk records.
 
-The exact TLV registry remains empty until a concrete semantic extension is accepted.
+The exact TLV registry is empty for the current v1 candidate. Until a concrete semantic extension is accepted and specified, writers MUST emit `ExtensionBytes = 0` and readers MUST reject non-zero ExtensionBytes. This prevents an under-specified extension encoding from entering compatibility fixtures.
 
 ## 6. CBLK payload
 
