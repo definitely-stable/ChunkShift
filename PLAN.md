@@ -142,9 +142,6 @@ foundation         adapter/protocol spike
 M5 Global index + catalog + crash/concurrency
                |
                v
-M5 Global index + catalog + crash/concurrency
-               |
-               v
 M6 GC/repack/lifecycle
                |
                v
