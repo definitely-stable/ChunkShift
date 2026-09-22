@@ -36,7 +36,7 @@ The first public Core baseline contains:
 - clean NuGet consumer examples;
 - NativeAOT/trim evidence for the packaged Core path.
 
-The low-level scanner surface remains a candidate until issue #20 selects it by evidence.
+The low-level scanner surface remains a candidate until issue [#20](https://github.com/definitely-stable/ChunkShift/issues/20) selects it by evidence.
 
 ## 3. Explicitly deferred from Core 0.1.0
 
