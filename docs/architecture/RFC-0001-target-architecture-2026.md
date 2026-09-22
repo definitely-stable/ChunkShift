@@ -1,6 +1,8 @@
 # RFC-0001: ChunkShift Target Architecture 2026
 
 Status: Accepted  
+
+> **RFC-0003 supersession note:** [RFC-0003](RFC-0003-core-first-release.md) owns first-public-release sequencing. Where this RFC couples the first public release to Patching/CSP/compare-diff, RFC-0003 takes precedence. The architecture and persisted-model decisions here remain authoritative.
 Target: ChunkShift 1.0 core and patching; repository architecture preview  
 Last updated: 2026-09-22
 
