@@ -30,12 +30,16 @@ This RFC defines the minimum low-level public chunk-stream capability and the in
 | Standalone embedded/local SDK | first-class consumption mode | ACCEPT |
 | Raw chunk traversal | public low-level capability | ACCEPT |
 | Public `IChunker` / `IChunkHasher` | do not expose | REJECT |
-| Per-chunk callback | candidate v1 abstraction | ACCEPT |
-| Borrowed `ReadOnlyMemory<byte>` valid for callback duration | candidate ownership model | ACCEPT |
+| Per-chunk callback | leading v1 candidate; freeze only after #20 bake-off | EXPERIMENT |
+| Borrowed `ReadOnlyMemory<byte>` valid for callback duration | leading payload model; compare with segmented prototype | EXPERIMENT |
 | Concurrent callbacks by default | no | REJECT |
 | Per-chunk `byte[]` allocation | no | REJECT |
 | Per-chunk `IMemoryOwner<byte>` as default API | no | REJECT |
 | `IAsyncEnumerable<ChunkWithPayload>` as primary API | no | REJECT |
+| Public `ReadOnlySequence<byte>` payload | benchmark internally; do not expose unless copy cost justifies complexity | EXPERIMENT |
+| Public pull-style `ChunkReader` | benchmark internally; larger lifetime/disposal surface | EXPERIMENT |
+| Synchronous raw scan overload | add only with measured use/perf need | DEFER |
+| Built-in early-stop result/control on every callback | not in v1 unless evidence shows a common need | DEFER |
 | Public buffer-size / SIMD / PipeReader tuning | no | REJECT |
 | File-path-specific core API | not needed for v1 | DEFER |
 | Core package dependency on DI/logging/ASP.NET | no | REJECT |
@@ -47,6 +51,11 @@ This RFC defines the minimum low-level public chunk-stream capability and the in
 | Custom per-chunk HTTP endpoint as normal distribution path | no | REJECT |
 | ChunkShift-specific resumable upload protocol | no | REJECT |
 | ASP.NET internal PipeReader/PipeWriter use | allowed implementation detail | ACCEPT |
+| Result independence from Stream read segmentation | required: short reads cannot change boundaries/IDs | ACCEPT |
+| Exclusive source use while scanning | required | ACCEPT |
+| Bounded read-ahead | required; exact amount remains implementation policy until #20 | ACCEPT |
+| Post-failure/cancellation Stream position | unspecified beyond bytes already read by source due to bounded read-ahead | ACCEPT |
+| v1 default profile/hash resolution | semantic compatibility contract; no silent 1.x change | ACCEPT |
 
 ## 3. Embedded/local SDK boundary
 
@@ -91,7 +100,7 @@ public sealed class ChunkScanOptions
     public HashSuiteId? HashSuite { get; init; }
 }
 
-public delegate ValueTask ChunkHandler(
+public delegate ValueTask ChunkScanHandler(
     ChunkInfo chunk,
     ReadOnlyMemory<byte> content,
     CancellationToken cancellationToken);
@@ -100,13 +109,25 @@ public static class ChunkScanner
 {
     public static Task ScanAsync(
         Stream source,
-        ChunkHandler handler,
+        ChunkScanHandler handler,
         ChunkScanOptions? options = null,
         CancellationToken cancellationToken = default);
 }
 ```
 
 Names remain candidate until the M3 API freeze, but the semantics in this RFC are the intended contract.
+
+### 4.0 Candidate status and compatibility defaults
+
+The callback shape and contiguous payload are the leading candidates, not yet frozen. Issue #20 is the mandatory evidence gate before M3.
+
+If `options` is null, or if `ProfileId` / `HashSuite` are omitted, resolution uses the stable defaults defined for the current major compatibility line.
+
+Those resolved defaults are semantic behavior. Once ChunkShift 1.x is published, a package update MUST NOT silently change the default profile or default HashSuite to produce a different chunk sequence or ChunkId sequence for the same bytes.
+
+An implementation backend may change (for example scalar -> AVX2 -> AVX-512) only when stable-profile output remains bit-identical.
+
+`ChunkScanOptions` contains semantic choices only. Buffer sizes, pool selection, read-ahead size, SIMD backend, worker count, Pipeline usage and other tuning knobs are not v1 public options.
 
 ### 4.1 Why a callback
 
@@ -140,6 +161,87 @@ The v1 default path is borrowed memory.
 If real applications need to enqueue chunks beyond callback completion, they explicitly copy or await their asynchronous consumer before returning.
 
 An owned-chunk API may be added later without breaking the borrowed path.
+
+## 4A. Alternatives that must be benchmarked before freeze
+
+The minimal surface is selected by evidence, not aesthetics.
+
+### Callback push + ReadOnlyMemory
+
+Advantages:
+
+- smallest lifetime surface;
+- natural backpressure;
+- direct composition with async consumers;
+- no reader object/disposal state machine;
+- simple Stream-based hosting.
+
+Risk:
+
+- a contiguous payload may require copying when one logical chunk spans internal input segments.
+
+### Pull-style ChunkReader
+
+A prototype should model:
+
+```csharp
+await using var reader = ChunkReader.Open(source, options);
+
+while (await reader.ReadAsync(cancellationToken) is var result &&
+       !result.IsCompleted)
+{
+    await ConsumeAsync(result.Info, result.Content, cancellationToken);
+}
+```
+
+Potential advantages:
+
+- ordinary pull control flow;
+- clean caller-driven stop/break;
+- no callback delegate invocation.
+
+Costs that would become permanent public contract:
+
+- reader lifetime and Dispose/DisposeAsync;
+- leave-open/ownership rules;
+- concurrent ReadAsync behavior;
+- payload validity boundary (typically until next read/advance);
+- EOF/result representation;
+- easier use-after-next-read errors.
+
+The pull reader stays internal unless #20 demonstrates a material advantage.
+
+### Segmented ReadOnlySequence payload
+
+A segmented payload can avoid copying when a chunk spans buffers. However it also exposes a more advanced BCL type, requires multi-segment consumers, and inherits a lease discipline similar to Pipelines.
+
+Issue #20 must measure:
+
+- bytes copied per GiB;
+- CDC+hash+delivery throughput;
+- consumer complexity for common WriteAsync/upload paths.
+
+The public API remains `ReadOnlyMemory<byte>` unless the contiguous copy tax is material enough to justify the additional lifetime and DX complexity.
+
+### Task vs ValueTask callback
+
+`ChunkScanner.ScanAsync` itself remains `Task`: it is one long-running operation.
+
+The handler return type is a deliberate exception candidate because it is invoked once per chunk and commonly composes with APIs such as `Stream.WriteAsync(ReadOnlyMemory<byte>, CancellationToken)` that already return `ValueTask`.
+
+.NET guidance still treats `Task` as the default and recommends `ValueTask` only when measurement justifies it. Therefore #20 must compare both before the callback type is frozen.
+
+### Why ChunkInfo is passed by value
+
+`ChunkInfo` is a small immutable value. The async handler contract intentionally avoids `in`, `ref` and `out` parameters because async methods/lambdas cannot use those parameter forms.
+
+The by-value copy cost must be included in #20, but it is expected to be negligible compared with processing 64-256 KiB payloads.
+
+### Early stop
+
+The common operation scans the complete source. v1 does not burden every callback with a Continue/Stop enum or `ValueTask<bool>`.
+
+A clean early-stop overload or pull reader can be added later if concrete workloads justify it without breaking the full-scan API.
 
 ## 5. Chunk callback semantics
 
@@ -214,6 +316,29 @@ chunk[n].Offset == chunk[n - 1].Offset + chunk[n - 1].Length
 
 These are public semantic guarantees, not diagnostics-only observations.
 
+### 5.4A Read segmentation invariance
+
+Chunk boundaries and IDs depend only on the byte sequence and selected semantic profile/HashSuite. They MUST NOT depend on how the source Stream segments reads.
+
+The following sources must produce the same chunk sequence for the same bytes:
+
+- one large read;
+- random short reads;
+- a Stream that returns one byte per successful read;
+- FileStream;
+- MemoryStream;
+- a non-seekable network/request-style Stream.
+
+A short successful read is not a chunk boundary. Only profile semantics and EOF are boundaries.
+
+This is a required compatibility test because arbitrary Streams are allowed to return fewer bytes than requested.
+
+### 5.4B Borrowed content is logically immutable
+
+The handler receives a read-only lease. Consumer code MUST treat the bytes as immutable for the entire lease.
+
+Using unsafe APIs, `MemoryMarshal`, or access to an underlying array to mutate borrowed storage is outside the contract and yields undefined scan results. ChunkShift does not copy every chunk merely to defend against hostile in-process consumer code.
+
 ### 5.5 Empty and partial input
 
 Empty input invokes no handler.
@@ -243,13 +368,21 @@ This contract follows the cooperative cancellation model used by .NET: https://l
 
 No partial-result object is returned after failure.
 
-### 5.8 Stream ownership
+### 5.8 Stream ownership and exclusive-use lease
 
 The caller owns `source`.
 
 ChunkShift never disposes a Stream supplied to `ScanAsync`.
 
-The source may be advanced after success, cancellation or failure and is never rewound by ChunkShift.
+For the duration of `ScanAsync`, ChunkShift has exclusive read/use access to that Stream. The caller and handler MUST NOT concurrently read, seek, replace, rewind, or dispose the same source. Re-entrant scans over a different source are allowed; re-entering over the same source is unsupported.
+
+ChunkShift may perform bounded read-ahead in order to reduce I/O calls and overlap internal work. Sequential callbacks therefore do NOT imply that the underlying Stream position is exactly at the end of the last delivered chunk.
+
+On successful full scan, the source is consumed to EOF.
+
+On cancellation, callback failure, or I/O failure, the final source position is intentionally unspecified because data may already have been read into ChunkShift's bounded private buffer. ChunkShift never rewinds the source.
+
+Callers that require restart/recovery must use their own seekable source/range abstraction and the emitted logical offsets, rather than assuming `Stream.Position` equals the last delivered boundary.
 
 ## 6. Chunk memory and performance model
 
@@ -286,7 +419,11 @@ The hot-path requirements are:
 
 The consume-once rule is normative because a `ValueTask` may be backed by an `IValueTaskSource` whose result is only valid for a single consumption. See CA2012: https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2012
 
-The M3 freeze must benchmark the callback candidate against the internal direct sink path. If callback overhead is material at target throughput, add a batched alternative before freeze rather than exposing internal strategy interfaces.
+Library-owned steady-state allocation MUST be O(1) with respect to chunk count for the normal scanner path. The implementation may rent bounded buffers whose size depends on the selected profile, but it must not allocate a managed object/array/Task per successfully delivered chunk as an intrinsic library requirement.
+
+A contiguous `ReadOnlyMemory<byte>` contract does not require copying every chunk. Implementations may use sliding/double buffers so chunks wholly contained in a current buffer are exposed as slices and only cross-boundary cases require compaction/copying. The exact buffering strategy remains internal.
+
+The M3 freeze must benchmark the callback candidate against the internal direct sink path and the prototypes in #20. If callback, ValueTask, or contiguous-payload overhead is material at target throughput, the public shape must be corrected before freeze rather than compensated by public tuning knobs.
 
 ## 7. Local file specialization
 
@@ -397,6 +534,12 @@ application callback or HttpResponse.Body
 
 Long-running operations must receive the request-abort cancellation token.
 
+ChunkShift hashes/chunks the byte sequence presented by the Stream it receives. In ASP.NET Core that Stream may already have been transformed by earlier middleware. For example, request-decompression middleware can present decompressed bytes. Applications that require identity over the exact HTTP wire representation must order/disable transforms accordingly. ChunkShift itself does not inspect `Content-Encoding`.
+
+Large-content endpoints should use forward-only streaming rather than `IFormFile`/full request buffering by default. ASP.NET Core's buffered upload path can use memory and temporary disk; streaming is the intended validation path for ChunkShift-scale payloads.
+
+Kestrel has host-level request limits. The validation sample MUST configure large-body limits explicitly for its scenario and MUST NOT silently disable them globally. Host request-size, rate, connection and authorization limits remain application policy.
+
 `HttpContext.RequestAborted` is propagated as cooperative cancellation. A disconnected client does not give ChunkShift the ability to forcibly abort arbitrary user callback code that ignores the token.
 
 ASP.NET Core guidance: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/use-http-context?view=aspnetcore-10.0
@@ -408,6 +551,8 @@ ASP.NET Core exposes request `BodyReader` and response `BodyWriter` in addition 
 A future ASP.NET adapter may use those internally for fewer copies and better pipeline integration.
 
 That must not require adding PipeReader/PipeWriter ownership semantics to the stable Core API.
+
+ASP.NET Core documentation recommends Pipelines for high-performance request/response processing. Therefore M2A/#20 must benchmark `HttpRequest.Body` against an adapter path using `BodyReader`. A measured Pipeline advantage may justify an internal/ASP.NET-specific entry point, but not a public Core PipeReader ownership contract.
 
 ## 11. Static/CDN distribution requires no ChunkShift server
 
@@ -449,6 +594,30 @@ Therefore:
 
 Logical `ManifestId` may be exposed separately where useful.
 
+### 11.2A Range capability is representation-dependent
+
+Range processing is enabled only when the backing representation can satisfy byte ranges correctly. An arbitrary forward-only Stream is not automatically a valid range source.
+
+The ASP.NET adapter/sample must not advertise range support merely because the logical artifact is immutable.
+
+### 11.2B ASP.NET response ownership
+
+ASP.NET Core's `Results.Stream(Stream, ...)` disposes the supplied Stream after the response is sent; the PipeReader overload completes the supplied PipeReader.
+
+This ownership transfer is different from ChunkShift Core's caller-owned Stream rule.
+
+A future artifact resolver MUST make this distinction explicit. It should return a fresh per-response resource whose ownership can transfer to ASP.NET, or otherwise wrap/mediate lifetime deliberately. It must not accidentally hand a shared long-lived Stream to a result that disposes it.
+
+This ownership rule is an M4A API-freeze item, not an implementation footnote.
+
+### 11.2C Cache policy: immutable objects vs mutable refs
+
+Content-addressed physical artifacts can use long-lived immutable caching when the URL/validator uniquely names exact bytes.
+
+Mutable names such as `latest`, channel refs, or repository refs must use revalidation/shorter cache policy and MUST NOT inherit immutable caching merely because the referenced object is immutable.
+
+Large pack/patch artifacts should normally rely on browser/CDN/object-store caching and validators rather than being copied into ASP.NET OutputCache by default.
+
 ### 11.3 Compression
 
 The ASP.NET integration does not automatically apply dynamic response compression to CSM/CSP/pack artifacts.
@@ -456,6 +625,8 @@ The ASP.NET integration does not automatically apply dynamic response compressio
 Physical artifact compression/range semantics are owned by the artifact format and host configuration.
 
 Automatic HTTP transformation can complicate byte-range and strong-validator semantics.
+
+For rangeable immutable CSM/CSP/pack artifacts, the recommended default is a stable physical representation (typically identity content encoding at the HTTP layer) whose ETag/FileDigest matches the bytes being ranged. Any content-coding variant is a distinct HTTP representation and requires its own validator semantics.
 
 ### 11.4 Authentication
 
@@ -484,7 +655,10 @@ The adapter MUST:
 - maintain bounded buffering/backpressure;
 - not read the full request into memory;
 - not silently override ASP.NET/request body-size limits;
-- not implement a proprietary resumable-upload protocol.
+- not implement a proprietary resumable-upload protocol;
+- not call `EnableBuffering` or bind the entire payload to `IFormFile` for the normal large-object path;
+- preserve host request-size/rate/auth/rate-limit policy instead of silently weakening it;
+- account for request decompression limits and decompression-bomb protections when decompression middleware is enabled.
 
 Resumable transport can be provided by existing HTTP/object-storage mechanisms while ChunkShift provides content identity and missing-content logic.
 
@@ -579,7 +753,7 @@ The ASP.NET package must not introduce a generic `IRepository` into Core.
 
 Before Core/Patching 1.0, M3 must explicitly review:
 
-- exact names: `ChunkScanner`, `ChunkInfo`, `ChunkHandler`, `ChunkScanOptions`;
+- exact names: `ChunkScanner`, `ChunkInfo`, `ChunkScanHandler`, `ChunkScanOptions`;
 - callback vs any measured batched alternative;
 - borrowed-memory lease wording and post-callback invalidation;
 - `ValueTask` consume-once implementation and tests;
@@ -619,7 +793,11 @@ Embedded scanner:
 - callbacks remain ordered without assuming thread affinity;
 - no concurrent callbacks;
 - bounded-memory large stream;
-- allocation regression;
+- one-byte-at-a-time source;
+- randomized short-read source;
+- source exclusive-use misuse tests where practical;
+- bounded read-ahead/failure-position tests;
+- allocation and bytes-copied regression;
 - JIT/NativeAOT parity.
 
 ASP.NET validation:
@@ -647,15 +825,22 @@ Embedded:
 - manifest writer baseline;
 - throughput and allocations at 64/128/256 KiB means;
 - FileStream and MemoryStream;
+- callback push vs pull-reader prototype;
+- contiguous ReadOnlyMemory vs segmented ReadOnlySequence prototype;
+- Task vs ValueTask handler;
+- bytes copied/GiB and first-chunk latency;
 - x64 and ARM64.
 
 ASP.NET:
 
-- request streaming throughput;
+- request streaming throughput for Body and BodyReader adapter paths;
 - response/range throughput;
 - first-byte latency;
 - allocations and peak RSS;
 - slow-client backpressure;
+- default/configured Kestrel body-size and data-rate limits;
+- request decompression placement/limit behavior;
+- result Stream/PipeReader disposal-completion ownership;
 - concurrent clients;
 - requests per GiB for patch/pack distribution.
 
