@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+
+jobs:
+  build-test:
+    name: build-test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore ChunkShift.slnx
+
+      - name: Build
+        run: dotnet build ChunkShift.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test ChunkShift.slnx -c Release --no-build --no-restore
+
+  package-smoke:
+    name: package-smoke
+    needs: build-test
+    runs-on: ubuntu-24.04
+    env:
+      PACKAGE_VERSION: 0.0.0-ci.${{ github.run_number }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore ChunkShift.slnx
+
+      - name: Build package project
+        run: dotnet build src/ChunkShift/ChunkShift.csproj -c Release --no-restore
+
+      - name: Pack
+        run: dotnet pack src/ChunkShift/ChunkShift.csproj -c Release --no-build --no-restore -o artifacts/packages -p:PackageVersion=${PACKAGE_VERSION}
+
+      - name: Consume produced package
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet new console --name Consumer --output artifacts/consumer --framework net10.0 --no-restore
+          dotnet add artifacts/consumer/Consumer.csproj package ChunkShift --version "${PACKAGE_VERSION}" --source "${GITHUB_WORKSPACE}/artifacts/packages"
+          cat > artifacts/consumer/Program.cs <<'CS'
+          using ChunkShift.Primitives;
+
+          var id = new ChunkerId("consumer.smoke");
+          if (id.Value != "consumer.smoke")
+          {
+              throw new InvalidOperationException("ChunkShift package smoke test failed.");
+          }
+
+          Console.WriteLine(id.Value);
+          CS
+          dotnet run --project artifacts/consumer/Consumer.csproj -c Release
+
+      - name: Upload package smoke artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chunkshift-package-smoke
+          path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
+          if-no-files-found: error
+          retention-days: 7
