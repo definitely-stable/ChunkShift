@@ -55,7 +55,23 @@ ChunkShift.Experimental
 
 Do not create separate stable packages for BLAKE3, generic abstractions, backup, RAG or AI datasets.
 
-## 3. Non-negotiable architecture constraints
+## 3. GitHub issue map
+
+The implementation backlog is tracked by [#1 — ChunkShift 2026 architecture synthesis roadmap](https://github.com/definitely-stable/ChunkShift/issues/1).
+
+| Milestone | Issues |
+| --- | --- |
+| M0 | #2 identity/HashSuite/profile semantics; #3 benchmark lab/corpus |
+| M1 | #4 deterministic chunk/hash kernels; #5 CSM candidate; #6 minimal public API/AOT |
+| M2 | #7 declarative patch/reconstruction loop |
+| M3 | #8 CDC bake-off/profile selection; #9 Core/Patching 1.0 freeze |
+| M4 | #10 immutable self-indexed pack repository |
+| M5 | #11 global index/catalog/crash/concurrency |
+| M6 | #12 reachability GC/repack/lifecycle |
+| M7 | #13 HTTP/S3/R2 distribution |
+| Research | #14 next-generation CDC and index/filter candidates |
+
+## 4. Non-negotiable architecture constraints
 
 Before implementation proceeds, all work must preserve:
 
@@ -77,7 +93,7 @@ Before implementation proceeds, all work must preserve:
 - generation/CAS publication for future repository commits;
 - reachability-based GC.
 
-## 4. Dependency graph
+## 5. Dependency graph
 
 ```text
 M0 Architecture correction + measurement lab
@@ -115,7 +131,7 @@ M7 HTTP/S3/R2 distribution
        Repository 1.0 gate
 ```
 
-## 5. M0 — Architecture correction and measurement lab
+## 6. M0 — Architecture correction and measurement lab
 
 ### Goal
 
@@ -174,7 +190,7 @@ At minimum:
 - cloud;
 - public 1.0 freeze.
 
-## 6. M1 — Deterministic core and CSM candidate
+## 7. M1 — Deterministic core and CSM candidate
 
 ### Goal
 
@@ -232,7 +248,7 @@ Produce a bounded-memory deterministic content map.
 - GC;
 - cloud.
 
-## 7. M2 — Minimum useful patching loop
+## 8. M2 — Minimum useful patching loop
 
 ### Goal
 
@@ -290,7 +306,7 @@ Close the first real user problem: move/reconstruct only what changed.
 - S3/R2;
 - GC.
 
-## 8. M3 — Evidence and 1.0 freeze gate
+## 9. M3 — Evidence and 1.0 freeze gate
 
 ### Goal
 
@@ -339,7 +355,7 @@ Primary evidence:
 
 This is the gate for `ChunkShift 1.0`, `ChunkShift.Patching 1.0` and stable CLI contracts.
 
-## 9. M4 — Immutable repository foundation
+## 10. M4 — Immutable repository foundation
 
 ### Goal
 
@@ -391,7 +407,7 @@ Build the physical storage substrate without compromising the stable content mod
 - GC;
 - cloud.
 
-## 10. M5 — Global index, catalog, crash consistency and concurrency
+## 11. M5 — Global index, catalog, crash consistency and concurrency
 
 ### Goal
 
@@ -445,7 +461,7 @@ After every injected crash the repository exposes either the old committed state
 
 - deletion of retired payload packs.
 
-## 11. M6 — GC, repack and repository lifecycle
+## 12. M6 — GC, repack and repository lifecycle
 
 ### Goal
 
@@ -491,7 +507,7 @@ Fault-injection and long-running lifecycle tests complete without loss of reacha
 
 - multi-cloud adapters.
 
-## 12. M7 — HTTP/S3/R2 distribution
+## 13. M7 — HTTP/S3/R2 distribution
 
 ### Goal
 
@@ -543,7 +559,7 @@ Static/CDN patching and remote repository restore work with bounded request ampl
 
 - first-party Azure/GCS adapters without demonstrated demand.
 
-## 13. Parallel research track
+## 14. Parallel research track
 
 Research does not block the main product milestones.
 
@@ -569,7 +585,7 @@ corpus evidence
 + compatibility review
 ```
 
-## 14. Decisions that must be closed before public v1
+## 15. Decisions that must be closed before public v1
 
 The M3 freeze gate must explicitly close:
 
@@ -586,7 +602,7 @@ The M3 freeze gate must explicitly close:
 
 Repository pack/index defaults are not required to freeze with Core/Patching 1.0 unless they are exposed as stable repository formats at the same time.
 
-## 15. Work-management rule
+## 16. Work-management rule
 
 Implementation issues must reference:
 
