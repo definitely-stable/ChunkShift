@@ -21,7 +21,7 @@ public static class LabChunker
         };
     }
 
-    public static ChunkingKernelProfile GetKernelProfile(ExperimentDefinition experiment)
+    internal static ChunkingKernelProfile GetKernelProfile(ExperimentDefinition experiment)
     {
         return experiment.Algorithm switch
         {
