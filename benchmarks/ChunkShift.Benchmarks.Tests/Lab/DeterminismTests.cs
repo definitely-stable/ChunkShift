@@ -82,6 +82,36 @@ public class DeterminismTests
     }
 
     [Fact]
+    public async Task FastCdcStreamingEvidenceMatchesScalarEvidence()
+    {
+        const int target = 64 * 1024;
+        var profile = ChunkShift.Chunking.FastCdcProfile.CreateM1Candidate(target);
+        var experiment = new ExperimentDefinition(
+            "fastcdc-streaming-evidence",
+            "corpus",
+            LabChunker.FastCdcAlgorithm,
+            profile.CandidateProfileId.Value,
+            profile.ComputeFingerprint().ToString(),
+            target,
+            HashSuiteIds.Blake3256V1.Value,
+            null);
+
+        byte[] input = CorpusGenerator.Generate(
+            new CorpusEntry("corpus", "test", "random", 2 * 1024 * 1024, 0xC0FFEEUL, "synthetic"));
+
+        ChunkRecord[] scalar = LabChunker.Chunk(input, experiment, HashSuiteIds.Blake3256V1);
+        ChunkRecord[] streaming = await LabChunker.ChunkStreamingAsync(
+            input,
+            experiment,
+            HashSuiteIds.Blake3256V1);
+
+        Assert.Equal(scalar, streaming);
+        Assert.Equal(
+            LabEvidenceDigest.ComputeChunkSequence(scalar),
+            LabEvidenceDigest.ComputeChunkSequence(streaming));
+    }
+
+    [Fact]
     public void EvidenceDigestsBindActualBytesAndOrderedChunkSequence()
     {
         byte[] source = [1, 2, 3, 4];
