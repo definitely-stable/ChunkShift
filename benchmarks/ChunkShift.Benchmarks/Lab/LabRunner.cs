@@ -34,6 +34,8 @@ public static class LabRunner
         var corpusById = corpus.Entries.ToDictionary(static entry => entry.Id, StringComparer.Ordinal);
         var results = new List<ExperimentResult>(experiments.Experiments.Length);
 
+        WarmUpReferencePath();
+
         foreach (ExperimentDefinition experiment in experiments.Experiments)
         {
             if (!corpusById.TryGetValue(experiment.CorpusId, out CorpusEntry? entry))
@@ -113,6 +115,21 @@ public static class LabRunner
 
         File.WriteAllText(outputPath!, JsonSerializer.Serialize(run, JsonOptions));
         return 0;
+    }
+
+    private static void WarmUpReferencePath()
+    {
+        byte[] warmup = CorpusGenerator.Generate(
+            new CorpusEntry(
+                "warmup",
+                "internal",
+                "random",
+                1024 * 1024,
+                0xC4855A11UL,
+                "internal warm-up"));
+
+        _ = FixedSizeReferenceChunker.Chunk(warmup, 64 * 1024, HashSuiteIds.Blake3256V1);
+        _ = FixedSizeReferenceChunker.Chunk(warmup, 64 * 1024, HashSuiteIds.Sha256V1);
     }
 
     private static T Load<T>(string path)
