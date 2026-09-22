@@ -59,7 +59,7 @@ Active corrective preparation:
 
 - [#33](https://github.com/definitely-stable/ChunkShift/issues/33) — exact profile numeric canonicalization, stronger benchmark evidence and Core-first release correction.
 
-M0 remains a completed **foundation**, but its known evidence defects are not ignored: #33 must close before #4 starts.
+M0 remains a completed **foundation**, but its known evidence defects are not ignored: [#33](https://github.com/definitely-stable/ChunkShift/issues/33) must close before [#4](https://github.com/definitely-stable/ChunkShift/issues/4) starts.
 
 ## Critical path
 
@@ -115,20 +115,20 @@ M0 remains a completed **foundation**, but its known evidence defects are not ig
 
 | Stage | Issues | Outcome | Gate |
 | --- | --- | --- | --- |
-| M0 foundation | #2, #3 | correct identity model + reproducible lab | complete |
-| Preparation | #33 | known M0 defects fixed; Core-first plan executable | regression tests + docs/issues synchronized |
-| Core kernels | #4 | scalar deterministic FastCDC/fixed reference + HashSuite kernel | segmentation-independent boundaries/IDs |
-| Core streaming/manifest | #5, #16 | CSM create/read/verify + bounded raw scanner | corruption/stream/lifetime tests |
-| Core API evidence | #20, #6 | smallest evidence-selected public Core candidate | alternatives measured; AOT/trim consumer passes |
-| Core release evidence | #8, #17, #9 | **ChunkShift Core 0.1.0** | profile/API/CSM vectors, real consumers, host proof |
-| Patching | #7 | compare/diff, CSP create/apply, exact reconstruction | verified output + product benchmark evidence |
-| Repository | #10-#13 | packs → index/catalog → lifecycle → remote | storage-specific crash/scale gates |
-| Optional host package | #18 | package only if repeated host behavior justifies it | no package by default |
-| Research | #14 | future CDC/index/filter candidates | promotion only through normal evidence gates |
+| M0 foundation | [#2](https://github.com/definitely-stable/ChunkShift/issues/2), [#3](https://github.com/definitely-stable/ChunkShift/issues/3) | correct identity model + reproducible lab | complete |
+| Preparation | [#33](https://github.com/definitely-stable/ChunkShift/issues/33) | known M0 defects fixed; Core-first plan executable | regression tests + docs/issues synchronized |
+| Core kernels | [#4](https://github.com/definitely-stable/ChunkShift/issues/4) | scalar deterministic FastCDC/fixed reference + HashSuite kernel | segmentation-independent boundaries/IDs |
+| Core streaming/manifest | [#5](https://github.com/definitely-stable/ChunkShift/issues/5), [#16](https://github.com/definitely-stable/ChunkShift/issues/16) | CSM create/read/verify + bounded raw scanner | corruption/stream/lifetime tests |
+| Core API evidence | [#20](https://github.com/definitely-stable/ChunkShift/issues/20), [#6](https://github.com/definitely-stable/ChunkShift/issues/6) | smallest evidence-selected public Core candidate | alternatives measured; AOT/trim consumer passes |
+| Core release evidence | [#8](https://github.com/definitely-stable/ChunkShift/issues/8), [#17](https://github.com/definitely-stable/ChunkShift/issues/17), [#9](https://github.com/definitely-stable/ChunkShift/issues/9) | **ChunkShift Core 0.1.0** | profile/API/CSM vectors, real consumers, host proof |
+| Patching | [#7](https://github.com/definitely-stable/ChunkShift/issues/7) | compare/diff, CSP create/apply, exact reconstruction | verified output + product benchmark evidence |
+| Repository | [#10](https://github.com/definitely-stable/ChunkShift/issues/10)-[#13](https://github.com/definitely-stable/ChunkShift/issues/13) | packs → index/catalog → lifecycle → remote | storage-specific crash/scale gates |
+| Optional host package | [#18](https://github.com/definitely-stable/ChunkShift/issues/18) | package only if repeated host behavior justifies it | no package by default |
+| Research | [#14](https://github.com/definitely-stable/ChunkShift/issues/14) | future CDC/index/filter candidates | promotion only through normal evidence gates |
 
 ## Core 0.1.0 gate
 
-Issue #9 may close only when Core itself is release-ready. It does **not** wait for CSP or Patching.
+Issue [#9](https://github.com/definitely-stable/ChunkShift/issues/9) may close only when Core itself is release-ready. It does **not** wait for CSP or Patching.
 
 Required evidence includes:
 
@@ -136,13 +136,13 @@ Required evidence includes:
 - deterministic x64/ARM64 vectors;
 - short-read/read-segmentation invariance;
 - CSM create/read/verify corruption and resource-bound coverage;
-- selected scanner semantics from #20;
+- selected scanner semantics from [#20](https://github.com/definitely-stable/ChunkShift/issues/20);
 - packaged NativeAOT/trim execution of the real scanner/manifest path;
 - a source larger than available working memory processed without full materialization;
 - clean-package console and ASP.NET consumer examples;
 - independent verification of CSM/compatibility vectors.
 
-The exact contract lives in PLAN/#9; this section only defines the release gate.
+The exact contract lives in PLAN/[#9](https://github.com/definitely-stable/ChunkShift/issues/9); this section only defines the release gate.
 
 ## Patching gate
 
@@ -166,20 +166,20 @@ Repository work follows the useful local Patching loop. It must not become a pre
 
 Order:
 
-1. #10 immutable self-indexed packs;
-2. #11 rebuildable global index/catalog/crash-safe publication;
-3. #12 reachability GC/repack/reader-safe retirement;
-4. #13 HTTP Range and S3/R2 backends.
+1. [#10](https://github.com/definitely-stable/ChunkShift/issues/10) immutable self-indexed packs;
+2. [#11](https://github.com/definitely-stable/ChunkShift/issues/11) rebuildable global index/catalog/crash-safe publication;
+3. [#12](https://github.com/definitely-stable/ChunkShift/issues/12) reachability GC/repack/reader-safe retirement;
+4. [#13](https://github.com/definitely-stable/ChunkShift/issues/13) HTTP Range and S3/R2 backends.
 
 ## Immediate work order
 
-1. close #33 and merge its regression/evidence corrections;
-2. implement #4;
-3. implement #5 and #16 against the same canonical kernel;
-4. run #20 and keep only the evidence-selected public scanner surface;
-5. close #6;
-6. run #8 and #17;
-7. close #9 and release-readiness work for Core 0.1.0;
-8. only then start #7 Patching.
+1. close [#33](https://github.com/definitely-stable/ChunkShift/issues/33) and merge its regression/evidence corrections;
+2. implement [#4](https://github.com/definitely-stable/ChunkShift/issues/4);
+3. implement [#5](https://github.com/definitely-stable/ChunkShift/issues/5) and [#16](https://github.com/definitely-stable/ChunkShift/issues/16) against the same canonical kernel;
+4. run [#20](https://github.com/definitely-stable/ChunkShift/issues/20) and keep only the evidence-selected public scanner surface;
+5. close [#6](https://github.com/definitely-stable/ChunkShift/issues/6);
+6. run [#8](https://github.com/definitely-stable/ChunkShift/issues/8) and [#17](https://github.com/definitely-stable/ChunkShift/issues/17);
+7. close [#9](https://github.com/definitely-stable/ChunkShift/issues/9) and release-readiness work for Core 0.1.0;
+8. only then start [#7](https://github.com/definitely-stable/ChunkShift/issues/7) Patching.
 
-No additional repository-governance layer is a prerequisite for #4.
+No additional repository-governance layer is a prerequisite for [#4](https://github.com/definitely-stable/ChunkShift/issues/4).
