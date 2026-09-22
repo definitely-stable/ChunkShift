@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj" />
+    <Project Path="ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj" />
+  </Folder>
+</Solution>
