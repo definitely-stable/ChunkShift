@@ -36,7 +36,7 @@ The current architecture sources of truth are:
 - [ROADMAP.md](ROADMAP.md) — program sequence, release gates and current critical path
 - [PLAN.md](PLAN.md) — milestone deliverables, tests, benchmarks and exit criteria
 
-The low-level raw chunk-stream API is intentionally **not frozen yet**. A callback with borrowed `ReadOnlyMemory<byte>` is the leading candidate, but issue [#20](https://github.com/definitely-stable/ChunkShift/issues/20) must compare push/pull, contiguous/segmented payload and Task/ValueTask alternatives before public v1.
+The low-level raw chunk-stream API is intentionally **not frozen yet**. A callback with borrowed `ReadOnlyMemory<byte>` is the leading candidate, but issue [#20](https://github.com/definitely-stable/ChunkShift/issues/20) must compare push/pull, contiguous/segmented payload and Task/ValueTask alternatives before the `0.1.0` public baseline.
 
 ## Product boundaries
 
@@ -80,4 +80,7 @@ MIT
 - [Contributing](CONTRIBUTING.md) — branch, pull-request and commit workflow.
 - [Release policy](docs/RELEASES.md) — SemVer, the `0.1.Z` release train, tags and release procedure.
 - [Changelog](CHANGELOG.md) — human-facing notable changes by release.
+- [Support matrix](docs/SUPPORT.md) — tested runtimes, operating systems, architectures and NativeAOT expectations.
+- [Security policy](SECURITY.md) — private vulnerability reporting and security boundaries.
+- [Agent contract](AGENTS.md) — short repository rules for coding agents.
 
