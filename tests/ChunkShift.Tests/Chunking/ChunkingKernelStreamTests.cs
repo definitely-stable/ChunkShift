@@ -163,7 +163,7 @@ public class ChunkingKernelStreamTests
                 }
 
                 byte[] mutated = baseline.ToArray();
-                mutated[candidate] ^= 0x5A;
+                mutated[checked((int)candidate)] ^= 0x5A;
 
                 ChunkKernelChunk[] expected = ChunkingReference.Chunk(
                     mutated,
