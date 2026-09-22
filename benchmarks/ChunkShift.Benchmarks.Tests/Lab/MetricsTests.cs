@@ -117,7 +117,7 @@ public class MetricsTests
     }
 
     [Fact]
-    public void BoundarySurvival_IsOccurrenceAwareForRepeatedPairs()
+    public void BoundarySurvivalIsOccurrenceAwareForRepeatedPairs()
     {
         ChunkRecord[] source =
         [
@@ -152,7 +152,7 @@ public class MetricsTests
     }
 
     [Fact]
-    public void Resynchronization_DoesNotAcceptAnUnrelatedRepeatedPair()
+    public void ResynchronizationDoesNotAcceptAnUnrelatedRepeatedPair()
     {
         ChunkRecord[] source =
         [
@@ -187,7 +187,7 @@ public class MetricsTests
     }
 
     [Fact]
-    public void Resynchronization_AcceptsAFullMatchingSuffix()
+    public void ResynchronizationAcceptsAFullMatchingSuffix()
     {
         ChunkRecord[] source =
         [
