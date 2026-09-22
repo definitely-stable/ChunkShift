@@ -151,19 +151,25 @@ Only one callback is active at a time.
 
 No public option enables concurrent callback execution in v1.
 
+Sequential invocation is an ordering guarantee, not a thread-affinity guarantee. ChunkShift does not guarantee that successive callbacks run on the same managed thread, UI thread, or captured `SynchronizationContext`.
+
 Consumers that require parallel downstream processing must copy/own the data they retain.
 
 ### 5.2 Buffer lifetime
 
 `content` is borrowed.
 
-The bytes remain valid only until the returned `ValueTask` completes.
+ChunkShift owns the backing storage. The handler receives a non-owning lease over that storage.
 
-After callback completion, ChunkShift may immediately reuse the backing memory.
+The lease begins immediately before handler invocation and ends when the returned `ValueTask` reaches its terminal state.
 
-The consumer MUST NOT retain or use the memory after callback completion without copying it.
+The bytes remain valid only until that `ValueTask` completes. After callback completion, ChunkShift may immediately overwrite the backing memory, return it to a pool, or reuse it for another chunk.
+
+The consumer MUST NOT retain or use the memory after callback completion without copying it. Fire-and-forget work MUST NOT capture `content` unless it first creates its own copy/owner.
 
 The content is exposed read-only.
+
+This follows the .NET owner/consumer/lease guidance for `Memory<T>`: https://learn.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines
 
 ### 5.3 Backpressure
 
@@ -189,6 +195,25 @@ This keeps semantics identical for:
 
 `Index` and `Offset` are runtime observations. They are not part of ChunkId or manifest semantic identity.
 
+For every successfully delivered callback the following invariants hold:
+
+```text
+content.Length == chunk.Length
+HashSuite(content.Span) == chunk.Id
+```
+
+and for the ordered sequence:
+
+```text
+chunk[0].Index  == 0
+chunk[0].Offset == 0
+
+chunk[n].Index  == n
+chunk[n].Offset == chunk[n - 1].Offset + chunk[n - 1].Length
+```
+
+These are public semantic guarantees, not diagnostics-only observations.
+
 ### 5.5 Empty and partial input
 
 Empty input invokes no handler.
@@ -197,7 +222,19 @@ EOF emits the final non-empty chunk according to the selected stable profile.
 
 Cancellation or an I/O failure in the middle of an incomplete chunk does not emit that incomplete chunk.
 
-### 5.6 Exceptions
+### 5.6 Cancellation semantics
+
+Cancellation is cooperative.
+
+When ChunkShift observes cancellation, it stops initiating new reads and must not start another callback.
+
+An already-running callback is not preempted by ChunkShift. The handler is responsible for observing the supplied `CancellationToken` and completing. Therefore cancellation latency may include the time required for the active handler to observe cancellation and unwind.
+
+The callback receives the same operation-level cancellation intent used by the scanner. Host integrations, including ASP.NET Core, must propagate their cancellation source into the scan operation rather than inventing a second independent per-item lifetime.
+
+This contract follows the cooperative cancellation model used by .NET: https://learn.microsoft.com/en-us/dotnet/standard/threading/cancellation-in-managed-threads
+
+### 5.7 Exceptions
 
 - argument misuse -> normal argument exceptions;
 - source/consumer I/O failure -> propagated exception;
@@ -206,7 +243,7 @@ Cancellation or an I/O failure in the middle of an incomplete chunk does not emi
 
 No partial-result object is returned after failure.
 
-### 5.7 Stream ownership
+### 5.8 Stream ownership
 
 The caller owns `source`.
 
@@ -217,6 +254,12 @@ The source may be advanced after success, cancellation or failure and is never r
 ## 6. Chunk memory and performance model
 
 Stable profiles have a bounded maximum chunk size.
+
+Because the public callback payload is `ReadOnlyMemory<byte>` and `ChunkInfo.Length` is `int`, every stable profile exposed through this API MUST satisfy:
+
+```text
+MaxChunkSize <= Int32.MaxValue
+```
 
 The scanner is therefore allowed to maintain a contiguous pooled chunk buffer up to the profile maximum, plus small implementation overhead.
 
@@ -237,7 +280,11 @@ The hot-path requirements are:
 - no mandatory `byte[]` allocation per chunk;
 - no per-byte delegate/interface/virtual dispatch;
 - callback may synchronously complete with `ValueTask.CompletedTask`;
+- the returned `ValueTask` is consumed exactly once by ChunkShift;
+- ChunkShift must not await the same `ValueTask` twice and must not both await it and convert it with `.AsTask()`;
 - library awaits must not depend on a UI SynchronizationContext.
+
+The consume-once rule is normative because a `ValueTask` may be backed by an `IValueTaskSource` whose result is only valid for a single consumption. See CA2012: https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2012
 
 The M3 freeze must benchmark the callback candidate against the internal direct sink path. If callback overhead is material at target throughput, add a batched alternative before freeze rather than exposing internal strategy interfaces.
 
@@ -349,6 +396,10 @@ application callback or HttpResponse.Body
 ```
 
 Long-running operations must receive the request-abort cancellation token.
+
+`HttpContext.RequestAborted` is propagated as cooperative cancellation. A disconnected client does not give ChunkShift the ability to forcibly abort arbitrary user callback code that ignores the token.
+
+ASP.NET Core guidance: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/use-http-context?view=aspnetcore-10.0
 
 ### 10.2 Internal pipelines are allowed
 
@@ -497,6 +548,10 @@ Possible preview responsibilities:
 
 The package MUST NOT require `ChunkShift.Repository`.
 
+Endpoint registration should prefer explicit strongly typed mapping extensions (for example, `MapChunkShiftArtifact(...)`) over assembly scanning, attribute-driven route discovery, runtime reflection dispatch, or a generic service-locator endpoint. This keeps startup diagnostics, endpoint metadata, trimming and NativeAOT behavior explicit.
+
+Reflection/convention discovery is not a default direction for M4A. If it is ever proposed, it must demonstrate a concrete capability that typed mapping cannot provide and must validate all endpoint signatures before serving requests.
+
 A filesystem/static-patch application must be able to use it independently.
 
 Later, repository-backed resolvers may plug into the same integration surface.
@@ -526,8 +581,12 @@ Before Core/Patching 1.0, M3 must explicitly review:
 
 - exact names: `ChunkScanner`, `ChunkInfo`, `ChunkHandler`, `ChunkScanOptions`;
 - callback vs any measured batched alternative;
-- borrowed memory lifetime wording;
-- Index/Offset runtime semantics;
+- borrowed-memory lease wording and post-callback invalidation;
+- `ValueTask` consume-once implementation and tests;
+- Index/Offset runtime semantics plus `ChunkInfo`/payload identity invariants;
+- stable profile guarantee `MaxChunkSize <= Int32.MaxValue`;
+- cooperative cancellation and no-preemption wording;
+- no callback thread/`SynchronizationContext` affinity guarantee;
 - cancellation/error/stream ownership;
 - AOT/trimming;
 - allocation benchmarks;
@@ -549,8 +608,15 @@ Embedded scanner:
 - callback asynchronous completion;
 - callback exception;
 - cancellation while reading;
+- cancellation while a callback is active and observes the token;
+- callback that deliberately ignores cancellation, proving ChunkShift does not claim preemption;
 - cancellation/exception inside callback;
-- memory lifetime poison/reuse tests;
+- custom `IValueTaskSource` callback proving the returned `ValueTask` is consumed exactly once;
+- `content.Length == ChunkInfo.Length`;
+- recomputed chunk hash equals `ChunkInfo.Id`;
+- exact Index/Offset recurrence across all emitted chunks;
+- memory lifetime poison/reuse tests, including deliberate post-callback retention detection;
+- callbacks remain ordered without assuming thread affinity;
 - no concurrent callbacks;
 - bounded-memory large stream;
 - allocation regression;
@@ -558,9 +624,12 @@ Embedded scanner:
 
 ASP.NET validation:
 
-- request abort propagation;
+- fast in-memory host tests where appropriate;
+- real Kestrel loopback transport tests for body limits, disconnects, stalls and trickle I/O;
+- request abort propagation, including cancellation while the ChunkHandler is active;
 - streaming request larger than RAM;
-- slow consumer/backpressure;
+- configured request-body-size limit while the endpoint actually consumes the body;
+- slow/trickle upload and slow response consumer/backpressure;
 - range 206/416 behaviour for immutable artifacts;
 - If-Range/ETag behaviour;
 - representation ETag uses physical digest;
@@ -590,7 +659,9 @@ ASP.NET:
 - concurrent clients;
 - requests per GiB for patch/pack distribution.
 
-## 19. External platform facts used by this RFC
+## 19. External platform facts and Red Team evidence used by this RFC
+
+### 19.1 Normative/primary platform references
 
 ASP.NET Core exposes both Stream and Pipelines request/response APIs. The Core library intentionally stays on Stream while an adapter may use BodyReader/BodyWriter internally.
 
@@ -602,8 +673,28 @@ ASP.NET request cancellation is represented by `HttpContext.RequestAborted` and 
 
 Relevant Microsoft documentation:
 
-- https://learn.microsoft.com/aspnet/core/fundamentals/middleware/request-response
-- https://learn.microsoft.com/aspnet/core/fundamentals/minimal-apis/responses
-- https://learn.microsoft.com/dotnet/api/microsoft.aspnetcore.http.results.file
-- https://learn.microsoft.com/aspnet/core/fundamentals/use-http-context
-- https://learn.microsoft.com/dotnet/api/system.io.randomaccess
+- Memory<T> ownership/lifetime guidance: https://learn.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines
+- ValueTask consume-once analyzer contract (CA2012): https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2012
+- .NET cooperative cancellation model: https://learn.microsoft.com/en-us/dotnet/standard/threading/cancellation-in-managed-threads
+- ASP.NET Core request/response body and Pipelines APIs: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/middleware/request-response?view=aspnetcore-10.0
+- ASP.NET Core Minimal API responses: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/responses?view=aspnetcore-10.0
+- ASP.NET Core file results / range support: https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.results.file
+- HttpContext and RequestAborted: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/use-http-context?view=aspnetcore-10.0
+- Kestrel request-body limits: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/kestrel/options?view=aspnetcore-10.0#maximum-request-body-size
+- System.IO.RandomAccess: https://learn.microsoft.com/en-us/dotnet/api/system.io.randomaccess
+
+### 19.2 SOFA empirical Red Team evidence
+
+The following Stack Overflow for Agents material was used as adversarial/empirical evidence, not as a normative platform specification:
+
+- Async iterator cancellation composition: https://agents.stackoverflow.com/questions/7c4c8104-6e30-4ab2-85c1-72905581f1fa
+  - verified evidence shows that two distinct cancelable tokens can cause an async iterator using `[EnumeratorCancellation]` to receive a compiler-created linked token and corresponding CTS allocation;
+  - this strengthens the decision not to make `IAsyncEnumerable<ChunkWithPayload>` the primary raw-payload API, but it is not the sole reason for that decision.
+- Kestrel request-body-size empirical behavior: https://agents.stackoverflow.com/tils/38e85252-0111-4163-97b2-9272ecf6d45d
+  - measured on .NET 10/Kestrel; currently lacks independent SOFA verification;
+  - it motivates real Kestrel transport tests in addition to in-memory tests and must not be treated as a replacement for Microsoft documentation.
+- Minimal API convention/reflection loader failure mode: https://agents.stackoverflow.com/questions/eeed6aad-65f9-439d-a58e-f632c45bba8c
+  - reports late endpoint materialization/signature failures and argues for startup validation;
+  - trust evidence is currently insufficient, so ChunkShift records the safer architectural direction—explicit typed endpoint mapping—without adopting the post as normative truth.
+
+No SOFA write, vote, reply, or verification was performed during this Red Team pass.
