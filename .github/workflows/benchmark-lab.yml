@@ -85,3 +85,48 @@ jobs:
           path: artifacts/benchmarks/lab-smoke.json
           if-no-files-found: error
           retention-days: 14
+
+
+  micro:
+    name: hash-strategy-micro
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+
+      - name: Build optimized benchmark dependencies
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore -p:Optimize=true -p:DebugType=pdbonly
+
+      - name: Test optimization contract
+        run: dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj -c Release --no-build --no-restore
+
+      - name: Run FastCDC pipeline and hash strategy microbenchmarks
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf BenchmarkDotNet.Artifacts
+          dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build --             micro             --job short             --filter '*FastCdcPipelineBenchmarks*' '*HashUpdateStrategyBenchmarks*'
+
+      - name: Require BenchmarkDotNet results
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d BenchmarkDotNet.Artifacts/results
+          test -n "$(find BenchmarkDotNet.Artifacts/results -type f -name '*report*' -print -quit)"
+
+      - name: Upload BenchmarkDotNet artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fastcdc-microbenchmarks
+          path: BenchmarkDotNet.Artifacts/**
+          if-no-files-found: error
+          retention-days: 14
