@@ -4,7 +4,9 @@ Status: Active roadmap
 Last reviewed: 2026-09-22  
 Implementation authority: [PLAN.md](PLAN.md)  
 Architecture authority: [RFC-0001](docs/architecture/RFC-0001-target-architecture-2026.md) and [RFC-0002](docs/architecture/RFC-0002-embedded-sdk-aspnet-core.md)  
-Program tracker: [#1](https://github.com/definitely-stable/ChunkShift/issues/1)
+Program tracker: [#1](https://github.com/definitely-stable/ChunkShift/issues/1)  
+Release policy: [docs/RELEASES.md](docs/RELEASES.md)  
+Contribution policy: [CONTRIBUTING.md](CONTRIBUTING.md)
 
 This document is the project-level delivery map. It answers **what becomes usable when, what blocks the next stage, and what evidence is required to advance**.
 
@@ -16,7 +18,7 @@ ChunkShift is being built in two release lines.
 
 ### Core/Patching line
 
-The first stable product is a small .NET content-aware binary update engine:
+The first public product line is a small .NET content-aware binary update engine:
 
 ```text
 bytes / Stream
@@ -36,7 +38,7 @@ CSP patch
 exact target reconstruction
 ```
 
-The stable 1.0 package intent is:
+The first public release target is `0.1.0`. Its package intent is:
 
 - `ChunkShift` — embedded/local SDK, raw chunk streaming, manifests, verification and comparison;
 - `ChunkShift.Patching` — exact delta creation and reconstruction;
@@ -44,7 +46,7 @@ The stable 1.0 package intent is:
 
 ### Repository line
 
-After Core/Patching 1.0, the same identities and manifest model are extended into a content-addressed repository:
+After the Core/Patching 0.1.0 baseline, the same identities and manifest model are extended into a content-addressed repository:
 
 ```text
 immutable packs
@@ -64,6 +66,23 @@ HTTP / S3 / R2 distribution
 
 `ChunkShift.Repository` and remote-storage packages remain preview until the storage, crash-consistency, GC and cloud evidence gates are complete.
 
+### Pre-1.0 release train
+
+ChunkShift follows Semantic Versioning 2.0.0 with an explicit pre-1.0 release policy:
+
+```text
+0.1.0 -> 0.1.1 -> 0.1.2 -> 0.1.3 -> ...
+```
+
+- `0.1.0` is the first public release target;
+- every subsequent normal pre-1.0 release increments only PATCH by one;
+- under the current policy, `0.2.0` is not used as a feature-release signal;
+- breaking changes are allowed before `1.0.0`, but must be called out explicitly in the PR and changelog;
+- `1.0.0` is reached only by an explicit compatibility decision, never automatically from milestone completion;
+- package versions do not replace CSM/CSP/pack/index/ProfileId/HashSuite versioning; those compatibility domains remain independent.
+
+The normative release, tag and changelog rules are in [docs/RELEASES.md](docs/RELEASES.md).
+
 ## 2. Current program state
 
 As of 2026-09-22:
@@ -71,10 +90,10 @@ As of 2026-09-22:
 - target architecture is documented in RFC-0001;
 - embedded/local SDK and ASP.NET Core boundaries are documented in RFC-0002;
 - the milestone implementation plan is in PLAN.md;
-- architecture/API Red Team corrections were merged through PRs #15, #19 and #21;
+- architecture/API Red Team corrections were merged through PRs [#15](https://github.com/definitely-stable/ChunkShift/pull/15), [#19](https://github.com/definitely-stable/ChunkShift/pull/19) and [#21](https://github.com/definitely-stable/ChunkShift/pull/21);
 - implementation issues for M0-M7 are open;
 - the low-level raw chunk-stream API is intentionally not frozen;
-- no Core/Patching 1.0 compatibility promise is made until M3 closes.
+- M3 establishes the `0.1.0` public baseline; SemVer compatibility stability is not promised until an explicit future `1.0.0` decision.
 
 The next work is not another broad architecture redesign. The immediate objective is to turn the accepted architecture into measured implementation evidence.
 
@@ -95,10 +114,10 @@ The main critical path is:
  v                  v
 #5 CSM           #16 raw chunk-stream API
  |                  |
+ |                  v
+ |               #20 API bake-off and evidence
+ |                  |
  +--------+---------+
-          |
-          v
-#20 API bake-off and evidence
           |
           v
 #6 minimal Core public API + NativeAOT candidate
@@ -114,7 +133,7 @@ The main critical path is:
           +---------+---------+
                     |
                     v
-#9 Core/Patching 1.0 freeze
+#9 Core/Patching 0.1.0 baseline
                     |
         +-----------+-----------+
         |                       |
@@ -131,23 +150,23 @@ The main critical path is:
 #13 HTTP/S3/R2 distribution
 ```
 
-Research issue #14 runs in parallel after the measurement foundation exists. It must not block the stable product unless evidence shows that a candidate materially improves the selected design before a compatibility freeze.
+Research issue [#14](https://github.com/definitely-stable/ChunkShift/issues/14) runs in parallel after the measurement foundation exists. It must not block the stable product unless evidence shows that a candidate materially improves the selected design before a compatibility freeze.
 
 ## 4. Delivery stages
 
 | Stage | Main issues | What becomes possible | Gate to advance |
 | --- | --- | --- | --- |
-| M0 — semantics + measurement | #2, #3 | trustworthy identities and repeatable evidence | semantics are normative; benchmark lab is reproducible |
-| M1 — deterministic Core candidate | #4, #5, #16, #20, #6 | bounded-memory chunking, hashing, CSM and embedded streaming | deterministic vectors pass; API shape selected by evidence |
-| M2 — first useful product loop | #7 | create/apply an exact local binary patch without Repository | exact reconstruction, atomic publish, corrupt/wrong-base safety |
-| M2A — host validation | #17 | prove Core/Patching works naturally inside ASP.NET Core | no Core API workaround or transport-specific leakage required |
-| M3 — Core/Patching 1.0 freeze | #8, #9 | stable Core, Patching and CLI compatibility line | no unresolved P0 API/format/profile issue |
-| M4 — Repository foundation | #10 | immutable self-indexed local repository packs | reliable large local repository and rebuildable index evidence |
-| M4A — ASP.NET package decision | #18 | optional reusable ASP.NET integration surface | package exists only if repeated behavior justifies it |
-| M5 — repository hardening | #11 | scalable lookup and crash-safe concurrent publication | injected crashes expose old or complete-new state only |
-| M6 — lifecycle | #12 | safe GC, repack and retirement | no reachable-data loss under crash/concurrency tests |
-| M7 — remote distribution | #13 | HTTP Range and S3/R2 operation | bounded request amplification and verified remote restore |
-| Research | #14 | evidence for future algorithm/index improvements | promotion only through the same benchmark/compatibility gates |
+| M0 — semantics + measurement | [#2](https://github.com/definitely-stable/ChunkShift/issues/2), [#3](https://github.com/definitely-stable/ChunkShift/issues/3) | trustworthy identities and repeatable evidence | semantics are normative; benchmark lab is reproducible |
+| M1 — deterministic Core candidate | [#4](https://github.com/definitely-stable/ChunkShift/issues/4), [#5](https://github.com/definitely-stable/ChunkShift/issues/5), [#16](https://github.com/definitely-stable/ChunkShift/issues/16), [#20](https://github.com/definitely-stable/ChunkShift/issues/20), [#6](https://github.com/definitely-stable/ChunkShift/issues/6) | bounded-memory chunking, hashing, CSM and embedded streaming | deterministic vectors pass; API shape selected by evidence |
+| M2 — first useful product loop | [#7](https://github.com/definitely-stable/ChunkShift/issues/7) | create/apply an exact local binary patch without Repository | exact reconstruction, atomic publish, corrupt/wrong-base safety |
+| M2A — host validation | [#17](https://github.com/definitely-stable/ChunkShift/issues/17) | prove Core/Patching works naturally inside ASP.NET Core | no Core API workaround or transport-specific leakage required |
+| M3 — Core/Patching 0.1.0 public baseline | [#8](https://github.com/definitely-stable/ChunkShift/issues/8), [#9](https://github.com/definitely-stable/ChunkShift/issues/9) | first public Core, Patching and CLI compatibility baseline | no unresolved P0 API/format/profile issue |
+| M4 — Repository foundation | [#10](https://github.com/definitely-stable/ChunkShift/issues/10) | immutable self-indexed local repository packs | reliable large local repository and rebuildable index evidence |
+| M4A — ASP.NET package decision | [#18](https://github.com/definitely-stable/ChunkShift/issues/18) | optional reusable ASP.NET integration surface | package exists only if repeated behavior justifies it |
+| M5 — repository hardening | [#11](https://github.com/definitely-stable/ChunkShift/issues/11) | scalable lookup and crash-safe concurrent publication | injected crashes expose old or complete-new state only |
+| M6 — lifecycle | [#12](https://github.com/definitely-stable/ChunkShift/issues/12) | safe GC, repack and retirement | no reachable-data loss under crash/concurrency tests |
+| M7 — remote distribution | [#13](https://github.com/definitely-stable/ChunkShift/issues/13) | HTTP Range and S3/R2 operation | bounded request amplification and verified remote restore |
+| Research | [#14](https://github.com/definitely-stable/ChunkShift/issues/14) | evidence for future algorithm/index improvements | promotion only through the same benchmark/compatibility gates |
 
 ## 5. M0 — Architecture semantics and measurement foundation
 
@@ -157,12 +176,12 @@ Remove ambiguity from identities and build the lab that every later architecture
 
 ### Work
 
-- #2 — correct `Hash256`, `HashSuiteId`, `ProfileFingerprint` and identity semantics;
-- #3 — benchmark lab, representative corpus, deterministic mutation generator and comparable x64/ARM64 result format.
+- [#2](https://github.com/definitely-stable/ChunkShift/issues/2) — correct `Hash256`, `HashSuiteId`, `ProfileFingerprint` and identity semantics;
+- [#3](https://github.com/definitely-stable/ChunkShift/issues/3) — benchmark lab, representative corpus, deterministic mutation generator and comparable x64/ARM64 result format.
 
 ### Why M0 is first
 
-Without #2, persisted identities can freeze the wrong semantics. Without #3, chunking, hashing, API and profile choices become opinion-driven and cannot be defended before 1.0.
+Without [#2](https://github.com/definitely-stable/ChunkShift/issues/2), persisted identities can freeze the wrong semantics. Without [#3](https://github.com/definitely-stable/ChunkShift/issues/3), chunking, hashing, API and profile choices become opinion-driven and cannot be defended before the first public release.
 
 ### Exit evidence
 
@@ -187,13 +206,13 @@ Create the first real bounded-memory Core capable of turning arbitrary streams i
 
 ### Work order
 
-1. #4 — canonical chunking and HashSuite kernels.
-2. #5 — CSM v1 candidate reader/writer and manifest verification.
-3. #16 — embedded raw chunk-stream capability.
-4. #20 — compare public API alternatives against the direct internal sink.
-5. #6 — freeze the smallest viable Core API candidate and NativeAOT contract.
+1. [#4](https://github.com/definitely-stable/ChunkShift/issues/4) — canonical chunking and HashSuite kernels.
+2. [#5](https://github.com/definitely-stable/ChunkShift/issues/5) — CSM v1 candidate reader/writer and manifest verification.
+3. [#16](https://github.com/definitely-stable/ChunkShift/issues/16) — embedded raw chunk-stream capability.
+4. [#20](https://github.com/definitely-stable/ChunkShift/issues/20) — compare public API alternatives against the direct internal sink.
+5. [#6](https://github.com/definitely-stable/ChunkShift/issues/6) — freeze the smallest viable Core API candidate and NativeAOT contract.
 
-#5 and #16 can overlap once the canonical kernel from #4 is stable enough to share.
+[#5](https://github.com/definitely-stable/ChunkShift/issues/5) and [#16](https://github.com/definitely-stable/ChunkShift/issues/16) can overlap once the canonical kernel from [#4](https://github.com/definitely-stable/ChunkShift/issues/4) is stable enough to share.
 
 ### Mandatory evidence
 
@@ -206,7 +225,7 @@ The same source/profile/HashSuite must yield the same chunk sequence across:
 - scalar and optimized backends;
 - JIT and NativeAOT where supported.
 
-#20 must explicitly measure:
+[#20](https://github.com/definitely-stable/ChunkShift/issues/20) must explicitly measure:
 
 - callback push versus pull-reader prototype;
 - contiguous `ReadOnlyMemory<byte>` versus segmented payload;
@@ -229,7 +248,7 @@ Deliver the first complete end-user value path before building a repository.
 
 ### Work
 
-Issue #7 adds:
+Issue [#7](https://github.com/definitely-stable/ChunkShift/issues/7) adds:
 
 - direct old/new comparison;
 - base chunk locator;
@@ -258,7 +277,7 @@ Validate the stable Core/Patching direction in a real server environment before 
 
 ### Work
 
-Issue #17 covers both in-memory host tests and real Kestrel loopback scenarios:
+Issue [#17](https://github.com/definitely-stable/ChunkShift/issues/17) covers both in-memory host tests and real Kestrel loopback scenarios:
 
 - request streams larger than RAM;
 - non-seekable and short-read bodies;
@@ -274,16 +293,16 @@ Issue #17 covers both in-memory host tests and real Kestrel loopback scenarios:
 
 Core must remain plain .NET and Stream-oriented. ASP.NET-specific fast paths may exist internally in an adapter/sample, but ASP.NET, DI, Pipeline ownership or host policy must not leak into the stable Core contract.
 
-## 9. M3 — Core/Patching 1.0 freeze
+## 9. M3 — Core/Patching 0.1.0 public baseline
 
 ### Objective
 
-Convert measured candidates into a stable compatibility line.
+Convert measured candidates into the first public `0.1.0` compatibility baseline.
 
 ### Work
 
-- #8 — calibrated CDC/profile bake-off;
-- #9 — final API, format, golden-vector and compatibility freeze.
+- [#8](https://github.com/definitely-stable/ChunkShift/issues/8) — calibrated CDC/profile bake-off;
+- [#9](https://github.com/definitely-stable/ChunkShift/issues/9) — final API, format, golden-vector and compatibility freeze.
 
 ### Decisions that become expensive after M3
 
@@ -294,7 +313,7 @@ M3 must close at least:
 - CSM v1;
 - CSP v1;
 - exact Core/Patching public surface;
-- raw chunk-stream semantics selected by #20;
+- raw chunk-stream semantics selected by [#20](https://github.com/definitely-stable/ChunkShift/issues/20);
 - borrowed-memory lifetime;
 - cancellation/error/ownership behavior;
 - short-read invariance;
@@ -303,27 +322,27 @@ M3 must close at least:
 
 ### Release outcome
 
-This is the stable gate for:
+This is the release-readiness gate for the first public release:
 
-- `ChunkShift 1.0`;
-- `ChunkShift.Patching 1.0`;
-- stable `ChunkShift.Cli` contracts.
+- `ChunkShift 0.1.0`;
+- `ChunkShift.Patching 0.1.0`;
+- public `ChunkShift.Cli` baseline.
 
 Repository and ASP.NET integration packages do not have to be stable here.
 
 ## 10. Post-Core split: M4 and M4A
 
-After #9, two independent tracks can move in parallel.
+After [#9](https://github.com/definitely-stable/ChunkShift/issues/9), two independent tracks can move in parallel.
 
 ### M4 — immutable Repository foundation
 
-Issue #10 introduces self-indexed immutable packs, filesystem storage, per-frame encoding and rebuildable location metadata.
+Issue [#10](https://github.com/definitely-stable/ChunkShift/issues/10) introduces self-indexed immutable packs, filesystem storage, per-frame encoding and rebuildable location metadata.
 
 The goal is to prove the physical repository model locally before introducing global index complexity or remote object stores.
 
 ### M4A — conditional ASP.NET Core package
 
-Issue #18 asks a narrower question: is there enough reusable ASP.NET behavior to justify a package?
+Issue [#18](https://github.com/definitely-stable/ChunkShift/issues/18) asks a narrower question: is there enough reusable ASP.NET behavior to justify a package?
 
 Possible valid outcomes are:
 
@@ -340,7 +359,7 @@ Scale repository lookup and publication without turning a mutable database into 
 
 ### Work
 
-Issue #11 adds immutable index segments, catalog generations, roots/refs, immutable read views, conditional publication, rebuild and metadata compaction.
+Issue [#11](https://github.com/definitely-stable/ChunkShift/issues/11) adds immutable index segments, catalog generations, roots/refs, immutable read views, conditional publication, rebuild and metadata compaction.
 
 ### Gate
 
@@ -357,7 +376,7 @@ A half-published repository state is a release blocker.
 
 Reclaim physical space without invalidating any reachable content or active read view.
 
-Issue #12 adds reachability marking, repack planning, retirement states, GC cutoff/epoch rules and reader safety.
+Issue [#12](https://github.com/definitely-stable/ChunkShift/issues/12) adds reachability marking, repack planning, retirement states, GC cutoff/epoch rules and reader safety.
 
 ### Gate
 
@@ -369,7 +388,7 @@ Long-running, concurrent and crash-injected lifecycle tests must demonstrate tha
 
 Validate the repository architecture under high-latency object-store and CDN conditions.
 
-Issue #13 adds:
+Issue [#13](https://github.com/definitely-stable/ChunkShift/issues/13) adds:
 
 - HTTP Range content access;
 - S3-compatible immutable-object backend;
@@ -386,11 +405,11 @@ Remote restore and static/CDN patching must remain exact and content-verified wh
 
 ### Repository release outcome
 
-Repository 1.0 becomes eligible only after M4-M7 evidence is complete and no stable storage contract remains unsupported by crash, lifecycle and remote-backend tests.
+Repository functionality becomes eligible for a later `0.1.Z` public release only after M4-M7 evidence is complete and no published storage contract remains unsupported by crash, lifecycle and remote-backend tests. A future `1.0.0` remains a separate explicit compatibility decision.
 
 ## 14. Parallel research track
 
-Issue #14 may evaluate SeqCDC, VectorCDC, Chonkers, UltraCDC, Binary Fuse, Ribbon/BuRR, alternative exact index encodings and optimized ISA-specific kernels.
+Issue [#14](https://github.com/definitely-stable/ChunkShift/issues/14) may evaluate SeqCDC, VectorCDC, Chonkers, UltraCDC, Binary Fuse, Ribbon/BuRR, alternative exact index encodings and optimized ISA-specific kernels.
 
 Research is intentionally isolated from the critical path.
 
@@ -444,7 +463,7 @@ M2 patching preview
         +--> M2A ASP.NET validation
         |
         v
-M3 Core/Patching 1.0
+M3 Core/Patching 0.1.0
         |
         +----------------------+
         |                      |
@@ -461,31 +480,31 @@ M6 lifecycle-safe repository
 M7 remote-distribution evidence
         |
         v
-Repository 1.0 eligibility
+Repository public-release eligibility
 ```
 
 ## 17. What to work on next
 
 Unless an issue uncovers a P0 architecture contradiction, execution should begin in this order:
 
-1. implement #2 and #3 in parallel;
-2. start #4 only against the corrected M0 semantics and measurement harness;
-3. build #5 and #16 on the same canonical kernel;
-4. run #20 before treating the raw scanner shape as public;
-5. close #6 only after #20 evidence exists;
-6. implement #7 and validate the first full local patch loop;
-7. run #17 before public API freeze;
-8. run #8 and #9 as the final Core/Patching 1.0 evidence gate;
+1. implement [#2](https://github.com/definitely-stable/ChunkShift/issues/2) and [#3](https://github.com/definitely-stable/ChunkShift/issues/3) in parallel;
+2. start [#4](https://github.com/definitely-stable/ChunkShift/issues/4) only against the corrected M0 semantics and measurement harness;
+3. build [#5](https://github.com/definitely-stable/ChunkShift/issues/5) and [#16](https://github.com/definitely-stable/ChunkShift/issues/16) on the same canonical kernel;
+4. run [#20](https://github.com/definitely-stable/ChunkShift/issues/20) before treating the raw scanner shape as public;
+5. close [#6](https://github.com/definitely-stable/ChunkShift/issues/6) only after [#20](https://github.com/definitely-stable/ChunkShift/issues/20) evidence exists;
+6. implement [#7](https://github.com/definitely-stable/ChunkShift/issues/7) and validate the first full local patch loop;
+7. run [#17](https://github.com/definitely-stable/ChunkShift/issues/17) before public API freeze;
+8. run [#8](https://github.com/definitely-stable/ChunkShift/issues/8) and [#9](https://github.com/definitely-stable/ChunkShift/issues/9) as the final Core/Patching `0.1.0` evidence gate;
 9. only then make Repository M4+ the main implementation line.
 
-That sequence is the default plan. Deviations should be recorded in issue #1 or an architecture decision when they materially affect dependencies or compatibility.
+That sequence is the default plan. Deviations should be recorded in issue [#1](https://github.com/definitely-stable/ChunkShift/issues/1) or an architecture decision when they materially affect dependencies or compatibility.
 
 ## 18. Roadmap maintenance
 
 - ROADMAP.md owns **program sequence, stage outcomes and release gates**.
 - PLAN.md owns **milestone deliverables, invariants, tests, benchmarks and exit criteria**.
 - RFCs own **architecture and compatibility contracts**.
-- GitHub issue #1 owns **live completion tracking**.
+- GitHub issue [#1](https://github.com/definitely-stable/ChunkShift/issues/1) owns **live completion tracking**.
 - Individual issues own **implementation-specific acceptance evidence**.
 
 When a milestone changes, update the smallest authoritative layer rather than copying the same decision into every document.

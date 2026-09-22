@@ -72,3 +72,12 @@ Not product pillars:
 ## License
 
 MIT
+
+## Project governance
+
+- [Roadmap](ROADMAP.md) — program sequence and evidence gates.
+- [Implementation plan](PLAN.md) — milestone deliverables and acceptance criteria.
+- [Contributing](CONTRIBUTING.md) — branch, pull-request and commit workflow.
+- [Release policy](docs/RELEASES.md) — SemVer, the `0.1.Z` release train, tags and release procedure.
+- [Changelog](CHANGELOG.md) — human-facing notable changes by release.
+
