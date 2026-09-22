@@ -92,13 +92,21 @@ The v1 matrix covers:
 
 Insert/delete/overwrite are represented at multiple sizes in the checked-in experiment matrix.
 
-## Current reference algorithm
+## Reference and M1 candidate algorithms
 
-M0 uses `fixed.reference.v1` only to validate the measurement machinery.
+`fixed.reference.v1` remains the fixed-size control.
 
-It is **not** a stable ChunkShift profile and is not evidence that fixed-size chunking is preferred.
+M1/#4 adds the scalar `fastcdc.gear.chunkshift.v1` candidate through the **same Core kernel** used by future scanner/CSM paths. The checked-in smoke matrix exercises non-stable 64/128/256 KiB target presets:
 
-M1/#4 plugs FastCDC/reference candidates into the same layout/metric model.
+```text
+minimum = target / 4
+maximum = target * 4
+normalization = 1
+```
+
+These are calibration presets, not the Core 0.1.0 default. #8 selects the stable profile from measured evidence.
+
+`tools/reference/fastcdc_reference.py --verify` independently parses the normative GEAR table and verifies the 1 MiB deterministic golden boundary vector without calling the C# implementation.
 
 ## Metrics
 
