@@ -1,4 +1,4 @@
-using ChunkShift.Hashing;
+using ChunkShift.Chunking;
 using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks.Lab;
@@ -7,25 +7,17 @@ public static class FixedSizeReferenceChunker
 {
     public static ChunkRecord[] Chunk(ReadOnlySpan<byte> data, int chunkSize, HashSuiteId hashSuite)
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(chunkSize);
+        ChunkKernelChunk[] chunks = ChunkingReference.Chunk(
+            data,
+            ChunkingKernelProfile.Fixed(chunkSize),
+            hashSuite);
 
-        if (data.IsEmpty)
+        var result = new ChunkRecord[chunks.Length];
+        for (int i = 0; i < chunks.Length; i++)
         {
-            return Array.Empty<ChunkRecord>();
+            result[i] = new ChunkRecord(chunks[i].Offset, chunks[i].Length, chunks[i].Id.Value);
         }
 
-        int count = 1 + ((data.Length - 1) / chunkSize);
-        var chunks = new ChunkRecord[count];
-
-        for (int index = 0; index < count; index++)
-        {
-            long offset = checked((long)index * chunkSize);
-            int offsetInt = checked((int)offset);
-            int length = Math.Min(chunkSize, data.Length - offsetInt);
-            Hash256 id = HashSuiteHasher.Hash(hashSuite, data.Slice(offsetInt, length));
-            chunks[index] = new ChunkRecord(offset, length, id);
-        }
-
-        return chunks;
+        return result;
     }
 }
