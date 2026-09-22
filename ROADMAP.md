@@ -55,11 +55,11 @@ Completed foundation:
 - [#3](https://github.com/definitely-stable/ChunkShift/issues/3) — deterministic benchmark lab/corpus/mutation foundation; merged via PR #31;
 - M0 status synchronization — PR #32.
 
-Active corrective preparation:
+Completed corrective preparation:
 
-- [#33](https://github.com/definitely-stable/ChunkShift/issues/33) — exact profile numeric canonicalization, stronger benchmark evidence and Core-first release correction.
+- [#33](https://github.com/definitely-stable/ChunkShift/issues/33) — exact profile numeric canonicalization, stronger benchmark evidence and Core-first release correction; merged via PR #35.
 
-M0 remains a completed **foundation**, but its known evidence defects are not ignored: [#33](https://github.com/definitely-stable/ChunkShift/issues/33) must close before [#4](https://github.com/definitely-stable/ChunkShift/issues/4) starts.
+The next critical-path implementation is [#4](https://github.com/definitely-stable/ChunkShift/issues/4): canonical deterministic chunking and HashSuite kernels.
 
 ## Critical path
 
