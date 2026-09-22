@@ -85,13 +85,12 @@ public class DeterminismTests
     public async Task FastCdcStreamingEvidenceMatchesScalarEvidence()
     {
         const int target = 64 * 1024;
-        var profile = ChunkShift.Chunking.FastCdcProfile.CreateM1Candidate(target);
         var experiment = new ExperimentDefinition(
             "fastcdc-streaming-evidence",
             "corpus",
             LabChunker.FastCdcAlgorithm,
-            profile.CandidateProfileId.Value,
-            profile.ComputeFingerprint().ToString(),
+            "fastcdc.gear.candidate.v1.m16384.t65536.x262144.f054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0",
+            "054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0",
             target,
             HashSuiteIds.Blake3256V1.Value,
             null);
