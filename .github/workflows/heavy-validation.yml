@@ -7,6 +7,7 @@ on:
     paths:
       - "benchmarks/**"
       - "docs/benchmarks/**"
+      - "src/ChunkShift/*.cs"
       - "src/ChunkShift/Hashing/**"
       - "src/ChunkShift/Chunking/**"
       - "src/ChunkShift/Profiles/**"
@@ -82,10 +83,51 @@ jobs:
           dotnet new console --name AotConsumer --output artifacts/aot-consumer --framework net10.0 --no-restore
           dotnet add artifacts/aot-consumer/AotConsumer.csproj package ChunkShift --version "${PACKAGE_VERSION}" --source "${GITHUB_WORKSPACE}/artifacts/packages"
           cat > artifacts/aot-consumer/Program.cs <<'CS'
+          using ChunkShift;
           using ChunkShift.Primitives;
-
-          var id = new ChunkerId("aot.smoke");
-          Console.WriteLine(id.Value);
+          
+          var bytes = new byte[768 * 1024];
+          uint state = 0xC0FFEE42u;
+          for (int index = 0; index < bytes.Length; index++)
+          {
+              state ^= state << 13;
+              state ^= state >> 17;
+              state ^= state << 5;
+              bytes[index] = (byte)state;
+          }
+          
+          foreach (HashSuiteId suite in new[] { HashSuiteIds.Blake3256V1, HashSuiteIds.Sha256V1 })
+          {
+              using var source = new MemoryStream(bytes, writable: false);
+              long covered = 0;
+              long count = 0;
+          
+              await ChunkScanner.ScanAsync(
+                  source,
+                  (chunk, content, _) =>
+                  {
+                      if (chunk.Index != count ||
+                          chunk.Offset != covered ||
+                          chunk.Length != content.Length ||
+                          chunk.Length <= 0)
+                      {
+                          throw new InvalidOperationException("ChunkShift scanner package smoke invariant failed.");
+                      }
+          
+                      covered += chunk.Length;
+                      count++;
+                      return ValueTask.CompletedTask;
+                  },
+                  new ChunkScanOptions { HashSuite = suite });
+          
+              if (covered != bytes.LongLength || count == 0)
+              {
+                  throw new InvalidOperationException("ChunkShift scanner did not cover the complete source.");
+              }
+          
+              Console.WriteLine($"{suite}: {count} chunks, {covered} bytes");
+          }
+          
           CS
           dotnet publish artifacts/aot-consumer/AotConsumer.csproj -c Release -r "${{ matrix.rid }}" --self-contained true -p:PublishAot=true -p:PublishTrimmed=true -o artifacts/aot-publish
 

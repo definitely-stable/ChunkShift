@@ -106,3 +106,19 @@ override ChunkShift.Primitives.ProfileFingerprint.ToString() -> string!
 ChunkShift.Primitives.ProfileFingerprint.Value.get -> ChunkShift.Primitives.Hash256
 static ChunkShift.Primitives.ProfileFingerprint.operator !=(ChunkShift.Primitives.ProfileFingerprint left, ChunkShift.Primitives.ProfileFingerprint right) -> bool
 static ChunkShift.Primitives.ProfileFingerprint.operator ==(ChunkShift.Primitives.ProfileFingerprint left, ChunkShift.Primitives.ProfileFingerprint right) -> bool
+ChunkShift.ChunkInfo
+ChunkShift.ChunkInfo.ChunkInfo() -> void
+ChunkShift.ChunkInfo.Id.get -> ChunkShift.Primitives.ChunkId
+ChunkShift.ChunkInfo.Index.get -> long
+ChunkShift.ChunkInfo.Length.get -> int
+ChunkShift.ChunkInfo.Offset.get -> long
+ChunkShift.ChunkScanHandler
+virtual ChunkShift.ChunkScanHandler.Invoke(ChunkShift.ChunkInfo chunk, System.ReadOnlyMemory<byte> content, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+ChunkShift.ChunkScanOptions
+ChunkShift.ChunkScanOptions.ChunkScanOptions() -> void
+ChunkShift.ChunkScanOptions.HashSuite.get -> ChunkShift.Primitives.HashSuiteId?
+ChunkShift.ChunkScanOptions.HashSuite.init -> void
+ChunkShift.ChunkScanOptions.ProfileId.get -> ChunkShift.Primitives.ChunkingProfileId?
+ChunkShift.ChunkScanOptions.ProfileId.init -> void
+ChunkShift.ChunkScanner
+static ChunkShift.ChunkScanner.ScanAsync(System.IO.Stream! source, ChunkShift.ChunkScanHandler! handler, ChunkShift.ChunkScanOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!

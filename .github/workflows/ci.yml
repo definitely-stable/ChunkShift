@@ -77,15 +77,51 @@ jobs:
           dotnet new console --name Consumer --output artifacts/consumer --framework net10.0 --no-restore
           dotnet add artifacts/consumer/Consumer.csproj package ChunkShift --version "${PACKAGE_VERSION}" --source "${GITHUB_WORKSPACE}/artifacts/packages"
           cat > artifacts/consumer/Program.cs <<'CS'
+          using ChunkShift;
           using ChunkShift.Primitives;
-
-          var id = new ChunkerId("consumer.smoke");
-          if (id.Value != "consumer.smoke")
+          
+          var bytes = new byte[768 * 1024];
+          uint state = 0xC0FFEE42u;
+          for (int index = 0; index < bytes.Length; index++)
           {
-              throw new InvalidOperationException("ChunkShift package smoke test failed.");
+              state ^= state << 13;
+              state ^= state >> 17;
+              state ^= state << 5;
+              bytes[index] = (byte)state;
           }
-
-          Console.WriteLine(id.Value);
+          
+          foreach (HashSuiteId suite in new[] { HashSuiteIds.Blake3256V1, HashSuiteIds.Sha256V1 })
+          {
+              using var source = new MemoryStream(bytes, writable: false);
+              long covered = 0;
+              long count = 0;
+          
+              await ChunkScanner.ScanAsync(
+                  source,
+                  (chunk, content, _) =>
+                  {
+                      if (chunk.Index != count ||
+                          chunk.Offset != covered ||
+                          chunk.Length != content.Length ||
+                          chunk.Length <= 0)
+                      {
+                          throw new InvalidOperationException("ChunkShift scanner package smoke invariant failed.");
+                      }
+          
+                      covered += chunk.Length;
+                      count++;
+                      return ValueTask.CompletedTask;
+                  },
+                  new ChunkScanOptions { HashSuite = suite });
+          
+              if (covered != bytes.LongLength || count == 0)
+              {
+                  throw new InvalidOperationException("ChunkShift scanner did not cover the complete source.");
+              }
+          
+              Console.WriteLine($"{suite}: {count} chunks, {covered} bytes");
+          }
+          
           CS
           dotnet run --project artifacts/consumer/Consumer.csproj -c Release
 
