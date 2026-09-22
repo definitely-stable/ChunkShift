@@ -1,0 +1,200 @@
+{
+  "schemaVersion": 1,
+  "experiments": [
+    {
+      "id": "baseline-game-pak-8m",
+      "corpusId": "game-pak-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": null
+    },
+    {
+      "id": "baseline-executable-app-8m",
+      "corpusId": "executable-app-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": null
+    },
+    {
+      "id": "baseline-installer-archive-8m",
+      "corpusId": "installer-archive-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": null
+    },
+    {
+      "id": "baseline-db-vm-8m",
+      "corpusId": "db-vm-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": null
+    },
+    {
+      "id": "baseline-random-8m",
+      "corpusId": "random-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": null
+    },
+    {
+      "id": "baseline-zero-8m",
+      "corpusId": "zero-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": null
+    },
+    {
+      "id": "baseline-repeated-8m",
+      "corpusId": "repeated-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": null
+    },
+    {
+      "id": "baseline-low-entropy-8m",
+      "corpusId": "low-entropy-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": null
+    },
+    {
+      "id": "baseline-random-like-8m",
+      "corpusId": "random-like-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": null
+    },
+    {
+      "id": "game-pak-insert-4k",
+      "corpusId": "game-pak-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": {
+        "kind": "insert",
+        "sizeBytes": 4096,
+        "seed": 2001
+      }
+    },
+    {
+      "id": "game-pak-insert-64k",
+      "corpusId": "game-pak-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": {
+        "kind": "insert",
+        "sizeBytes": 65536,
+        "seed": 2002
+      }
+    },
+    {
+      "id": "game-pak-delete-4k",
+      "corpusId": "game-pak-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": {
+        "kind": "delete",
+        "sizeBytes": 4096,
+        "seed": 2003
+      }
+    },
+    {
+      "id": "game-pak-delete-64k",
+      "corpusId": "game-pak-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": {
+        "kind": "delete",
+        "sizeBytes": 65536,
+        "seed": 2004
+      }
+    },
+    {
+      "id": "game-pak-overwrite-4k",
+      "corpusId": "game-pak-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": {
+        "kind": "overwrite",
+        "sizeBytes": 4096,
+        "seed": 2005
+      }
+    },
+    {
+      "id": "game-pak-overwrite-64k",
+      "corpusId": "game-pak-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": {
+        "kind": "overwrite",
+        "sizeBytes": 65536,
+        "seed": 2006
+      }
+    },
+    {
+      "id": "game-pak-prepend-4k",
+      "corpusId": "game-pak-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": {
+        "kind": "prepend",
+        "sizeBytes": 4096,
+        "seed": 2007
+      }
+    },
+    {
+      "id": "game-pak-append-4k",
+      "corpusId": "game-pak-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": {
+        "kind": "append",
+        "sizeBytes": 4096,
+        "seed": 2008
+      }
+    },
+    {
+      "id": "game-pak-move-64k",
+      "corpusId": "game-pak-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": {
+        "kind": "move",
+        "sizeBytes": 65536,
+        "seed": 2009
+      }
+    },
+    {
+      "id": "game-pak-reorder-64k",
+      "corpusId": "game-pak-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": {
+        "kind": "reorder",
+        "sizeBytes": 65536,
+        "seed": 2010
+      }
+    },
+    {
+      "id": "game-pak-localized-rewrite-256k",
+      "corpusId": "game-pak-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": {
+        "kind": "localized-rewrite",
+        "sizeBytes": 262144,
+        "seed": 2011
+      }
+    },
+    {
+      "id": "game-pak-random-rewrite-64k",
+      "corpusId": "game-pak-8m",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": {
+        "kind": "random-rewrite",
+        "sizeBytes": 65536,
+        "seed": 2012
+      }
+    }
+  ]
+}
