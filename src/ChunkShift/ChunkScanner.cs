@@ -8,7 +8,7 @@ namespace ChunkShift;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The caller retains ownership of <paramref name="source"/>. ChunkShift never disposes it.
+/// The caller retains ownership of the source stream. ChunkShift never disposes it.
 /// While a scan is active, the caller and handler must not concurrently read, seek, rewind,
 /// replace, or dispose the same stream.
 /// </para>
