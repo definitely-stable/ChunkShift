@@ -32,7 +32,7 @@ old content
 
 The future content-addressed repository reuses the same ChunkId/manifest model. Backup, AI dataset hosting, RAG and generic sync are not product pillars.
 
-## 2. Stable package intent
+## 2. Package intent
 
 First public release target (`0.1.0`):
 
@@ -449,7 +449,7 @@ Primary evidence:
 
 - stable repository API.
 
-This is the gate for `ChunkShift 0.1.0`, `ChunkShift.Patching 0.1.0` and stable CLI contracts.
+This is the gate for `ChunkShift 0.1.0`, `ChunkShift.Patching 0.1.0` and the public CLI baseline.
 
 The `ChunkShift.AspNetCore` package is not required to be stable at this gate.
 
