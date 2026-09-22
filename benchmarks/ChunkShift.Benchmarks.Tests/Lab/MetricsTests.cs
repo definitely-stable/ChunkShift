@@ -37,6 +37,33 @@ public class MetricsTests
     }
 
     [Fact]
+    public void IdentityRunHasNoResynchronizationDistance()
+    {
+        byte[] source = CorpusGenerator.Generate(
+            new CorpusEntry("source", "test", "random", 256 * 1024, 10, "synthetic"));
+
+        ChunkRecord[] chunks = FixedSizeReferenceChunker.Chunk(
+            source,
+            64 * 1024,
+            HashSuiteIds.Blake3256V1);
+
+        LabMetrics metrics = MetricsCalculator.Create(
+            chunks,
+            chunks,
+            MutationGenerator.Identity(source),
+            64 * 1024,
+            source.Length,
+            source.Length,
+            source.Length * 2L,
+            1,
+            1,
+            0,
+            0);
+
+        Assert.Null(metrics.ResynchronizationDistanceBytes);
+    }
+
+    [Fact]
     public void FixedSizeInsertionShowsChangeAmplification()
     {
         byte[] source = CorpusGenerator.Generate(
