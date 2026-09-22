@@ -170,7 +170,7 @@ unique missing target chunk payload bytes
           logical mutation bytes
 ```
 
-The mutation-byte denominator is recorded by the deterministic mutation generator. For random-rewrite, it is the actual final count of source byte positions whose values differ from target after repeated random selections, not the number of attempted writes.
+The mutation-byte denominator is recorded by the deterministic mutation generator. For overwrite/localized-rewrite and random-rewrite, it is the actual final count of source byte positions whose values differ from target. This excludes coincidental equal rewrites and, for random-rewrite, repeated selections that cancel or hit the same byte.
 
 ### Missing payload and CSP bytes
 

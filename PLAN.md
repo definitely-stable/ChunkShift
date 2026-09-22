@@ -92,7 +92,7 @@ Exit:
 - no release dependency on [#7](https://github.com/definitely-stable/ChunkShift/issues/7)/CSP remains in [#8](https://github.com/definitely-stable/ChunkShift/issues/8)/[#9](https://github.com/definitely-stable/ChunkShift/issues/9)/[#17](https://github.com/definitely-stable/ChunkShift/issues/17);
 - [#4](https://github.com/definitely-stable/ChunkShift/issues/4) is the next critical-path implementation issue.
 
-## 5. M1 semantic preflight — [#37](https://github.com/definitely-stable/ChunkShift/issues/37)
+## 5. M1 semantic preflight — complete
 
 Before kernel implementation, freeze the **measurement and semantic oracle**, not the optimized implementation.
 
@@ -115,7 +115,7 @@ Deferred intentionally:
 - ChunkerId/ManifestSchemaVersion/nullability public-surface cleanup -> #6;
 - final real version-pair corpus decision -> #8.
 
-Exit: #4 can be implemented without choosing any hidden persisted semantic or relying on a known-false metric.
+Exit met by PR #38: #4 can be implemented without choosing any known hidden persisted semantic or relying on the previously identified false metrics.
 
 ## 6. Core kernels — [#4](https://github.com/definitely-stable/ChunkShift/issues/4)
 
