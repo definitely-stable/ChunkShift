@@ -50,7 +50,7 @@ public class MutationTests
     }
 
     [Fact]
-    public void RandomRewrite_ReportsActualChangedBytesAfterRepeatedSelections()
+    public void RandomRewriteReportsActualChangedBytesAfterRepeatedSelections()
     {
         MutationResult result = MutationGenerator.Apply(
             Source,
