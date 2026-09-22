@@ -34,6 +34,33 @@ TRAILER
 
 The writer emits forward-only through CEND. Optional AUX/BIDX/FOOT/TRAILER finalization may follow after source scanning; no header backpatching is required.
 
+### 2.1 Section state machine
+
+A conforming v1 physical stream follows this exact state machine:
+
+```text
+PREAMBLE
+  -> exactly one CORE
+  -> zero or more CBLK
+  -> exactly one CEND
+  -> zero or more optional AUX*
+  -> zero or one BIDX
+  -> exactly one FOOT
+  -> exactly one fixed TRAILER at physical EOF
+```
+
+The reader MUST reject:
+
+- duplicate CORE, CEND, BIDX or FOOT;
+- CBLK before CORE or after CEND;
+- AUX before CEND or after BIDX/FOOT;
+- BIDX before CEND or more than once;
+- any section after FOOT;
+- bytes after TRAILER;
+- missing CORE, CEND, FOOT or TRAILER.
+
+Unknown optional physical sections are permitted only in the AUX phase between CEND and BIDX/FOOT.
+
 ## 3. PREAMBLE — fixed 32 bytes
 
 | Offset | Size | Field |
@@ -94,10 +121,12 @@ Rules:
 - both IDs use the ChunkShift ID grammar and are at most 128 bytes;
 - v1 hard limit for ExtensionBytes is 65,536;
 - CORE PayloadLength MUST equal `56 + HashSuiteIdLength + ChunkingProfileIdLength + ExtensionBytes`;
-- unknown required semantic feature bits fail;
+- the current v1 candidate defines **no semantic feature bits**: writers MUST emit both `RequiredSemanticFeatures = 0` and `OptionalSemanticFeatures = 0`; readers MUST reject either field when non-zero;
 - canonical TLVs are cold semantic metadata only, never per-chunk records.
 
-The exact TLV registry is empty for the current v1 candidate. Until a concrete semantic extension is accepted and specified, writers MUST emit `ExtensionBytes = 0` and readers MUST reject non-zero ExtensionBytes. This prevents an under-specified extension encoding from entering compatibility fixtures.
+The exact TLV registry is empty for the current v1 candidate. Until a concrete semantic extension is accepted and specified, writers MUST emit `ExtensionBytes = 0` and readers MUST reject non-zero ExtensionBytes.
+
+This zero-only rule deliberately closes the current identity ambiguity: no semantic bit or TLV may affect interpretation while remaining outside ManifestId. When a real semantic extension is designed, its identity contribution must be specified before the feature is assigned a bit/TLV.
 
 ## 6. CBLK payload
 
@@ -126,7 +155,21 @@ Expected PayloadLength:
 24 + ChunkCount*32 + ChunkCount*4 + 4
 ```
 
-`BlockCrc32C` covers the 16-byte CBLK section header plus all CBLK payload bytes preceding the CRC field.
+`BlockCrc32C` is **CRC-32C / Castagnoli** with these parameters:
+
+```text
+width   = 32
+poly    = 0x1EDC6F41       # normal form
+refin   = true
+refout  = true
+init    = 0xFFFFFFFF
+xorout  = 0xFFFFFFFF
+check("123456789") = 0xE3069283
+```
+
+The numeric CRC value is stored as UInt32 little-endian; the check value above is therefore serialized as bytes `83 92 06 E3`.
+
+The CRC covers the 16-byte CBLK section header plus all CBLK payload bytes preceding the CRC field. The CRC field itself is excluded.
 
 Rules:
 
@@ -248,7 +291,9 @@ A tail reader can fetch the fixed 64-byte TRAILER, locate FOOT, then locate CORE
 
 A conforming v1 reader enforces at least:
 
-- CORE extension bytes <= 65,536;
+- `RequiredSemanticFeatures == 0` and `OptionalSemanticFeatures == 0` for this candidate;
+- `ExtensionBytes == 0` for this candidate;
+- CORE extension hard ceiling remains 65,536 for future format work but does not authorize v1 candidate extensions;
 - identifier byte lengths <= 128 each;
 - CBLK ChunkCount <= 4096;
 - every CBLK computed payload size matches PayloadLength exactly;
@@ -309,8 +354,11 @@ Frozen Core 0.1.0 fixtures must include at least:
 - mismatched CEND totals;
 - bad ManifestId;
 - bad FileDigest;
+- non-zero semantic feature rejection;
+- duplicate/out-of-order CORE/CBLK/CEND/BIDX/FOOT rejection;
 - unknown required section/feature rejection;
-- unknown optional section skip;
+- unknown optional AUX-phase section skip;
+- CRC-32C known vector `123456789 -> E3069283`;
 - equivalent logical manifest encoded with permitted physical differences.
 
 At least one small independent verifier/generator must check the release-candidate vectors before [#9](https://github.com/definitely-stable/ChunkShift/issues/9) closes.
