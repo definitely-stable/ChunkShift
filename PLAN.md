@@ -70,7 +70,7 @@ The implementation backlog is tracked by [#1 — ChunkShift 2026 architecture sy
 | Milestone | Issues |
 | --- | --- |
 | M0 | #2 identity/HashSuite/profile semantics; #3 benchmark lab/corpus |
-| M1 | #4 deterministic chunk/hash kernels; #5 CSM candidate; #6 minimal public API/AOT; #16 embedded chunk-stream API |
+| M1 | #4 deterministic chunk/hash kernels; #5 CSM candidate; #16 embedded chunk-stream API; #20 chunk-stream API bake-off; #6 minimal public API/AOT |
 | M2 | #7 declarative patch/reconstruction loop; #17 ASP.NET host validation/sample |
 | M3 | #8 CDC bake-off/profile selection; #9 Core/Patching 1.0 freeze |
 | M4A | #18 ASP.NET Core integration package/protocol spike |
@@ -94,7 +94,9 @@ Before implementation proceeds, all work must preserve:
 - CSM as primary binary manifest;
 - caller-owned Stream semantics in core APIs;
 - standalone embedded/local SDK without DI or Repository;
-- one low-level raw chunk-stream capability with explicit borrowed-memory lifetime and natural backpressure;
+- one low-level raw chunk-stream capability; callback + borrowed contiguous memory is the leading candidate but must pass #20 before freeze;
+- chunk boundaries/IDs are invariant to Stream read segmentation and short-read behavior;
+- scanner source use is exclusive during an operation with bounded internal read-ahead;
 - no per-chunk heap object requirement;
 - no public stable `IChunker`, `IChunkHasher` or `IRepository` before a real substitution need;
 - repository truth in immutable content objects, not SQLite/RocksDB;
@@ -112,6 +114,7 @@ M0 Architecture correction + measurement lab
  v
 M1 Deterministic core + CSM candidate
  |   + embedded chunk-stream API
+ |   + #20 API shape/copy/async bake-off
  |
  +--------------------------+
  |                          |
@@ -136,9 +139,6 @@ foundation         adapter/protocol spike
           +-----+-----+
                 |
                 v
-M5 Global index + catalog + crash/concurrency
-               |
-               v
 M5 Global index + catalog + crash/concurrency
                |
                v
@@ -225,6 +225,7 @@ Produce a bounded-memory deterministic content map.
 - CSM writer/reader;
 - buffered `ManifestReader`;
 - low-level embedded raw chunk scanner per RFC-0002;
+- internal pull-reader and segmented-payload prototypes for #20 evidence only;
 - manifest verification;
 - CLI: `manifest`, `inspect`, `verify`;
 - JSON diagnostic/export projection;
@@ -233,7 +234,8 @@ Produce a bounded-memory deterministic content map.
 ### Invariants
 
 - no per-chunk heap object is required;
-- raw chunk callback memory is borrowed only for callback duration and callbacks are sequential;
+- raw scanner semantics provide ordered non-concurrent delivery, bounded read-ahead and explicit borrowed-memory lifetime;
+- identical source bytes/profile/HashSuite produce identical chunks regardless of read segmentation;
 - logical entry is only ChunkId + Length;
 - ManifestId is independent of physical block grouping and optional indexes;
 - caller owns passed streams;
@@ -256,14 +258,20 @@ Produce a bounded-memory deterministic content map.
 - CSM encode/decode;
 - allocations/GiB;
 - peak RSS;
-- raw chunk callback overhead versus internal direct-sink baseline.
+- raw chunk callback overhead versus internal direct-sink baseline;
+- callback vs pull prototype;
+- contiguous ReadOnlyMemory vs segmented ReadOnlySequence prototype;
+- Task vs ValueTask handler;
+- bytes copied/GiB and first-chunk latency.
 
 ### Exit criteria
 
 - a manifest larger than available RAM can be processed with bounded memory;
 - stable test vectors match on supported architectures;
 - no format/parser P0 defects remain;
-- embedded/local scanner works on seekable and non-seekable streams with bounded memory.
+- embedded/local scanner works on seekable and non-seekable streams with bounded memory;
+- one-byte/random-short-read sources produce identical output;
+- #20 records the selected v1 chunk-stream shape with benchmark evidence.
 
 ### Intentionally not included
 
@@ -339,9 +347,13 @@ Prove that the Stream-based Core/Patching API works naturally inside ASP.NET Cor
 ### Deliverables
 
 - minimal ASP.NET Core sample using request Body and request-abort cancellation;
+- comparative Body vs BodyReader transport path measurement;
 - CSM/CSP artifact download sample using standard HTTP Range and entity validators;
 - validation of slow-client backpressure and bounded buffering;
 - guidance for physical artifact ETag vs logical ManifestId;
+- explicit response-resource ownership rules because ASP.NET Results.Stream disposes/Completes supplied response resources;
+- explicit large-request host configuration without silently disabling Kestrel limits;
+- middleware-transform guidance: ChunkShift hashes the bytes presented by the request Stream, not necessarily raw wire bytes;
 - explicit demonstration that static/CDN distribution requires no ChunkShift-specific server;
 - decision record on whether a separate `ChunkShift.AspNetCore` package has enough repeated behavior to justify M4A.
 
@@ -357,9 +369,13 @@ Prove that the Stream-based Core/Patching API works naturally inside ASP.NET Cor
 
 - client disconnect/request abort;
 - non-seekable request body;
+- one-byte/random-short-read request wrapper;
 - request larger than RAM;
 - slow response consumer;
 - standard Range 206/416 and If-Range/ETag behavior;
+- range disabled for a forward-only backing representation;
+- request decompression and body-size-limit behavior;
+- Results.Stream Stream-disposal/PipeReader-completion ownership;
 - authorization composition in sample.
 
 ### Benchmarks
@@ -393,7 +409,7 @@ Freeze only decisions supported by system evidence.
 - final stable profile selection;
 - CSM v1 spec;
 - CSP v1 spec;
-- stable Core and Patching public API review, including the embedded raw chunk-stream API and ASP.NET host validation;
+- stable Core and Patching public API review, including #20 evidence for the embedded raw chunk-stream API and ASP.NET host validation;
 - cross-language golden vectors;
 - compatibility policy;
 - fuzz/soak evidence.
@@ -707,9 +723,11 @@ The M3 freeze gate must explicitly close:
 7. public stream ownership/cancellation/error/result contracts;
 8. no mandatory materialized manifest model;
 9. exact ChunkEntry public shape;
-10. exact embedded raw chunk-stream callback/borrowed-memory contract;
-11. proof that Core/Patching can be hosted directly in ASP.NET Core without host-specific leakage into Core;
-12. compatibility/golden-vector policy.
+10. exact embedded raw chunk-stream shape chosen by #20: push/pull, contiguous/segmented, Task/ValueTask;
+11. borrowed-memory, exclusive-source, read-ahead, short-read invariance and post-failure-position contracts;
+12. proof that Core/Patching can be hosted directly in ASP.NET Core without host-specific leakage into Core;
+13. default profile/HashSuite resolution frozen for the 1.x compatibility line;
+14. compatibility/golden-vector policy.
 
 Repository pack/index defaults are not required to freeze with Core/Patching 1.0 unless they are exposed as stable repository formats at the same time.
 

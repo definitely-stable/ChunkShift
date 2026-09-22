@@ -112,7 +112,7 @@ Those workloads may be used for benchmarks or adapters without becoming core pro
 | public PipeReader ownership knobs | do not expose | REJECT |
 | NativeAOT compatibility | core requirement | ACCEPT |
 | standalone embedded/local SDK | core package must be useful without Patching/Repository/DI | ACCEPT |
-| low-level raw chunk stream | public callback-based candidate; borrowed chunk bytes | ACCEPT |
+| low-level raw chunk stream | public capability required; callback/borrowed-memory shape pending #20 evidence | ACCEPT / EXPERIMENT |
 | special ChunkShift server for static artifacts | not required | REJECT |
 | stable ChunkShift.AspNetCore API before integration evidence | defer; validate through RFC-0002/M4A | DEFER |
 | signing/encryption implementation | separate later design | DEFER |
@@ -496,7 +496,7 @@ public sealed class ManifestReader : IDisposable, IAsyncDisposable
 
 Patching uses similarly small one-shot operations.
 
-The core package also exposes one intentionally low-level embedded capability for processing raw chunks without creating a manifest or repository. The target semantics are defined by [RFC-0002](RFC-0002-embedded-sdk-aspnet-core.md): a sequential callback receives immutable runtime `ChunkInfo` plus borrowed `ReadOnlyMemory<byte>` valid until the callback completes. This gives local applications and ASP.NET hosts direct access to chunk bytes while retaining bounded buffering and explicit lifetime semantics.
+The core package also exposes one intentionally low-level embedded capability for processing raw chunks without creating a manifest or repository. The target semantics are defined by [RFC-0002](RFC-0002-embedded-sdk-aspnet-core.md). A sequential callback with borrowed `ReadOnlyMemory<byte>` is the leading candidate, but #20 must compare it against pull/segmented alternatives before M3 freeze. This gives local applications and ASP.NET hosts direct access to chunk bytes while retaining bounded buffering and explicit lifetime semantics.
 
 The core package MUST remain useful without Dependency Injection, ASP.NET Core, Patching or Repository.
 
