@@ -126,6 +126,8 @@ For one chunk candidate window `source`:
 
 A returned cut position is the chunk length relative to the current chunk start, matching the canonical FastCDC cut-point convention used by the reference implementation.
 
+**Important boundary convention:** the candidate byte at `source[index]` participates in the Gear update/predicate, but when that predicate succeeds the returned chunk length is `index`, not `index + 1`. Therefore that candidate byte is the first byte of the next logical chunk. This is intentionally frozen reference behavior, not an off-by-one to “correct” during implementation.
+
 UInt64 shift/addition wraps modulo `2^64`; checked overflow is NOT part of Gear semantics.
 
 ## 5. Stream independence
