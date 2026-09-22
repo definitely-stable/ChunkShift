@@ -9,13 +9,15 @@ This document distinguishes **package target compatibility**, **continuously tes
 
 | Surface | Status | Notes |
 | --- | --- | --- |
-| .NET 8 (`net8.0`) | target | Core package and tests target this TFM |
-| .NET 10 (`net10.0`) | target | Core package, tests and CLI target this TFM |
+| .NET 8 (`net8.0`) | compatibility target | Core package and tests target this TFM; Microsoft support ends 2026-11-10 |
+| .NET 10 (`net10.0`) | recommended / target | recommended development/runtime baseline; Core, tests and CLI target this TFM |
 | Windows x64 | CI-tested | normal PR lane |
 | Linux x64 | CI-tested | normal PR lane |
 | Linux ARM64 | scheduled validation | deterministic/AOT evidence lane |
 | Windows ARM64 | architecture target | add continuous validation when product usage warrants it |
 | macOS | best effort before 0.1.0 | no compatibility promise until CI evidence exists |
+
+Compatibility with a TFM is not the same as vendor support for the runtime. Microsoft lists .NET 8 support ending on **2026-11-10** and .NET 10 LTS support continuing through 2028. Runtime lifecycle source: https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core
 
 ## NativeAOT and trimming
 
