@@ -17,7 +17,8 @@ internal static class ChunkingReference
             return Array.Empty<ChunkKernelChunk>();
         }
 
-        int initialCapacity = Math.Max(1, (data.Length / Math.Max(1, profile.Target)) + 2);
+        int estimated = Math.Max(1, (data.Length / Math.Max(1, profile.Target)) + 2);
+        int initialCapacity = Math.Min(4096, estimated);
         var chunks = new List<ChunkKernelChunk>(initialCapacity);
 
         int offset = 0;
