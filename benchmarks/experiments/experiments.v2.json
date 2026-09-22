@@ -258,6 +258,108 @@
         "sizeBytes": 65536,
         "seed": 2012
       }
+    },
+    {
+      "id": "fastcdc-game-pak-baseline-64k",
+      "corpusId": "game-pak-8m",
+      "algorithm": "fastcdc.gear.chunkshift.v1",
+      "profileId": "fastcdc.gear.candidate.v1.64k",
+      "profileFingerprint": "054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": null
+    },
+    {
+      "id": "fastcdc-game-pak-insert-4k-64k",
+      "corpusId": "game-pak-8m",
+      "algorithm": "fastcdc.gear.chunkshift.v1",
+      "profileId": "fastcdc.gear.candidate.v1.64k",
+      "profileFingerprint": "054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": {
+        "kind": "insert",
+        "sizeBytes": 4096,
+        "seed": 3164
+      }
+    },
+    {
+      "id": "fastcdc-zero-baseline-64k",
+      "corpusId": "zero-8m",
+      "algorithm": "fastcdc.gear.chunkshift.v1",
+      "profileId": "fastcdc.gear.candidate.v1.64k",
+      "profileFingerprint": "054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0",
+      "chunkSize": 65536,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": null
+    },
+    {
+      "id": "fastcdc-game-pak-baseline-128k",
+      "corpusId": "game-pak-8m",
+      "algorithm": "fastcdc.gear.chunkshift.v1",
+      "profileId": "fastcdc.gear.candidate.v1.128k",
+      "profileFingerprint": "74d375951d3cd4d165fdad5866c6de0b7a9231c794f16444930ac5acdd65b3da",
+      "chunkSize": 131072,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": null
+    },
+    {
+      "id": "fastcdc-game-pak-insert-4k-128k",
+      "corpusId": "game-pak-8m",
+      "algorithm": "fastcdc.gear.chunkshift.v1",
+      "profileId": "fastcdc.gear.candidate.v1.128k",
+      "profileFingerprint": "74d375951d3cd4d165fdad5866c6de0b7a9231c794f16444930ac5acdd65b3da",
+      "chunkSize": 131072,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": {
+        "kind": "insert",
+        "sizeBytes": 4096,
+        "seed": 3228
+      }
+    },
+    {
+      "id": "fastcdc-zero-baseline-128k",
+      "corpusId": "zero-8m",
+      "algorithm": "fastcdc.gear.chunkshift.v1",
+      "profileId": "fastcdc.gear.candidate.v1.128k",
+      "profileFingerprint": "74d375951d3cd4d165fdad5866c6de0b7a9231c794f16444930ac5acdd65b3da",
+      "chunkSize": 131072,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": null
+    },
+    {
+      "id": "fastcdc-game-pak-baseline-256k",
+      "corpusId": "game-pak-8m",
+      "algorithm": "fastcdc.gear.chunkshift.v1",
+      "profileId": "fastcdc.gear.candidate.v1.256k",
+      "profileFingerprint": "d8fc289d93f8f8b6308498891831638743cce8dde789417f25cf5f3d8f7fbae4",
+      "chunkSize": 262144,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": null
+    },
+    {
+      "id": "fastcdc-game-pak-insert-4k-256k",
+      "corpusId": "game-pak-8m",
+      "algorithm": "fastcdc.gear.chunkshift.v1",
+      "profileId": "fastcdc.gear.candidate.v1.256k",
+      "profileFingerprint": "d8fc289d93f8f8b6308498891831638743cce8dde789417f25cf5f3d8f7fbae4",
+      "chunkSize": 262144,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": {
+        "kind": "insert",
+        "sizeBytes": 4096,
+        "seed": 3356
+      }
+    },
+    {
+      "id": "fastcdc-zero-baseline-256k",
+      "corpusId": "zero-8m",
+      "algorithm": "fastcdc.gear.chunkshift.v1",
+      "profileId": "fastcdc.gear.candidate.v1.256k",
+      "profileFingerprint": "d8fc289d93f8f8b6308498891831638743cce8dde789417f25cf5f3d8f7fbae4",
+      "chunkSize": 262144,
+      "hashSuite": "chunkshift.blake3-256.v1",
+      "mutation": null
     }
   ]
 }
