@@ -27,6 +27,23 @@ public class ChunkingKernelBenchmarks
         }
     }
 
+    [Benchmark]
+    public int FastCdcBoundaryOnly()
+    {
+        FastCdcProfile profile = FastCdcProfile.CreateM1Candidate(TargetSize);
+        int offset = 0;
+        int count = 0;
+
+        while (offset < _data.Length)
+        {
+            int length = FastCdcScalar.FindCut(_data.AsSpan(offset), profile);
+            offset += length;
+            count++;
+        }
+
+        return count;
+    }
+
     [Benchmark(Baseline = true)]
     public int FixedBlake3()
     {
