@@ -22,7 +22,7 @@ public class FastCdcKernelTests
                 FastCdcGearTable.Values[i]);
         }
 
-        string digest = Convert.ToHexStringLower(SHA256.HashData(serialized));
+        string digest = Convert.ToHexString(SHA256.HashData(serialized)).ToLowerInvariant();
 
         Assert.Equal(FastCdcGearTable.Sha256, digest);
         Assert.Equal("91a3061015ae351cd3701852712bcd6aa4a1ce26c8a231d3969432b00f028f88", digest);
