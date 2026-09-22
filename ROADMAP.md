@@ -59,7 +59,11 @@ Completed corrective preparation:
 
 - [#33](https://github.com/definitely-stable/ChunkShift/issues/33) — exact profile numeric canonicalization, stronger benchmark evidence and Core-first release correction; merged via PR #35.
 
-Completed semantic preflight: [#37](https://github.com/definitely-stable/ChunkShift/issues/37) hardened measurement-oracle correctness, exact FastCDC candidate semantics and x64/ARM64 deterministic evidence; merged via PR #38. The next critical-path implementation is [#4](https://github.com/definitely-stable/ChunkShift/issues/4).
+Completed semantic preflight: [#37](https://github.com/definitely-stable/ChunkShift/issues/37) hardened measurement-oracle correctness, exact FastCDC candidate semantics and x64/ARM64 deterministic evidence; merged via PR #38.
+
+Completed Core kernel implementation: [#4](https://github.com/definitely-stable/ChunkShift/issues/4) added scalar FastCDC/fixed reference kernels, bounded stream processing, HashSuite chunk identities, golden/segmentation tests and x64/ARM64 determinism; merged via PR #40.
+
+The next Core work can proceed in parallel: [#5](https://github.com/definitely-stable/ChunkShift/issues/5) CSM create/read/verify and [#16](https://github.com/definitely-stable/ChunkShift/issues/16) embedded raw scanner.
 
 ## Critical path
 
