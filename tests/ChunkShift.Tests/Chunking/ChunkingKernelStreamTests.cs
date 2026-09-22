@@ -100,6 +100,88 @@ public class ChunkingKernelStreamTests
     }
 
     [Fact]
+    public async Task FastCdc_DifferentialMatrixMatchesScalarReference()
+    {
+        int[] targets = [64 * 1024, 128 * 1024, 256 * 1024];
+        uint[] seeds = [1u, 0x12345678u, 0xA5A5A5A5u, 0xDEADBEEFu];
+        int[][] segmentations =
+        [
+            [3, 8191, 1, 17, 4096, 127, 65535, 2, 257],
+            [64 * 1024],
+            [7, 13, 29, 509, 4093, 32749],
+        ];
+        HashSuiteId[] suites = [HashSuiteIds.Blake3256V1, HashSuiteIds.Sha256V1];
+
+        foreach (int target in targets)
+        {
+            FastCdcProfile fastCdc = FastCdcProfile.CreateM1Candidate(target);
+            ChunkingKernelProfile profile = ChunkingKernelProfile.FastCdcGear(fastCdc);
+
+            foreach (uint seed in seeds)
+            {
+                byte[] input = CreateXorShiftBytes((2 * 1024 * 1024) + (int)(seed & 0x3FFF), seed);
+
+                foreach (HashSuiteId suite in suites)
+                {
+                    ChunkKernelChunk[] expected = ChunkingReference.Chunk(input, profile, suite);
+
+                    foreach (int[] segmentation in segmentations)
+                    {
+                        CollectedScan actual = await ScanAsync(
+                            new SegmentedReadStream(input, segmentation),
+                            profile,
+                            suite);
+
+                        Assert.Equal(expected, actual.Chunks);
+                        Assert.Equal(input, actual.Reconstructed);
+                    }
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public async Task FastCdc_DataPerturbationsAroundKnownCutsRemainScalarStreamingEquivalent()
+    {
+        byte[] baseline = CreateXorShiftBytes(1024 * 1024, 0x12345678u);
+        FastCdcProfile fastCdc = FastCdcProfile.CreateM1Candidate(64 * 1024);
+        ChunkingKernelProfile profile = ChunkingKernelProfile.FastCdcGear(fastCdc);
+        ChunkKernelChunk[] baselineChunks = ChunkingReference.Chunk(
+            baseline,
+            profile,
+            HashSuiteIds.Blake3256V1);
+
+        foreach (ChunkKernelChunk chunk in baselineChunks.Take(6))
+        {
+            long cut = chunk.Offset + chunk.Length;
+            foreach (int delta in new[] { -1, 0, 1 })
+            {
+                long candidate = cut + delta;
+                if (candidate < 0 || candidate >= baseline.Length)
+                {
+                    continue;
+                }
+
+                byte[] mutated = baseline.ToArray();
+                mutated[candidate] ^= 0x5A;
+
+                ChunkKernelChunk[] expected = ChunkingReference.Chunk(
+                    mutated,
+                    profile,
+                    HashSuiteIds.Blake3256V1);
+
+                CollectedScan actual = await ScanAsync(
+                    new SegmentedReadStream(mutated, [4093, 1, 65521, 17, 3]),
+                    profile,
+                    HashSuiteIds.Blake3256V1);
+
+                Assert.Equal(expected, actual.Chunks);
+                Assert.Equal(mutated, actual.Reconstructed);
+            }
+        }
+    }
+
+    [Fact]
     public async Task EmptyStream_EmitsNoChunks()
     {
         ChunkingKernelProfile profile = ChunkingKernelProfile.FastCdcGear(
