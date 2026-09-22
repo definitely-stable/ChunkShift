@@ -35,7 +35,6 @@ jobs:
         with:
           languages: csharp
           build-mode: manual
-          queries: security-and-quality
 
       - name: Restore
         run: dotnet restore ChunkShift.slnx
