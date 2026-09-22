@@ -55,9 +55,11 @@ old content + target content
 
 The first product scenarios are:
 
+- standalone embedded/local chunking and content inspection inside .NET applications;
 - custom game launchers and game-content patching;
 - desktop/application update distribution;
-- large binary/artifact update pipelines.
+- large binary/artifact update pipelines;
+- ASP.NET Core-hosted distribution and ingestion using standard HTTP primitives.
 
 The future repository is a reusable storage substrate for the same content model. It is not the product definition.
 
@@ -109,6 +111,10 @@ Those workloads may be used for benchmarks or adapters without becoming core pro
 | Stream as core public I/O boundary | use | ACCEPT |
 | public PipeReader ownership knobs | do not expose | REJECT |
 | NativeAOT compatibility | core requirement | ACCEPT |
+| standalone embedded/local SDK | core package must be useful without Patching/Repository/DI | ACCEPT |
+| low-level raw chunk stream | public callback-based candidate; borrowed chunk bytes | ACCEPT |
+| special ChunkShift server for static artifacts | not required | REJECT |
+| stable ChunkShift.AspNetCore API before integration evidence | defer; validate through RFC-0002/M4A | DEFER |
 | signing/encryption implementation | separate later design | DEFER |
 | hostile-input parser hardening | required | ACCEPT |
 
@@ -490,6 +496,10 @@ public sealed class ManifestReader : IDisposable, IAsyncDisposable
 
 Patching uses similarly small one-shot operations.
 
+The core package also exposes one intentionally low-level embedded capability for processing raw chunks without creating a manifest or repository. The target semantics are defined by [RFC-0002](RFC-0002-embedded-sdk-aspnet-core.md): a sequential callback receives immutable runtime `ChunkInfo` plus borrowed `ReadOnlyMemory<byte>` valid until the callback completes. This gives local applications and ASP.NET hosts direct access to chunk bytes while retaining bounded buffering and explicit lifetime semantics.
+
+The core package MUST remain useful without Dependency Injection, ASP.NET Core, Patching or Repository.
+
 Do not expose public stable `IChunker`, `IChunkHasher`, `IChunkBoundaryFinder`, `IRepository` or PipeReader ownership/buffer tuning contracts in v1.
 
 ## 11. Internal architecture
@@ -519,6 +529,8 @@ Internal implementation may use:
 - MemoryMappedFile for local immutable metadata where measured useful.
 
 Those are implementation details, not public API promises.
+
+Embedded/local and ASP.NET integration constraints are further specified by RFC-0002. In particular, System.IO.Pipelines may be used internally by an ASP.NET adapter without changing the Stream-based Core contract.
 
 ## 12. Repository architecture
 
@@ -808,7 +820,8 @@ Do not freeze before evidence exists:
 - first-party signing;
 - encryption/privacy profile;
 - Azure/GCS adapters;
-- third-party custom chunker/hash plugin API.
+- third-party custom chunker/hash plugin API;
+- stable `ChunkShift.AspNetCore` protocol/package surface until M4A demonstrates repeated server semantics beyond ordinary ASP.NET Core primitives.
 
 ## 18. Definition of architectural success
 

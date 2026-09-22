@@ -1,7 +1,7 @@
 # ChunkShift 2026 implementation plan
 
 Status: Proposed  
-Architecture authority: [RFC-0001: ChunkShift Target Architecture 2026](docs/architecture/RFC-0001-target-architecture-2026.md)
+Architecture authority: [RFC-0001: ChunkShift Target Architecture 2026](docs/architecture/RFC-0001-target-architecture-2026.md) and [RFC-0002: Embedded Chunk Stream API and ASP.NET Core Integration](docs/architecture/RFC-0002-embedded-sdk-aspnet-core.md)
 
 This plan replaces the previous manifest/diff/verify-first roadmap. It intentionally contains no implementation detail beyond what is required to define sequencing, invariants and exit criteria.
 
@@ -35,9 +35,17 @@ The future content-addressed repository reuses the same ChunkId/manifest model. 
 Target stable 1.0:
 
 ```text
-ChunkShift
+ChunkShift              # standalone embedded/local SDK + manifest operations
 ChunkShift.Patching
 ChunkShift.Cli
+```
+
+The core package must be useful without Patching, Repository, ASP.NET Core or DI.
+
+Integration candidate after Core/Patching freeze:
+
+```text
+ChunkShift.AspNetCore   # preview only if M4A proves reusable server semantics
 ```
 
 Preview until storage evidence is complete:
@@ -62,9 +70,10 @@ The implementation backlog is tracked by [#1 — ChunkShift 2026 architecture sy
 | Milestone | Issues |
 | --- | --- |
 | M0 | #2 identity/HashSuite/profile semantics; #3 benchmark lab/corpus |
-| M1 | #4 deterministic chunk/hash kernels; #5 CSM candidate; #6 minimal public API/AOT |
-| M2 | #7 declarative patch/reconstruction loop |
+| M1 | #4 deterministic chunk/hash kernels; #5 CSM candidate; #6 minimal public API/AOT; #16 embedded chunk-stream API |
+| M2 | #7 declarative patch/reconstruction loop; #17 ASP.NET host validation/sample |
 | M3 | #8 CDC bake-off/profile selection; #9 Core/Patching 1.0 freeze |
+| M4A | #18 ASP.NET Core integration package/protocol spike |
 | M4 | #10 immutable self-indexed pack repository |
 | M5 | #11 global index/catalog/crash/concurrency |
 | M6 | #12 reachability GC/repack/lifecycle |
@@ -84,6 +93,8 @@ Before implementation proceeds, all work must preserve:
 - streaming/batched manifest access;
 - CSM as primary binary manifest;
 - caller-owned Stream semantics in core APIs;
+- standalone embedded/local SDK without DI or Repository;
+- one low-level raw chunk-stream capability with explicit borrowed-memory lifetime and natural backpressure;
 - no per-chunk heap object requirement;
 - no public stable `IChunker`, `IChunkHasher` or `IRepository` before a real substitution need;
 - repository truth in immutable content objects, not SQLite/RocksDB;
@@ -100,13 +111,16 @@ M0 Architecture correction + measurement lab
  |
  v
 M1 Deterministic core + CSM candidate
+ |   + embedded chunk-stream API
  |
  +--------------------------+
  |                          |
  v                          v
 M2 Minimum useful           Research track
    patching loop            SeqCDC/VectorCDC/
- |                          Chonkers/UltraCDC
+ + ASP.NET host             Chonkers/UltraCDC
+   validation
+ |                          
  +-------------+------------+
                |
                v
@@ -114,9 +128,15 @@ M3 Evidence + compatibility freeze gate
                |
                v
         Core/Patching 1.0
-               |
-               v
-M4 Immutable repository foundation
+          /          \
+         v            v
+M4 Repository      M4A ASP.NET Core
+foundation         adapter/protocol spike
+         \            /
+          +-----+-----+
+                |
+                v
+M5 Global index + catalog + crash/concurrency
                |
                v
 M5 Global index + catalog + crash/concurrency
@@ -204,6 +224,7 @@ Produce a bounded-memory deterministic content map.
 - SHA-256 compatibility HashSuite;
 - CSM writer/reader;
 - buffered `ManifestReader`;
+- low-level embedded raw chunk scanner per RFC-0002;
 - manifest verification;
 - CLI: `manifest`, `inspect`, `verify`;
 - JSON diagnostic/export projection;
@@ -212,6 +233,7 @@ Produce a bounded-memory deterministic content map.
 ### Invariants
 
 - no per-chunk heap object is required;
+- raw chunk callback memory is borrowed only for callback duration and callbacks are sequential;
 - logical entry is only ChunkId + Length;
 - ManifestId is independent of physical block grouping and optional indexes;
 - caller owns passed streams;
@@ -233,13 +255,15 @@ Produce a bounded-memory deterministic content map.
 - hash GB/s;
 - CSM encode/decode;
 - allocations/GiB;
-- peak RSS.
+- peak RSS;
+- raw chunk callback overhead versus internal direct-sink baseline.
 
 ### Exit criteria
 
 - a manifest larger than available RAM can be processed with bounded memory;
 - stable test vectors match on supported architectures;
-- no format/parser P0 defects remain.
+- no format/parser P0 defects remain;
+- embedded/local scanner works on seekable and non-seekable streams with bounded memory.
 
 ### Intentionally not included
 
@@ -306,6 +330,56 @@ Close the first real user problem: move/reconstruct only what changed.
 - S3/R2;
 - GC.
 
+## 8A. M2A — ASP.NET Core host validation before API freeze
+
+### Goal
+
+Prove that the Stream-based Core/Patching API works naturally inside ASP.NET Core before the public API is frozen, without requiring a special ChunkShift server.
+
+### Deliverables
+
+- minimal ASP.NET Core sample using request Body and request-abort cancellation;
+- CSM/CSP artifact download sample using standard HTTP Range and entity validators;
+- validation of slow-client backpressure and bounded buffering;
+- guidance for physical artifact ETag vs logical ManifestId;
+- explicit demonstration that static/CDN distribution requires no ChunkShift-specific server;
+- decision record on whether a separate `ChunkShift.AspNetCore` package has enough repeated behavior to justify M4A.
+
+### Invariants
+
+- Core remains free of ASP.NET/DI types;
+- no proprietary per-chunk HTTP protocol;
+- no automatic override of host authentication, request-size, compression or rate-limit policy;
+- no unbounded request/response buffering;
+- request cancellation reaches ChunkShift operations.
+
+### Tests
+
+- client disconnect/request abort;
+- non-seekable request body;
+- request larger than RAM;
+- slow response consumer;
+- standard Range 206/416 and If-Range/ETag behavior;
+- authorization composition in sample.
+
+### Benchmarks
+
+- request-stream throughput;
+- allocations/RSS;
+- concurrent clients;
+- first-byte latency;
+- range response throughput.
+
+### Exit criteria
+
+Core/Patching can be hosted directly in ASP.NET Core without API workarounds, and the remaining reusable server behavior for M4A is explicitly identified.
+
+### Intentionally not included
+
+- stable `ChunkShift.AspNetCore` public API;
+- repository-backed negotiation;
+- resumable-upload protocol.
+
 ## 9. M3 — Evidence and 1.0 freeze gate
 
 ### Goal
@@ -319,7 +393,7 @@ Freeze only decisions supported by system evidence.
 - final stable profile selection;
 - CSM v1 spec;
 - CSP v1 spec;
-- stable Core and Patching public API review;
+- stable Core and Patching public API review, including the embedded raw chunk-stream API and ASP.NET host validation;
 - cross-language golden vectors;
 - compatibility policy;
 - fuzz/soak evidence.
@@ -354,6 +428,8 @@ Primary evidence:
 - stable repository API.
 
 This is the gate for `ChunkShift 1.0`, `ChunkShift.Patching 1.0` and stable CLI contracts.
+
+The `ChunkShift.AspNetCore` package is not required to be stable at this gate.
 
 ## 10. M4 — Immutable repository foundation
 
@@ -406,6 +482,38 @@ Build the physical storage substrate without compromising the stable content mod
 - global compacted index;
 - GC;
 - cloud.
+
+## 10A. M4A — ASP.NET Core adapter/protocol spike
+
+### Goal
+
+Determine whether repeated server-side behavior justifies a dedicated `ChunkShift.AspNetCore` preview package, without coupling it to Repository.
+
+### Candidate responsibilities
+
+- strongly typed immutable artifact serving;
+- correct Range/ETag/cache semantics;
+- request-abort propagation;
+- bounded streaming helpers;
+- application-provided artifact resolver delegate rather than a generic repository interface;
+- standard endpoint metadata compatible with ASP.NET authorization/rate limiting;
+- optional negotiation endpoints only if M2/M4 evidence produces stable semantics.
+
+### Invariants
+
+- package depends on Core and optionally Patching, not Repository;
+- filesystem/static-patch applications can use it independently;
+- no custom authentication system;
+- no normal per-chunk GET endpoint design;
+- physical representation digest, not logical ManifestId alone, is used as a strong representation validator.
+
+### Exit criteria
+
+Either:
+- publish a small preview `ChunkShift.AspNetCore` surface backed by repeated real behavior; or
+- record that normal Minimal API primitives remain sufficient and do not create the package.
+
+Depends on M3 freeze and M2A host validation.
 
 ## 11. M5 — Global index, catalog, crash consistency and concurrency
 
@@ -516,6 +624,7 @@ Validate the architecture against high-latency object stores and static/CDN dist
 ### Deliverables
 
 - HTTP Range content source;
+- integration of any proven `ChunkShift.AspNetCore` preview surface with repository-backed resolvers where appropriate;
 - S3-compatible backend;
 - R2 compatibility validation;
 - metadata cache;
@@ -598,7 +707,9 @@ The M3 freeze gate must explicitly close:
 7. public stream ownership/cancellation/error/result contracts;
 8. no mandatory materialized manifest model;
 9. exact ChunkEntry public shape;
-10. compatibility/golden-vector policy.
+10. exact embedded raw chunk-stream callback/borrowed-memory contract;
+11. proof that Core/Patching can be hosted directly in ASP.NET Core without host-specific leakage into Core;
+12. compatibility/golden-vector policy.
 
 Repository pack/index defaults are not required to freeze with Core/Patching 1.0 unless they are exposed as stable repository formats at the same time.
 
