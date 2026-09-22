@@ -115,7 +115,6 @@ public class MetricsTests
     {
         Assert.Null(DistributionCalculator.Summarize(new long?[] { null, null }));
     }
-}
 
     [Fact]
     public void BoundarySurvival_IsOccurrenceAwareForRepeatedPairs()
