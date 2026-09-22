@@ -51,3 +51,15 @@ CI benchmark output should be retained as workflow artifacts or summarized evide
 An optimized backend must produce the same persisted semantics as its reference implementation.
 
 If an optimization requires updating a golden vector, ProfileId, HashSuite identity or persisted-format fixture, treat it as a compatibility change and route it through the corresponding RFC/issue. Do not classify it as a pure performance change.
+
+
+## FastCDC hot-loop allocation invariant
+
+The scalar FastCDC boundary loop is expected to perform **zero managed allocations** after static initialization. A regression that introduces allocation proportional to candidate bytes is a correctness-of-performance defect, not ordinary benchmark noise.
+
+CI therefore keeps deterministic allocation regression tests for:
+
+- GEAR lookup;
+- scalar boundary selection.
+
+Absolute throughput is not hard-gated on shared CI runners. Dedicated/local before/after BenchmarkDotNet runs remain the source for small throughput decisions; large allocation explosions are blocked deterministically.
