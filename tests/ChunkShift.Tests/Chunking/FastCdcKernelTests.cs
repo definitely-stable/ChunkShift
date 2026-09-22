@@ -59,6 +59,40 @@ public class FastCdcKernelTests
     }
 
     [Fact]
+    public void GearLookup_DoesNotAllocatePerLookup()
+    {
+        _ = FastCdcGearTable.Get(0);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        ulong accumulator = 0;
+
+        for (int iteration = 0; iteration < 1_000_000; iteration++)
+        {
+            accumulator ^= FastCdcGearTable.Get((byte)iteration);
+        }
+
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0, allocated);
+        GC.KeepAlive(accumulator);
+    }
+
+    [Fact]
+    public void CandidateProfileId_BindsCompleteSemanticFingerprint()
+    {
+        var baseline = new FastCdcProfile(16 * 1024, 64 * 1024, 256 * 1024);
+        var changedMinimum = new FastCdcProfile(8 * 1024, 64 * 1024, 256 * 1024);
+        var changedMaximum = new FastCdcProfile(16 * 1024, 64 * 1024, 128 * 1024);
+
+        Assert.NotEqual(baseline.ComputeFingerprint(), changedMinimum.ComputeFingerprint());
+        Assert.NotEqual(baseline.ComputeFingerprint(), changedMaximum.ComputeFingerprint());
+        Assert.NotEqual(baseline.CandidateProfileId, changedMinimum.CandidateProfileId);
+        Assert.NotEqual(baseline.CandidateProfileId, changedMaximum.CandidateProfileId);
+
+        Assert.Contains(baseline.ComputeFingerprint().ToString(), baseline.CandidateProfileId.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ScalarReference_MatchesIndependentRandomGoldenVector()
     {
         byte[] input = CreateXorShiftBytes(1024 * 1024, 0x12345678);
