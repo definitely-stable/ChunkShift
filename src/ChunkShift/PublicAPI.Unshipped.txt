@@ -32,26 +32,12 @@ override ChunkShift.Primitives.Hash256.Equals(object? obj) -> bool
 ChunkShift.Primitives.Hash256.FixedTimeEquals(ChunkShift.Primitives.Hash256 other) -> bool
 static ChunkShift.Primitives.Hash256.FromBytes(System.ReadOnlySpan<byte> bytes) -> ChunkShift.Primitives.Hash256
 override ChunkShift.Primitives.Hash256.GetHashCode() -> int
-ChunkShift.Primitives.Hash256.IsDefault.get -> bool
 ChunkShift.Primitives.Hash256.ToHexLower() -> string!
 ChunkShift.Primitives.Hash256.TryCopyTo(System.Span<byte> destination) -> bool
 ChunkShift.Primitives.Hash256.TryFormatHexLower(System.Span<char> destination) -> bool
 static ChunkShift.Primitives.Hash256.TryParseHexLower(System.ReadOnlySpan<char> hex, out ChunkShift.Primitives.Hash256 value) -> bool
 static ChunkShift.Primitives.Hash256.operator !=(ChunkShift.Primitives.Hash256 left, ChunkShift.Primitives.Hash256 right) -> bool
 static ChunkShift.Primitives.Hash256.operator ==(ChunkShift.Primitives.Hash256 left, ChunkShift.Primitives.Hash256 right) -> bool
-ChunkShift.Primitives.HashAlgorithmId
-ChunkShift.Primitives.HashAlgorithmId.HashAlgorithmId() -> void
-ChunkShift.Primitives.HashAlgorithmId.HashAlgorithmId(string! value) -> void
-ChunkShift.Primitives.HashAlgorithmId.Equals(ChunkShift.Primitives.HashAlgorithmId other) -> bool
-override ChunkShift.Primitives.HashAlgorithmId.Equals(object? obj) -> bool
-override ChunkShift.Primitives.HashAlgorithmId.GetHashCode() -> int
-ChunkShift.Primitives.HashAlgorithmId.IsDefault.get -> bool
-override ChunkShift.Primitives.HashAlgorithmId.ToString() -> string!
-ChunkShift.Primitives.HashAlgorithmId.Value.get -> string!
-static ChunkShift.Primitives.HashAlgorithmId.operator !=(ChunkShift.Primitives.HashAlgorithmId left, ChunkShift.Primitives.HashAlgorithmId right) -> bool
-static ChunkShift.Primitives.HashAlgorithmId.operator ==(ChunkShift.Primitives.HashAlgorithmId left, ChunkShift.Primitives.HashAlgorithmId right) -> bool
-ChunkShift.Primitives.HashAlgorithmIds
-static readonly ChunkShift.Primitives.HashAlgorithmIds.Sha256 -> ChunkShift.Primitives.HashAlgorithmId
 ChunkShift.Primitives.ManifestSchemaVersion
 ChunkShift.Primitives.ManifestSchemaVersion.ManifestSchemaVersion() -> void
 ChunkShift.Primitives.ManifestSchemaVersion.ManifestSchemaVersion(string! value) -> void
@@ -65,3 +51,58 @@ static ChunkShift.Primitives.ManifestSchemaVersion.operator !=(ChunkShift.Primit
 static ChunkShift.Primitives.ManifestSchemaVersion.operator ==(ChunkShift.Primitives.ManifestSchemaVersion left, ChunkShift.Primitives.ManifestSchemaVersion right) -> bool
 ChunkShift.Primitives.ManifestSchemaVersions
 static readonly ChunkShift.Primitives.ManifestSchemaVersions.V1 -> ChunkShift.Primitives.ManifestSchemaVersion
+ChunkShift.Primitives.ChunkId
+ChunkShift.Primitives.ChunkId.ChunkId() -> void
+ChunkShift.Primitives.ChunkId.ChunkId(ChunkShift.Primitives.Hash256 value) -> void
+ChunkShift.Primitives.ChunkId.Equals(ChunkShift.Primitives.ChunkId other) -> bool
+override ChunkShift.Primitives.ChunkId.Equals(object? obj) -> bool
+override ChunkShift.Primitives.ChunkId.GetHashCode() -> int
+override ChunkShift.Primitives.ChunkId.ToString() -> string!
+ChunkShift.Primitives.ChunkId.Value.get -> ChunkShift.Primitives.Hash256
+static ChunkShift.Primitives.ChunkId.operator !=(ChunkShift.Primitives.ChunkId left, ChunkShift.Primitives.ChunkId right) -> bool
+static ChunkShift.Primitives.ChunkId.operator ==(ChunkShift.Primitives.ChunkId left, ChunkShift.Primitives.ChunkId right) -> bool
+ChunkShift.Primitives.ContentId
+ChunkShift.Primitives.ContentId.ContentId() -> void
+ChunkShift.Primitives.ContentId.ContentId(ChunkShift.Primitives.Hash256 value) -> void
+ChunkShift.Primitives.ContentId.Equals(ChunkShift.Primitives.ContentId other) -> bool
+override ChunkShift.Primitives.ContentId.Equals(object? obj) -> bool
+override ChunkShift.Primitives.ContentId.GetHashCode() -> int
+override ChunkShift.Primitives.ContentId.ToString() -> string!
+ChunkShift.Primitives.ContentId.Value.get -> ChunkShift.Primitives.Hash256
+static ChunkShift.Primitives.ContentId.operator !=(ChunkShift.Primitives.ContentId left, ChunkShift.Primitives.ContentId right) -> bool
+static ChunkShift.Primitives.ContentId.operator ==(ChunkShift.Primitives.ContentId left, ChunkShift.Primitives.ContentId right) -> bool
+ChunkShift.Primitives.HashSuiteId
+ChunkShift.Primitives.HashSuiteId.HashSuiteId() -> void
+ChunkShift.Primitives.HashSuiteId.HashSuiteId(string! value) -> void
+ChunkShift.Primitives.HashSuiteId.Equals(ChunkShift.Primitives.HashSuiteId other) -> bool
+override ChunkShift.Primitives.HashSuiteId.Equals(object? obj) -> bool
+override ChunkShift.Primitives.HashSuiteId.GetHashCode() -> int
+ChunkShift.Primitives.HashSuiteId.IsDefault.get -> bool
+override ChunkShift.Primitives.HashSuiteId.ToString() -> string!
+ChunkShift.Primitives.HashSuiteId.Value.get -> string!
+static ChunkShift.Primitives.HashSuiteId.operator !=(ChunkShift.Primitives.HashSuiteId left, ChunkShift.Primitives.HashSuiteId right) -> bool
+static ChunkShift.Primitives.HashSuiteId.operator ==(ChunkShift.Primitives.HashSuiteId left, ChunkShift.Primitives.HashSuiteId right) -> bool
+ChunkShift.Primitives.HashSuiteIds
+static readonly ChunkShift.Primitives.HashSuiteIds.Blake3256V1 -> ChunkShift.Primitives.HashSuiteId
+static readonly ChunkShift.Primitives.HashSuiteIds.Default -> ChunkShift.Primitives.HashSuiteId
+static readonly ChunkShift.Primitives.HashSuiteIds.Sha256V1 -> ChunkShift.Primitives.HashSuiteId
+ChunkShift.Primitives.ManifestId
+ChunkShift.Primitives.ManifestId.ManifestId() -> void
+ChunkShift.Primitives.ManifestId.ManifestId(ChunkShift.Primitives.Hash256 value) -> void
+ChunkShift.Primitives.ManifestId.Equals(ChunkShift.Primitives.ManifestId other) -> bool
+override ChunkShift.Primitives.ManifestId.Equals(object? obj) -> bool
+override ChunkShift.Primitives.ManifestId.GetHashCode() -> int
+override ChunkShift.Primitives.ManifestId.ToString() -> string!
+ChunkShift.Primitives.ManifestId.Value.get -> ChunkShift.Primitives.Hash256
+static ChunkShift.Primitives.ManifestId.operator !=(ChunkShift.Primitives.ManifestId left, ChunkShift.Primitives.ManifestId right) -> bool
+static ChunkShift.Primitives.ManifestId.operator ==(ChunkShift.Primitives.ManifestId left, ChunkShift.Primitives.ManifestId right) -> bool
+ChunkShift.Primitives.ProfileFingerprint
+ChunkShift.Primitives.ProfileFingerprint.ProfileFingerprint() -> void
+ChunkShift.Primitives.ProfileFingerprint.ProfileFingerprint(ChunkShift.Primitives.Hash256 value) -> void
+ChunkShift.Primitives.ProfileFingerprint.Equals(ChunkShift.Primitives.ProfileFingerprint other) -> bool
+override ChunkShift.Primitives.ProfileFingerprint.Equals(object? obj) -> bool
+override ChunkShift.Primitives.ProfileFingerprint.GetHashCode() -> int
+override ChunkShift.Primitives.ProfileFingerprint.ToString() -> string!
+ChunkShift.Primitives.ProfileFingerprint.Value.get -> ChunkShift.Primitives.Hash256
+static ChunkShift.Primitives.ProfileFingerprint.operator !=(ChunkShift.Primitives.ProfileFingerprint left, ChunkShift.Primitives.ProfileFingerprint right) -> bool
+static ChunkShift.Primitives.ProfileFingerprint.operator ==(ChunkShift.Primitives.ProfileFingerprint left, ChunkShift.Primitives.ProfileFingerprint right) -> bool
