@@ -32,6 +32,41 @@ internal sealed class CsmInput : IDisposable
 
     internal ulong Offset { get; private set; }
 
+    internal void EnsurePayloadAvailable(ulong payloadLength)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (!_source.CanSeek)
+        {
+            return;
+        }
+
+        long position;
+        long length;
+        try
+        {
+            position = _source.Position;
+            length = _source.Length;
+        }
+        catch (NotSupportedException)
+        {
+            return;
+        }
+
+        if (position < 0 || length < position)
+        {
+            throw new InvalidDataException(
+                "CSM stream reported an invalid seekable length/position.");
+        }
+
+        ulong remaining = checked((ulong)(length - position));
+        if (payloadLength > remaining)
+        {
+            throw new InvalidDataException(
+                "CSM section PayloadLength exceeds the known remaining physical bytes.");
+        }
+    }
+
     internal void SetHashSuite(HashSuiteId hashSuite)
     {
         ThrowIfActive();
