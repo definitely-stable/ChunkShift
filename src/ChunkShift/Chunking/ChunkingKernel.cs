@@ -13,126 +13,25 @@ internal delegate ValueTask ChunkKernelSink(
     ReadOnlyMemory<byte> content,
     CancellationToken cancellationToken);
 
-internal interface IChunkKernelSink
-{
-    ValueTask OnChunkAsync(
-        ChunkKernelChunk chunk,
-        ReadOnlyMemory<byte> content,
-        CancellationToken cancellationToken);
-}
-
-internal readonly struct DelegateChunkKernelSink : IChunkKernelSink
-{
-    private readonly ChunkKernelSink _sink;
-
-    internal DelegateChunkKernelSink(ChunkKernelSink sink)
-    {
-        _sink = sink;
-    }
-
-    public ValueTask OnChunkAsync(
-        ChunkKernelChunk chunk,
-        ReadOnlyMemory<byte> content,
-        CancellationToken cancellationToken) =>
-        _sink(chunk, content, cancellationToken);
-}
-
-internal struct PublicChunkKernelSink : IChunkKernelSink
-{
-    private readonly global::ChunkShift.ChunkScanHandler _handler;
-    private long _index;
-
-    internal PublicChunkKernelSink(global::ChunkShift.ChunkScanHandler handler)
-    {
-        _handler = handler;
-        _index = 0;
-    }
-
-    public ValueTask OnChunkAsync(
-        ChunkKernelChunk chunk,
-        ReadOnlyMemory<byte> content,
-        CancellationToken cancellationToken)
-    {
-        var info = new global::ChunkShift.ChunkInfo(
-            _index,
-            chunk.Offset,
-            chunk.Length,
-            chunk.Id);
-
-        _index = checked(_index + 1);
-        return _handler(info, content, cancellationToken);
-    }
-}
-
 internal static class ChunkingKernel
 {
     private const int IoBufferSize = 64 * 1024;
 
-    internal static ValueTask ScanAsync(
+    internal static async ValueTask ScanAsync(
         Stream source,
         ChunkingKernelProfile profile,
         HashSuiteId hashSuite,
         ChunkKernelSink sink,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(sink);
-
-        return ScanAsync(
-            source,
-            profile,
-            hashSuite,
-            new DelegateChunkKernelSink(sink),
-            cancellationToken);
-    }
-
-    internal static ValueTask ScanPublicAsync(
-        Stream source,
-        ChunkingKernelProfile profile,
-        HashSuiteId hashSuite,
-        global::ChunkShift.ChunkScanHandler handler,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(handler);
-
-        return ScanAsync(
-            source,
-            profile,
-            hashSuite,
-            new PublicChunkKernelSink(handler),
-            cancellationToken);
-    }
-
-    internal static ValueTask ScanAsync<TSink>(
-        Stream source,
-        ChunkingKernelProfile profile,
-        HashSuiteId hashSuite,
-        TSink sink,
-        CancellationToken cancellationToken = default)
-        where TSink : struct, IChunkKernelSink
-    {
         ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(sink);
 
         if (!source.CanRead)
         {
             throw new ArgumentException("Source stream must be readable.", nameof(source));
         }
 
-        return ScanCoreAsync(
-            source,
-            profile,
-            hashSuite,
-            sink,
-            cancellationToken);
-    }
-
-    private static async ValueTask ScanCoreAsync<TSink>(
-        Stream source,
-        ChunkingKernelProfile profile,
-        HashSuiteId hashSuite,
-        TSink sink,
-        CancellationToken cancellationToken)
-        where TSink : struct, IChunkKernelSink
-    {
         int chunkCapacity = profile.Maximum;
         if (chunkCapacity <= 0)
         {
@@ -199,7 +98,7 @@ internal static class ChunkingKernel
                         payloadLength,
                         chunkOffset,
                         hashSuite,
-                        ref sink,
+                        sink,
                         cancellationToken).ConfigureAwait(false);
 
                     chunkOffset = checked(chunkOffset + payloadLength);
@@ -223,7 +122,7 @@ internal static class ChunkingKernel
                     payloadLength,
                     chunkOffset,
                     hashSuite,
-                    ref sink,
+                    sink,
                     cancellationToken).ConfigureAwait(false);
             }
         }
@@ -234,23 +133,19 @@ internal static class ChunkingKernel
         }
     }
 
-    private static ValueTask EmitAsync<TSink>(
+    private static ValueTask EmitAsync(
         byte[] chunkBuffer,
         int length,
         long offset,
         HashSuiteId hashSuite,
-        ref TSink sink,
+        ChunkKernelSink sink,
         CancellationToken cancellationToken)
-        where TSink : struct, IChunkKernelSink
     {
         cancellationToken.ThrowIfCancellationRequested();
         Hash256 hash = HashSuiteHasher.Hash(hashSuite, chunkBuffer.AsSpan(0, length));
         cancellationToken.ThrowIfCancellationRequested();
 
         var chunk = new ChunkKernelChunk(offset, length, new ChunkId(hash));
-        return sink.OnChunkAsync(
-            chunk,
-            chunkBuffer.AsMemory(0, length),
-            cancellationToken);
+        return sink(chunk, chunkBuffer.AsMemory(0, length), cancellationToken);
     }
 }
