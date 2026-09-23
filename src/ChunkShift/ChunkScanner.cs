@@ -22,6 +22,12 @@ namespace ChunkShift;
 /// token itself when prompt cancellation is required.
 /// </para>
 /// <para>
+/// A read that returns zero bytes is treated as the end of the source, as the
+/// <see cref="Stream"/> contract defines. A stream that returns zero before its real
+/// end therefore produces a shorter, internally consistent result for the bytes it did
+/// return; ChunkShift cannot detect that contract violation.
+/// </para>
+/// <para>
 /// ChunkShift may read ahead into bounded private buffers. After cancellation, handler failure,
 /// or source I/O failure, the underlying stream position is therefore intentionally unspecified
 /// relative to the last delivered chunk and the stream is never rewound.
@@ -50,6 +56,10 @@ public static class ChunkScanner
     /// </exception>
     /// <exception cref="OperationCanceledException">
     /// Cancellation is observed before the scan completes.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="source"/> returned a negative byte count, or more bytes than
+    /// requested, from <see cref="Stream.ReadAsync(Memory{byte}, CancellationToken)"/>.
     /// </exception>
     public static Task ScanAsync(
         Stream source,

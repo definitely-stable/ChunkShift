@@ -523,6 +523,61 @@ public class ChunkScannerTests
         int Length,
         ChunkId Id);
 
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(int.MinValue)]
+    [InlineData(1)]
+    public async Task SourceViolatingReadCountContract_IsRejectedInsteadOfLoopingOrOverreading(
+        int excessOverRequest)
+    {
+        // excessOverRequest < 0 makes the stream report a negative count (which
+        // previously spun forever); > 0 reports one byte more than requested.
+        using var source = new MisreportingReadStream(excessOverRequest);
+
+        InvalidOperationException exception =
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => ChunkScanner
+                    .ScanAsync(source, (_, _, _) => ValueTask.CompletedTask)
+                    .WaitAsync(HangGuard));
+
+        Assert.Contains("Stream.ReadAsync", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(1, source.Reads);
+    }
+
+    private sealed class MisreportingReadStream(int excessOverRequest) : Stream
+    {
+        internal int Reads { get; private set; }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
+
+        public override ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            Reads++;
+            return ValueTask.FromResult(
+                excessOverRequest < 0
+                    ? excessOverRequest
+                    : buffer.Length + excessOverRequest);
+        }
+
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
     private sealed class SingleConsumptionValueTaskSource : IValueTaskSource
     {
         private int _getResultCalls;
