@@ -6,15 +6,15 @@ using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks;
 
-public delegate ValueTask MetadataChunkSink(
+internal delegate ValueTask MetadataChunkSink(
     ChunkKernelChunk chunk,
     CancellationToken cancellationToken);
 
-public static class CsmMetadataOnlyPrototype
+internal static class CsmMetadataOnlyPrototype
 {
     private const int IoBufferSize = 64 * 1024;
 
-    public static async ValueTask ScanAsync(
+    internal static async ValueTask ScanAsync(
         Stream source,
         ChunkingKernelProfile profile,
         HashSuiteId hashSuite,
