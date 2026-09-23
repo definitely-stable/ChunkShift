@@ -476,7 +476,7 @@ public class ScannerApiFreezeShortReadBenchmarks
         return _counter.Count;
     }
 
-    private Stream OpenSource() =>
+    private PatternReadStream OpenSource() =>
         new PatternReadStream(
             _data,
             [512, 4096, 32768, 65536, 1024, 16384]);
