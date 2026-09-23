@@ -28,6 +28,7 @@ jobs:
   release:
     name: validate-package${{ inputs.publish_nuget && '-publish' || '' }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     environment: release
 
     steps:

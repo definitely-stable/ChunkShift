@@ -50,6 +50,7 @@ jobs:
           - os: ubuntu-24.04-arm
             rid: linux-arm64
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     env:
       PACKAGE_VERSION: 0.0.0-heavy.${{ github.run_number }}
 
@@ -313,6 +314,7 @@ jobs:
     name: cross-arch-determinism
     needs: native
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
