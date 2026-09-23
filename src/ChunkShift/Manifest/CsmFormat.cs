@@ -16,6 +16,10 @@ internal static class CsmFormat
     internal const uint MaximumCoreExtensionBytes = 65_536;
     internal const uint MaximumChunksPerBlock = 4096;
 
+    // Operational bound for optional BIDX materialization/validation. This is
+    // not a persisted format maximum. 262,144 blocks cover >1 billion chunks.
+    internal const int MaximumBlockIndexEntries = 262_144;
+
     internal const uint RequiredSectionFlag = 1;
     internal const uint KnownSectionFlags = RequiredSectionFlag;
 
