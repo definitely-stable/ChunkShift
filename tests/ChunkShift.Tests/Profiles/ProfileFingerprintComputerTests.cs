@@ -1,5 +1,7 @@
 using System;
+using System.Security.Cryptography;
 using System.Text;
+using ChunkShift.Hashing;
 using ChunkShift.Primitives;
 using ChunkShift.Profiles;
 
@@ -121,12 +123,36 @@ public class ProfileFingerprintComputerTests
     }
 
     [Fact]
-    public void ProfileFingerprint_IsIndependentOfContentHashSuite()
+    public void ProfileFingerprint_IsFixedSha256OfCanonicalSemantics_IndependentOfContentHashSuite()
     {
         const string artifact = """{"semantics":{"algorithm":"fixed","version":1,"size":65536}}""";
-        ProfileFingerprint fingerprint = ProfileFingerprintComputer.Compute(Encoding.UTF8.GetBytes(artifact));
 
-        Assert.Equal(fingerprint, Compute(artifact));
+        // Independent oracle: the PROFILE-FINGERPRINT-V1 canonical encoding of the
+        // semantics object written out by hand (tag 06, UInt32 LE property count,
+        // properties in ordinal name order, each name as UInt32 LE length + UTF-8,
+        // strings tag 04, integers tag 03 with canonical decimal text).
+        byte[] canonical = Convert.FromHexString(
+            "06" + "03000000"
+            + "09000000" + "616c676f726974686d" + "04" + "05000000" + "6669786564"
+            + "04000000" + "73697a65" + "03" + "05000000" + "3635353336"
+            + "07000000" + "76657273696f6e" + "03" + "01000000" + "31");
+        byte[] domain = Encoding.UTF8.GetBytes("chunkshift.profile-fingerprint.v1\0");
+        byte[] identityInput = [.. domain, .. canonical];
+
+        ProfileFingerprint fingerprint = Compute(artifact);
+
+        // Pinned value (computed outside .NET) and the SHA-256 definition must agree.
+        Assert.Equal(
+            "c0d37899e24e151b689f5b1fece9ce754a1246d69d3d4674f5efcd67be29ae48",
+            fingerprint.ToString());
+        Assert.Equal(
+            Hash256.FromBytes(SHA256.HashData(identityInput)),
+            fingerprint.Value);
+
+        // The default content HashSuite (BLAKE3-256) must not be what is used.
+        Assert.NotEqual(
+            HashSuiteHasher.Hash(HashSuiteIds.Default, identityInput),
+            fingerprint.Value);
     }
 
     private static ProfileFingerprint Compute(string artifact)
