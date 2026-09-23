@@ -77,6 +77,29 @@ public sealed class CsmWriterTests
             destination);
 
         byte[] bytes = destination.ToArray();
+        ValidateFirstChunkBlock(bytes, result);
+    }
+
+    [Fact]
+    public async Task DestinationNeedNotBeSeekable()
+    {
+        byte[] input = CreateXorShiftBytes(512 * 1024, 0xABCDEF12u);
+        using var storage = new MemoryStream();
+        using var destination = new NonSeekableWriteStream(storage);
+
+        CsmWriteResult result = await CsmWriter.CreateAsync(
+            new MemoryStream(input, writable: false),
+            destination);
+
+        Assert.Equal((ulong)input.Length, result.ContentLength);
+        Assert.Equal((ulong)storage.Length, result.PhysicalLength);
+        Assert.False(destination.CanSeek);
+    }
+
+    private static void ValidateFirstChunkBlock(
+        byte[] bytes,
+        CsmWriteResult result)
+    {
         int coreOffset = CsmFormat.PreambleSize;
         ulong corePayloadLength = BinaryPrimitives.ReadUInt64LittleEndian(
             bytes.AsSpan(coreOffset + 8, 8));
@@ -105,22 +128,6 @@ public sealed class CsmWriterTests
             record.Slice(CsmFormat.SectionHeaderSize, 4));
         Assert.InRange(chunkCount, 1u, CsmFormat.MaximumChunksPerBlock);
         Assert.Equal(result.ChunkCount, chunkCount);
-    }
-
-    [Fact]
-    public async Task DestinationNeedNotBeSeekable()
-    {
-        byte[] input = CreateXorShiftBytes(512 * 1024, 0xABCDEF12u);
-        using var storage = new MemoryStream();
-        using var destination = new NonSeekableWriteStream(storage);
-
-        CsmWriteResult result = await CsmWriter.CreateAsync(
-            new MemoryStream(input, writable: false),
-            destination);
-
-        Assert.Equal((ulong)input.Length, result.ContentLength);
-        Assert.Equal((ulong)storage.Length, result.PhysicalLength);
-        Assert.False(destination.CanSeek);
     }
 
     private static byte[] CreateXorShiftBytes(int length, uint seed)
