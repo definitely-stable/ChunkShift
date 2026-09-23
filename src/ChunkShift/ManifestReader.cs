@@ -8,6 +8,8 @@ namespace ChunkShift;
 /// <remarks>
 /// <para>
 /// The caller owns the source stream. Disposing the reader never disposes it.
+/// While the reader is active, the caller must not concurrently read, seek,
+/// rewind, replace, or dispose that same stream.
 /// </para>
 /// <para>
 /// Each CBLK is fully buffered and CRC-validated before any entry from that
