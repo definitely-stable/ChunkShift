@@ -23,6 +23,7 @@ public sealed class ScannerApiPhase1Benchmarks : IDisposable
     private TaskChunkScanHandler _taskHandler = null!;
     private SegmentedChunkScanHandler _segmentedHandler = null!;
     private int _chunkCount;
+    private long _consumedBytes;
 
     [Params(
         ScannerBenchmarkSourceKind.Memory,
@@ -62,6 +63,7 @@ public sealed class ScannerApiPhase1Benchmarks : IDisposable
     public async ValueTask<int> DirectKernelValueTask()
     {
         _chunkCount = 0;
+        _consumedBytes = 0;
         using Stream source = OpenSource();
 
         await ChunkingKernel.ScanAsync(
@@ -77,6 +79,7 @@ public sealed class ScannerApiPhase1Benchmarks : IDisposable
     public async Task<int> PublicCallbackValueTask()
     {
         _chunkCount = 0;
+        _consumedBytes = 0;
         using Stream source = OpenSource();
 
         await ChunkScanner.ScanAsync(
@@ -90,6 +93,7 @@ public sealed class ScannerApiPhase1Benchmarks : IDisposable
     public async Task<int> CallbackTask()
     {
         _chunkCount = 0;
+        _consumedBytes = 0;
         using Stream source = OpenSource();
 
         await TaskCallbackScannerPrototype.ScanAsync(
@@ -105,6 +109,7 @@ public sealed class ScannerApiPhase1Benchmarks : IDisposable
     public async ValueTask<int> PullReader()
     {
         _chunkCount = 0;
+        _consumedBytes = 0;
         using Stream source = OpenSource();
         using var reader = new ChunkPullReaderPrototype(
             source,
@@ -120,7 +125,7 @@ public sealed class ScannerApiPhase1Benchmarks : IDisposable
             }
 
             _chunkCount++;
-            GC.KeepAlive(result.Content);
+            _consumedBytes += result.Content.Length;
         }
 
         return _chunkCount;
@@ -130,6 +135,7 @@ public sealed class ScannerApiPhase1Benchmarks : IDisposable
     public async ValueTask<int> SegmentedCallbackValueTask()
     {
         _chunkCount = 0;
+        _consumedBytes = 0;
         using Stream source = OpenSource();
 
         await SegmentedChunkScannerPrototype.ScanAsync(
@@ -185,8 +191,7 @@ public sealed class ScannerApiPhase1Benchmarks : IDisposable
         CancellationToken cancellationToken)
     {
         _chunkCount++;
-        GC.KeepAlive(chunk);
-        GC.KeepAlive(content);
+        _consumedBytes += content.Length + (chunk.Length & 0);
         return ValueTask.CompletedTask;
     }
 
@@ -196,8 +201,7 @@ public sealed class ScannerApiPhase1Benchmarks : IDisposable
         CancellationToken cancellationToken)
     {
         _chunkCount++;
-        GC.KeepAlive(chunk);
-        GC.KeepAlive(content);
+        _consumedBytes += content.Length + (chunk.Length & 0);
         return ValueTask.CompletedTask;
     }
 
@@ -207,8 +211,7 @@ public sealed class ScannerApiPhase1Benchmarks : IDisposable
         CancellationToken cancellationToken)
     {
         _chunkCount++;
-        GC.KeepAlive(chunk);
-        GC.KeepAlive(content);
+        _consumedBytes += content.Length + (chunk.Length & 0);
         return Task.CompletedTask;
     }
 
@@ -224,7 +227,7 @@ public sealed class ScannerApiPhase1Benchmarks : IDisposable
         }
 
         _chunkCount++;
-        GC.KeepAlive(chunk);
+        _consumedBytes += content.Length + (chunk.Length & 0);
         return ValueTask.CompletedTask;
     }
 }
@@ -239,6 +242,7 @@ public sealed class ScannerApiAsyncConsumerBenchmarks
     private TaskChunkScanHandler _taskHandler = null!;
     private SegmentedChunkScanHandler _segmentedHandler = null!;
     private int _chunkCount;
+    private long _consumedBytes;
 
     [GlobalSetup]
     public void Setup()
@@ -260,6 +264,7 @@ public sealed class ScannerApiAsyncConsumerBenchmarks
     public async ValueTask<int> DirectKernelValueTaskYield()
     {
         _chunkCount = 0;
+        _consumedBytes = 0;
         using var source = new MemoryStream(_data, writable: false);
 
         await ChunkingKernel.ScanAsync(
@@ -275,6 +280,7 @@ public sealed class ScannerApiAsyncConsumerBenchmarks
     public async Task<int> PublicCallbackValueTaskYield()
     {
         _chunkCount = 0;
+        _consumedBytes = 0;
         using var source = new MemoryStream(_data, writable: false);
 
         await ChunkScanner.ScanAsync(
@@ -288,6 +294,7 @@ public sealed class ScannerApiAsyncConsumerBenchmarks
     public async Task<int> CallbackTaskYield()
     {
         _chunkCount = 0;
+        _consumedBytes = 0;
         using var source = new MemoryStream(_data, writable: false);
 
         await TaskCallbackScannerPrototype.ScanAsync(
@@ -303,6 +310,7 @@ public sealed class ScannerApiAsyncConsumerBenchmarks
     public async ValueTask<int> PullReaderYield()
     {
         _chunkCount = 0;
+        _consumedBytes = 0;
         using var source = new MemoryStream(_data, writable: false);
         using var reader = new ChunkPullReaderPrototype(
             source,
@@ -318,6 +326,7 @@ public sealed class ScannerApiAsyncConsumerBenchmarks
             }
 
             _chunkCount++;
+            _consumedBytes += result.Content.Length;
             await Task.Yield();
         }
 
@@ -328,6 +337,7 @@ public sealed class ScannerApiAsyncConsumerBenchmarks
     public async ValueTask<int> SegmentedCallbackValueTaskYield()
     {
         _chunkCount = 0;
+        _consumedBytes = 0;
         using var source = new MemoryStream(_data, writable: false);
 
         await SegmentedChunkScannerPrototype.ScanAsync(
@@ -345,9 +355,8 @@ public sealed class ScannerApiAsyncConsumerBenchmarks
         CancellationToken cancellationToken)
     {
         _chunkCount++;
+        _consumedBytes += content.Length + (chunk.Length & 0);
         await Task.Yield();
-        GC.KeepAlive(chunk);
-        GC.KeepAlive(content);
     }
 
     private async ValueTask OnPublicAsync(
@@ -356,9 +365,8 @@ public sealed class ScannerApiAsyncConsumerBenchmarks
         CancellationToken cancellationToken)
     {
         _chunkCount++;
+        _consumedBytes += content.Length + (chunk.Length & 0);
         await Task.Yield();
-        GC.KeepAlive(chunk);
-        GC.KeepAlive(content);
     }
 
     private async Task OnTaskAsync(
@@ -367,9 +375,8 @@ public sealed class ScannerApiAsyncConsumerBenchmarks
         CancellationToken cancellationToken)
     {
         _chunkCount++;
+        _consumedBytes += content.Length + (chunk.Length & 0);
         await Task.Yield();
-        GC.KeepAlive(chunk);
-        GC.KeepAlive(content);
     }
 
     private async ValueTask OnSegmentedAsync(
@@ -378,9 +385,8 @@ public sealed class ScannerApiAsyncConsumerBenchmarks
         CancellationToken cancellationToken)
     {
         _chunkCount++;
+        _consumedBytes += content.Length + (chunk.Length & 0);
         await Task.Yield();
-        GC.KeepAlive(chunk);
-        GC.KeepAlive(content);
     }
 }
 
@@ -394,6 +400,7 @@ public sealed class ScannerApiSlowConsumerBenchmarks
     private TaskChunkScanHandler _taskHandler = null!;
     private SegmentedChunkScanHandler _segmentedHandler = null!;
     private int _chunkCount;
+    private long _consumedBytes;
 
     [GlobalSetup]
     public void Setup()
@@ -415,6 +422,7 @@ public sealed class ScannerApiSlowConsumerBenchmarks
     public async ValueTask<int> DirectKernelSlow()
     {
         _chunkCount = 0;
+        _consumedBytes = 0;
         using var source = new MemoryStream(_data, writable: false);
 
         await ChunkingKernel.ScanAsync(
@@ -430,6 +438,7 @@ public sealed class ScannerApiSlowConsumerBenchmarks
     public async Task<int> PublicCallbackSlow()
     {
         _chunkCount = 0;
+        _consumedBytes = 0;
         using var source = new MemoryStream(_data, writable: false);
 
         await ChunkScanner.ScanAsync(
@@ -443,6 +452,7 @@ public sealed class ScannerApiSlowConsumerBenchmarks
     public async Task<int> CallbackTaskSlow()
     {
         _chunkCount = 0;
+        _consumedBytes = 0;
         using var source = new MemoryStream(_data, writable: false);
 
         await TaskCallbackScannerPrototype.ScanAsync(
@@ -458,6 +468,7 @@ public sealed class ScannerApiSlowConsumerBenchmarks
     public async ValueTask<int> PullReaderSlow()
     {
         _chunkCount = 0;
+        _consumedBytes = 0;
         using var source = new MemoryStream(_data, writable: false);
         using var reader = new ChunkPullReaderPrototype(
             source,
@@ -473,6 +484,7 @@ public sealed class ScannerApiSlowConsumerBenchmarks
             }
 
             _chunkCount++;
+            _consumedBytes += result.Content.Length;
             await Task.Delay(1).ConfigureAwait(false);
         }
 
@@ -483,6 +495,7 @@ public sealed class ScannerApiSlowConsumerBenchmarks
     public async ValueTask<int> SegmentedCallbackSlow()
     {
         _chunkCount = 0;
+        _consumedBytes = 0;
         using var source = new MemoryStream(_data, writable: false);
 
         await SegmentedChunkScannerPrototype.ScanAsync(
@@ -500,9 +513,8 @@ public sealed class ScannerApiSlowConsumerBenchmarks
         CancellationToken cancellationToken)
     {
         _chunkCount++;
+        _consumedBytes += content.Length + (chunk.Length & 0);
         await Task.Delay(1, cancellationToken).ConfigureAwait(false);
-        GC.KeepAlive(chunk);
-        GC.KeepAlive(content);
     }
 
     private async ValueTask OnPublicAsync(
@@ -511,9 +523,8 @@ public sealed class ScannerApiSlowConsumerBenchmarks
         CancellationToken cancellationToken)
     {
         _chunkCount++;
+        _consumedBytes += content.Length + (chunk.Length & 0);
         await Task.Delay(1, cancellationToken).ConfigureAwait(false);
-        GC.KeepAlive(chunk);
-        GC.KeepAlive(content);
     }
 
     private async Task OnTaskAsync(
@@ -522,9 +533,8 @@ public sealed class ScannerApiSlowConsumerBenchmarks
         CancellationToken cancellationToken)
     {
         _chunkCount++;
+        _consumedBytes += content.Length + (chunk.Length & 0);
         await Task.Delay(1, cancellationToken).ConfigureAwait(false);
-        GC.KeepAlive(chunk);
-        GC.KeepAlive(content);
     }
 
     private async ValueTask OnSegmentedAsync(
@@ -533,8 +543,7 @@ public sealed class ScannerApiSlowConsumerBenchmarks
         CancellationToken cancellationToken)
     {
         _chunkCount++;
+        _consumedBytes += content.Length + (chunk.Length & 0);
         await Task.Delay(1, cancellationToken).ConfigureAwait(false);
-        GC.KeepAlive(chunk);
-        GC.KeepAlive(content);
     }
 }
