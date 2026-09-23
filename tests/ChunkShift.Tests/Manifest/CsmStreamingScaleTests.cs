@@ -5,7 +5,7 @@ using ChunkShift.Primitives;
 
 namespace ChunkShift.Tests.Manifest;
 
-[CollectionDefinition(Name, DisableParallelization = true)]
+[CollectionDefinition("CSM streaming scale", DisableParallelization = true)]
 public sealed class CsmStreamingScaleCollection
 {
     public const string Name = "CSM streaming scale";
