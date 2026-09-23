@@ -41,7 +41,7 @@ public static class ChunkManifest
             options?.IncludeBlockIndex ?? false,
             cancellationToken).ConfigureAwait(false);
 
-        return FromWriteResult(result);
+        return ManifestResultMapper.FromWriteResult(result);
     }
 
     /// <summary>
@@ -60,9 +60,7 @@ public static class ChunkManifest
             manifest,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        return new ManifestVerificationResult(
-            FromReadResult(result),
-            MapFailures(result.Failures));
+        return ManifestResultMapper.ToVerificationResult(result);
     }
 
     /// <summary>
@@ -84,7 +82,7 @@ public static class ChunkManifest
                 cancellationToken).ConfigureAwait(false);
 
         ManifestVerificationFailure failures =
-            MapFailures(result.Manifest.Failures);
+            ManifestResultMapper.MapFailures(result.Manifest.Failures);
 
         if (!result.ProfileMatchesImplementation)
         {
@@ -96,62 +94,7 @@ public static class ChunkManifest
         }
 
         return new ManifestVerificationResult(
-            FromReadResult(result.Manifest),
+            ManifestResultMapper.FromReadResult(result.Manifest),
             failures);
-    }
-
-    private static ManifestInfo FromWriteResult(CsmWriteResult result) =>
-        new(
-            result.HashSuite,
-            result.ProfileId,
-            result.ProfileFingerprint,
-            result.ManifestId,
-            result.FileDigest,
-            result.ChunkCount,
-            result.ContentLength,
-            result.PhysicalLength,
-            result.ChunkBlockCount,
-            result.HasBlockIndex);
-
-    private static ManifestInfo FromReadResult(CsmReadResult result) =>
-        new(
-            result.HashSuite,
-            result.ProfileId,
-            result.ProfileFingerprint,
-            result.StoredManifestId,
-            result.StoredFileDigest,
-            result.ChunkCount,
-            result.ContentLength,
-            result.PhysicalLength,
-            result.ChunkBlockCount,
-            result.HasBlockIndex);
-
-    private static ManifestVerificationFailure MapFailures(
-        CsmVerificationFailure failures)
-    {
-        ManifestVerificationFailure mapped =
-            ManifestVerificationFailure.None;
-
-        if ((failures & CsmVerificationFailure.BlockCrc) != 0)
-        {
-            mapped |= ManifestVerificationFailure.BlockCrc;
-        }
-
-        if ((failures & CsmVerificationFailure.LogicalTotals) != 0)
-        {
-            mapped |= ManifestVerificationFailure.LogicalTotals;
-        }
-
-        if ((failures & CsmVerificationFailure.ManifestId) != 0)
-        {
-            mapped |= ManifestVerificationFailure.ManifestId;
-        }
-
-        if ((failures & CsmVerificationFailure.FileDigest) != 0)
-        {
-            mapped |= ManifestVerificationFailure.FileDigest;
-        }
-
-        return mapped;
     }
 }
