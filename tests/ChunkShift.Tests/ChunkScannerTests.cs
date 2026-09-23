@@ -395,11 +395,11 @@ public class ChunkScannerTests
             {
                 calls++;
                 entered.TrySetResult(true);
-                await release.Task.ConfigureAwait(false);
+                await release.Task;
             },
             cancellationToken: cancellation.Token);
 
-        await entered.Task.ConfigureAwait(false);
+        await entered.Task;
         cancellation.Cancel();
 
         Assert.False(scan.IsCompleted);
