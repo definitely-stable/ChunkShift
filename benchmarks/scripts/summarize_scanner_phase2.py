@@ -22,6 +22,7 @@ EXPECTED_TYPES = {
 
 EXPECTED_METHODS = {
     "DirectGenericSink",
+    "LegacyDirectDelegateKernel",
     "LegacyValueTaskWrapper",
     "FusedValueTaskCore",
     "FusedTaskCore",
