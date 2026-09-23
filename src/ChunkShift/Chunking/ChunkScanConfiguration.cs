@@ -8,11 +8,15 @@ internal static class ChunkScanConfiguration
     // Nested static holders avoid computing unused candidate fingerprints during
     // the first default scan while still keeping steady-state resolution allocation-free.
 
-    internal static ChunkingKernelProfile ResolveProfile(ChunkingProfileId? requested)
+    internal static ChunkingKernelProfile ResolveProfile(ChunkingProfileId? requested) =>
+        ResolveProfileRegistration(requested).KernelProfile;
+
+    internal static ProfileRegistration ResolveProfileRegistration(
+        ChunkingProfileId? requested)
     {
         if (!requested.HasValue)
         {
-            return Candidate64K.Value.KernelProfile;
+            return Candidate64K.Value;
         }
 
         ChunkingProfileId id = requested.Value;
@@ -25,17 +29,17 @@ internal static class ChunkScanConfiguration
 
         if (id == Candidate64K.Value.Id)
         {
-            return Candidate64K.Value.KernelProfile;
+            return Candidate64K.Value;
         }
 
         if (id == Candidate128K.Value.Id)
         {
-            return Candidate128K.Value.KernelProfile;
+            return Candidate128K.Value;
         }
 
         if (id == Candidate256K.Value.Id)
         {
-            return Candidate256K.Value.KernelProfile;
+            return Candidate256K.Value;
         }
 
         throw new NotSupportedException($"Unsupported ChunkingProfileId '{id}'.");
@@ -82,17 +86,21 @@ internal static class ChunkScanConfiguration
             ProfileRegistration.CreateM1Candidate(256 * 1024);
     }
 
-    private readonly struct ProfileRegistration
+    internal readonly struct ProfileRegistration
     {
         private ProfileRegistration(
             ChunkingProfileId id,
+            ProfileFingerprint fingerprint,
             ChunkingKernelProfile kernelProfile)
         {
             Id = id;
+            Fingerprint = fingerprint;
             KernelProfile = kernelProfile;
         }
 
         internal ChunkingProfileId Id { get; }
+
+        internal ProfileFingerprint Fingerprint { get; }
 
         internal ChunkingKernelProfile KernelProfile { get; }
 
@@ -103,8 +111,10 @@ internal static class ChunkScanConfiguration
             // CandidateProfileId includes the full semantic fingerprint and is
             // deliberately computed once during type initialization. Profile
             // resolution is on every explicit scan and must remain allocation-free.
+            ProfileFingerprint fingerprint = profile.ComputeFingerprint();
             return new ProfileRegistration(
                 profile.CandidateProfileId,
+                fingerprint,
                 ChunkingKernelProfile.FastCdcGear(profile));
         }
     }
