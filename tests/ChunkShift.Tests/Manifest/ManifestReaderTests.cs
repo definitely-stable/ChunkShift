@@ -95,6 +95,54 @@ public sealed class ManifestReaderTests
     }
 
     [Fact]
+    public async Task BadMiddleBlockCrc_ExposesOnlyPrecedingBlocks_AndStaysFailClosed()
+    {
+        // Three CBLKs; only the CRC field of the middle one is damaged, so its
+        // entries and the third block are intact. The reader must not resume
+        // after the damaged block: a consumer would otherwise see a gap in an
+        // apparently contiguous logical stream.
+        const int entryCount = (2 * 4096) + 1;
+        byte[] bytes = await CsmBytes.CreateSyntheticAsync(
+            entryCount,
+            includeBlockIndex: true);
+        int middle = CsmBytes.FindSection(
+            bytes,
+            CsmFormat.ChunkBlock,
+            occurrence: 1);
+        int middleLength = CsmBytes.GetSectionRecordLength(bytes, middle);
+        bytes[middle + middleLength - 1] ^= 0x80;
+        CsmBytes.RewritePhysicalDigest(bytes);
+
+        await using ManifestReader reader =
+            await ManifestReader.OpenAsync(
+                new MemoryStream(bytes, writable: false));
+
+        var batch = new ChunkEntry[1000];
+        ulong exposed = 0;
+        int read;
+
+        while ((read = await reader.ReadAsync(batch)) != 0)
+        {
+            for (int index = 0; index < read; index++)
+            {
+                Assert.Equal(exposed, batch[index].Index);
+                exposed++;
+            }
+        }
+
+        Assert.Equal(4096UL, exposed);
+        Assert.True(reader.IsCompleted);
+        Assert.NotNull(reader.VerificationResult);
+        Assert.Equal(
+            ManifestVerificationFailure.BlockCrc,
+            reader.VerificationResult.Failures);
+        Assert.Equal(
+            (ulong)entryCount,
+            reader.VerificationResult.Manifest.ChunkCount);
+        Assert.Equal(0, await reader.ReadAsync(batch));
+    }
+
+    [Fact]
     public async Task EmptyDestination_IsRejectedWithoutConsumingEntries()
     {
         using var manifest = new MemoryStream();

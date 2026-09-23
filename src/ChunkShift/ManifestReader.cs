@@ -17,6 +17,13 @@ namespace ChunkShift;
 /// <see cref="VerificationResult"/> rather than format exceptions.
 /// </para>
 /// <para>
+/// Reading is fail-closed: once a CBLK fails its CRC-32C check, no further
+/// entries are returned, including entries from later intact blocks. The
+/// reader still consumes and validates the rest of the representation, so
+/// <see cref="VerificationResult"/> reports the failure and the totals that
+/// were observed.
+/// </para>
+/// <para>
 /// Reads are sequential and must not overlap. Cancellation or another
 /// exception during a read leaves this reader unusable because the underlying
 /// stream position may already have advanced.

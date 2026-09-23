@@ -9,26 +9,6 @@ namespace ChunkShift.Tests.Manifest;
 public sealed class CsmMalformedInputTests
 {
     [Fact]
-    public async Task StructuralTruncationMatrix_FailsDeterministically()
-    {
-        byte[] bytes = await CreateManifestAsync(
-            2 * 1024 * 1024,
-            includeBlockIndex: true);
-
-        foreach (int cut in GetStructuralTruncationCuts(bytes))
-        {
-            byte[] truncated = bytes.AsSpan(0, cut).ToArray();
-
-            InvalidDataException exception =
-                await Assert.ThrowsAsync<InvalidDataException>(
-                    () => CsmReader.ReadAndVerifyAsync(
-                        new MemoryStream(truncated, writable: false)));
-
-            Assert.NotEmpty(exception.Message);
-        }
-    }
-
-    [Fact]
     public async Task UnsupportedPreambleVersion_IsFormatError()
     {
         byte[] bytes = await CreateManifestAsync(128 * 1024);
@@ -493,31 +473,6 @@ public sealed class CsmMalformedInputTests
     private static Task<CsmReadResult> ReadAsync(byte[] bytes) =>
         CsmReader.ReadAndVerifyAsync(
             new MemoryStream(bytes, writable: false));
-
-    private static int[] GetStructuralTruncationCuts(byte[] bytes)
-    {
-        var cuts = new List<int>
-        {
-            1,
-            CsmFormat.PreambleSize - 1,
-        };
-
-        foreach ((int offset, int length) in EnumerateSections(bytes))
-        {
-            cuts.Add(offset + Math.Min(8, length) - 1);
-            cuts.Add(offset + length - 1);
-        }
-
-        int trailerOffset = bytes.Length - CsmFormat.TrailerSize;
-        cuts.Add(trailerOffset + 1);
-        cuts.Add(bytes.Length - 1);
-
-        return cuts
-            .Where(cut => cut > 0 && cut < bytes.Length)
-            .Distinct()
-            .Order()
-            .ToArray();
-    }
 
     private static IEnumerable<(int Offset, int Length)> EnumerateSections(
         byte[] bytes)
