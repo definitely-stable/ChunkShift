@@ -133,6 +133,124 @@ jobs:
           
               Console.WriteLine($"{suite}: {count} chunks, {covered} bytes");
           }
+
+          const long generatedLength = 32L * 1024 * 1024;
+          using (var generated = new GeneratedXorShiftStream(generatedLength, 0x51A6E55u))
+          {
+              long beforeAllocated = GC.GetTotalAllocatedBytes(precise: true);
+              long covered = 0;
+              long count = 0;
+
+              await ChunkScanner.ScanAsync(
+                  generated,
+                  (chunk, content, _) =>
+                  {
+                      if (chunk.Index != count ||
+                          chunk.Offset != covered ||
+                          chunk.Length != content.Length ||
+                          chunk.Length <= 0)
+                      {
+                          throw new InvalidOperationException(
+                              "ChunkShift generated-stream invariant failed.");
+                      }
+
+                      covered += chunk.Length;
+                      count++;
+                      return ValueTask.CompletedTask;
+                  });
+
+              long allocated = GC.GetTotalAllocatedBytes(precise: true) - beforeAllocated;
+
+              if (covered != generatedLength ||
+                  generated.BytesRead != generatedLength ||
+                  count == 0 ||
+                  generated.MaxRequestedReadLength <= 0 ||
+                  generated.MaxRequestedReadLength > 1024 * 1024)
+              {
+                  throw new InvalidOperationException(
+                      "ChunkShift scanner did not preserve bounded generated-stream semantics.");
+              }
+
+              // A full-source materialization alone would allocate at least 32 MiB.
+              // Leave substantial runtime headroom while still detecting that class
+              // of regression in the clean packed NativeAOT consumer.
+              if (allocated >= 16L * 1024 * 1024)
+              {
+                  throw new InvalidOperationException(
+                      $"Generated-stream scan allocated {allocated} bytes; bounded streaming regressed.");
+              }
+
+              Console.WriteLine(
+                  $"generated-stream: {count} chunks, {covered} bytes, {allocated} allocated bytes");
+          }
+
+          sealed class GeneratedXorShiftStream : Stream
+          {
+              private long _remaining;
+              private uint _state;
+
+              internal GeneratedXorShiftStream(long length, uint seed)
+              {
+                  _remaining = length;
+                  _state = seed;
+              }
+
+              internal long BytesRead { get; private set; }
+
+              internal int MaxRequestedReadLength { get; private set; }
+
+              public override bool CanRead => true;
+              public override bool CanSeek => false;
+              public override bool CanWrite => false;
+              public override long Length => throw new NotSupportedException();
+              public override long Position
+              {
+                  get => throw new NotSupportedException();
+                  set => throw new NotSupportedException();
+              }
+
+              public override int Read(byte[] buffer, int offset, int count) =>
+                  ReadCore(buffer.AsSpan(offset, count));
+
+              public override ValueTask<int> ReadAsync(
+                  Memory<byte> buffer,
+                  CancellationToken cancellationToken = default)
+              {
+                  cancellationToken.ThrowIfCancellationRequested();
+                  return ValueTask.FromResult(ReadCore(buffer.Span));
+              }
+
+              private int ReadCore(Span<byte> destination)
+              {
+                  MaxRequestedReadLength = Math.Max(
+                      MaxRequestedReadLength,
+                      destination.Length);
+
+                  if (_remaining == 0)
+                  {
+                      return 0;
+                  }
+
+                  int count = (int)Math.Min((long)destination.Length, _remaining);
+
+                  for (int index = 0; index < count; index++)
+                  {
+                      _state ^= _state << 13;
+                      _state ^= _state >> 17;
+                      _state ^= _state << 5;
+                      destination[index] = (byte)_state;
+                  }
+
+                  _remaining -= count;
+                  BytesRead += count;
+                  return count;
+              }
+
+              public override void Flush() => throw new NotSupportedException();
+              public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+              public override void SetLength(long value) => throw new NotSupportedException();
+              public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+          }
           
           CS
           dotnet publish artifacts/aot-consumer/AotConsumer.csproj -c Release -r "${{ matrix.rid }}" --self-contained true -p:PublishAot=true -p:PublishTrimmed=true -o artifacts/aot-publish
