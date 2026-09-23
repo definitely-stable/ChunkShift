@@ -25,6 +25,13 @@ internal static class CsmContentVerifier
         ArgumentNullException.ThrowIfNull(content);
         ArgumentNullException.ThrowIfNull(manifest);
 
+        if (ReferenceEquals(content, manifest))
+        {
+            throw new ArgumentException(
+                "Content and manifest must be distinct Stream instances.",
+                nameof(manifest));
+        }
+
         if (!content.CanRead)
         {
             throw new ArgumentException(
