@@ -155,6 +155,7 @@ internal sealed class ChunkPullReaderPrototype : IDisposable
         _disposed = true;
         ArrayPool<byte>.Shared.Return(_ioBuffer);
         ArrayPool<byte>.Shared.Return(_chunkBuffer);
+        GC.SuppressFinalize(this);
     }
 
     private PullChunkReadResult CreateChunkResult(int length)
