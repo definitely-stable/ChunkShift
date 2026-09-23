@@ -247,6 +247,114 @@ public sealed class CsmMalformedInputTests
     }
 
     [Fact]
+    public async Task DuplicateCore_IsFormatError()
+    {
+        byte[] bytes = await CreateManifestAsync(512 * 1024);
+        int coreOffset = CsmFormat.PreambleSize;
+        int coreLength = GetSectionRecordLength(bytes, coreOffset);
+        byte[] duplicate = bytes.AsSpan(coreOffset, coreLength).ToArray();
+
+        bytes = Insert(bytes, coreOffset + coreLength, duplicate);
+
+        await Assert.ThrowsAsync<InvalidDataException>(
+            () => ReadAsync(bytes));
+    }
+
+    [Fact]
+    public async Task AuxBeforeCend_IsFormatError()
+    {
+        byte[] bytes = await CreateManifestAsync(512 * 1024);
+        int cendOffset = FindSectionOffset(bytes, CsmFormat.ChunkEnd);
+        byte[] aux = BuildSection(
+            CsmFormat.Aux0,
+            flags: 0,
+            [0x01]);
+
+        bytes = Insert(bytes, cendOffset, aux);
+
+        await Assert.ThrowsAsync<InvalidDataException>(
+            () => ReadAsync(bytes));
+    }
+
+    [Fact]
+    public async Task BlockIndexBeforeCend_IsFormatError()
+    {
+        byte[] bytes = await CreateManifestAsync(
+            512 * 1024,
+            includeBlockIndex: true);
+
+        int bidxOffset = FindSectionOffset(bytes, CsmFormat.BlockIndex);
+        int bidxLength = GetSectionRecordLength(bytes, bidxOffset);
+        byte[] bidx = bytes.AsSpan(bidxOffset, bidxLength).ToArray();
+        int cendOffset = FindSectionOffset(bytes, CsmFormat.ChunkEnd);
+
+        bytes = Insert(bytes, cendOffset, bidx);
+
+        await Assert.ThrowsAsync<InvalidDataException>(
+            () => ReadAsync(bytes));
+    }
+
+    [Fact]
+    public async Task ChunkBlockAfterCend_IsFormatError()
+    {
+        byte[] bytes = await CreateManifestAsync(512 * 1024);
+        int cblkOffset = FindSectionOffset(bytes, CsmFormat.ChunkBlock);
+        int cblkLength = GetSectionRecordLength(bytes, cblkOffset);
+        byte[] cblk = bytes.AsSpan(cblkOffset, cblkLength).ToArray();
+        int cendOffset = FindSectionOffset(bytes, CsmFormat.ChunkEnd);
+        int cendLength = GetSectionRecordLength(bytes, cendOffset);
+
+        bytes = Insert(bytes, cendOffset + cendLength, cblk);
+
+        await Assert.ThrowsAsync<InvalidDataException>(
+            () => ReadAsync(bytes));
+    }
+
+    [Fact]
+    public async Task AuxAfterBlockIndex_IsFormatError()
+    {
+        byte[] bytes = await CreateManifestAsync(
+            512 * 1024,
+            includeBlockIndex: true);
+
+        int bidxOffset = FindSectionOffset(bytes, CsmFormat.BlockIndex);
+        int bidxLength = GetSectionRecordLength(bytes, bidxOffset);
+        byte[] aux = BuildSection(
+            CsmFormat.Aux0,
+            flags: 0,
+            [0x01]);
+
+        bytes = Insert(bytes, bidxOffset + bidxLength, aux);
+
+        await Assert.ThrowsAsync<InvalidDataException>(
+            () => ReadAsync(bytes));
+    }
+
+    [Fact]
+    public async Task BytesAfterTrailer_AreFormatError()
+    {
+        byte[] bytes = await CreateManifestAsync(512 * 1024);
+        Array.Resize(ref bytes, bytes.Length + 1);
+        bytes[^1] = 0x7f;
+
+        await Assert.ThrowsAsync<InvalidDataException>(
+            () => ReadAsync(bytes));
+    }
+
+    [Fact]
+    public async Task NonZeroTrailerReserved_IsFormatError()
+    {
+        byte[] bytes = await CreateManifestAsync(512 * 1024);
+        int trailerOffset = bytes.Length - CsmFormat.TrailerSize;
+        BinaryPrimitives.WriteUInt64LittleEndian(
+            bytes.AsSpan(trailerOffset + 56, 8),
+            1);
+
+        await Assert.ThrowsAsync<InvalidDataException>(
+            () => ReadAsync(bytes));
+    }
+
+    [Fact]
     public void ParserMath_MapsOverflowToInvalidData()
     {
         Assert.Throws<InvalidDataException>(
