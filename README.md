@@ -72,6 +72,18 @@ Not product pillars:
 - NativeAOT compatibility;
 - future repository data is immutable/self-indexed and global indexes are rebuildable.
 
+## Building from source
+
+Prerequisites: a .NET 10 SDK at feature band `10.0.2xx` or later (`global.json` pins `10.0.204` with `rollForward: latestFeature`, so any newer .NET 10 SDK is accepted) plus the .NET 8 runtime to run the `net8.0` test target.
+
+```text
+dotnet restore ChunkShift.slnx
+dotnet build ChunkShift.slnx -c Release --no-restore
+dotnet test ChunkShift.slnx -c Release --no-build --no-restore
+```
+
+The benchmark lab is a separate solution: `benchmarks/ChunkShift.Benchmarks.slnx`.
+
 ## License
 
 MIT
