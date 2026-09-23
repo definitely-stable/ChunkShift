@@ -269,6 +269,29 @@ public class ChunkScannerTests
         Assert.Equal(0, calls);
     }
 
+    [Theory]
+    [InlineData(64 * 1024)]
+    [InlineData(128 * 1024)]
+    [InlineData(256 * 1024)]
+    public void ExplicitProfileResolution_DoesNotAllocateAfterInitialization(int targetSize)
+    {
+        ChunkingProfileId id =
+            FastCdcProfile.CreateM1Candidate(targetSize).CandidateProfileId;
+
+        _ = ChunkScanConfiguration.ResolveProfile(id);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+
+        for (int iteration = 0; iteration < 10_000; iteration++)
+        {
+            _ = ChunkScanConfiguration.ResolveProfile(id);
+        }
+
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0, allocated);
+    }
+
     [Fact]
     public void InvalidArgumentsAndUnsupportedSemantics_FailBeforeReading()
     {
