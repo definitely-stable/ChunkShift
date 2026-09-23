@@ -13,7 +13,7 @@ public enum ScannerBenchmarkSourceKind
 }
 
 [MemoryDiagnoser]
-public sealed class ScannerApiPhase1Benchmarks : IDisposable
+public class ScannerApiPhase1Benchmarks : IDisposable
 {
     private byte[] _data = null!;
     private string _filePath = null!;
@@ -157,6 +157,8 @@ public sealed class ScannerApiPhase1Benchmarks : IDisposable
             File.Delete(_filePath);
             _filePath = string.Empty;
         }
+
+        GC.SuppressFinalize(this);
     }
 
     private Stream OpenSource()
@@ -233,7 +235,7 @@ public sealed class ScannerApiPhase1Benchmarks : IDisposable
 }
 
 [MemoryDiagnoser]
-public sealed class ScannerApiAsyncConsumerBenchmarks
+public class ScannerApiAsyncConsumerBenchmarks
 {
     private byte[] _data = null!;
     private ChunkingKernelProfile _profile;
@@ -391,7 +393,7 @@ public sealed class ScannerApiAsyncConsumerBenchmarks
 }
 
 [MemoryDiagnoser]
-public sealed class ScannerApiSlowConsumerBenchmarks
+public class ScannerApiSlowConsumerBenchmarks
 {
     private byte[] _data = null!;
     private ChunkingKernelProfile _profile;
@@ -550,7 +552,7 @@ public sealed class ScannerApiSlowConsumerBenchmarks
 
 
 [MemoryDiagnoser]
-public sealed class ScannerApiFirstChunkBenchmarks : IDisposable
+public class ScannerApiFirstChunkBenchmarks : IDisposable
 {
     private static readonly FirstChunkObservedException Stop = new();
 
@@ -690,6 +692,8 @@ public sealed class ScannerApiFirstChunkBenchmarks : IDisposable
             File.Delete(_filePath);
             _filePath = string.Empty;
         }
+
+        GC.SuppressFinalize(this);
     }
 
     private Stream OpenSource() =>
