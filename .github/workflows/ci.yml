@@ -137,56 +137,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          dotnet new console --name Consumer --output artifacts/consumer --framework net10.0 --no-restore
-          dotnet add artifacts/consumer/Consumer.csproj package ChunkShift --version "${PACKAGE_VERSION}" --source "${GITHUB_WORKSPACE}/artifacts/packages"
-          cat > artifacts/consumer/Program.cs <<'CS'
-          using ChunkShift;
-          using ChunkShift.Primitives;
-          
-          var bytes = new byte[768 * 1024];
-          uint state = 0xC0FFEE42u;
-          for (int index = 0; index < bytes.Length; index++)
-          {
-              state ^= state << 13;
-              state ^= state >> 17;
-              state ^= state << 5;
-              bytes[index] = (byte)state;
-          }
-          
-          foreach (HashSuiteId suite in new[] { HashSuiteIds.Blake3256V1, HashSuiteIds.Sha256V1 })
-          {
-              using var source = new MemoryStream(bytes, writable: false);
-              long covered = 0;
-              long count = 0;
-          
-              await ChunkScanner.ScanAsync(
-                  source,
-                  (chunk, content, _) =>
-                  {
-                      if (chunk.Index != count ||
-                          chunk.Offset != covered ||
-                          chunk.Length != content.Length ||
-                          chunk.Length <= 0)
-                      {
-                          throw new InvalidOperationException("ChunkShift scanner package smoke invariant failed.");
-                      }
-          
-                      covered += chunk.Length;
-                      count++;
-                      return ValueTask.CompletedTask;
-                  },
-                  new ChunkScanOptions { HashSuite = suite });
-          
-              if (covered != bytes.LongLength || count == 0)
-              {
-                  throw new InvalidOperationException("ChunkShift scanner did not cover the complete source.");
-              }
-          
-              Console.WriteLine($"{suite}: {count} chunks, {covered} bytes");
-          }
-          
-          CS
-          dotnet run --project artifacts/consumer/Consumer.csproj -c Release
+          mkdir -p artifacts/package-smoke
+          dotnet run --project tests/ChunkShift.PackageSmoke/ChunkShift.PackageSmoke.csproj -c Release \
+            -p:ChunkShiftPackageVersion="${PACKAGE_VERSION}" \
+            -p:RestoreAdditionalProjectSources="${GITHUB_WORKSPACE}/artifacts/packages" \
+            -- --evidence artifacts/package-smoke/jit-linux-x64.txt
 
       - name: Upload package smoke artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -195,5 +150,6 @@ jobs:
           path: |
             artifacts/packages/*.nupkg
             artifacts/packages/*.snupkg
+            artifacts/package-smoke/*.txt
           if-no-files-found: error
           retention-days: 7

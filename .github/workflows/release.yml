@@ -73,19 +73,23 @@ jobs:
       - name: Pack exact release artifacts
         run: dotnet pack src/ChunkShift/ChunkShift.csproj -c Release --no-build --no-restore -o artifacts/packages -p:PackageVersion=${{ inputs.version }}
 
-      - name: Consume exact package
+      # The release gate runs the same real-path package smoke as CI and heavy
+      # validation (scanner, manifest create/verify/read, bounded 32 MiB
+      # forward-only source) as a NativeAOT consumer of the exact package.
+      - name: Consume exact package (NativeAOT)
         shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          dotnet new console --name ReleaseConsumer --output artifacts/release-consumer --framework net10.0 --no-restore
-          dotnet add artifacts/release-consumer/ReleaseConsumer.csproj package ChunkShift --version "${{ inputs.version }}" --source "${GITHUB_WORKSPACE}/artifacts/packages"
-          cat > artifacts/release-consumer/Program.cs <<'CS'
-          using ChunkShift.Primitives;
-
-          Console.WriteLine(new ChunkerId("release.smoke").Value);
-          CS
-          dotnet publish artifacts/release-consumer/ReleaseConsumer.csproj -c Release -r linux-x64 --self-contained true -p:PublishAot=true -p:PublishTrimmed=true -o artifacts/release-consumer-publish
-          ./artifacts/release-consumer-publish/ReleaseConsumer
+          mkdir -p artifacts/package-smoke
+          dotnet publish tests/ChunkShift.PackageSmoke/ChunkShift.PackageSmoke.csproj -c Release \
+            -r linux-x64 --self-contained true -p:PublishAot=true -p:PublishTrimmed=true \
+            -p:ChunkShiftPackageVersion="${VERSION}" \
+            -p:RestoreAdditionalProjectSources="${GITHUB_WORKSPACE}/artifacts/packages" \
+            -o artifacts/release-consumer-publish
+          ./artifacts/release-consumer-publish/ChunkShift.PackageSmoke \
+            --evidence artifacts/package-smoke/release-aot-linux-x64.txt
 
       - name: Upload release candidate artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

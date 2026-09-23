@@ -43,7 +43,14 @@ dotnet build ChunkShift.slnx -c Release --no-restore
 dotnet test ChunkShift.slnx -c Release --no-build --no-restore
 ```
 
-If the change affects packaging/public API, also run `dotnet pack` and the package-consumer smoke path used by CI.
+If the change affects packaging/public API, also run `dotnet pack` and the package-consumer smoke used by CI, heavy validation and release (`tests/ChunkShift.PackageSmoke`, outside `ChunkShift.slnx`):
+
+```text
+dotnet pack src/ChunkShift/ChunkShift.csproj -c Release -o artifacts/packages -p:PackageVersion=0.0.0-local.1
+dotnet run --project tests/ChunkShift.PackageSmoke -c Release -p:ChunkShiftPackageVersion=0.0.0-local.1 -p:RestoreAdditionalProjectSources=<repo>/artifacts/packages
+```
+
+Use a new local version for each pack; NuGet caches packages by version.
 
 If it affects NativeAOT, binary formats, deterministic chunking, security parsers or hot paths, run the corresponding milestone-specific validation instead of claiming completion from unit tests alone.
 
