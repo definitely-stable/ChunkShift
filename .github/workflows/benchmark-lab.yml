@@ -119,7 +119,7 @@ jobs:
             --memory \
             --exporters GitHub FullJSON \
             --artifacts artifacts/benchmarks/architecture-evidence \
-            --filter '*FastCdcPipelineBenchmarks*' '*HashUpdateStrategyBenchmarks*' '*CsmTopologyBenchmarks*' \
+            --filter '*FastCdcPipelineBenchmarks*' '*HashUpdateStrategyBenchmarks*' '*CsmTopologyBenchmarks*' '*ChunkStreamApiBenchmarks*' \
             --join \
             | tee artifacts/benchmarks/architecture-evidence.log
 
