@@ -26,6 +26,13 @@ public enum ManifestVerificationFailure
     /// </summary>
     ProfileSemantics = 1 << 4,
 
-    /// <summary>The supplied content does not match the manifest identity.</summary>
+    /// <summary>
+    /// The supplied content matches neither the stored ManifestId nor the identity
+    /// recomputed from the manifest's chunk entries.
+    /// </summary>
+    /// <remarks>
+    /// When only the stored ManifestId is damaged and the content matches the
+    /// chunk entries, the result reports <see cref="ManifestId"/> without this flag.
+    /// </remarks>
     Content = 1 << 5,
 }

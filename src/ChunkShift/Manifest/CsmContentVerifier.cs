@@ -74,11 +74,21 @@ internal static class CsmContentVerifier
 
         ManifestId computedContentManifestId = contentIdentity.Complete();
 
+        // The manifest carries two logical identities: the ManifestId stored in
+        // CEND and the one recomputed from its CBLK entries. When they differ the
+        // manifest result already reports a ManifestId failure, so the content is
+        // reported as mismatching only when it matches neither. Otherwise a
+        // corrupted stored ManifestId over provably correct content would be
+        // misreported as a content mismatch. Validity is unaffected: any
+        // disagreement between the two identities already makes the result invalid.
+        bool contentMatches =
+            computedContentManifestId == manifestResult.StoredManifestId ||
+            computedContentManifestId == manifestResult.ComputedManifestId;
+
         return new CsmContentVerificationResult(
             manifestResult,
             ProfileMatchesImplementation: true,
-            ContentMatches:
-                computedContentManifestId == manifestResult.StoredManifestId,
+            ContentMatches: contentMatches,
             ComputedContentManifestId: computedContentManifestId);
     }
 }
