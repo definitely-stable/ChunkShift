@@ -140,7 +140,7 @@ public sealed class CsmReaderTests
         byte[] bytes = encoded.ToArray();
         Array.Resize(ref bytes, bytes.Length - 1);
 
-        await Assert.ThrowsAsync<CsmFormatException>(
+        await Assert.ThrowsAsync<InvalidDataException>(
             () => CsmReader.ReadAndVerifyAsync(
                 new MemoryStream(bytes, writable: false)));
     }
@@ -157,7 +157,7 @@ public sealed class CsmReaderTests
         byte[] bytes = encoded.ToArray();
         bytes[0] = (byte)'X';
 
-        await Assert.ThrowsAsync<CsmFormatException>(
+        await Assert.ThrowsAsync<InvalidDataException>(
             () => CsmReader.ReadAndVerifyAsync(
                 new MemoryStream(bytes, writable: false)));
     }
