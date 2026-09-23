@@ -6,12 +6,12 @@ using ChunkShift.Primitives;
 namespace ChunkShift.Tests.Manifest;
 
 [CollectionDefinition("CSM streaming scale", DisableParallelization = true)]
-public sealed class CsmStreamingScaleCollection
+public sealed class CsmStreamingScaleGroup
 {
     public const string Name = "CSM streaming scale";
 }
 
-[Collection(CsmStreamingScaleCollection.Name)]
+[Collection(CsmStreamingScaleGroup.Name)]
 public sealed class CsmStreamingScaleTests
 {
     [Fact]
