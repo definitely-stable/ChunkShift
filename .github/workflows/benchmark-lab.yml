@@ -64,6 +64,9 @@ jobs:
       - name: Test
         run: dotnet test benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-build --no-restore
 
+      - name: Validate benchmark evidence scripts
+        run: python3 -m py_compile benchmarks/scripts/summarize_scanner_phase2.py
+
       - name: Verify independent FastCDC vector
         shell: bash
         run: python3 tools/reference/fastcdc_reference.py --verify
