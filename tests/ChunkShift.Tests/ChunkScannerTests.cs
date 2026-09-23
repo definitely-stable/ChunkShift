@@ -210,6 +210,34 @@ public class ChunkScannerTests
     }
 
     [Fact]
+    public async Task CancellationAfterFirstChunk_DoesNotReadToEnd()
+    {
+        byte[] input = CreateXorShiftBytes(8 * 1024 * 1024, 0xCANCEL42u);
+        using var source = new MemoryStream(input, writable: false);
+        using var cancellation = new CancellationTokenSource();
+
+        long firstChunkEnd = 0;
+        long sourcePositionAtCancellation = 0;
+
+        Task scan = ChunkScanner.ScanAsync(
+            source,
+            (chunk, _, cancellationToken) =>
+            {
+                firstChunkEnd = chunk.Offset + chunk.Length;
+                sourcePositionAtCancellation = source.Position;
+                cancellation.Cancel();
+                return ValueTask.FromCanceled(cancellationToken);
+            },
+            cancellationToken: cancellation.Token);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => scan);
+
+        Assert.True(firstChunkEnd > 0);
+        Assert.True(sourcePositionAtCancellation >= firstChunkEnd);
+        Assert.True(sourcePositionAtCancellation < input.LongLength);
+    }
+
+    [Fact]
     public async Task HandlerFailure_PropagatesAndDoesNotDisposeSource()
     {
         byte[] input = CreateXorShiftBytes(512 * 1024, 0xBAD5EEDu);
