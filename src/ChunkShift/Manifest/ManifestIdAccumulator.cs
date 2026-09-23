@@ -50,9 +50,21 @@ internal sealed class ManifestIdAccumulator : IDisposable
 
     internal void Append(ChunkId chunkId, int length)
     {
+        if (length <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(length),
+                "Manifest chunk lengths must be positive.");
+        }
+
+        Append(chunkId, checked((uint)length));
+    }
+
+    internal void Append(ChunkId chunkId, uint length)
+    {
         ThrowIfUnavailable();
 
-        if (length <= 0)
+        if (length == 0)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(length),
@@ -63,11 +75,11 @@ internal sealed class ManifestIdAccumulator : IDisposable
         chunkId.Value.CopyTo(entry);
         BinaryPrimitives.WriteUInt32LittleEndian(
             entry[CsmFormat.HashSize..],
-            checked((uint)length));
+            length);
 
         _hasher.Append(entry);
         _chunkCount = checked(_chunkCount + 1);
-        _contentLength = checked(_contentLength + (uint)length);
+        _contentLength = checked(_contentLength + length);
     }
 
     internal ManifestId Complete()
