@@ -637,7 +637,6 @@ public class ScannerApiFreezeAsyncBenchmarks
 [MemoryDiagnoser]
 public class ScannerApiFreezeFileBenchmarks : IDisposable
 {
-    private byte[] _data = null!;
     private string _filePath = null!;
     private ChunkingKernelProfile _profile;
     private ChunkScanOptions _options = null!;
@@ -649,14 +648,14 @@ public class ScannerApiFreezeFileBenchmarks : IDisposable
     [GlobalSetup]
     public void Setup()
     {
-        _data = new byte[32 * 1024 * 1024];
+        var data = new byte[32 * 1024 * 1024];
         var random = new DeterministicPrng(0xF11E_F2EE_2026UL);
-        random.Fill(_data);
+        random.Fill(data);
 
         _filePath = Path.Combine(
             Path.GetTempPath(),
             $"chunkshift-freeze-{Guid.NewGuid():N}.bin");
-        File.WriteAllBytes(_filePath, _data);
+        File.WriteAllBytes(_filePath, data);
 
         FastCdcProfile profile = FastCdcProfile.CreateM1Candidate(128 * 1024);
         _profile = ChunkingKernelProfile.FastCdcGear(profile);
