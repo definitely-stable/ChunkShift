@@ -67,6 +67,14 @@ internal static class CliApp
         string contentPath = Path.GetFullPath(args[0]);
         string manifestPath = Path.GetFullPath(args[1]);
 
+        // Publishing replaces <manifest>. If it named the source, a POSIX rename
+        // would silently replace the content with its own manifest.
+        if (PathsReferToSameFile(contentPath, manifestPath))
+        {
+            return UsageError(
+                "create: <manifest> must not be the same file as <content>.");
+        }
+
         bool includeBlockIndex = false;
         HashSuiteId? hashSuite = null;
 
@@ -107,7 +115,9 @@ internal static class CliApp
 
         try
         {
-            await using FileStream content = OpenRead(contentPath);
+            ManifestInfo info;
+
+            await using (FileStream content = OpenRead(contentPath))
             await using (FileStream destination =
                 new(
                     temporaryPath,
@@ -122,7 +132,7 @@ internal static class CliApp
                         BufferSize = IoBufferSize,
                     }))
             {
-                ManifestInfo info =
+                info =
                     await ChunkManifest.CreateAsync(
                         content,
                         destination,
@@ -136,15 +146,16 @@ internal static class CliApp
 
                 await destination.FlushAsync(
                     cancellationToken).ConfigureAwait(false);
-
-                PrintManifest(info);
             }
 
+            // Report only after the manifest is published, so a failed move is
+            // never preceded by a success-looking summary.
             File.Move(
                 temporaryPath,
                 manifestPath,
                 overwrite: true);
 
+            PrintManifest(info);
             Console.WriteLine(
                 $"written={manifestPath}");
             return 0;
@@ -226,6 +237,43 @@ internal static class CliApp
         PrintVerification(result);
 
         return result.IsValid ? 0 : 1;
+    }
+
+    private static bool PathsReferToSameFile(string first, string second)
+    {
+        // Windows and default macOS volumes are case-insensitive. Hard links are
+        // not detected; symbolic links are resolved to their final target.
+        StringComparison comparison =
+            OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+        return string.Equals(
+            ResolveFinalPath(first),
+            ResolveFinalPath(second),
+            comparison);
+    }
+
+    private static string ResolveFinalPath(string path)
+    {
+        try
+        {
+            FileSystemInfo? target = File.ResolveLinkTarget(
+                path,
+                returnFinalTarget: true);
+
+            return target is null
+                ? path
+                : Path.GetFullPath(target.FullName);
+        }
+        catch (IOException)
+        {
+            return path;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return path;
+        }
     }
 
     private static FileStream OpenRead(string path) =>
