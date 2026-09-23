@@ -131,6 +131,43 @@ public sealed class ChunkManifestTests
     }
 
     [Fact]
+    public async Task Create_RejectsAliasedSourceAndDestination()
+    {
+        using var shared = new MemoryStream(
+            CreateXorShiftBytes(64 * 1024, 0xABCDEF01u));
+
+        ArgumentException exception =
+            await Assert.ThrowsAsync<ArgumentException>(
+                () => ChunkManifest.CreateAsync(
+                    shared,
+                    shared));
+
+        Assert.Equal("destination", exception.ParamName);
+    }
+
+    [Fact]
+    public async Task Verify_RejectsAliasedContentAndManifest()
+    {
+        using var manifest = new MemoryStream();
+
+        _ = await ChunkManifest.CreateAsync(
+            new MemoryStream(
+                CreateXorShiftBytes(64 * 1024, 0x1234ABCDu),
+                writable: false),
+            manifest);
+
+        manifest.Position = 0;
+
+        ArgumentException exception =
+            await Assert.ThrowsAsync<ArgumentException>(
+                () => ChunkManifest.VerifyAsync(
+                    manifest,
+                    manifest));
+
+        Assert.Equal("manifest", exception.ParamName);
+    }
+
+    [Fact]
     public async Task MalformedManifest_UsesInvalidDataException()
     {
         byte[] malformed = "not-a-csm"u8.ToArray();
