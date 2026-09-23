@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Text;
 using ChunkShift.Hashing;
 using ChunkShift.Manifest;
 using ChunkShift.Primitives;
@@ -365,6 +366,54 @@ public sealed class CsmMalformedInputTests
 
         await Assert.ThrowsAsync<InvalidDataException>(
             () => ReadAsync(bytes));
+    }
+
+    [Theory]
+    [InlineData("CORE")]
+    [InlineData("CBLK")]
+    [InlineData("CEND")]
+    public async Task KnownLogicalSectionAfterCend_IsRejectedEvenWithoutRequiredFlag(
+        string fourCc)
+    {
+        // CSM-V1-CANDIDATE §2: duplicate CORE/CEND and CBLK after CEND MUST
+        // be rejected. Clearing REQUIRED and repairing FOOT offset/length and
+        // FileDigest makes the mutant otherwise fully valid, so only the
+        // position rule can reject it (not the unknown-required-section rule).
+        byte[] original = await CreateManifestAsync(512 * 1024);
+        uint type = CsmFormat.FourCc(Encoding.ASCII.GetBytes(fourCc));
+        int sourceOffset = FindSectionOffset(original, type);
+        byte[] copy = original
+            .AsSpan(sourceOffset, GetSectionRecordLength(original, sourceOffset))
+            .ToArray();
+        BinaryPrimitives.WriteUInt32LittleEndian(copy.AsSpan(4, 4), 0);
+
+        int footOffset = FindSectionOffset(original, CsmFormat.Footer);
+        byte[] mutated = Insert(original, footOffset, copy);
+        RewriteTrailerAfterInsertion(
+            mutated,
+            originalFootOffset: footOffset,
+            insertedLength: copy.Length);
+
+        InvalidDataException exception =
+            await Assert.ThrowsAsync<InvalidDataException>(
+                () => ReadAsync(mutated));
+
+        Assert.Equal(
+            $"{fourCc} must not appear after CEND.",
+            exception.Message);
+
+        using var storage = new MemoryStream(mutated, writable: false);
+        await using ManifestReader reader =
+            await ManifestReader.OpenAsync(storage);
+        var entries = new ChunkEntry[64];
+
+        await Assert.ThrowsAsync<InvalidDataException>(
+            async () =>
+            {
+                while (await reader.ReadAsync(entries) != 0)
+                {
+                }
+            });
     }
 
     [Fact]

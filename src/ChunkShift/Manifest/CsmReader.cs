@@ -659,6 +659,16 @@ internal sealed class CsmStreamReaderCore : IDisposable
                 break;
             }
 
+            // Known logical sections are rejected by type, independent of the
+            // REQUIRED flag: the flag only governs unknown section types.
+            if (header.Type == CsmFormat.Core ||
+                header.Type == CsmFormat.ChunkBlock ||
+                header.Type == CsmFormat.ChunkEnd)
+            {
+                throw new InvalidDataException(
+                    $"{DescribeSectionType(header.Type)} must not appear after CEND.");
+            }
+
             if (_seenBidx)
             {
                 throw new InvalidDataException(
@@ -1229,6 +1239,26 @@ internal sealed class CsmStreamReaderCore : IDisposable
             throw new InvalidDataException(
                 "Known CSM section contains reserved flag bits.");
         }
+    }
+
+    private static string DescribeSectionType(uint type)
+    {
+        if (type == CsmFormat.Core)
+        {
+            return "CORE";
+        }
+
+        if (type == CsmFormat.ChunkBlock)
+        {
+            return "CBLK";
+        }
+
+        if (type == CsmFormat.ChunkEnd)
+        {
+            return "CEND";
+        }
+
+        return $"Section 0x{type:x8}";
     }
 
     private static void ValidateIdentifierLength(
