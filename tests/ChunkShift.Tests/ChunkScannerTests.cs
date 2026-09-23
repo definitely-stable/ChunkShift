@@ -7,6 +7,10 @@ namespace ChunkShift.Tests;
 
 public class ChunkScannerTests
 {
+    // Bounds waits that would otherwise hang the test run (and the CI runner)
+    // if cancellation or callback sequencing regressed.
+    private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(30);
+
     [Fact]
     public async Task DefaultScan_MatchesCanonicalKernelAndReconstructsInput()
     {
@@ -203,10 +207,11 @@ public class ChunkScannerTests
             },
             cancellationToken: cancellation.Token);
 
-        await entered.Task;
+        await entered.Task.WaitAsync(HangGuard);
         cancellation.Cancel();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => scan);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => scan.WaitAsync(HangGuard));
         Assert.Equal(1, calls);
     }
 
@@ -399,14 +404,15 @@ public class ChunkScannerTests
             },
             cancellationToken: cancellation.Token);
 
-        await entered.Task;
+        await entered.Task.WaitAsync(HangGuard);
         cancellation.Cancel();
 
         Assert.False(scan.IsCompleted);
 
         release.TrySetResult(true);
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => scan);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => scan.WaitAsync(HangGuard));
         Assert.Equal(1, calls);
     }
 
@@ -488,9 +494,11 @@ public class ChunkScannerTests
         Assert.False(source.CanSeek);
 
         // The source is generated on demand and never stores the complete payload.
-        // Keep this assertion intentionally loose: the public contract promises
-        // bounded streaming, not a specific private read-buffer size.
-        Assert.InRange(source.MaxRequestedReadLength, 1, 1024 * 1024);
+        // Reads are bounded by the kernel's fixed I/O buffer. Referencing the
+        // constant keeps the test independent of its exact value while failing on
+        // any regression that requests larger reads (a 1 MiB bound let a 16x
+        // regression pass).
+        Assert.InRange(source.MaxRequestedReadLength, 1, ChunkingKernel.IoBufferSize);
     }
 
     private static byte[] CreateXorShiftBytes(int length, uint seed)

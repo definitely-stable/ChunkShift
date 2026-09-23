@@ -15,7 +15,7 @@ internal delegate ValueTask ChunkKernelSink(
 
 internal static class ChunkingKernel
 {
-    private const int IoBufferSize = 64 * 1024;
+    internal const int IoBufferSize = 64 * 1024;
 
     internal static async ValueTask ScanAsync(
         Stream source,
