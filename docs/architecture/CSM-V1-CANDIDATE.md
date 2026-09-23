@@ -72,7 +72,7 @@ Unknown optional physical sections are permitted only in the AUX phase between C
 | 16 | 8 | OptionalPhysicalFeatures |
 | 24 | 8 | Reserved = 0 |
 
-A v1 reader rejects a different magic/major, a preamble smaller than 32, non-zero reserved bytes, or unknown required physical bits. A larger future preamble may be skipped only when its added bytes are declared optional by the format-version rules.
+The current v1 candidate requires PreambleSize = 32 exactly and rejects a different magic/major, non-zero reserved bytes, or unknown required physical bits. A future compatible revision may define a larger preamble only together with explicit format-version rules for interpreting or skipping the added bytes; the current reader does not guess such rules.
 
 ## 4. Section header — fixed 16 bytes
 
@@ -261,6 +261,8 @@ Entries are strictly increasing by both content offset and file offset and corre
 
 BIDX enables content-position-to-block lookup without storing a UInt64 offset per chunk. Presence/absence does not change ManifestId.
 
+The current .NET candidate applies an **operational**, non-persisted cap of 262,144 BIDX entries for writer materialization and forward-reader validation. At 4096 chunks per CBLK this covers more than one billion chunks. This cap is not a CSM v1 format maximum: a forward reader may process a larger non-indexed manifest, while a BIDX beyond the local validation cap is rejected rather than materialized without bound.
+
 ## 11. FOOT payload — fixed 48 bytes
 
 | Offset | Size | Field |
@@ -309,9 +311,10 @@ A conforming v1 reader enforces at least:
 - on an unknown-length forward-only stream, the reader validates arithmetic and configured limits first, then consumes exactly PayloadLength bytes and treats premature EOF as truncation;
 - optional unknown sections are skipped/streamed, not blindly allocated;
 - total content length/count must match CEND and observed chunks;
-- lengths requiring a .NET `long`/memory operation must additionally fit that implementation boundary.
+- lengths requiring a .NET `long`/memory operation must additionally fit that implementation boundary;
+- this .NET candidate tracks at most 262,144 CBLK entries for optional BIDX validation and refuses to generate/validate a larger BIDX rather than grow metadata without bound.
 
-Configurable operational limits may be stricter than the format maxima.
+Configurable operational limits may be stricter than the format maxima. Operational limits are not persisted compatibility limits unless the format specification explicitly says otherwise.
 
 ## 14. Verification levels
 
