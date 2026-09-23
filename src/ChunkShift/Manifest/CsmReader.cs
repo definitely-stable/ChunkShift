@@ -53,8 +53,6 @@ internal static class CsmReader
     // Fixed operational cap, not a format field. At 4096 chunks/CBLK this can
     // validate a BIDX for more than one billion logical chunks while bounding
     // reader metadata to roughly 4 MiB.
-    private const int MaximumTrackedBlockCount = 262_144;
-
     private static readonly UTF8Encoding StrictUtf8 =
         new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
@@ -105,6 +103,7 @@ internal static class CsmReader
         ulong bidxOffset = 0;
         ulong footOffset = 0;
         bool seenBidx = false;
+        bool blockIndexTrackingOverflow = false;
         CsmVerificationFailure failures = CsmVerificationFailure.None;
         ManifestId storedManifestId = default;
         ManifestId computedManifestId = default;
@@ -122,12 +121,6 @@ internal static class CsmReader
                 if (cblkCount == 0)
                 {
                     firstCblkOffset = sectionOffset;
-                }
-
-                if (observedBlocks.Count == MaximumTrackedBlockCount)
-                {
-                    throw new InvalidDataException(
-                        $"CSM exceeds the operational limit of {MaximumTrackedBlockCount} CBLK sections.");
                 }
 
                 bool crcValid = await ReadChunkBlockAsync(
@@ -153,8 +146,15 @@ internal static class CsmReader
                     blockBuffer,
                     checked((int)blockChunkCount));
 
-                observedBlocks.Add(
-                    new BlockIndexEntry(observedContentLength, sectionOffset));
+                if (observedBlocks.Count < CsmFormat.MaximumBlockIndexEntries)
+                {
+                    observedBlocks.Add(
+                        new BlockIndexEntry(observedContentLength, sectionOffset));
+                }
+                else
+                {
+                    blockIndexTrackingOverflow = true;
+                }
 
                 observedChunkCount = checked(
                     observedChunkCount + blockChunkCount);
@@ -213,6 +213,7 @@ internal static class CsmReader
                     input,
                     header,
                     observedBlocks,
+                    blockIndexTrackingOverflow,
                     cancellationToken).ConfigureAwait(false);
                 seenBidx = true;
                 continue;
@@ -617,6 +618,7 @@ internal static class CsmReader
         CsmInput input,
         SectionHeader header,
         IReadOnlyList<BlockIndexEntry> expected,
+        bool trackingOverflow,
         CancellationToken cancellationToken)
     {
         ValidateKnownSectionFlags(header.Flags);
@@ -647,10 +649,16 @@ internal static class CsmReader
                 $"Unsupported BIDX version {version}.");
         }
 
-        if (count > MaximumTrackedBlockCount)
+        if (count > CsmFormat.MaximumBlockIndexEntries)
         {
             throw new InvalidDataException(
-                $"BIDX exceeds the operational limit of {MaximumTrackedBlockCount} entries.");
+                $"BIDX exceeds the operational limit of {CsmFormat.MaximumBlockIndexEntries} entries.");
+        }
+
+        if (trackingOverflow)
+        {
+            throw new InvalidDataException(
+                $"BIDX validation exceeds the operational limit of {CsmFormat.MaximumBlockIndexEntries} tracked CBLK entries.");
         }
 
         ulong expectedPayloadLength = checked(8UL + (ulong)count * 16UL);
@@ -825,6 +833,7 @@ internal static class CsmReader
                 $"CSM section 0x{type:x8} contains reserved flag bits.");
         }
 
+        input.EnsurePayloadAvailable(payloadLength);
         return new SectionHeader(type, flags, payloadLength);
     }
 
