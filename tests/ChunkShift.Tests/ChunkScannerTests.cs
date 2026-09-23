@@ -1,3 +1,4 @@
+using System.Threading.Tasks.Sources;
 using ChunkShift.Chunking;
 using ChunkShift.Hashing;
 using ChunkShift.Primitives;
@@ -365,6 +366,133 @@ public class ChunkScannerTests
         });
     }
 
+    [Fact]
+    public async Task HandlerValueTask_IsConsumedExactlyOnce()
+    {
+        var completion = new SingleConsumptionValueTaskSource();
+
+        await ChunkScanner.ScanAsync(
+            new MemoryStream(new byte[] { 0x42 }, writable: false),
+            (_, _, _) => completion.CreateValueTask());
+
+        Assert.Equal(1, completion.GetResultCalls);
+    }
+
+    [Fact]
+    public async Task Cancellation_DoesNotPreemptHandlerThatIgnoresToken()
+    {
+        byte[] input = CreateXorShiftBytes(1024 * 1024, 0x1A2B3C4Du);
+        using var cancellation = new CancellationTokenSource();
+        var entered = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        int calls = 0;
+
+        Task scan = ChunkScanner.ScanAsync(
+            new MemoryStream(input, writable: false),
+            async (_, _, _) =>
+            {
+                calls++;
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            },
+            cancellationToken: cancellation.Token);
+
+        await entered.Task.ConfigureAwait(false);
+        cancellation.Cancel();
+
+        Assert.False(scan.IsCompleted);
+
+        release.TrySetResult(true);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => scan);
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public async Task BorrowedContent_MayBeReusedImmediatelyAfterCallbackCompletes()
+    {
+        byte[] input = CreateXorShiftBytes(2 * 1024 * 1024, 0xB0A0D123u);
+        ReadOnlyMemory<byte> retained = default;
+        byte[]? firstSnapshot = null;
+        bool observedReuse = false;
+        int calls = 0;
+
+        ChunkingProfileId profileId =
+            FastCdcProfile.CreateM1Candidate(64 * 1024).CandidateProfileId;
+
+        await ChunkScanner.ScanAsync(
+            new MemoryStream(input, writable: false),
+            (_, content, _) =>
+            {
+                if (calls == 0)
+                {
+                    retained = content;
+                    firstSnapshot = content.ToArray();
+                }
+                else if (calls == 1)
+                {
+                    Assert.NotNull(firstSnapshot);
+
+                    int commonLength = Math.Min(retained.Length, content.Length);
+                    Assert.True(commonLength > 0);
+
+                    Assert.True(
+                        retained.Span[..commonLength]
+                            .SequenceEqual(content.Span[..commonLength]));
+
+                    Assert.False(
+                        firstSnapshot.AsSpan(0, commonLength)
+                            .SequenceEqual(content.Span[..commonLength]));
+
+                    observedReuse = true;
+                }
+
+                calls++;
+                return ValueTask.CompletedTask;
+            },
+            new ChunkScanOptions { ProfileId = profileId });
+
+        Assert.True(calls > 1);
+        Assert.True(observedReuse);
+    }
+
+    [Fact]
+    public async Task GeneratedNonSeekableSource_IsProcessedWithoutFullMaterialization()
+    {
+        const long sourceLength = 32L * 1024 * 1024;
+        using var source = new GeneratedXorShiftStream(sourceLength, 0x51A6E55u);
+        long covered = 0;
+        int callbacks = 0;
+
+        ChunkingProfileId profileId =
+            FastCdcProfile.CreateM1Candidate(64 * 1024).CandidateProfileId;
+
+        await ChunkScanner.ScanAsync(
+            source,
+            (chunk, content, _) =>
+            {
+                Assert.Equal(covered, chunk.Offset);
+                Assert.Equal(chunk.Length, content.Length);
+
+                covered += chunk.Length;
+                callbacks++;
+                return ValueTask.CompletedTask;
+            },
+            new ChunkScanOptions { ProfileId = profileId });
+
+        Assert.Equal(sourceLength, covered);
+        Assert.Equal(sourceLength, source.BytesRead);
+        Assert.True(callbacks > 1);
+        Assert.False(source.CanSeek);
+
+        // The source is generated on demand and never stores the complete payload.
+        // Keep this assertion intentionally loose: the public contract promises
+        // bounded streaming, not a specific private read-buffer size.
+        Assert.InRange(source.MaxRequestedReadLength, 1, 1024 * 1024);
+    }
+
     private static byte[] CreateXorShiftBytes(int length, uint seed)
     {
         var bytes = new byte[length];
@@ -386,6 +514,119 @@ public class ChunkScannerTests
         long Offset,
         int Length,
         ChunkId Id);
+
+    private sealed class SingleConsumptionValueTaskSource : IValueTaskSource
+    {
+        private int _getResultCalls;
+
+        internal int GetResultCalls => Volatile.Read(ref _getResultCalls);
+
+        internal ValueTask CreateValueTask() => new(this, token: 0);
+
+        public void GetResult(short token)
+        {
+            if (token != 0)
+            {
+                throw new InvalidOperationException("Unexpected ValueTask token.");
+            }
+
+            if (Interlocked.Increment(ref _getResultCalls) != 1)
+            {
+                throw new InvalidOperationException(
+                    "ChunkShift consumed the handler ValueTask more than once.");
+            }
+        }
+
+        public ValueTaskSourceStatus GetStatus(short token)
+        {
+            if (token != 0)
+            {
+                throw new InvalidOperationException("Unexpected ValueTask token.");
+            }
+
+            return ValueTaskSourceStatus.Succeeded;
+        }
+
+        public void OnCompleted(
+            Action<object?> continuation,
+            object? state,
+            short token,
+            ValueTaskSourceOnCompletedFlags flags)
+        {
+            throw new InvalidOperationException(
+                "The test ValueTask source is already complete.");
+        }
+    }
+
+    private sealed class GeneratedXorShiftStream : Stream
+    {
+        private long _remaining;
+        private uint _state;
+
+        internal GeneratedXorShiftStream(long length, uint seed)
+        {
+            _remaining = length;
+            _state = seed;
+        }
+
+        internal long BytesRead { get; private set; }
+
+        internal int MaxRequestedReadLength { get; private set; }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            return ReadCore(buffer.AsSpan(offset, count));
+        }
+
+        public override ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(ReadCore(buffer.Span));
+        }
+
+        private int ReadCore(Span<byte> destination)
+        {
+            MaxRequestedReadLength = Math.Max(
+                MaxRequestedReadLength,
+                destination.Length);
+
+            if (_remaining == 0)
+            {
+                return 0;
+            }
+
+            int count = (int)Math.Min((long)destination.Length, _remaining);
+
+            for (int index = 0; index < count; index++)
+            {
+                _state ^= _state << 13;
+                _state ^= _state >> 17;
+                _state ^= _state << 5;
+                destination[index] = (byte)_state;
+            }
+
+            _remaining -= count;
+            BytesRead += count;
+            return count;
+        }
+
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
 
     private sealed class SegmentedReadStream : Stream
     {
