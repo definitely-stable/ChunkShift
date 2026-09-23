@@ -5,7 +5,7 @@ using ChunkShift.Primitives;
 namespace ChunkShift.Benchmarks;
 
 [MemoryDiagnoser]
-public sealed class CsmTopologyBenchmarks : IDisposable
+public class CsmTopologyBenchmarks : IDisposable
 {
     private byte[] _data = null!;
     private MemoryStream _payloadStream = null!;
