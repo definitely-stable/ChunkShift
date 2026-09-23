@@ -5,20 +5,14 @@ namespace ChunkShift.Chunking;
 internal static class ChunkScanConfiguration
 {
     // Pre-release only. Issue #8 owns the stable default profile selection.
-    private static readonly ProfileRegistration Candidate64K =
-        ProfileRegistration.CreateM1Candidate(64 * 1024);
-
-    private static readonly ProfileRegistration Candidate128K =
-        ProfileRegistration.CreateM1Candidate(128 * 1024);
-
-    private static readonly ProfileRegistration Candidate256K =
-        ProfileRegistration.CreateM1Candidate(256 * 1024);
+    // Nested static holders avoid computing unused candidate fingerprints during
+    // the first default scan while still keeping steady-state resolution allocation-free.
 
     internal static ChunkingKernelProfile ResolveProfile(ChunkingProfileId? requested)
     {
         if (!requested.HasValue)
         {
-            return Candidate64K.KernelProfile;
+            return Candidate64K.Value.KernelProfile;
         }
 
         ChunkingProfileId id = requested.Value;
@@ -29,19 +23,19 @@ internal static class ChunkScanConfiguration
                 nameof(requested));
         }
 
-        if (id == Candidate64K.Id)
+        if (id == Candidate64K.Value.Id)
         {
-            return Candidate64K.KernelProfile;
+            return Candidate64K.Value.KernelProfile;
         }
 
-        if (id == Candidate128K.Id)
+        if (id == Candidate128K.Value.Id)
         {
-            return Candidate128K.KernelProfile;
+            return Candidate128K.Value.KernelProfile;
         }
 
-        if (id == Candidate256K.Id)
+        if (id == Candidate256K.Value.Id)
         {
-            return Candidate256K.KernelProfile;
+            return Candidate256K.Value.KernelProfile;
         }
 
         throw new NotSupportedException($"Unsupported ChunkingProfileId '{id}'.");
@@ -68,6 +62,24 @@ internal static class ChunkScanConfiguration
         }
 
         return id;
+    }
+
+    private static class Candidate64K
+    {
+        internal static readonly ProfileRegistration Value =
+            ProfileRegistration.CreateM1Candidate(64 * 1024);
+    }
+
+    private static class Candidate128K
+    {
+        internal static readonly ProfileRegistration Value =
+            ProfileRegistration.CreateM1Candidate(128 * 1024);
+    }
+
+    private static class Candidate256K
+    {
+        internal static readonly ProfileRegistration Value =
+            ProfileRegistration.CreateM1Candidate(256 * 1024);
     }
 
     private readonly struct ProfileRegistration
