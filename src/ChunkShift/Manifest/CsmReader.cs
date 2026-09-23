@@ -156,11 +156,18 @@ internal static class CsmReader
                     blockIndexTrackingOverflow = true;
                 }
 
-                observedChunkCount = checked(
-                    observedChunkCount + blockChunkCount);
-                observedContentLength = checked(
-                    observedContentLength + blockContentLength);
-                cblkCount = checked(cblkCount + 1);
+                observedChunkCount = CsmParserMath.Add(
+                    observedChunkCount,
+                    blockChunkCount,
+                    "observed chunk count");
+                observedContentLength = CsmParserMath.Add(
+                    observedContentLength,
+                    blockContentLength,
+                    "observed content length");
+                cblkCount = CsmParserMath.Add(
+                    cblkCount,
+                    1,
+                    "CBLK count");
                 continue;
             }
 
@@ -464,8 +471,10 @@ internal static class CsmReader
                 "CBLK PayloadLength is outside the CSM v1 bounded range.");
         }
 
-        int payloadLength = checked((int)header.PayloadLength);
-        int recordLength = checked(CsmFormat.SectionHeaderSize + payloadLength);
+        int payloadLength = CsmParserMath.ToInt32(
+            header.PayloadLength,
+            "CBLK PayloadLength");
+        int recordLength = CsmFormat.SectionHeaderSize + payloadLength;
 
         headerBytes.CopyTo(blockBuffer, 0);
         await input.ReadExactlyAsync(
@@ -521,8 +530,9 @@ internal static class CsmReader
 
         int idsOffset =
             CsmFormat.SectionHeaderSize + CsmFormat.CblkPrefixSize;
-        int lengthsOffset = checked(
-            idsOffset + checked((int)count) * CsmFormat.HashSize);
+        int chunkCount = checked((int)count);
+        int lengthsOffset =
+            idsOffset + chunkCount * CsmFormat.HashSize;
 
         ulong entryOffset = expectedFirstContentOffset;
 
@@ -549,7 +559,10 @@ internal static class CsmReader
             if (crcValid && handler is not null)
             {
                 var entry = new CsmChunkEntry(
-                    checked(expectedFirstChunkIndex + (uint)index),
+                    CsmParserMath.Add(
+                        expectedFirstChunkIndex,
+                        (uint)index,
+                        "chunk index"),
                     entryOffset,
                     length,
                     id);
@@ -558,7 +571,10 @@ internal static class CsmReader
                     .ConfigureAwait(false);
             }
 
-            entryOffset = checked(entryOffset + length);
+            entryOffset = CsmParserMath.Add(
+                entryOffset,
+                length,
+                "chunk content offset");
         }
 
         return crcValid;
@@ -578,7 +594,10 @@ internal static class CsmReader
                 blockBuffer.AsSpan(
                     lengthsOffset + index * sizeof(uint),
                     sizeof(uint)));
-            sum = checked(sum + length);
+            sum = CsmParserMath.Add(
+                sum,
+                length,
+                "CBLK content length");
         }
 
         return sum;
