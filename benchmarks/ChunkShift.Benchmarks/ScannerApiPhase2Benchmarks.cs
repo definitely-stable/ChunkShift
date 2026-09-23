@@ -32,6 +32,7 @@ public class ScannerApiPhase2CoreBenchmarks
     private byte[] _data = null!;
     private ChunkingKernelProfile _profile;
     private ChunkScanOptions _options = null!;
+    private ChunkKernelSink _legacyDirectSink = null!;
     private ChunkScanHandler _valueTaskHandler = null!;
     private TaskChunkScanHandler _taskHandler = null!;
     private readonly ScannerBenchmarkCounter _counter = new();
@@ -59,6 +60,7 @@ public class ScannerApiPhase2CoreBenchmarks
             HashSuite = HashSuiteIds.Blake3256V1,
         };
 
+        _legacyDirectSink = OnLegacyDirectAsync;
         _valueTaskHandler = OnValueTaskAsync;
         _taskHandler = OnTaskAsync;
     }
@@ -75,6 +77,24 @@ public class ScannerApiPhase2CoreBenchmarks
                 _profile,
                 HashSuiteIds.Blake3256V1,
                 new DirectCounterKernelSink(_counter))
+            .ConfigureAwait(false);
+
+        return _counter.Count;
+    }
+
+
+    [Benchmark]
+    public async Task<int> LegacyDirectDelegateKernel()
+    {
+        _counter.Reset();
+        using Stream source = OpenSource();
+
+        await LegacyDelegateChunkingKernelPrototype
+            .ScanAsync(
+                source,
+                _profile,
+                HashSuiteIds.Blake3256V1,
+                _legacyDirectSink)
             .ConfigureAwait(false);
 
         return _counter.Count;
@@ -161,6 +181,17 @@ public class ScannerApiPhase2CoreBenchmarks
         };
     }
 
+
+    private ValueTask OnLegacyDirectAsync(
+        ChunkKernelChunk chunk,
+        ReadOnlyMemory<byte> content,
+        CancellationToken cancellationToken)
+    {
+        _counter.Count++;
+        _counter.Bytes += content.Length + (chunk.Length & 0);
+        return ValueTask.CompletedTask;
+    }
+
     private ValueTask OnValueTaskAsync(
         ChunkInfo chunk,
         ReadOnlyMemory<byte> content,
@@ -196,6 +227,7 @@ public class ScannerApiPhase2FileBenchmarks : IDisposable
     private string _filePath = null!;
     private ChunkingKernelProfile _profile;
     private ChunkScanOptions _options = null!;
+    private ChunkKernelSink _legacyDirectSink = null!;
     private ChunkScanHandler _valueTaskHandler = null!;
     private TaskChunkScanHandler _taskHandler = null!;
     private readonly ScannerBenchmarkCounter _counter = new();
@@ -223,6 +255,7 @@ public class ScannerApiPhase2FileBenchmarks : IDisposable
             HashSuite = HashSuiteIds.Blake3256V1,
         };
 
+        _legacyDirectSink = OnLegacyDirectAsync;
         _valueTaskHandler = OnValueTaskAsync;
         _taskHandler = OnTaskAsync;
     }
@@ -239,6 +272,24 @@ public class ScannerApiPhase2FileBenchmarks : IDisposable
                 _profile,
                 HashSuiteIds.Blake3256V1,
                 new DirectCounterKernelSink(_counter))
+            .ConfigureAwait(false);
+
+        return _counter.Count;
+    }
+
+
+    [Benchmark]
+    public async Task<int> LegacyDirectDelegateKernel()
+    {
+        _counter.Reset();
+        using Stream source = OpenFile();
+
+        await LegacyDelegateChunkingKernelPrototype
+            .ScanAsync(
+                source,
+                _profile,
+                HashSuiteIds.Blake3256V1,
+                _legacyDirectSink)
             .ConfigureAwait(false);
 
         return _counter.Count;
@@ -331,6 +382,17 @@ public class ScannerApiPhase2FileBenchmarks : IDisposable
             64 * 1024,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
 
+
+    private ValueTask OnLegacyDirectAsync(
+        ChunkKernelChunk chunk,
+        ReadOnlyMemory<byte> content,
+        CancellationToken cancellationToken)
+    {
+        _counter.Count++;
+        _counter.Bytes += content.Length + (chunk.Length & 0);
+        return ValueTask.CompletedTask;
+    }
+
     private ValueTask OnValueTaskAsync(
         ChunkInfo chunk,
         ReadOnlyMemory<byte> content,
@@ -365,6 +427,7 @@ public class ScannerApiPhase2AsyncBenchmarks
     private byte[] _data = null!;
     private ChunkingKernelProfile _profile;
     private ChunkScanOptions _options = null!;
+    private ChunkKernelSink _legacyDirectSink = null!;
     private ChunkScanHandler _valueTaskHandler = null!;
     private TaskChunkScanHandler _taskHandler = null!;
     private readonly ScannerBenchmarkCounter _counter = new();
@@ -384,6 +447,7 @@ public class ScannerApiPhase2AsyncBenchmarks
             HashSuite = HashSuiteIds.Blake3256V1,
         };
 
+        _legacyDirectSink = OnLegacyDirectAsync;
         _valueTaskHandler = OnValueTaskAsync;
         _taskHandler = OnTaskAsync;
     }
@@ -400,6 +464,24 @@ public class ScannerApiPhase2AsyncBenchmarks
                 _profile,
                 HashSuiteIds.Blake3256V1,
                 new AsyncDirectCounterKernelSink(_counter))
+            .ConfigureAwait(false);
+
+        return _counter.Count;
+    }
+
+
+    [Benchmark]
+    public async Task<int> LegacyDirectDelegateKernel()
+    {
+        _counter.Reset();
+        using var source = new MemoryStream(_data, writable: false);
+
+        await LegacyDelegateChunkingKernelPrototype
+            .ScanAsync(
+                source,
+                _profile,
+                HashSuiteIds.Blake3256V1,
+                _legacyDirectSink)
             .ConfigureAwait(false);
 
         return _counter.Count;
@@ -467,6 +549,18 @@ public class ScannerApiPhase2AsyncBenchmarks
             .ConfigureAwait(false);
 
         return _counter.Count;
+    }
+
+
+    private async ValueTask OnLegacyDirectAsync(
+        ChunkKernelChunk chunk,
+        ReadOnlyMemory<byte> content,
+        CancellationToken cancellationToken)
+    {
+        _counter.Count++;
+        _counter.Bytes += content.Length + (chunk.Length & 0);
+        await Task.Yield();
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
     private async ValueTask OnValueTaskAsync(
