@@ -11,9 +11,9 @@ public class ChunkStreamApiPrototypeTests
     {
         byte[] input = CreateBytes((4 * 1024 * 1024) + 137, 0x20A92026u);
 
-        ChunkKernelChunk[] expected =
+        ApiChunkRecord[] expected =
             await ChunkStreamApiTestFacade.CollectKernelAsync(input, target);
-        ChunkKernelChunk[] actual =
+        ApiChunkRecord[] actual =
             await ChunkStreamApiTestFacade.CollectPullAsync(input, target);
 
         Assert.Equal(expected, actual);
@@ -24,9 +24,9 @@ public class ChunkStreamApiPrototypeTests
     {
         byte[] input = CreateBytes((2 * 1024 * 1024) + 19, 0xA11CE55u);
 
-        ChunkKernelChunk[] expected =
+        ApiChunkRecord[] expected =
             await ChunkStreamApiTestFacade.CollectKernelAsync(input, 64 * 1024);
-        ChunkKernelChunk[] actual =
+        ApiChunkRecord[] actual =
             await ChunkStreamApiTestFacade.CollectPullAsync(
                 input,
                 64 * 1024,
