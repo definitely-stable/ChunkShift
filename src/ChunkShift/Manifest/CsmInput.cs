@@ -67,7 +67,7 @@ internal sealed class CsmInput : IDisposable
 
             if (read == 0)
             {
-                throw new CsmFormatException(
+                throw new InvalidDataException(
                     $"Unexpected EOF at physical offset {Offset}.");
             }
 
@@ -133,7 +133,7 @@ internal sealed class CsmInput : IDisposable
 
             if (read == 0)
             {
-                throw new CsmFormatException(
+                throw new InvalidDataException(
                     $"Unexpected EOF at physical offset {Offset}.");
             }
 
@@ -153,7 +153,7 @@ internal sealed class CsmInput : IDisposable
 
         if (read != 0)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "Bytes are present after the fixed CSM trailer.");
         }
     }
@@ -180,7 +180,7 @@ internal sealed class CsmInput : IDisposable
         int nextLength = checked(_deferredPrefixLength + bytes.Length);
         if (nextLength > _deferredPrefix.Length)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "CSM CORE prefix exceeded the bounded pre-HashSuite staging area.");
         }
 
