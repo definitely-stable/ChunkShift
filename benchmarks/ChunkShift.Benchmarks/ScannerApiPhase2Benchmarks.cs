@@ -188,7 +188,7 @@ public class ScannerApiPhase2CoreBenchmarks
         CancellationToken cancellationToken)
     {
         _counter.Count++;
-        _counter.Bytes += content.Length + (chunk.Length & 0);
+        _counter.Bytes += content.Length + chunk.Length;
         return ValueTask.CompletedTask;
     }
 
@@ -198,7 +198,7 @@ public class ScannerApiPhase2CoreBenchmarks
         CancellationToken cancellationToken)
     {
         _counter.Count++;
-        _counter.Bytes += content.Length + (chunk.Length & 0);
+        _counter.Bytes += content.Length + chunk.Length;
         return ValueTask.CompletedTask;
     }
 
@@ -208,7 +208,7 @@ public class ScannerApiPhase2CoreBenchmarks
         CancellationToken cancellationToken)
     {
         _counter.Count++;
-        _counter.Bytes += content.Length + (chunk.Length & 0);
+        _counter.Bytes += content.Length + chunk.Length;
         return Task.CompletedTask;
     }
 }
@@ -389,7 +389,7 @@ public class ScannerApiPhase2FileBenchmarks : IDisposable
         CancellationToken cancellationToken)
     {
         _counter.Count++;
-        _counter.Bytes += content.Length + (chunk.Length & 0);
+        _counter.Bytes += content.Length + chunk.Length;
         return ValueTask.CompletedTask;
     }
 
@@ -399,7 +399,7 @@ public class ScannerApiPhase2FileBenchmarks : IDisposable
         CancellationToken cancellationToken)
     {
         _counter.Count++;
-        _counter.Bytes += content.Length + (chunk.Length & 0);
+        _counter.Bytes += content.Length + chunk.Length;
         return ValueTask.CompletedTask;
     }
 
@@ -409,7 +409,7 @@ public class ScannerApiPhase2FileBenchmarks : IDisposable
         CancellationToken cancellationToken)
     {
         _counter.Count++;
-        _counter.Bytes += content.Length + (chunk.Length & 0);
+        _counter.Bytes += content.Length + chunk.Length;
         return Task.CompletedTask;
     }
 }
@@ -558,7 +558,7 @@ public class ScannerApiPhase2AsyncBenchmarks
         CancellationToken cancellationToken)
     {
         _counter.Count++;
-        _counter.Bytes += content.Length + (chunk.Length & 0);
+        _counter.Bytes += content.Length + chunk.Length;
         await Task.Yield();
         cancellationToken.ThrowIfCancellationRequested();
     }
@@ -569,7 +569,7 @@ public class ScannerApiPhase2AsyncBenchmarks
         CancellationToken cancellationToken)
     {
         _counter.Count++;
-        _counter.Bytes += content.Length + (chunk.Length & 0);
+        _counter.Bytes += content.Length + chunk.Length;
         await Task.Yield();
         cancellationToken.ThrowIfCancellationRequested();
     }
@@ -580,7 +580,7 @@ public class ScannerApiPhase2AsyncBenchmarks
         CancellationToken cancellationToken)
     {
         _counter.Count++;
-        _counter.Bytes += content.Length + (chunk.Length & 0);
+        _counter.Bytes += content.Length + chunk.Length;
         await Task.Yield();
         cancellationToken.ThrowIfCancellationRequested();
     }
