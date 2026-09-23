@@ -76,6 +76,7 @@ public sealed class CsmStreamingScaleTests
 
         ulong observedCount = 0;
         ulong observedLength = 0;
+        bool sequenceValid = true;
 
         ForceFullCollection();
         long before = GC.GetTotalAllocatedBytes(precise: true);
@@ -84,8 +85,11 @@ public sealed class CsmStreamingScaleTests
             forwardOnly,
             (entry, _) =>
             {
-                Assert.Equal(observedCount, entry.Index);
-                Assert.Equal(observedLength, entry.Offset);
+                if (entry.Index != observedCount ||
+                    entry.Offset != observedLength)
+                {
+                    sequenceValid = false;
+                }
 
                 observedCount++;
                 observedLength =
@@ -97,6 +101,7 @@ public sealed class CsmStreamingScaleTests
             GC.GetTotalAllocatedBytes(precise: true) - before;
 
         Assert.True(result.IsValid);
+        Assert.True(sequenceValid);
         Assert.Equal((ulong)entryCount, observedCount);
         Assert.Equal(result.ContentLength, observedLength);
         Assert.False(forwardOnly.CanSeek);
