@@ -65,28 +65,40 @@ public static class ChunkScanner
         HashSuiteId hashSuite =
             ChunkScanConfiguration.ResolveHashSuite(options?.HashSuite);
 
-        return ScanCoreAsync(
-            source,
-            profile,
-            hashSuite,
-            handler,
-            cancellationToken);
+        var sink = new PublicChunkSink(handler);
+        return ScanCoreAsync(source, profile, hashSuite, sink, cancellationToken);
     }
 
     private static async Task ScanCoreAsync(
         Stream source,
         ChunkingKernelProfile profile,
         HashSuiteId hashSuite,
-        ChunkScanHandler handler,
+        PublicChunkSink sink,
         CancellationToken cancellationToken)
     {
         await ChunkingKernel
-            .ScanPublicAsync(
-                source,
-                profile,
-                hashSuite,
-                handler,
-                cancellationToken)
+            .ScanAsync(source, profile, hashSuite, sink.OnChunkAsync, cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    private sealed class PublicChunkSink
+    {
+        private readonly ChunkScanHandler _handler;
+        private long _index;
+
+        internal PublicChunkSink(ChunkScanHandler handler)
+        {
+            _handler = handler;
+        }
+
+        internal ValueTask OnChunkAsync(
+            ChunkKernelChunk chunk,
+            ReadOnlyMemory<byte> content,
+            CancellationToken cancellationToken)
+        {
+            var info = new ChunkInfo(_index, chunk.Offset, chunk.Length, chunk.Id);
+            _index = checked(_index + 1);
+            return _handler(info, content, cancellationToken);
+        }
     }
 }
