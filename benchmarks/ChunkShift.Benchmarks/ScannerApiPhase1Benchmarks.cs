@@ -727,5 +727,7 @@ public sealed class ScannerApiFirstChunkBenchmarks : IDisposable
         CancellationToken cancellationToken) =>
         ValueTask.FromException(Stop);
 
-    private sealed class FirstChunkObservedException : Exception;
+    private sealed class FirstChunkObservedException : Exception
+    {
+    }
 }
