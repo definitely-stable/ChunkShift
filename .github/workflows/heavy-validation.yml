@@ -4,24 +4,25 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
+    # Every input that can change the built package, its NativeAOT behavior or
+    # the independent vectors must reach the AOT/ARM64/cross-arch lanes.
+    # Keep this list coarse: a narrow per-directory list silently skipped
+    # Primitives/**, project files and SDK/build configuration.
     paths:
+      - "src/**"
+      - "tests/**"
       - "benchmarks/**"
+      - "tools/**"
+      - "global.json"
+      - "Directory.Build.props"
+      - "Directory.Packages.props"
+      - ".editorconfig"
+      - "*.slnx"
       - "docs/benchmarks/**"
-      - "src/ChunkShift/*.cs"
-      - "src/ChunkShift/Hashing/**"
-      - "src/ChunkShift/Chunking/**"
-      - "src/ChunkShift/Manifest/**"
-      - "src/ChunkShift/Profiles/**"
-      - "src/ChunkShift.Cli/**"
-      - "tests/ChunkShift.Tests/Manifest/**"
-      - "tests/ChunkShift.Tests/Fixtures/CsmV1/**"
       - "docs/architecture/CSM-*.md"
-      - "tools/csm-fixtures/**"
       - "docs/architecture/PROFILE-FINGERPRINT-V1.md"
       - "docs/architecture/FASTCDC-*.md"
       - "docs/architecture/FASTCDC-*.txt"
-      - "tools/reference/fastcdc_reference.py"
-      - "tools/reference/fastcdc-rs-probe/**"
       - ".github/workflows/heavy-validation.yml"
   schedule:
     - cron: "17 3 * * 1"
