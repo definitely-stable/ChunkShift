@@ -10,7 +10,13 @@ on:
       - "src/ChunkShift/*.cs"
       - "src/ChunkShift/Hashing/**"
       - "src/ChunkShift/Chunking/**"
+      - "src/ChunkShift/Manifest/**"
       - "src/ChunkShift/Profiles/**"
+      - "src/ChunkShift.Cli/**"
+      - "tests/ChunkShift.Tests/Manifest/**"
+      - "tests/ChunkShift.Tests/Fixtures/CsmV1/**"
+      - "docs/architecture/CSM-*.md"
+      - "tools/csm-fixtures/**"
       - "docs/architecture/PROFILE-FINGERPRINT-V1.md"
       - "docs/architecture/FASTCDC-*.md"
       - "docs/architecture/FASTCDC-*.txt"
@@ -73,6 +79,25 @@ jobs:
       - name: Verify independent FastCDC vector
         shell: bash
         run: python3 tools/reference/fastcdc_reference.py --verify
+
+      - name: Verify independent CSM golden vectors
+        shell: bash
+        run: |
+          set -euo pipefail
+          generated="artifacts/csm-independent"
+          rm -rf "$generated"
+          python3 tools/csm-fixtures/generate.py --out "$generated"
+
+          for fixture in \
+            empty-sha256-no-bidx.csm \
+            one-entry-sha256-no-bidx.csm \
+            multiblock-sha256-no-bidx.csm \
+            multiblock-sha256-bidx.csm
+          do
+            cmp \
+              "tests/ChunkShift.Tests/Fixtures/CsmV1/$fixture" \
+              "$generated/$fixture"
+          done
 
       - name: Verify external fastcdc-rs 5.0.0 vector
         if: matrix.rid == 'linux-x64'

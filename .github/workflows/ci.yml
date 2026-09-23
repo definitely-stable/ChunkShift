@@ -45,6 +45,67 @@ jobs:
       - name: Test
         run: dotnet test ChunkShift.slnx -c Release --no-build --no-restore
 
+      - name: CLI CSM round-trip
+        if: matrix.os == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/cli-smoke
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("artifacts/cli-smoke/content.bin")
+          data = bytearray(1024 * 1024)
+          state = 0xC5A5EED
+
+          for index in range(len(data)):
+              state ^= (state << 13) & 0xFFFFFFFF
+              state ^= state >> 17
+              state ^= (state << 5) & 0xFFFFFFFF
+              state &= 0xFFFFFFFF
+              data[index] = state & 0xFF
+
+          path.write_bytes(data)
+          PY
+
+          dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
+            create artifacts/cli-smoke/content.bin artifacts/cli-smoke/content.csm --bidx --sha256 \
+            > artifacts/cli-smoke/create.txt
+
+          dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
+            inspect artifacts/cli-smoke/content.csm \
+            > artifacts/cli-smoke/inspect.txt
+
+          dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
+            verify artifacts/cli-smoke/content.csm artifacts/cli-smoke/content.bin \
+            > artifacts/cli-smoke/verify.txt
+
+          grep -q '^valid=true$' artifacts/cli-smoke/inspect.txt
+          grep -q '^valid=true$' artifacts/cli-smoke/verify.txt
+          grep -q '^bidx=true$' artifacts/cli-smoke/verify.txt
+
+          cp artifacts/cli-smoke/content.bin artifacts/cli-smoke/wrong.bin
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("artifacts/cli-smoke/wrong.bin")
+          data = bytearray(path.read_bytes())
+          data[len(data) // 2] ^= 0x80
+          path.write_bytes(data)
+          PY
+
+          set +e
+          dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
+            verify artifacts/cli-smoke/content.csm artifacts/cli-smoke/wrong.bin \
+            > artifacts/cli-smoke/mismatch.txt
+          status=$?
+          set -e
+
+          test "$status" -eq 1
+          grep -q '^valid=false$' artifacts/cli-smoke/mismatch.txt
+          grep -q 'Content' artifacts/cli-smoke/mismatch.txt
+
   package-smoke:
     name: package-smoke
     needs: build-test

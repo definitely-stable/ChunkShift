@@ -21,4 +21,9 @@
     <ProjectReference Include="..\..\src\ChunkShift\ChunkShift.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Fixtures\CsmV1\*.csm"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

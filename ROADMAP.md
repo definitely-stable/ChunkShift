@@ -1,7 +1,7 @@
 # ChunkShift roadmap
 
 Status: Active  
-Last reviewed: 2026-09-22
+Last reviewed: 2026-09-23
 
 Authority:
 
@@ -63,7 +63,13 @@ Completed semantic preflight: [#37](https://github.com/definitely-stable/ChunkSh
 
 Completed Core kernel implementation: [#4](https://github.com/definitely-stable/ChunkShift/issues/4) added scalar FastCDC/fixed reference kernels, bounded stream processing, HashSuite chunk identities, golden/segmentation tests and x64/ARM64 determinism; merged via PR #40.
 
-The next Core work can proceed in parallel: [#5](https://github.com/definitely-stable/ChunkShift/issues/5) CSM create/read/verify and [#16](https://github.com/definitely-stable/ChunkShift/issues/16) embedded raw scanner.
+Completed post-kernel hardening: [#42](https://github.com/definitely-stable/ChunkShift/issues/42) closed the confirmed FastCDC/kernel review gaps before downstream consumption.
+
+Completed raw streaming/API evidence: [#16](https://github.com/definitely-stable/ChunkShift/issues/16) delivered the bounded raw scanner and [#20](https://github.com/definitely-stable/ChunkShift/issues/20) froze the evidence-selected callback/borrowed-memory public shape.
+
+Completed CSM candidate: [#5](https://github.com/definitely-stable/ChunkShift/issues/5) delivers bounded create/read/verify, concrete streaming ManifestReader, strict corruption/resource handling, complete golden compatibility fixtures and CLI create/inspect/verify via PR #52.
+
+The next Core critical-path issue is [#6](https://github.com/definitely-stable/ChunkShift/issues/6), which owns the final minimal public API/NativeAOT freeze rather than further CSM feature expansion.
 
 ## Critical path
 
@@ -125,7 +131,7 @@ The next Core work can proceed in parallel: [#5](https://github.com/definitely-s
 | M0 foundation | [#2](https://github.com/definitely-stable/ChunkShift/issues/2), [#3](https://github.com/definitely-stable/ChunkShift/issues/3) | correct identity model + reproducible lab | complete |
 | Preparation | [#33](https://github.com/definitely-stable/ChunkShift/issues/33) | known M0 defects fixed; Core-first plan executable | regression tests + docs/issues synchronized |
 | Core kernels | [#4](https://github.com/definitely-stable/ChunkShift/issues/4) | scalar deterministic FastCDC/fixed reference + HashSuite kernel | segmentation-independent boundaries/IDs |
-| Core streaming/manifest | [#5](https://github.com/definitely-stable/ChunkShift/issues/5), [#16](https://github.com/definitely-stable/ChunkShift/issues/16) | CSM create/read/verify + bounded raw scanner | corruption/stream/lifetime tests |
+| Core streaming/manifest | [#5](https://github.com/definitely-stable/ChunkShift/issues/5), [#16](https://github.com/definitely-stable/ChunkShift/issues/16) | CSM create/read/verify + bounded raw scanner | complete |
 | Core API evidence | [#20](https://github.com/definitely-stable/ChunkShift/issues/20), [#6](https://github.com/definitely-stable/ChunkShift/issues/6) | smallest evidence-selected public Core candidate | alternatives measured; AOT/trim consumer passes |
 | Core release evidence | [#8](https://github.com/definitely-stable/ChunkShift/issues/8), [#17](https://github.com/definitely-stable/ChunkShift/issues/17), [#9](https://github.com/definitely-stable/ChunkShift/issues/9) | **ChunkShift Core 0.1.0** | profile/API/CSM vectors, real consumers, host proof |
 | Patching | [#7](https://github.com/definitely-stable/ChunkShift/issues/7) | compare/diff, CSP create/apply, exact reconstruction | verified output + product benchmark evidence |
@@ -180,13 +186,9 @@ Order:
 
 ## Immediate work order
 
-1. close [#33](https://github.com/definitely-stable/ChunkShift/issues/33) and merge its regression/evidence corrections;
-2. implement [#4](https://github.com/definitely-stable/ChunkShift/issues/4);
-3. implement [#5](https://github.com/definitely-stable/ChunkShift/issues/5) and [#16](https://github.com/definitely-stable/ChunkShift/issues/16) against the same canonical kernel;
-4. run [#20](https://github.com/definitely-stable/ChunkShift/issues/20) and keep only the evidence-selected public scanner surface;
-5. close [#6](https://github.com/definitely-stable/ChunkShift/issues/6);
-6. run [#8](https://github.com/definitely-stable/ChunkShift/issues/8) and [#17](https://github.com/definitely-stable/ChunkShift/issues/17);
-7. close [#9](https://github.com/definitely-stable/ChunkShift/issues/9) and release-readiness work for Core 0.1.0;
-8. only then start [#7](https://github.com/definitely-stable/ChunkShift/issues/7) Patching.
+1. close [#6](https://github.com/definitely-stable/ChunkShift/issues/6) and freeze the smallest Core API/NativeAOT contract over the completed scanner + CSM paths;
+2. run [#8](https://github.com/definitely-stable/ChunkShift/issues/8) and [#17](https://github.com/definitely-stable/ChunkShift/issues/17);
+3. close [#9](https://github.com/definitely-stable/ChunkShift/issues/9) and release-readiness work for Core 0.1.0;
+4. only then start [#7](https://github.com/definitely-stable/ChunkShift/issues/7) Patching.
 
 No additional repository-governance layer is a prerequisite for [#4](https://github.com/definitely-stable/ChunkShift/issues/4).

@@ -122,3 +122,51 @@ ChunkShift.ChunkScanOptions.ProfileId.get -> ChunkShift.Primitives.ChunkingProfi
 ChunkShift.ChunkScanOptions.ProfileId.init -> void
 ChunkShift.ChunkScanner
 static ChunkShift.ChunkScanner.ScanAsync(System.IO.Stream! source, ChunkShift.ChunkScanHandler! handler, ChunkShift.ChunkScanOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+ChunkShift.ChunkManifest
+static ChunkShift.ChunkManifest.CreateAsync(System.IO.Stream! content, System.IO.Stream! destination, ChunkShift.ManifestCreationOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<ChunkShift.ManifestInfo!>!
+static ChunkShift.ChunkManifest.VerifyAsync(System.IO.Stream! content, System.IO.Stream! manifest, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<ChunkShift.ManifestVerificationResult!>!
+static ChunkShift.ChunkManifest.VerifyManifestAsync(System.IO.Stream! manifest, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<ChunkShift.ManifestVerificationResult!>!
+ChunkShift.ManifestCreationOptions
+ChunkShift.ManifestCreationOptions.ManifestCreationOptions() -> void
+ChunkShift.ManifestCreationOptions.HashSuite.get -> ChunkShift.Primitives.HashSuiteId?
+ChunkShift.ManifestCreationOptions.HashSuite.init -> void
+ChunkShift.ManifestCreationOptions.IncludeBlockIndex.get -> bool
+ChunkShift.ManifestCreationOptions.IncludeBlockIndex.init -> void
+ChunkShift.ManifestCreationOptions.ProfileId.get -> ChunkShift.Primitives.ChunkingProfileId?
+ChunkShift.ManifestCreationOptions.ProfileId.init -> void
+ChunkShift.ManifestInfo
+ChunkShift.ManifestInfo.ChunkBlockCount.get -> ulong
+ChunkShift.ManifestInfo.ChunkCount.get -> ulong
+ChunkShift.ManifestInfo.ContentLength.get -> ulong
+ChunkShift.ManifestInfo.FileDigest.get -> ChunkShift.Primitives.Hash256
+ChunkShift.ManifestInfo.HasBlockIndex.get -> bool
+ChunkShift.ManifestInfo.HashSuite.get -> ChunkShift.Primitives.HashSuiteId
+ChunkShift.ManifestInfo.ManifestId.get -> ChunkShift.Primitives.ManifestId
+ChunkShift.ManifestInfo.PhysicalLength.get -> ulong
+ChunkShift.ManifestInfo.ProfileFingerprint.get -> ChunkShift.Primitives.ProfileFingerprint
+ChunkShift.ManifestInfo.ProfileId.get -> ChunkShift.Primitives.ChunkingProfileId
+ChunkShift.ManifestVerificationFailure
+ChunkShift.ManifestVerificationFailure.BlockCrc = 1 -> ChunkShift.ManifestVerificationFailure
+ChunkShift.ManifestVerificationFailure.Content = 32 -> ChunkShift.ManifestVerificationFailure
+ChunkShift.ManifestVerificationFailure.FileDigest = 8 -> ChunkShift.ManifestVerificationFailure
+ChunkShift.ManifestVerificationFailure.LogicalTotals = 2 -> ChunkShift.ManifestVerificationFailure
+ChunkShift.ManifestVerificationFailure.ManifestId = 4 -> ChunkShift.ManifestVerificationFailure
+ChunkShift.ManifestVerificationFailure.None = 0 -> ChunkShift.ManifestVerificationFailure
+ChunkShift.ManifestVerificationFailure.ProfileSemantics = 16 -> ChunkShift.ManifestVerificationFailure
+ChunkShift.ManifestVerificationResult
+ChunkShift.ManifestVerificationResult.Failures.get -> ChunkShift.ManifestVerificationFailure
+ChunkShift.ManifestVerificationResult.IsValid.get -> bool
+ChunkShift.ManifestVerificationResult.Manifest.get -> ChunkShift.ManifestInfo!
+ChunkShift.ChunkEntry
+ChunkShift.ChunkEntry.ChunkEntry() -> void
+ChunkShift.ChunkEntry.Id.get -> ChunkShift.Primitives.ChunkId
+ChunkShift.ChunkEntry.Index.get -> ulong
+ChunkShift.ChunkEntry.Length.get -> uint
+ChunkShift.ChunkEntry.Offset.get -> ulong
+ChunkShift.ManifestReader
+ChunkShift.ManifestReader.Dispose() -> void
+ChunkShift.ManifestReader.DisposeAsync() -> System.Threading.Tasks.ValueTask
+ChunkShift.ManifestReader.IsCompleted.get -> bool
+ChunkShift.ManifestReader.VerificationResult.get -> ChunkShift.ManifestVerificationResult?
+static ChunkShift.ManifestReader.OpenAsync(System.IO.Stream! manifest, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<ChunkShift.ManifestReader!>!
+ChunkShift.ManifestReader.ReadAsync(System.Memory<ChunkShift.ChunkEntry> destination, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
