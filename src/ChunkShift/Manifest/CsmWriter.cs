@@ -15,6 +15,13 @@ internal static class CsmWriter
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(destination);
 
+        if (ReferenceEquals(source, destination))
+        {
+            throw new ArgumentException(
+                "CSM source and destination must be distinct Stream instances.",
+                nameof(destination));
+        }
+
         if (!source.CanRead)
         {
             throw new ArgumentException(
