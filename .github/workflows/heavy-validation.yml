@@ -109,182 +109,43 @@ jobs:
       - name: Pack
         run: dotnet pack src/ChunkShift/ChunkShift.csproj -c Release --no-build --no-restore -o artifacts/packages -p:PackageVersion=${PACKAGE_VERSION}
 
-      - name: NativeAOT package-consumer smoke
+      - name: Package smoke (JIT)
         shell: bash
         run: |
           set -euo pipefail
-          dotnet new console --name AotConsumer --output artifacts/aot-consumer --framework net10.0 --no-restore
-          dotnet add artifacts/aot-consumer/AotConsumer.csproj package ChunkShift --version "${PACKAGE_VERSION}" --source "${GITHUB_WORKSPACE}/artifacts/packages"
-          cat > artifacts/aot-consumer/Program.cs <<'CS'
-          using ChunkShift;
-          using ChunkShift.Primitives;
-          
-          var bytes = new byte[768 * 1024];
-          uint state = 0xC0FFEE42u;
-          for (int index = 0; index < bytes.Length; index++)
-          {
-              state ^= state << 13;
-              state ^= state >> 17;
-              state ^= state << 5;
-              bytes[index] = (byte)state;
-          }
-          
-          foreach (HashSuiteId suite in new[] { HashSuiteIds.Blake3256V1, HashSuiteIds.Sha256V1 })
-          {
-              using var source = new MemoryStream(bytes, writable: false);
-              long covered = 0;
-              long count = 0;
-          
-              await ChunkScanner.ScanAsync(
-                  source,
-                  (chunk, content, _) =>
-                  {
-                      if (chunk.Index != count ||
-                          chunk.Offset != covered ||
-                          chunk.Length != content.Length ||
-                          chunk.Length <= 0)
-                      {
-                          throw new InvalidOperationException("ChunkShift scanner package smoke invariant failed.");
-                      }
-          
-                      covered += chunk.Length;
-                      count++;
-                      return ValueTask.CompletedTask;
-                  },
-                  new ChunkScanOptions { HashSuite = suite });
-          
-              if (covered != bytes.LongLength || count == 0)
-              {
-                  throw new InvalidOperationException("ChunkShift scanner did not cover the complete source.");
-              }
-          
-              Console.WriteLine($"{suite}: {count} chunks, {covered} bytes");
-          }
+          mkdir -p artifacts/package-smoke
+          dotnet run --project tests/ChunkShift.PackageSmoke/ChunkShift.PackageSmoke.csproj -c Release \
+            -p:ChunkShiftPackageVersion="${PACKAGE_VERSION}" \
+            -p:RestoreAdditionalProjectSources="${GITHUB_WORKSPACE}/artifacts/packages" \
+            -- --evidence "artifacts/package-smoke/jit-${{ matrix.rid }}.txt"
 
-          const long generatedLength = 32L * 1024 * 1024;
-          using (var generated = new GeneratedXorShiftStream(generatedLength, 0x51A6E55u))
-          {
-              long beforeAllocated = GC.GetTotalAllocatedBytes(precise: true);
-              long covered = 0;
-              long count = 0;
-
-              await ChunkScanner.ScanAsync(
-                  generated,
-                  (chunk, content, _) =>
-                  {
-                      if (chunk.Index != count ||
-                          chunk.Offset != covered ||
-                          chunk.Length != content.Length ||
-                          chunk.Length <= 0)
-                      {
-                          throw new InvalidOperationException(
-                              "ChunkShift generated-stream invariant failed.");
-                      }
-
-                      covered += chunk.Length;
-                      count++;
-                      return ValueTask.CompletedTask;
-                  });
-
-              long allocated = GC.GetTotalAllocatedBytes(precise: true) - beforeAllocated;
-
-              if (covered != generatedLength ||
-                  generated.BytesRead != generatedLength ||
-                  count == 0 ||
-                  generated.MaxRequestedReadLength <= 0 ||
-                  generated.MaxRequestedReadLength > 1024 * 1024)
-              {
-                  throw new InvalidOperationException(
-                      "ChunkShift scanner did not preserve bounded generated-stream semantics.");
-              }
-
-              // A full-source materialization alone would allocate at least 32 MiB.
-              // Leave substantial runtime headroom while still detecting that class
-              // of regression in the clean packed NativeAOT consumer.
-              if (allocated >= 16L * 1024 * 1024)
-              {
-                  throw new InvalidOperationException(
-                      $"Generated-stream scan allocated {allocated} bytes; bounded streaming regressed.");
-              }
-
-              Console.WriteLine(
-                  $"generated-stream: {count} chunks, {covered} bytes, {allocated} allocated bytes");
-          }
-
-          sealed class GeneratedXorShiftStream : Stream
-          {
-              private long _remaining;
-              private uint _state;
-
-              internal GeneratedXorShiftStream(long length, uint seed)
-              {
-                  _remaining = length;
-                  _state = seed;
-              }
-
-              internal long BytesRead { get; private set; }
-
-              internal int MaxRequestedReadLength { get; private set; }
-
-              public override bool CanRead => true;
-              public override bool CanSeek => false;
-              public override bool CanWrite => false;
-              public override long Length => throw new NotSupportedException();
-              public override long Position
-              {
-                  get => throw new NotSupportedException();
-                  set => throw new NotSupportedException();
-              }
-
-              public override int Read(byte[] buffer, int offset, int count) =>
-                  ReadCore(buffer.AsSpan(offset, count));
-
-              public override ValueTask<int> ReadAsync(
-                  Memory<byte> buffer,
-                  CancellationToken cancellationToken = default)
-              {
-                  cancellationToken.ThrowIfCancellationRequested();
-                  return ValueTask.FromResult(ReadCore(buffer.Span));
-              }
-
-              private int ReadCore(Span<byte> destination)
-              {
-                  MaxRequestedReadLength = Math.Max(
-                      MaxRequestedReadLength,
-                      destination.Length);
-
-                  if (_remaining == 0)
-                  {
-                      return 0;
-                  }
-
-                  int count = (int)Math.Min((long)destination.Length, _remaining);
-
-                  for (int index = 0; index < count; index++)
-                  {
-                      _state ^= _state << 13;
-                      _state ^= _state >> 17;
-                      _state ^= _state << 5;
-                      destination[index] = (byte)_state;
-                  }
-
-                  _remaining -= count;
-                  BytesRead += count;
-                  return count;
-              }
-
-              public override void Flush() => throw new NotSupportedException();
-              public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-              public override void SetLength(long value) => throw new NotSupportedException();
-              public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-          }
-          
-          CS
-          dotnet publish artifacts/aot-consumer/AotConsumer.csproj -c Release -r "${{ matrix.rid }}" --self-contained true -p:PublishAot=true -p:PublishTrimmed=true -o artifacts/aot-publish
-
-      - name: Run NativeAOT smoke
+      - name: NativeAOT package-consumer publish
         shell: bash
-        run: ./artifacts/aot-publish/AotConsumer
+        run: |
+          set -euo pipefail
+          dotnet publish tests/ChunkShift.PackageSmoke/ChunkShift.PackageSmoke.csproj -c Release \
+            -r "${{ matrix.rid }}" --self-contained true -p:PublishAot=true -p:PublishTrimmed=true \
+            -p:ChunkShiftPackageVersion="${PACKAGE_VERSION}" \
+            -p:RestoreAdditionalProjectSources="${GITHUB_WORKSPACE}/artifacts/packages" \
+            -o artifacts/aot-publish
+
+      - name: Run NativeAOT smoke and compare with JIT
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./artifacts/aot-publish/ChunkShift.PackageSmoke \
+            --evidence "artifacts/package-smoke/aot-${{ matrix.rid }}.txt"
+          diff -u \
+            "artifacts/package-smoke/jit-${{ matrix.rid }}.txt" \
+            "artifacts/package-smoke/aot-${{ matrix.rid }}.txt"
+
+      - name: Upload package-smoke evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: package-smoke-${{ matrix.rid }}
+          path: artifacts/package-smoke/
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Build and test benchmark lab
         shell: bash
@@ -343,6 +204,23 @@ jobs:
         with:
           name: benchmark-lab-linux-arm64
           path: artifacts/compare/arm64
+
+      - name: Download package-smoke evidence
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          pattern: package-smoke-*
+          path: artifacts/package-smoke
+          merge-multiple: true
+
+      - name: Compare public-API evidence (CSM identities, chunk ids)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # NativeAOT x64 vs NativeAOT ARM64; JIT vs AOT was compared per architecture.
+          diff -u \
+            artifacts/package-smoke/aot-linux-x64.txt \
+            artifacts/package-smoke/aot-linux-arm64.txt
+          cat artifacts/package-smoke/aot-linux-x64.txt
 
       - name: Compare deterministic evidence
         shell: bash
