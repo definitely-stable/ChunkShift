@@ -91,8 +91,8 @@ public sealed class CsmGoldenVectorTests
 
         if (fileName == "one-entry-sha256-no-bidx.csm")
         {
-            ReadOnlySpan<byte> payload =
-                "hello chunkshift csm fixture"u8;
+            byte[] payload =
+                "hello chunkshift csm fixture"u8.ToArray();
             ChunkId chunkId = new(
                 HashSuiteHasher.Hash(
                     HashSuiteIds.Sha256V1,
