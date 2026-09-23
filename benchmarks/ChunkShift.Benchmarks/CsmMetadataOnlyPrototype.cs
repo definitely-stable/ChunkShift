@@ -24,204 +24,81 @@ internal static class CsmMetadataOnlyPrototype
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(sink);
 
+        if (!source.CanRead)
+        {
+            throw new ArgumentException("Source stream must be readable.", nameof(source));
+        }
+
         byte[] ioBuffer = ArrayPool<byte>.Shared.Rent(
             Math.Min(IoBufferSize, Math.Max(1, profile.Maximum)));
 
         try
         {
+            var boundaryState = new ChunkBoundaryState(profile);
             using var hasher = new IncrementalSuiteHasher(hashSuite);
 
-            if (profile.Kind == ChunkingKernelKind.Fixed)
+            long chunkOffset = 0;
+
+            while (true)
             {
-                await ScanFixedAsync(
-                    source,
-                    ioBuffer,
-                    profile.Target,
+                cancellationToken.ThrowIfCancellationRequested();
+
+                int read = await source
+                    .ReadAsync(
+                        ioBuffer.AsMemory(
+                            0,
+                            Math.Min(IoBufferSize, Math.Max(1, profile.Maximum))),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (read == 0)
+                {
+                    break;
+                }
+
+                int inputIndex = 0;
+
+                while (inputIndex < read)
+                {
+                    ChunkBoundaryScanResult result =
+                        boundaryState.Scan(ioBuffer.AsSpan(inputIndex, read - inputIndex));
+
+                    if (result.Consumed > 0)
+                    {
+                        hasher.Update(ioBuffer.AsSpan(inputIndex, result.Consumed));
+                        inputIndex += result.Consumed;
+                    }
+
+                    if (!result.HasBoundary)
+                    {
+                        continue;
+                    }
+
+                    await EmitAsync(
+                        hasher,
+                        chunkOffset,
+                        result.CompletedChunkLength,
+                        sink,
+                        cancellationToken).ConfigureAwait(false);
+
+                    chunkOffset = checked(chunkOffset + result.CompletedChunkLength);
+                }
+            }
+
+            int finalLength = boundaryState.Finish();
+            if (finalLength != 0)
+            {
+                await EmitAsync(
                     hasher,
+                    chunkOffset,
+                    finalLength,
                     sink,
                     cancellationToken).ConfigureAwait(false);
-                return;
             }
-
-            if (profile.Kind != ChunkingKernelKind.FastCdcGearV1)
-            {
-                throw new InvalidOperationException($"Unsupported chunking kernel '{profile.Kind}'.");
-            }
-
-            await ScanFastCdcAsync(
-                source,
-                ioBuffer,
-                profile.FastCdc,
-                hasher,
-                sink,
-                cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             ArrayPool<byte>.Shared.Return(ioBuffer);
-        }
-    }
-
-    private static async ValueTask ScanFastCdcAsync(
-        Stream source,
-        byte[] ioBuffer,
-        FastCdcProfile profile,
-        IncrementalSuiteHasher hasher,
-        MetadataChunkSink sink,
-        CancellationToken cancellationToken)
-    {
-        int chunkLength = 0;
-        long chunkOffset = 0;
-        ulong gearHash = 0;
-
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            int read = await source
-                .ReadAsync(ioBuffer.AsMemory(0, IoBufferSize), cancellationToken)
-                .ConfigureAwait(false);
-
-            if (read == 0)
-            {
-                break;
-            }
-
-            int inputIndex = 0;
-            int hashStart = 0;
-
-            while (inputIndex < read)
-            {
-                byte candidate = ioBuffer[inputIndex];
-
-                if (chunkLength >= profile.Minimum)
-                {
-                    gearHash = unchecked((gearHash << 1) + FastCdcGearTable.Get(candidate));
-                    ulong mask = chunkLength < profile.Target
-                        ? profile.StrictMask
-                        : profile.RelaxedMask;
-
-                    if ((gearHash & mask) == 0)
-                    {
-                        if (inputIndex > hashStart)
-                        {
-                            hasher.Update(ioBuffer.AsSpan(hashStart, inputIndex - hashStart));
-                        }
-
-                        await EmitAsync(
-                            hasher,
-                            chunkOffset,
-                            chunkLength,
-                            sink,
-                            cancellationToken).ConfigureAwait(false);
-
-                        chunkOffset = checked(chunkOffset + chunkLength);
-                        chunkLength = 0;
-                        gearHash = 0;
-                        hashStart = inputIndex;
-
-                        // Re-evaluate the candidate as the first byte of the next chunk.
-                        continue;
-                    }
-                }
-
-                chunkLength++;
-                inputIndex++;
-
-                if (chunkLength == profile.Maximum)
-                {
-                    if (inputIndex > hashStart)
-                    {
-                        hasher.Update(ioBuffer.AsSpan(hashStart, inputIndex - hashStart));
-                    }
-
-                    await EmitAsync(
-                        hasher,
-                        chunkOffset,
-                        chunkLength,
-                        sink,
-                        cancellationToken).ConfigureAwait(false);
-
-                    chunkOffset = checked(chunkOffset + chunkLength);
-                    chunkLength = 0;
-                    gearHash = 0;
-                    hashStart = inputIndex;
-                }
-            }
-
-            if (inputIndex > hashStart)
-            {
-                hasher.Update(ioBuffer.AsSpan(hashStart, inputIndex - hashStart));
-            }
-        }
-
-        if (chunkLength != 0)
-        {
-            await EmitAsync(
-                hasher,
-                chunkOffset,
-                chunkLength,
-                sink,
-                cancellationToken).ConfigureAwait(false);
-        }
-    }
-
-    private static async ValueTask ScanFixedAsync(
-        Stream source,
-        byte[] ioBuffer,
-        int chunkSize,
-        IncrementalSuiteHasher hasher,
-        MetadataChunkSink sink,
-        CancellationToken cancellationToken)
-    {
-        int chunkLength = 0;
-        long chunkOffset = 0;
-
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            int read = await source
-                .ReadAsync(ioBuffer.AsMemory(0, Math.Min(IoBufferSize, chunkSize)), cancellationToken)
-                .ConfigureAwait(false);
-
-            if (read == 0)
-            {
-                break;
-            }
-
-            int inputIndex = 0;
-
-            while (inputIndex < read)
-            {
-                int take = Math.Min(chunkSize - chunkLength, read - inputIndex);
-                hasher.Update(ioBuffer.AsSpan(inputIndex, take));
-                inputIndex += take;
-                chunkLength += take;
-
-                if (chunkLength == chunkSize)
-                {
-                    await EmitAsync(
-                        hasher,
-                        chunkOffset,
-                        chunkLength,
-                        sink,
-                        cancellationToken).ConfigureAwait(false);
-
-                    chunkOffset = checked(chunkOffset + chunkLength);
-                    chunkLength = 0;
-                }
-            }
-        }
-
-        if (chunkLength != 0)
-        {
-            await EmitAsync(
-                hasher,
-                chunkOffset,
-                chunkLength,
-                sink,
-                cancellationToken).ConfigureAwait(false);
         }
     }
 
