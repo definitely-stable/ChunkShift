@@ -81,12 +81,12 @@ public sealed class ManifestIdAccumulatorTests
         bytes.Write(hash);
 
         ulong totalLength = 0;
+        Span<byte> lengthBytes = stackalloc byte[4];
         foreach ((ChunkId id, int length) in chunks)
         {
             id.Value.CopyTo(hash);
             bytes.Write(hash);
 
-            Span<byte> lengthBytes = stackalloc byte[4];
             BinaryPrimitives.WriteUInt32LittleEndian(lengthBytes, checked((uint)length));
             bytes.Write(lengthBytes);
             totalLength = checked(totalLength + (uint)length);
