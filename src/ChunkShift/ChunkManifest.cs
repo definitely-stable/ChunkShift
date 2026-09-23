@@ -52,7 +52,7 @@ public static class ChunkManifest
     /// Malformed format, unsupported required semantics, I/O failure, and cancellation
     /// use normal .NET exceptions.
     /// </remarks>
-    public static async Task<ManifestVerificationResult> VerifyAsync(
+    public static async Task<ManifestVerificationResult> VerifyManifestAsync(
         Stream manifest,
         CancellationToken cancellationToken = default)
     {
