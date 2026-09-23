@@ -75,6 +75,9 @@ internal static class CsmWriter
 }
 
 internal readonly record struct CsmWriteResult(
+    HashSuiteId HashSuite,
+    ChunkingProfileId ProfileId,
+    ProfileFingerprint ProfileFingerprint,
     ManifestId ManifestId,
     Hash256 FileDigest,
     ulong ChunkCount,
