@@ -212,7 +212,7 @@ public class ChunkScannerTests
     [Fact]
     public async Task CancellationAfterFirstChunk_DoesNotReadToEnd()
     {
-        byte[] input = CreateXorShiftBytes(8 * 1024 * 1024, 0xCANCEL42u);
+        byte[] input = CreateXorShiftBytes(8 * 1024 * 1024, 0xCA11CE42u);
         using var source = new MemoryStream(input, writable: false);
         using var cancellation = new CancellationTokenSource();
 
