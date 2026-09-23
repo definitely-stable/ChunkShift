@@ -239,32 +239,27 @@ jobs:
             --join \
             | tee "$out.log"
 
-      - name: Validate scanner API phase-two evidence
+      - name: Validate and compact scanner API phase-two evidence
         shell: bash
         run: |
           set -euo pipefail
           out="artifacts/benchmarks/scanner-api-phase2-${{ matrix.arch }}"
-          report_count="$(find "$out/results" -type f -name '*-report-full.json' | wc -l)"
-          if [ "$report_count" -lt 1 ]; then
-            echo "Expected scanner Phase 2 FullJSON evidence, found $report_count." >&2
+          full_json="$(find "$out/results" -type f -name '*-report-full.json' -print -quit)"
+
+          if [ -z "$full_json" ]; then
+            echo "Expected scanner Phase 2 FullJSON evidence." >&2
             exit 1
           fi
 
-          for benchmark_type in \
-            ScannerApiPhase2CoreBenchmarks \
-            ScannerApiPhase2FileBenchmarks \
-            ScannerApiPhase2AsyncBenchmarks
-          do
-            if ! grep -q "$benchmark_type" "$out.log"; then
-              echo "Missing Phase 2 benchmark evidence for $benchmark_type." >&2
-              exit 1
-            fi
-          done
+          python3 benchmarks/scripts/summarize_scanner_phase2.py \
+            "$full_json" \
+            --commit "$GITHUB_SHA" \
+            --arch "${{ matrix.arch }}" \
+            --json "$out/phase2-compact-evidence.json" \
+            --markdown "$out/phase2-compact-evidence.md"
 
-          if ! grep -q 'P50' "$out.log" || ! grep -q 'P95' "$out.log"; then
-            echo "Phase 2 benchmark output is missing required P50/P95 statistics." >&2
-            exit 1
-          fi
+          test -s "$out/phase2-compact-evidence.json"
+          test -s "$out/phase2-compact-evidence.md"
 
       - name: Upload scanner API phase-two evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
