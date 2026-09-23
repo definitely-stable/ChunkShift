@@ -54,11 +54,21 @@ internal static class ChunkingKernel
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                int requested = Math.Min(IoBufferSize, chunkCapacity);
                 int read = await source
                     .ReadAsync(
-                        ioBuffer.AsMemory(0, Math.Min(IoBufferSize, chunkCapacity)),
+                        ioBuffer.AsMemory(0, requested),
                         cancellationToken)
                     .ConfigureAwait(false);
+
+                // A count outside 0..requested violates the Stream contract. A
+                // negative count would otherwise loop forever and an oversized
+                // one would read past the bytes actually produced.
+                if ((uint)read > (uint)requested)
+                {
+                    throw new InvalidOperationException(
+                        $"The source stream returned {read} bytes for a {requested}-byte read; Stream.ReadAsync must return a count from 0 to the buffer length.");
+                }
 
                 if (read == 0)
                 {
