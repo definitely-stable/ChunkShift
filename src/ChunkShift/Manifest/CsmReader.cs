@@ -471,16 +471,14 @@ internal static class CsmReader
             blockBuffer.AsMemory(CsmFormat.SectionHeaderSize, payloadLength),
             cancellationToken).ConfigureAwait(false);
 
-        ReadOnlySpan<byte> payload =
-            blockBuffer.AsSpan(CsmFormat.SectionHeaderSize, payloadLength);
-
-        uint count = BinaryPrimitives.ReadUInt32LittleEndian(payload);
+        uint count = BinaryPrimitives.ReadUInt32LittleEndian(
+            blockBuffer.AsSpan(CsmFormat.SectionHeaderSize, 4));
         uint reserved = BinaryPrimitives.ReadUInt32LittleEndian(
-            payload.Slice(4, 4));
+            blockBuffer.AsSpan(CsmFormat.SectionHeaderSize + 4, 4));
         ulong firstChunkIndex = BinaryPrimitives.ReadUInt64LittleEndian(
-            payload.Slice(8, 8));
+            blockBuffer.AsSpan(CsmFormat.SectionHeaderSize + 8, 8));
         ulong firstContentOffset = BinaryPrimitives.ReadUInt64LittleEndian(
-            payload.Slice(16, 8));
+            blockBuffer.AsSpan(CsmFormat.SectionHeaderSize + 16, 8));
 
         if (count is 0 or > CsmFormat.MaximumChunksPerBlock)
         {
