@@ -547,3 +547,185 @@ public sealed class ScannerApiSlowConsumerBenchmarks
         await Task.Delay(1, cancellationToken).ConfigureAwait(false);
     }
 }
+
+
+[MemoryDiagnoser]
+public sealed class ScannerApiFirstChunkBenchmarks : IDisposable
+{
+    private static readonly FirstChunkObservedException Stop = new();
+
+    private byte[] _data = null!;
+    private string _filePath = null!;
+    private ChunkingKernelProfile _profile;
+    private ChunkKernelSink _directSink = null!;
+    private ChunkScanHandler _publicHandler = null!;
+    private TaskChunkScanHandler _taskHandler = null!;
+    private SegmentedChunkScanHandler _segmentedHandler = null!;
+
+    [Params(
+        ScannerBenchmarkSourceKind.Memory,
+        ScannerBenchmarkSourceKind.File)]
+    public ScannerBenchmarkSourceKind SourceKind { get; set; }
+
+    [GlobalSetup]
+    public void Setup()
+    {
+        _data = new byte[16 * 1024 * 1024];
+        var random = new Lab.DeterministicPrng(0xF1A5_7C20_2026UL);
+        random.Fill(_data);
+
+        _filePath = Path.Combine(
+            Path.GetTempPath(),
+            $"chunkshift-first-chunk-{Guid.NewGuid():N}.bin");
+        File.WriteAllBytes(_filePath, _data);
+
+        _profile = ChunkingKernelProfile.FastCdcGear(
+            FastCdcProfile.CreateM1Candidate(64 * 1024));
+
+        _directSink = StopDirect;
+        _publicHandler = StopPublic;
+        _taskHandler = StopTask;
+        _segmentedHandler = StopSegmented;
+    }
+
+    [Benchmark(Baseline = true)]
+    public async ValueTask DirectKernelFirstChunk()
+    {
+        using Stream source = OpenSource();
+
+        try
+        {
+            await ChunkingKernel.ScanAsync(
+                source,
+                _profile,
+                HashSuiteIds.Blake3256V1,
+                _directSink).ConfigureAwait(false);
+        }
+        catch (FirstChunkObservedException)
+        {
+        }
+    }
+
+    [Benchmark]
+    public async Task PublicCallbackFirstChunk()
+    {
+        using Stream source = OpenSource();
+
+        try
+        {
+            await ChunkScanner.ScanAsync(
+                source,
+                _publicHandler).ConfigureAwait(false);
+        }
+        catch (FirstChunkObservedException)
+        {
+        }
+    }
+
+    [Benchmark]
+    public async Task TaskCallbackFirstChunk()
+    {
+        using Stream source = OpenSource();
+
+        try
+        {
+            await TaskCallbackScannerPrototype.ScanAsync(
+                source,
+                _profile,
+                HashSuiteIds.Blake3256V1,
+                _taskHandler).ConfigureAwait(false);
+        }
+        catch (FirstChunkObservedException)
+        {
+        }
+    }
+
+    [Benchmark]
+    public async ValueTask PullReaderFirstChunk()
+    {
+        using Stream source = OpenSource();
+        using var reader = new ChunkPullReaderPrototype(
+            source,
+            _profile,
+            HashSuiteIds.Blake3256V1);
+
+        try
+        {
+            PullChunkResult result = await reader.ReadAsync().ConfigureAwait(false);
+            if (result.HasChunk)
+            {
+                throw Stop;
+            }
+        }
+        catch (FirstChunkObservedException)
+        {
+        }
+    }
+
+    [Benchmark]
+    public async ValueTask SegmentedFirstChunk()
+    {
+        using Stream source = OpenSource();
+
+        try
+        {
+            await SegmentedChunkScannerPrototype.ScanAsync(
+                source,
+                _profile,
+                HashSuiteIds.Blake3256V1,
+                _segmentedHandler).ConfigureAwait(false);
+        }
+        catch (FirstChunkObservedException)
+        {
+        }
+    }
+
+    [GlobalCleanup]
+    public void Cleanup() => Dispose();
+
+    public void Dispose()
+    {
+        if (!string.IsNullOrEmpty(_filePath))
+        {
+            File.Delete(_filePath);
+            _filePath = string.Empty;
+        }
+    }
+
+    private Stream OpenSource() =>
+        SourceKind == ScannerBenchmarkSourceKind.Memory
+            ? new MemoryStream(_data, writable: false)
+            : new FileStream(
+                _filePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                64 * 1024,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+    private static ValueTask StopDirect(
+        ChunkKernelChunk chunk,
+        ReadOnlyMemory<byte> content,
+        CancellationToken cancellationToken) =>
+        ValueTask.FromException(Stop);
+
+    private static ValueTask StopPublic(
+        ChunkInfo chunk,
+        ReadOnlyMemory<byte> content,
+        CancellationToken cancellationToken) =>
+        ValueTask.FromException(Stop);
+
+    private static Task StopTask(
+        ChunkInfo chunk,
+        ReadOnlyMemory<byte> content,
+        CancellationToken cancellationToken) =>
+        Task.FromException(Stop);
+
+    private static ValueTask StopSegmented(
+        ChunkInfo chunk,
+        ReadOnlySequence<byte> content,
+        CancellationToken cancellationToken) =>
+        ValueTask.FromException(Stop);
+
+    private sealed class FirstChunkObservedException : Exception;
+}
