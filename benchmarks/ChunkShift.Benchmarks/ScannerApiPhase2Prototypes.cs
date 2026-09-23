@@ -148,3 +148,25 @@ internal readonly struct DirectCounterKernelSink : IChunkKernelSink
         return ValueTask.CompletedTask;
     }
 }
+
+
+internal struct AsyncDirectCounterKernelSink : IChunkKernelSink
+{
+    private readonly ScannerBenchmarkCounter _counter;
+
+    internal AsyncDirectCounterKernelSink(ScannerBenchmarkCounter counter)
+    {
+        _counter = counter;
+    }
+
+    public async ValueTask OnChunkAsync(
+        ChunkKernelChunk chunk,
+        ReadOnlyMemory<byte> content,
+        CancellationToken cancellationToken)
+    {
+        _counter.Count++;
+        _counter.Bytes += content.Length + (chunk.Length & 0);
+        await Task.Yield();
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+}
