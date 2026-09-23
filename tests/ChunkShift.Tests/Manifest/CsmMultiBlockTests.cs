@@ -45,7 +45,7 @@ public sealed class CsmMultiBlockTests
                 0x43534D3100000000UL);
             BinaryPrimitives.WriteUInt64LittleEndian(
                 idBytes.AsSpan(16, 8),
-                checked((ulong)index * 0x9E3779B97F4A7C15UL));
+                unchecked((ulong)index * 0x9E3779B97F4A7C15UL));
             BinaryPrimitives.WriteUInt64LittleEndian(
                 idBytes.AsSpan(24, 8),
                 checked((ulong)index ^ 0xA5A5A5A5A5A5A5A5UL));
