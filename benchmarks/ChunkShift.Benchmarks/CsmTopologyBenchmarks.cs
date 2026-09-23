@@ -5,7 +5,7 @@ using ChunkShift.Primitives;
 namespace ChunkShift.Benchmarks;
 
 [MemoryDiagnoser]
-public class CsmTopologyBenchmarks
+public class CsmTopologyBenchmarks : IDisposable
 {
     private byte[] _data = null!;
     private MemoryStream _payloadStream = null!;
@@ -102,10 +102,13 @@ public class CsmTopologyBenchmarks
     }
 
     [GlobalCleanup]
-    public void Cleanup()
+    public void Cleanup() => Dispose();
+
+    public void Dispose()
     {
         _payloadStream?.Dispose();
         _metadataStream?.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     private ValueTask OnPayloadChunkAsync(
