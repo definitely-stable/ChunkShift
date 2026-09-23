@@ -3,9 +3,14 @@ using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks;
 
+internal readonly record struct ApiChunkRecord(
+    long Offset,
+    int Length,
+    ChunkId Id);
+
 internal static class ChunkStreamApiTestFacade
 {
-    internal static async ValueTask<ChunkKernelChunk[]> CollectPullAsync(
+    internal static async ValueTask<ApiChunkRecord[]> CollectPullAsync(
         byte[] data,
         int target,
         int[]? segments = null,
@@ -23,7 +28,7 @@ internal static class ChunkStreamApiTestFacade
             profile,
             HashSuiteIds.Blake3256V1);
 
-        var chunks = new List<ChunkKernelChunk>();
+        var chunks = new List<ApiChunkRecord>();
 
         while (true)
         {
@@ -35,20 +40,23 @@ internal static class ChunkStreamApiTestFacade
                 break;
             }
 
-            chunks.Add(result.Chunk);
+            chunks.Add(new ApiChunkRecord(
+                result.Chunk.Offset,
+                result.Chunk.Length,
+                result.Chunk.Id));
         }
 
         return chunks.ToArray();
     }
 
-    internal static async ValueTask<ChunkKernelChunk[]> CollectKernelAsync(
+    internal static async ValueTask<ApiChunkRecord[]> CollectKernelAsync(
         byte[] data,
         int target,
         CancellationToken cancellationToken = default)
     {
         FastCdcProfile fastCdc = FastCdcProfile.CreateM1Candidate(target);
         ChunkingKernelProfile profile = ChunkingKernelProfile.FastCdcGear(fastCdc);
-        var chunks = new List<ChunkKernelChunk>();
+        var chunks = new List<ApiChunkRecord>();
 
         using var source = new MemoryStream(data, writable: false);
 
@@ -58,7 +66,10 @@ internal static class ChunkStreamApiTestFacade
             HashSuiteIds.Blake3256V1,
             (chunk, _, _) =>
             {
-                chunks.Add(chunk);
+                chunks.Add(new ApiChunkRecord(
+                    chunk.Offset,
+                    chunk.Length,
+                    chunk.Id));
                 return ValueTask.CompletedTask;
             },
             cancellationToken).ConfigureAwait(false);
