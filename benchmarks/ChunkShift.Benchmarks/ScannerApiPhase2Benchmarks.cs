@@ -64,7 +64,7 @@ public class ScannerApiPhase2CoreBenchmarks
     }
 
     [Benchmark(Baseline = true)]
-    public async ValueTask<int> DirectGenericSink()
+    public async Task<int> DirectGenericSink()
     {
         _counter.Reset();
         using Stream source = OpenSource();
@@ -98,7 +98,7 @@ public class ScannerApiPhase2CoreBenchmarks
     }
 
     [Benchmark]
-    public async ValueTask<int> FusedValueTaskCore()
+    public async Task<int> FusedValueTaskCore()
     {
         _counter.Reset();
         using Stream source = OpenSource();
@@ -228,7 +228,7 @@ public class ScannerApiPhase2FileBenchmarks : IDisposable
     }
 
     [Benchmark(Baseline = true)]
-    public async ValueTask<int> DirectGenericSink()
+    public async Task<int> DirectGenericSink()
     {
         _counter.Reset();
         using Stream source = OpenFile();
@@ -262,7 +262,7 @@ public class ScannerApiPhase2FileBenchmarks : IDisposable
     }
 
     [Benchmark]
-    public async ValueTask<int> FusedValueTaskCore()
+    public async Task<int> FusedValueTaskCore()
     {
         _counter.Reset();
         using Stream source = OpenFile();
@@ -389,7 +389,7 @@ public class ScannerApiPhase2AsyncBenchmarks
     }
 
     [Benchmark(Baseline = true)]
-    public async ValueTask<int> DirectGenericSink()
+    public async Task<int> DirectGenericSink()
     {
         _counter.Reset();
         using var source = new MemoryStream(_data, writable: false);
@@ -423,7 +423,7 @@ public class ScannerApiPhase2AsyncBenchmarks
     }
 
     [Benchmark]
-    public async ValueTask<int> FusedValueTaskCore()
+    public async Task<int> FusedValueTaskCore()
     {
         _counter.Reset();
         using var source = new MemoryStream(_data, writable: false);
