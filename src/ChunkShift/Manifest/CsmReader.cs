@@ -262,6 +262,12 @@ internal sealed class CsmStreamReaderCore : IDisposable
 
             if (!blockReady)
             {
+                if (_suppressEntries && !_completed)
+                {
+                    await DrainToCompletionAsync(
+                        cancellationToken).ConfigureAwait(false);
+                }
+
                 return written;
             }
         }
