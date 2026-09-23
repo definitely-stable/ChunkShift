@@ -65,7 +65,7 @@ jobs:
         run: dotnet test benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-build --no-restore
 
       - name: Validate benchmark evidence scripts
-        run: python3 -m py_compile benchmarks/scripts/summarize_scanner_phase2.py
+        run: python3 -m py_compile benchmarks/scripts/summarize_scanner_phase2.py benchmarks/scripts/summarize_scanner_freeze.py
 
       - name: Verify independent FastCDC vector
         shell: bash
@@ -198,8 +198,8 @@ jobs:
           retention-days: 30
 
 
-  scanner-api-phase2:
-    name: scanner-api-phase2 (${{ matrix.arch }})
+  scanner-api-freeze:
+    name: scanner-api-freeze (${{ matrix.arch }})
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'perf/20-scanner-api-phase2'))
     needs: smoke
     strategy:
@@ -227,49 +227,49 @@ jobs:
       - name: Build
         run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
 
-      - name: Run scanner API phase-two benchmarks
+      - name: Run final scanner API freeze benchmarks
         shell: bash
         run: |
           set -euo pipefail
-          out="artifacts/benchmarks/scanner-api-phase2-${{ matrix.arch }}"
+          out="artifacts/benchmarks/scanner-api-freeze-${{ matrix.arch }}"
           mkdir -p "$out"
           dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
             micro \
             --memory \
             --exporters GitHub FullJSON \
             --artifacts "$out" \
-            --filter '*ScannerApiPhase2CoreBenchmarks*' '*ScannerApiPhase2FileBenchmarks*' '*ScannerApiPhase2AsyncBenchmarks*' \
+            --filter '*ScannerApiFreezeProfileBenchmarks*' '*ScannerApiFreezeCorpusBenchmarks*' '*ScannerApiFreezeShortReadBenchmarks*' '*ScannerApiFreezeAsyncBenchmarks*' '*ScannerApiFreezeFileBenchmarks*' \
             --join \
             | tee "$out.log"
 
-      - name: Validate and compact scanner API phase-two evidence
+      - name: Validate and compact final freeze evidence
         shell: bash
         run: |
           set -euo pipefail
-          out="artifacts/benchmarks/scanner-api-phase2-${{ matrix.arch }}"
+          out="artifacts/benchmarks/scanner-api-freeze-${{ matrix.arch }}"
           full_json="$(find "$out/results" -type f -name '*-report-full.json' -print -quit)"
 
           if [ -z "$full_json" ]; then
-            echo "Expected scanner Phase 2 FullJSON evidence." >&2
+            echo "Expected final scanner freeze FullJSON evidence." >&2
             exit 1
           fi
 
-          python3 benchmarks/scripts/summarize_scanner_phase2.py \
+          python3 benchmarks/scripts/summarize_scanner_freeze.py \
             "$full_json" \
             --commit "$GITHUB_SHA" \
             --arch "${{ matrix.arch }}" \
-            --json "$out/phase2-compact-evidence.json" \
-            --markdown "$out/phase2-compact-evidence.md"
+            --json "$out/freeze-compact-evidence.json" \
+            --markdown "$out/freeze-compact-evidence.md"
 
-          test -s "$out/phase2-compact-evidence.json"
-          test -s "$out/phase2-compact-evidence.md"
+          test -s "$out/freeze-compact-evidence.json"
+          test -s "$out/freeze-compact-evidence.md"
 
-      - name: Upload scanner API phase-two evidence
+      - name: Upload final scanner freeze evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: scanner-api-phase2-${{ matrix.arch }}
+          name: scanner-api-freeze-${{ matrix.arch }}
           path: |
-            artifacts/benchmarks/scanner-api-phase2-${{ matrix.arch }}
-            artifacts/benchmarks/scanner-api-phase2-${{ matrix.arch }}.log
+            artifacts/benchmarks/scanner-api-freeze-${{ matrix.arch }}
+            artifacts/benchmarks/scanner-api-freeze-${{ matrix.arch }}.log
           if-no-files-found: error
           retention-days: 30
