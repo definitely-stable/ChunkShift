@@ -188,6 +188,9 @@ internal sealed class CsmEncoderSession : IDisposable
         _completed = true;
 
         return new CsmWriteResult(
+            _hashSuite,
+            _profileId,
+            _profileFingerprint,
             manifestId,
             fileDigest,
             _totalChunkCount,
