@@ -273,7 +273,7 @@ internal readonly struct DirectCounterKernelSink : IChunkKernelSink
         CancellationToken cancellationToken)
     {
         _counter.Count++;
-        _counter.Bytes += content.Length + (chunk.Length & 0);
+        _counter.Bytes += content.Length + chunk.Length;
         return ValueTask.CompletedTask;
     }
 }
@@ -294,7 +294,7 @@ internal struct AsyncDirectCounterKernelSink : IChunkKernelSink
         CancellationToken cancellationToken)
     {
         _counter.Count++;
-        _counter.Bytes += content.Length + (chunk.Length & 0);
+        _counter.Bytes += content.Length + chunk.Length;
         await Task.Yield();
         cancellationToken.ThrowIfCancellationRequested();
     }
