@@ -134,7 +134,7 @@ jobs:
 
   scanner-api-phase1:
     name: scanner-api-phase1
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'perf/20-scanner-api-'))
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'perf/20-scanner-api-phase1'))
     needs: smoke
     runs-on: ubuntu-24.04
 
@@ -191,5 +191,87 @@ jobs:
         with:
           name: scanner-api-phase1
           path: artifacts/benchmarks/scanner-api-phase1
+          if-no-files-found: error
+          retention-days: 30
+
+
+  scanner-api-phase2:
+    name: scanner-api-phase2 (${{ matrix.arch }})
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'perf/20-scanner-api-phase2'))
+    needs: smoke
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+
+      - name: Build
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Run scanner API phase-two benchmarks
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="artifacts/benchmarks/scanner-api-phase2-${{ matrix.arch }}"
+          mkdir -p "$out"
+          dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
+            micro \
+            --memory \
+            --exporters GitHub FullJSON \
+            --artifacts "$out" \
+            --filter '*ScannerApiPhase2CoreBenchmarks*' '*ScannerApiPhase2FileBenchmarks*' '*ScannerApiPhase2AsyncBenchmarks*' \
+            --join \
+            | tee "$out.log"
+
+      - name: Validate scanner API phase-two evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="artifacts/benchmarks/scanner-api-phase2-${{ matrix.arch }}"
+          report_count="$(find "$out/results" -type f -name '*-report-full.json' | wc -l)"
+          if [ "$report_count" -lt 1 ]; then
+            echo "Expected scanner Phase 2 FullJSON evidence, found $report_count." >&2
+            exit 1
+          fi
+
+          for benchmark_type in \
+            ScannerApiPhase2CoreBenchmarks \
+            ScannerApiPhase2FileBenchmarks \
+            ScannerApiPhase2AsyncBenchmarks
+          do
+            if ! grep -q "$benchmark_type" "$out.log"; then
+              echo "Missing Phase 2 benchmark evidence for $benchmark_type." >&2
+              exit 1
+            fi
+          done
+
+          if ! grep -q 'P50' "$out.log" || ! grep -q 'P95' "$out.log"; then
+            echo "Phase 2 benchmark output is missing required P50/P95 statistics." >&2
+            exit 1
+          fi
+
+      - name: Upload scanner API phase-two evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: scanner-api-phase2-${{ matrix.arch }}
+          path: |
+            artifacts/benchmarks/scanner-api-phase2-${{ matrix.arch }}
+            artifacts/benchmarks/scanner-api-phase2-${{ matrix.arch }}.log
           if-no-files-found: error
           retention-days: 30
