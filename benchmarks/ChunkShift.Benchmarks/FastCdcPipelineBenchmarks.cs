@@ -6,7 +6,7 @@ using ChunkShift.Primitives;
 namespace ChunkShift.Benchmarks;
 
 [MemoryDiagnoser]
-public class FastCdcPipelineBenchmarks : IDisposable
+public class FastCdcPipelineBenchmarks
 {
     private byte[] _data = null!;
     private MemoryStream _stream = null!;
@@ -40,9 +40,7 @@ public class FastCdcPipelineBenchmarks : IDisposable
     }
 
     [GlobalCleanup]
-    public void Cleanup() => Dispose();
-
-    public void Dispose()
+    public void Cleanup()
     {
         _stream?.Dispose();
     }
