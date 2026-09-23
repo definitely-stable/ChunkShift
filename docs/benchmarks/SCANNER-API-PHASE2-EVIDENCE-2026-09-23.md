@@ -137,3 +137,48 @@ Before #20/#16 are closed, run the final public shape and symmetric Task compara
 - retained compact machine-readable evidence.
 
 If Task and ValueTask remain equivalent, freeze ValueTask because it composes directly with synchronous completion and modern ValueTask-returning streaming APIs while preserving single-consumption semantics.
+
+
+## Final freeze result — accepted
+
+Evidence run: GitHub Actions Benchmark lab #111, run `35839567847`  
+Evidence head: `7a3e69e9fe2a40415985a7127814d4b08695a434`  
+Protocol: 5 independent launches × 6 warmup × 10 measured iterations  
+Platforms: `ubuntu-24.04` x64 and `ubuntu-24.04-arm` ARM64
+
+The final freeze gate completed successfully on both architectures. The compact artifacts retain P50/P95, all 50 measured samples per benchmark and launch-specific ratios. The aggregate means below are included only as a readable cross-check; the decision is based on the complete retained evidence.
+
+| Scenario | x64 ValueTask ms | x64 Task ms | Task vs ValueTask | ARM64 ValueTask ms | ARM64 Task ms | Task vs ValueTask |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| async consumer | 5.577 | 5.638 | +1.09% | 12.65 | 12.72 | +0.55% |
+| FileStream | 47.746 | 47.237 | -1.07% | 103.96 | 104.10 | +0.13% |
+| fragmented short reads | 21.795 | 21.755 | -0.18% | 49.75 | 49.71 | -0.08% |
+| 64 KiB profile | 22.163 | 22.013 | -0.68% | 50.00 | 49.95 | -0.10% |
+| 128 KiB profile | 21.714 | 21.831 | +0.54% | 49.80 | 49.86 | +0.12% |
+| 256 KiB profile | 21.411 | 21.615 | +0.95% | 49.82 | 49.81 | -0.02% |
+| game-pak proxy | 10.794 | 10.819 | +0.23% | 24.93 | 24.91 | -0.08% |
+| installer proxy | 10.787 | 10.752 | -0.32% | 24.85 | 24.86 | +0.04% |
+| low-entropy proxy | 10.772 | 10.886 | +1.06% | 24.87 | 24.89 | +0.08% |
+| random proxy | 10.934 | 11.005 | +0.65% | 24.86 | 24.79 | -0.28% |
+
+The x64 sign changes between scenarios and the ARM64 differences remain small (approximately -0.28% to +0.55%). This does not establish a reproducible throughput winner for either return type.
+
+### Frozen scanner direction for Core v1
+
+Freeze the current public candidate:
+
+- push/callback delivery;
+- borrowed contiguous `ReadOnlyMemory<byte>`;
+- `ChunkScanHandler : ValueTask`;
+- ordered, non-concurrent callbacks with natural backpressure;
+- cooperative cancellation with no active-handler preemption;
+- caller-owned source stream;
+- bounded private buffering and unspecified post-failure/cancellation stream position;
+- the simpler delegate-based canonical kernel;
+- no public pull reader, segmented payload, sync scan, early-stop or owned-chunk API in Core v1.
+
+`ValueTask` is retained because Task and ValueTask are performance-equivalent under the approved evidence rule, while `ValueTask` directly represents the common synchronous-completion path and composes with modern ValueTask-returning streaming APIs. This is not a claim that ValueTask is faster.
+
+The generic fused struct-sink production experiment remains rejected: its small O(1) allocation reduction did not produce a reproducible throughput advantage sufficient to justify the added machinery.
+
+With the contract-regression additions in this PR, #20's evidence work is complete. #16 may close after the merged branch is the repository truth and its remaining lifetime/cancellation/bounded-stream regressions are green.
