@@ -5,7 +5,7 @@ public class ScannerApiPrototypeTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task EquivalentPrototypes_EmitIdenticalChunkSequence(bool oneByteReads)
+    public async Task EquivalentPrototypesEmitIdenticalChunkSequence(bool oneByteReads)
     {
         byte[] input = CreateBytes((2 * 1024 * 1024) + 137, 0x20A11CEu);
         int[]? pattern = oneByteReads ? [1] : null;
@@ -26,7 +26,7 @@ public class ScannerApiPrototypeTests
     }
 
     [Fact]
-    public async Task EquivalentPrototypes_RemainStableUnderRandomShortReads()
+    public async Task EquivalentPrototypesRemainStableUnderRandomShortReads()
     {
         byte[] input = CreateBytes((4 * 1024 * 1024) + 17, 0x5CA11E42u);
         int[] pattern = [3, 17, 257, 4095, 65535, 2, 8191];
