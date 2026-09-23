@@ -126,6 +126,63 @@ public sealed class CsmMalformedInputTests
     }
 
     [Fact]
+    public async Task ChunkBlockPayloadLengthMismatch_IsFormatError()
+    {
+        byte[] bytes = await CreateManifestAsync(512 * 1024);
+        int cblkOffset = FindSectionOffset(bytes, CsmFormat.ChunkBlock);
+        ulong payloadLength = BinaryPrimitives.ReadUInt64LittleEndian(
+            bytes.AsSpan(cblkOffset + 8, 8));
+
+        BinaryPrimitives.WriteUInt64LittleEndian(
+            bytes.AsSpan(cblkOffset + 8, 8),
+            payloadLength - 1);
+
+        await Assert.ThrowsAsync<InvalidDataException>(
+            () => ReadAsync(bytes));
+    }
+
+    [Fact]
+    public async Task ChunkCountOutsideAllowedRange_IsFormatError()
+    {
+        byte[] valid = await CreateManifestAsync(512 * 1024);
+        int cblkOffset = FindSectionOffset(valid, CsmFormat.ChunkBlock);
+        int countOffset = cblkOffset + CsmFormat.SectionHeaderSize;
+
+        foreach (uint invalidCount in
+            new[] { 0u, CsmFormat.MaximumChunksPerBlock + 1 })
+        {
+            byte[] bytes = valid.ToArray();
+            BinaryPrimitives.WriteUInt32LittleEndian(
+                bytes.AsSpan(countOffset, 4),
+                invalidCount);
+
+            await Assert.ThrowsAsync<InvalidDataException>(
+                () => ReadAsync(bytes));
+        }
+    }
+
+    [Fact]
+    public async Task ZeroChunkLength_IsFormatError()
+    {
+        byte[] bytes = await CreateManifestAsync(512 * 1024);
+        int cblkOffset = FindSectionOffset(bytes, CsmFormat.ChunkBlock);
+        int payloadOffset = cblkOffset + CsmFormat.SectionHeaderSize;
+        uint count = BinaryPrimitives.ReadUInt32LittleEndian(
+            bytes.AsSpan(payloadOffset, 4));
+        int lengthsOffset = checked(
+            payloadOffset
+            + CsmFormat.CblkPrefixSize
+            + checked((int)count) * CsmFormat.HashSize);
+
+        BinaryPrimitives.WriteUInt32LittleEndian(
+            bytes.AsSpan(lengthsOffset, 4),
+            0);
+
+        await Assert.ThrowsAsync<InvalidDataException>(
+            () => ReadAsync(bytes));
+    }
+
+    [Fact]
     public async Task WrongCendTotals_AreLogicalMismatchOnly()
     {
         byte[] bytes = await CreateManifestAsync(512 * 1024);
