@@ -1,7 +1,7 @@
 # ChunkShift implementation plan
 
 Status: Active  
-Last reviewed: 2026-09-22
+Last reviewed: 2026-09-23
 
 Program order: [ROADMAP.md](ROADMAP.md)  
 Release policy: [docs/RELEASES.md](docs/RELEASES.md)
@@ -117,7 +117,7 @@ Deferred intentionally:
 
 Exit met by PR #38: #4 can be implemented without choosing any known hidden persisted semantic or relying on the previously identified false metrics.
 
-## 6. Core kernels — [#4](https://github.com/definitely-stable/ChunkShift/issues/4)
+## 6. Core kernels — complete ([#4](https://github.com/definitely-stable/ChunkShift/issues/4))
 
 Goal: one canonical deterministic chunk/hash kernel used by every later Core path.
 
@@ -156,7 +156,7 @@ Exit:
 - canonical scalar behavior is normative enough for [#5](https://github.com/definitely-stable/ChunkShift/issues/5)/[#16](https://github.com/definitely-stable/ChunkShift/issues/16);
 - no optimized backend is accepted unless it matches reference vectors.
 
-## 7. CSM candidate — [#5](https://github.com/definitely-stable/ChunkShift/issues/5)
+## 7. CSM candidate — complete via PR #52 ([#5](https://github.com/definitely-stable/ChunkShift/issues/5))
 
 Goal: streaming binary manifest create/read/verify over the [#4](https://github.com/definitely-stable/ChunkShift/issues/4) canonical kernel.
 
@@ -187,7 +187,7 @@ Independent evidence:
 - vectors contain enough information for an independent decoder/checker;
 - before Core 0.1.0, at least one small independent vector verifier/generator must validate the frozen fixtures.
 
-## 8. Raw scanner — [#16](https://github.com/definitely-stable/ChunkShift/issues/16)
+## 8. Raw scanner — complete ([#16](https://github.com/definitely-stable/ChunkShift/issues/16))
 
 Goal: make Core useful without manifest materialization.
 
@@ -213,7 +213,7 @@ Additional Core release requirement:
 - heavy validation installs the produced NuGet package into a clean NativeAOT consumer and executes real scanning with both BLAKE3 and SHA-256;
 - primitive-only AOT smoke is not sufficient once scanner exists.
 
-## 9. Scanner API bake-off — [#20](https://github.com/definitely-stable/ChunkShift/issues/20)
+## 9. Scanner API bake-off — complete ([#20](https://github.com/definitely-stable/ChunkShift/issues/20))
 
 Compare prototypes sequentially rather than running a maximal matrix immediately.
 
