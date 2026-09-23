@@ -257,7 +257,13 @@ internal static class CsmWriter
 
             if (_includeBlockIndex)
             {
-                _blockIndex!.Add(
+                if (_blockIndex!.Count == CsmFormat.MaximumBlockIndexEntries)
+                {
+                    throw new InvalidOperationException(
+                        $"BIDX generation exceeds the operational limit of {CsmFormat.MaximumBlockIndexEntries} entries.");
+                }
+
+                _blockIndex.Add(
                     new BlockIndexEntry(_blockFirstContentOffset, sectionOffset));
             }
 
