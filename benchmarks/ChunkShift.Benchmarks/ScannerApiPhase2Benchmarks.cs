@@ -31,7 +31,7 @@ public class ScannerApiPhase2CoreBenchmarks
 {
     private byte[] _data = null!;
     private ChunkingKernelProfile _profile;
-    private ChunkingProfileId _profileId;
+    private ChunkScanOptions _options = null!;
     private ChunkScanHandler _valueTaskHandler = null!;
     private TaskChunkScanHandler _taskHandler = null!;
     private readonly ScannerBenchmarkCounter _counter = new();
@@ -53,7 +53,12 @@ public class ScannerApiPhase2CoreBenchmarks
 
         FastCdcProfile profile = FastCdcProfile.CreateM1Candidate(TargetSize);
         _profile = ChunkingKernelProfile.FastCdcGear(profile);
-        _profileId = profile.CandidateProfileId;
+        _options = new ChunkScanOptions
+        {
+            ProfileId = profile.CandidateProfileId,
+            HashSuite = HashSuiteIds.Blake3256V1,
+        };
+
         _valueTaskHandler = OnValueTaskAsync;
         _taskHandler = OnTaskAsync;
     }
@@ -93,27 +98,24 @@ public class ScannerApiPhase2CoreBenchmarks
     }
 
     [Benchmark]
-    public async Task<int> FusedPublicValueTask()
+    public async ValueTask<int> FusedValueTaskCore()
     {
         _counter.Reset();
         using Stream source = OpenSource();
 
-        await ChunkScanner
-            .ScanAsync(
+        await ChunkingKernel
+            .ScanPublicAsync(
                 source,
-                _valueTaskHandler,
-                new ChunkScanOptions
-                {
-                    ProfileId = _profileId,
-                    HashSuite = HashSuiteIds.Blake3256V1,
-                })
+                _profile,
+                HashSuiteIds.Blake3256V1,
+                _valueTaskHandler)
             .ConfigureAwait(false);
 
         return _counter.Count;
     }
 
     [Benchmark]
-    public async Task<int> FusedTask()
+    public async Task<int> FusedTaskCore()
     {
         _counter.Reset();
         using Stream source = OpenSource();
@@ -124,6 +126,19 @@ public class ScannerApiPhase2CoreBenchmarks
                 _profile,
                 HashSuiteIds.Blake3256V1,
                 _taskHandler)
+            .ConfigureAwait(false);
+
+        return _counter.Count;
+    }
+
+    [Benchmark]
+    public async Task<int> PublicEndToEndValueTask()
+    {
+        _counter.Reset();
+        using Stream source = OpenSource();
+
+        await ChunkScanner
+            .ScanAsync(source, _valueTaskHandler, _options)
             .ConfigureAwait(false);
 
         return _counter.Count;
@@ -180,7 +195,7 @@ public class ScannerApiPhase2FileBenchmarks : IDisposable
     private byte[] _data = null!;
     private string _filePath = null!;
     private ChunkingKernelProfile _profile;
-    private ChunkingProfileId _profileId;
+    private ChunkScanOptions _options = null!;
     private ChunkScanHandler _valueTaskHandler = null!;
     private TaskChunkScanHandler _taskHandler = null!;
     private readonly ScannerBenchmarkCounter _counter = new();
@@ -202,7 +217,12 @@ public class ScannerApiPhase2FileBenchmarks : IDisposable
 
         FastCdcProfile profile = FastCdcProfile.CreateM1Candidate(TargetSize);
         _profile = ChunkingKernelProfile.FastCdcGear(profile);
-        _profileId = profile.CandidateProfileId;
+        _options = new ChunkScanOptions
+        {
+            ProfileId = profile.CandidateProfileId,
+            HashSuite = HashSuiteIds.Blake3256V1,
+        };
+
         _valueTaskHandler = OnValueTaskAsync;
         _taskHandler = OnTaskAsync;
     }
@@ -242,27 +262,24 @@ public class ScannerApiPhase2FileBenchmarks : IDisposable
     }
 
     [Benchmark]
-    public async Task<int> FusedPublicValueTask()
+    public async ValueTask<int> FusedValueTaskCore()
     {
         _counter.Reset();
         using Stream source = OpenFile();
 
-        await ChunkScanner
-            .ScanAsync(
+        await ChunkingKernel
+            .ScanPublicAsync(
                 source,
-                _valueTaskHandler,
-                new ChunkScanOptions
-                {
-                    ProfileId = _profileId,
-                    HashSuite = HashSuiteIds.Blake3256V1,
-                })
+                _profile,
+                HashSuiteIds.Blake3256V1,
+                _valueTaskHandler)
             .ConfigureAwait(false);
 
         return _counter.Count;
     }
 
     [Benchmark]
-    public async Task<int> FusedTask()
+    public async Task<int> FusedTaskCore()
     {
         _counter.Reset();
         using Stream source = OpenFile();
@@ -273,6 +290,19 @@ public class ScannerApiPhase2FileBenchmarks : IDisposable
                 _profile,
                 HashSuiteIds.Blake3256V1,
                 _taskHandler)
+            .ConfigureAwait(false);
+
+        return _counter.Count;
+    }
+
+    [Benchmark]
+    public async Task<int> PublicEndToEndValueTask()
+    {
+        _counter.Reset();
+        using Stream source = OpenFile();
+
+        await ChunkScanner
+            .ScanAsync(source, _valueTaskHandler, _options)
             .ConfigureAwait(false);
 
         return _counter.Count;
@@ -334,7 +364,7 @@ public class ScannerApiPhase2AsyncBenchmarks
 {
     private byte[] _data = null!;
     private ChunkingKernelProfile _profile;
-    private ChunkingProfileId _profileId;
+    private ChunkScanOptions _options = null!;
     private ChunkScanHandler _valueTaskHandler = null!;
     private TaskChunkScanHandler _taskHandler = null!;
     private readonly ScannerBenchmarkCounter _counter = new();
@@ -348,7 +378,12 @@ public class ScannerApiPhase2AsyncBenchmarks
 
         FastCdcProfile profile = FastCdcProfile.CreateM1Candidate(128 * 1024);
         _profile = ChunkingKernelProfile.FastCdcGear(profile);
-        _profileId = profile.CandidateProfileId;
+        _options = new ChunkScanOptions
+        {
+            ProfileId = profile.CandidateProfileId,
+            HashSuite = HashSuiteIds.Blake3256V1,
+        };
+
         _valueTaskHandler = OnValueTaskAsync;
         _taskHandler = OnTaskAsync;
     }
@@ -388,27 +423,24 @@ public class ScannerApiPhase2AsyncBenchmarks
     }
 
     [Benchmark]
-    public async Task<int> FusedPublicValueTask()
+    public async ValueTask<int> FusedValueTaskCore()
     {
         _counter.Reset();
         using var source = new MemoryStream(_data, writable: false);
 
-        await ChunkScanner
-            .ScanAsync(
+        await ChunkingKernel
+            .ScanPublicAsync(
                 source,
-                _valueTaskHandler,
-                new ChunkScanOptions
-                {
-                    ProfileId = _profileId,
-                    HashSuite = HashSuiteIds.Blake3256V1,
-                })
+                _profile,
+                HashSuiteIds.Blake3256V1,
+                _valueTaskHandler)
             .ConfigureAwait(false);
 
         return _counter.Count;
     }
 
     [Benchmark]
-    public async Task<int> FusedTask()
+    public async Task<int> FusedTaskCore()
     {
         _counter.Reset();
         using var source = new MemoryStream(_data, writable: false);
@@ -419,6 +451,19 @@ public class ScannerApiPhase2AsyncBenchmarks
                 _profile,
                 HashSuiteIds.Blake3256V1,
                 _taskHandler)
+            .ConfigureAwait(false);
+
+        return _counter.Count;
+    }
+
+    [Benchmark]
+    public async Task<int> PublicEndToEndValueTask()
+    {
+        _counter.Reset();
+        using var source = new MemoryStream(_data, writable: false);
+
+        await ChunkScanner
+            .ScanAsync(source, _valueTaskHandler, _options)
             .ConfigureAwait(false);
 
         return _counter.Count;
