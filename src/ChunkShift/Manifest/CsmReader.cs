@@ -82,7 +82,7 @@ internal static class CsmReader
 
         if (coreHeader.Type != CsmFormat.Core)
         {
-            throw new CsmFormatException("CORE must immediately follow PREAMBLE.");
+            throw new InvalidDataException("CORE must immediately follow PREAMBLE.");
         }
 
         CoreMetadata core = await ReadCoreAsync(
@@ -126,7 +126,7 @@ internal static class CsmReader
 
                 if (observedBlocks.Count == MaximumTrackedBlockCount)
                 {
-                    throw new CsmFormatException(
+                    throw new InvalidDataException(
                         $"CSM exceeds the operational limit of {MaximumTrackedBlockCount} CBLK sections.");
                 }
 
@@ -166,7 +166,7 @@ internal static class CsmReader
 
             if (header.Type != CsmFormat.ChunkEnd)
             {
-                throw new CsmFormatException(
+                throw new InvalidDataException(
                     "Only CBLK or CEND may appear after CORE and before CEND.");
             }
 
@@ -205,7 +205,7 @@ internal static class CsmReader
             {
                 if (seenBidx)
                 {
-                    throw new CsmFormatException("BIDX may appear at most once.");
+                    throw new InvalidDataException("BIDX may appear at most once.");
                 }
 
                 bidxOffset = sectionOffset;
@@ -235,7 +235,7 @@ internal static class CsmReader
 
             if (seenBidx)
             {
-                throw new CsmFormatException(
+                throw new InvalidDataException(
                     "Only FOOT may follow BIDX in CSM v1.");
             }
 
@@ -243,7 +243,7 @@ internal static class CsmReader
             {
                 if ((header.Flags & CsmFormat.RequiredSectionFlag) != 0)
                 {
-                    throw new CsmFormatException(
+                    throw new InvalidDataException(
                         "AUX0 is optional physical metadata and cannot be marked required in CSM v1.");
                 }
 
@@ -255,7 +255,7 @@ internal static class CsmReader
 
             if ((header.Flags & CsmFormat.RequiredSectionFlag) != 0)
             {
-                throw new CsmFormatException(
+                throw new InvalidDataException(
                     $"Unknown required CSM section 0x{header.Type:x8}.");
             }
 
@@ -310,7 +310,7 @@ internal static class CsmReader
 
         if (!preamble.AsSpan(0, 4).SequenceEqual(CsmFormat.PreambleMagic))
         {
-            throw new CsmFormatException("Invalid CSM preamble magic.");
+            throw new InvalidDataException("Invalid CSM preamble magic.");
         }
 
         ushort major = BinaryPrimitives.ReadUInt16LittleEndian(
@@ -324,25 +324,25 @@ internal static class CsmReader
 
         if (major != CsmFormat.FormatMajor)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 $"Unsupported CSM format major {major}.");
         }
 
         if (size != CsmFormat.PreambleSize)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 $"CSM v1 requires a {CsmFormat.PreambleSize}-byte preamble.");
         }
 
         if (requiredFeatures != 0)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "CSM v1 contains unknown required physical feature bits.");
         }
 
         if (reserved != 0)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "CSM preamble reserved bytes must be zero.");
         }
     }
@@ -356,7 +356,7 @@ internal static class CsmReader
 
         if (header.PayloadLength < CsmFormat.CorePrefixSize)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "CORE payload is smaller than its fixed prefix.");
         }
 
@@ -371,7 +371,7 @@ internal static class CsmReader
 
         if (requiredSemanticFeatures != 0 || optionalSemanticFeatures != 0)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "CSM v1 candidate requires both semantic feature fields to be zero.");
         }
 
@@ -387,7 +387,7 @@ internal static class CsmReader
 
         if (extensionBytes != 0)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "CSM v1 candidate does not define CORE extensions.");
         }
 
@@ -398,7 +398,7 @@ internal static class CsmReader
 
         if (header.PayloadLength != expectedPayloadLength)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "CORE PayloadLength does not match its declared identifier lengths.");
         }
 
@@ -417,7 +417,7 @@ internal static class CsmReader
         }
         catch (DecoderFallbackException exception)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 $"CORE contains invalid UTF-8 identifiers: {exception.Message}");
         }
 
@@ -430,7 +430,7 @@ internal static class CsmReader
         }
         catch (ArgumentException exception)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 $"CORE contains an invalid ChunkShift identifier: {exception.Message}");
         }
 
@@ -459,7 +459,7 @@ internal static class CsmReader
         if (header.PayloadLength > MaximumCblkPayloadSize ||
             header.PayloadLength < CsmFormat.CblkPrefixSize + sizeof(uint))
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "CBLK PayloadLength is outside the CSM v1 bounded range.");
         }
 
@@ -482,20 +482,20 @@ internal static class CsmReader
 
         if (count is 0 or > CsmFormat.MaximumChunksPerBlock)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 $"CBLK ChunkCount must be 1..{CsmFormat.MaximumChunksPerBlock}.");
         }
 
         if (reserved != 0)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "CBLK reserved field must be zero.");
         }
 
         if (firstChunkIndex != expectedFirstChunkIndex ||
             firstContentOffset != expectedFirstContentOffset)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "CBLK first index/content offset does not match the preceding logical stream.");
         }
 
@@ -507,7 +507,7 @@ internal static class CsmReader
 
         if (header.PayloadLength != expectedPayloadLength)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "CBLK PayloadLength does not match ChunkCount.");
         }
 
@@ -539,7 +539,7 @@ internal static class CsmReader
 
             if (length == 0)
             {
-                throw new CsmFormatException(
+                throw new InvalidDataException(
                     "CBLK chunk lengths must be positive.");
             }
 
@@ -592,7 +592,7 @@ internal static class CsmReader
 
         if (header.PayloadLength != CsmFormat.CendPayloadSize)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 $"CEND payload must be exactly {CsmFormat.CendPayloadSize} bytes.");
         }
 
@@ -623,13 +623,13 @@ internal static class CsmReader
 
         if ((header.Flags & CsmFormat.RequiredSectionFlag) != 0)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "BIDX is optional physical metadata and cannot be marked required in CSM v1.");
         }
 
         if (header.PayloadLength < 8)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "BIDX payload is smaller than its fixed prefix.");
         }
 
@@ -643,26 +643,26 @@ internal static class CsmReader
 
         if (version != 1)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 $"Unsupported BIDX version {version}.");
         }
 
         if (count > MaximumTrackedBlockCount)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 $"BIDX exceeds the operational limit of {MaximumTrackedBlockCount} entries.");
         }
 
         ulong expectedPayloadLength = checked(8UL + (ulong)count * 16UL);
         if (header.PayloadLength != expectedPayloadLength)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "BIDX PayloadLength does not match BlockCount.");
         }
 
         if (count != (uint)expected.Count)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "BIDX BlockCount does not match the observed CBLK sequence.");
         }
 
@@ -684,7 +684,7 @@ internal static class CsmReader
                 (contentOffset <= previousContentOffset ||
                  fileOffset <= previousFileOffset))
             {
-                throw new CsmFormatException(
+                throw new InvalidDataException(
                     "BIDX offsets must be strictly increasing.");
             }
 
@@ -692,7 +692,7 @@ internal static class CsmReader
             if (contentOffset != observed.FirstContentOffset ||
                 fileOffset != observed.CblkSectionFileOffset)
             {
-                throw new CsmFormatException(
+                throw new InvalidDataException(
                     "BIDX entry does not correspond to the observed CBLK sequence.");
             }
 
@@ -715,7 +715,7 @@ internal static class CsmReader
 
         if (header.PayloadLength != CsmFormat.FootPayloadSize)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 $"FOOT payload must be exactly {CsmFormat.FootPayloadSize} bytes.");
         }
 
@@ -738,7 +738,7 @@ internal static class CsmReader
 
         if (reserved != 0)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "FOOT reserved field must be zero.");
         }
 
@@ -748,7 +748,7 @@ internal static class CsmReader
             storedFirstCblkOffset != firstCblkOffset ||
             storedCblkCount != cblkCount)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "FOOT offsets/counts do not match the observed physical section layout.");
         }
     }
@@ -760,7 +760,7 @@ internal static class CsmReader
     {
         if (!trailer.AsSpan(0, 4).SequenceEqual(CsmFormat.TrailerMagic))
         {
-            throw new CsmFormatException("Invalid CSM trailer magic.");
+            throw new InvalidDataException("Invalid CSM trailer magic.");
         }
 
         ushort major = BinaryPrimitives.ReadUInt16LittleEndian(
@@ -779,25 +779,25 @@ internal static class CsmReader
         if (major != CsmFormat.FormatMajor ||
             size != CsmFormat.TrailerSize)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "CSM trailer version/size is invalid.");
         }
 
         if (reserved != 0)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "CSM trailer reserved bytes must be zero.");
         }
 
         if (storedFootOffset != footOffset)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "CSM trailer FOOT offset does not match the observed FOOT section.");
         }
 
         if (physicalLength != offsetAfterTrailer)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "CSM trailer PhysicalLength does not match the consumed representation.");
         }
 
@@ -821,7 +821,7 @@ internal static class CsmReader
 
         if ((flags & ~CsmFormat.KnownSectionFlags) != 0)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 $"CSM section 0x{type:x8} contains reserved flag bits.");
         }
 
@@ -832,7 +832,7 @@ internal static class CsmReader
     {
         if ((flags & ~CsmFormat.KnownSectionFlags) != 0)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 "Known CSM section contains reserved flag bits.");
         }
     }
@@ -841,7 +841,7 @@ internal static class CsmReader
     {
         if (length is 0 or > CsmFormat.MaximumIdentifierBytes)
         {
-            throw new CsmFormatException(
+            throw new InvalidDataException(
                 $"{name} must encode to 1..{CsmFormat.MaximumIdentifierBytes} bytes.");
         }
     }
