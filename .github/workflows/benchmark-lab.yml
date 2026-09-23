@@ -168,6 +168,16 @@ jobs:
             --join \
             | tee artifacts/benchmarks/scanner-api-phase1.log
 
+      - name: Validate scanner API evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          report_count="$(find artifacts/benchmarks/scanner-api-phase1 -type f -name '*ScannerApi*report-full*.json' | wc -l)"
+          if [ "$report_count" -lt 4 ]; then
+            echo "Expected at least 4 scanner API FullJSON reports, found $report_count." >&2
+            exit 1
+          fi
+
       - name: Upload scanner API evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
