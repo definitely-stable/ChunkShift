@@ -58,7 +58,7 @@ internal static class LegacyValueTaskCallbackScannerPrototype
 
 internal static class FusedTaskCallbackScannerPrototype
 {
-    internal static Task ScanAsync(
+    internal static ValueTask ScanAsync(
         Stream source,
         ChunkingKernelProfile profile,
         HashSuiteId hashSuite,
@@ -67,31 +67,12 @@ internal static class FusedTaskCallbackScannerPrototype
     {
         ArgumentNullException.ThrowIfNull(handler);
 
-        return ScanCoreAsync(
+        return ChunkingKernel.ScanAsync(
             source,
             profile,
             hashSuite,
-            handler,
+            new TaskPublicSink(handler),
             cancellationToken);
-    }
-
-    private static async Task ScanCoreAsync(
-        Stream source,
-        ChunkingKernelProfile profile,
-        HashSuiteId hashSuite,
-        TaskChunkScanHandler handler,
-        CancellationToken cancellationToken)
-    {
-        var sink = new TaskPublicSink(handler);
-
-        await ChunkingKernel
-            .ScanAsync(
-                source,
-                profile,
-                hashSuite,
-                sink,
-                cancellationToken)
-            .ConfigureAwait(false);
     }
 
     private struct TaskPublicSink : IChunkKernelSink
