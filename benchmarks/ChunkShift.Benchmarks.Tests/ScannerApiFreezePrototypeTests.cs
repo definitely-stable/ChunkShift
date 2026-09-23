@@ -13,12 +13,8 @@ public class ScannerApiFreezePrototypeTests
         int targetSize)
     {
         byte[] input = CreateBytes((4 * 1024 * 1024) + 257, 0xF2EE20A2u);
-        FastCdcProfile profile = FastCdcProfile.CreateM1Candidate(targetSize);
-        var options = new ChunkScanOptions
-        {
-            ProfileId = profile.CandidateProfileId,
-            HashSuite = HashSuiteIds.Blake3256V1,
-        };
+        ChunkScanOptions options =
+            ScannerApiFreezeTestFacade.CreateOptions(targetSize);
 
         ScannerObservedChunk[] valueTaskChunks =
             await CollectValueTaskAsync(input, options);
@@ -35,12 +31,8 @@ public class ScannerApiFreezePrototypeTests
     public async Task TaskPrototypeMatchesPublicValueTaskUnderFragmentedReads()
     {
         byte[] input = CreateBytes((4 * 1024 * 1024) + 17, 0x5A0F20A2u);
-        FastCdcProfile profile = FastCdcProfile.CreateM1Candidate(128 * 1024);
-        var options = new ChunkScanOptions
-        {
-            ProfileId = profile.CandidateProfileId,
-            HashSuite = HashSuiteIds.Blake3256V1,
-        };
+        ChunkScanOptions options =
+            ScannerApiFreezeTestFacade.CreateOptions(128 * 1024);
 
         int[] pattern = [512, 4096, 32768, 65536, 1024, 16384];
 
