@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="ChunkShift.Benchmarks.Tests" />
     <PackageReference Include="BenchmarkDotNet" />
     <ProjectReference Include="../../src/ChunkShift/ChunkShift.csproj" />
   </ItemGroup>
