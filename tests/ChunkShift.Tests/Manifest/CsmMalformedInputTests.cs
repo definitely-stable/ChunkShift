@@ -280,7 +280,7 @@ public sealed class CsmMalformedInputTests
         CsmReader.ReadAndVerifyAsync(
             new MemoryStream(bytes, writable: false));
 
-    private static IReadOnlyList<int> GetStructuralTruncationCuts(byte[] bytes)
+    private static int[] GetStructuralTruncationCuts(byte[] bytes)
     {
         var cuts = new List<int>
         {
