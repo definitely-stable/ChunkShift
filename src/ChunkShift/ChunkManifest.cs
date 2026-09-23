@@ -7,8 +7,11 @@ namespace ChunkShift;
 /// </summary>
 /// <remarks>
 /// ChunkShift never disposes streams supplied to these operations. Cancellation,
-/// malformed input, I/O failure, or callback failure may leave stream positions
-/// advanced; operations do not rewind.
+/// malformed input, or I/O failure may leave stream positions advanced; operations
+/// do not rewind. When an operation accepts both content and manifest/destination,
+/// those roles must use distinct <see cref="Stream"/> instances. Callers must not
+/// concurrently read, write, seek, rewind, or dispose a stream while ChunkShift is
+/// operating on it.
 /// </remarks>
 public static class ChunkManifest
 {
