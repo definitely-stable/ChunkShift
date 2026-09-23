@@ -130,3 +130,66 @@ jobs:
           path: artifacts/benchmarks/architecture-evidence
           if-no-files-found: error
           retention-days: 30
+
+
+  scanner-api-phase1:
+    name: scanner-api-phase1
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'perf/20-scanner-api-'))
+    needs: smoke
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+
+      - name: Build
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Run scanner API phase-one benchmarks
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/benchmarks/scanner-api-phase1
+          dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
+            micro \
+            --job short \
+            --memory \
+            --exporters GitHub FullJSON \
+            --artifacts artifacts/benchmarks/scanner-api-phase1 \
+            --filter '*ScannerApiPhase1Benchmarks*' '*ScannerApiAsyncConsumerBenchmarks*' '*ScannerApiSlowConsumerBenchmarks*' '*ScannerApiFirstChunkBenchmarks*' \
+            --join \
+            | tee artifacts/benchmarks/scanner-api-phase1.log
+
+      - name: Validate scanner API evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          report_count="$(find artifacts/benchmarks/scanner-api-phase1/results -type f -name '*-report-full.json' | wc -l)"
+          if [ "$report_count" -lt 1 ]; then
+            echo "Expected a joined scanner API FullJSON report, found $report_count." >&2
+            exit 1
+          fi
+
+          for benchmark_type in             ScannerApiPhase1Benchmarks             ScannerApiAsyncConsumerBenchmarks             ScannerApiSlowConsumerBenchmarks             ScannerApiFirstChunkBenchmarks
+          do
+            if ! grep -q "$benchmark_type" artifacts/benchmarks/scanner-api-phase1.log; then
+              echo "Missing benchmark evidence for $benchmark_type." >&2
+              exit 1
+            fi
+          done
+
+      - name: Upload scanner API evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: scanner-api-phase1
+          path: artifacts/benchmarks/scanner-api-phase1
+          if-no-files-found: error
+          retention-days: 30
