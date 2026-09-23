@@ -16,7 +16,7 @@ internal delegate Task TaskChunkHandler(
     CancellationToken cancellationToken);
 
 [MemoryDiagnoser]
-public sealed class ChunkStreamApiBenchmarks : IDisposable
+public class ChunkStreamApiBenchmarks : IDisposable
 {
     private const int DataSize = 8 * 1024 * 1024;
 
