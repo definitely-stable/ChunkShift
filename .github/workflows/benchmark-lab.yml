@@ -134,7 +134,7 @@ jobs:
 
   scanner-api-phase1:
     name: scanner-api-phase1
-    if: github.event_name != 'push'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'perf/20-scanner-api-'))
     needs: smoke
     runs-on: ubuntu-24.04
 
@@ -172,11 +172,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          report_count="$(find artifacts/benchmarks/scanner-api-phase1 -type f -name '*ScannerApi*report-full*.json' | wc -l)"
-          if [ "$report_count" -lt 4 ]; then
-            echo "Expected at least 4 scanner API FullJSON reports, found $report_count." >&2
+          report_count="$(find artifacts/benchmarks/scanner-api-phase1/results -type f -name '*-report-full.json' | wc -l)"
+          if [ "$report_count" -lt 1 ]; then
+            echo "Expected a joined scanner API FullJSON report, found $report_count." >&2
             exit 1
           fi
+
+          for benchmark_type in             ScannerApiPhase1Benchmarks             ScannerApiAsyncConsumerBenchmarks             ScannerApiSlowConsumerBenchmarks             ScannerApiFirstChunkBenchmarks
+          do
+            if ! grep -q "$benchmark_type" artifacts/benchmarks/scanner-api-phase1.log; then
+              echo "Missing benchmark evidence for $benchmark_type." >&2
+              exit 1
+            fi
+          done
 
       - name: Upload scanner API evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
