@@ -20,7 +20,7 @@ public sealed class ChunkManifestTests
 
         manifest.Position = 0;
         ManifestVerificationResult verified =
-            await ChunkManifest.VerifyAsync(manifest);
+            await ChunkManifest.VerifyManifestAsync(manifest);
 
         Assert.True(verified.IsValid);
         Assert.Equal(
@@ -62,7 +62,7 @@ public sealed class ChunkManifestTests
 
         manifest.Position = 0;
         ManifestVerificationResult verified =
-            await ChunkManifest.VerifyAsync(manifest);
+            await ChunkManifest.VerifyManifestAsync(manifest);
 
         Assert.True(verified.IsValid);
         Assert.Equal(HashSuiteIds.Sha256V1, verified.Manifest.HashSuite);
@@ -118,7 +118,7 @@ public sealed class ChunkManifestTests
             Assert.False(manifest.WasDisposed);
 
             manifest.Position = 0;
-            _ = await ChunkManifest.VerifyAsync(manifest);
+            _ = await ChunkManifest.VerifyManifestAsync(manifest);
 
             Assert.False(source.WasDisposed);
             Assert.False(manifest.WasDisposed);
@@ -136,7 +136,7 @@ public sealed class ChunkManifestTests
         byte[] malformed = "not-a-csm"u8.ToArray();
 
         await Assert.ThrowsAsync<InvalidDataException>(
-            () => ChunkManifest.VerifyAsync(
+            () => ChunkManifest.VerifyManifestAsync(
                 new MemoryStream(malformed, writable: false)));
     }
 
