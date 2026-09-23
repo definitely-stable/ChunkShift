@@ -17,6 +17,11 @@ namespace ChunkShift;
 /// before delivering the next chunk, providing natural backpressure.
 /// </para>
 /// <para>
+/// Cancellation is cooperative. Once cancellation is observed, the scanner starts no new
+/// read or callback. An already-running handler is not preempted and must observe the supplied
+/// token itself when prompt cancellation is required.
+/// </para>
+/// <para>
 /// ChunkShift may read ahead into bounded private buffers. After cancellation, handler failure,
 /// or source I/O failure, the underlying stream position is therefore intentionally unspecified
 /// relative to the last delivered chunk and the stream is never rewound.
