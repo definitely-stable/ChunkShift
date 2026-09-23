@@ -107,6 +107,25 @@ jobs:
           grep -q '^valid=false$' artifacts/cli-smoke/mismatch.txt
           grep -q 'Content' artifacts/cli-smoke/mismatch.txt
 
+          # create must refuse to publish a manifest over its own source, both
+          # by the same path and through a symbolic link, and leave it intact.
+          cp artifacts/cli-smoke/content.bin artifacts/cli-smoke/self.bin
+          ln -s self.bin artifacts/cli-smoke/self-link.csm
+
+          for target in artifacts/cli-smoke/self.bin artifacts/cli-smoke/self-link.csm
+          do
+            set +e
+            dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
+              create artifacts/cli-smoke/self.bin "$target" \
+              > artifacts/cli-smoke/self.txt 2>&1
+            status=$?
+            set -e
+
+            test "$status" -eq 2
+            grep -q 'must not be the same file' artifacts/cli-smoke/self.txt
+            cmp artifacts/cli-smoke/content.bin artifacts/cli-smoke/self.bin
+          done
+
   package-smoke:
     name: package-smoke
     needs: build-test
