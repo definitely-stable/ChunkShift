@@ -157,3 +157,16 @@ ChunkShift.ManifestVerificationResult
 ChunkShift.ManifestVerificationResult.Failures.get -> ChunkShift.ManifestVerificationFailure
 ChunkShift.ManifestVerificationResult.IsValid.get -> bool
 ChunkShift.ManifestVerificationResult.Manifest.get -> ChunkShift.ManifestInfo!
+ChunkShift.ChunkEntry
+ChunkShift.ChunkEntry.ChunkEntry() -> void
+ChunkShift.ChunkEntry.Id.get -> ChunkShift.Primitives.ChunkId
+ChunkShift.ChunkEntry.Index.get -> ulong
+ChunkShift.ChunkEntry.Length.get -> uint
+ChunkShift.ChunkEntry.Offset.get -> ulong
+ChunkShift.ManifestReader
+ChunkShift.ManifestReader.Dispose() -> void
+ChunkShift.ManifestReader.DisposeAsync() -> System.Threading.Tasks.ValueTask
+ChunkShift.ManifestReader.IsCompleted.get -> bool
+ChunkShift.ManifestReader.VerificationResult.get -> ChunkShift.ManifestVerificationResult?
+static ChunkShift.ManifestReader.OpenAsync(System.IO.Stream! manifest, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<ChunkShift.ManifestReader!>!
+ChunkShift.ManifestReader.ReadAsync(System.Memory<ChunkShift.ChunkEntry> destination, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
