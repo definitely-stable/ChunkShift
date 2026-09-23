@@ -164,7 +164,7 @@ jobs:
             --memory \
             --exporters GitHub FullJSON \
             --artifacts artifacts/benchmarks/scanner-api-phase1 \
-            --filter '*ScannerApiPhase1Benchmarks*' '*ScannerApiAsyncConsumerBenchmarks*' '*ScannerApiSlowConsumerBenchmarks*' \
+            --filter '*ScannerApiPhase1Benchmarks*' '*ScannerApiAsyncConsumerBenchmarks*' '*ScannerApiSlowConsumerBenchmarks*' '*ScannerApiFirstChunkBenchmarks*' \
             --join \
             | tee artifacts/benchmarks/scanner-api-phase1.log
 
