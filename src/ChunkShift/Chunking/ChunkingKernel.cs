@@ -35,24 +35,29 @@ internal static class ChunkingKernel
         int chunkCapacity = profile.Maximum;
         if (chunkCapacity <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(profile), "Chunking profile maximum must be positive.");
+            throw new ArgumentOutOfRangeException(
+                nameof(profile),
+                "Chunking profile maximum must be positive.");
         }
 
         byte[] chunkBuffer = ArrayPool<byte>.Shared.Rent(chunkCapacity);
-        byte[] ioBuffer = ArrayPool<byte>.Shared.Rent(Math.Min(IoBufferSize, chunkCapacity));
+        byte[] ioBuffer = ArrayPool<byte>.Shared.Rent(
+            Math.Min(IoBufferSize, chunkCapacity));
 
         try
         {
-            int chunkLength = 0;
+            var boundaryState = new ChunkBoundaryState(profile);
+            int payloadLength = 0;
             long chunkOffset = 0;
-            ulong gearHash = 0;
 
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 int read = await source
-                    .ReadAsync(ioBuffer.AsMemory(0, Math.Min(IoBufferSize, chunkCapacity)), cancellationToken)
+                    .ReadAsync(
+                        ioBuffer.AsMemory(0, Math.Min(IoBufferSize, chunkCapacity)),
+                        cancellationToken)
                     .ConfigureAwait(false);
 
                 if (read == 0)
@@ -62,99 +67,59 @@ internal static class ChunkingKernel
 
                 int inputIndex = 0;
 
-                if (profile.Kind == ChunkingKernelKind.Fixed)
-                {
-                    while (inputIndex < read)
-                    {
-                        int take = Math.Min(profile.Target - chunkLength, read - inputIndex);
-                        Buffer.BlockCopy(ioBuffer, inputIndex, chunkBuffer, chunkLength, take);
-                        inputIndex += take;
-                        chunkLength += take;
-
-                        if (chunkLength == profile.Target)
-                        {
-                            await EmitAsync(
-                                chunkBuffer,
-                                chunkLength,
-                                chunkOffset,
-                                hashSuite,
-                                sink,
-                                cancellationToken).ConfigureAwait(false);
-
-                            chunkOffset = checked(chunkOffset + chunkLength);
-                            chunkLength = 0;
-                        }
-                    }
-
-                    continue;
-                }
-
-                if (profile.Kind != ChunkingKernelKind.FastCdcGearV1)
-                {
-                    throw new InvalidOperationException($"Unsupported chunking kernel '{profile.Kind}'.");
-                }
-
-                FastCdcProfile fastCdc = profile.FastCdc;
-
                 while (inputIndex < read)
                 {
-                    byte candidate = ioBuffer[inputIndex];
+                    ChunkBoundaryScanResult result =
+                        boundaryState.Scan(ioBuffer.AsSpan(inputIndex, read - inputIndex));
 
-                    if (chunkLength >= fastCdc.Minimum)
+                    if (result.Consumed > 0)
                     {
-                        gearHash = unchecked((gearHash << 1) + FastCdcGearTable.Get(candidate));
-                        ulong mask = chunkLength < fastCdc.Target
-                            ? fastCdc.StrictMask
-                            : fastCdc.RelaxedMask;
+                        ioBuffer
+                            .AsSpan(inputIndex, result.Consumed)
+                            .CopyTo(chunkBuffer.AsSpan(payloadLength));
 
-                        if ((gearHash & mask) == 0)
-                        {
-                            await EmitAsync(
-                                chunkBuffer,
-                                chunkLength,
-                                chunkOffset,
-                                hashSuite,
-                                sink,
-                                cancellationToken).ConfigureAwait(false);
-
-                            chunkOffset = checked(chunkOffset + chunkLength);
-                            chunkLength = 0;
-                            gearHash = 0;
-
-                            // The candidate byte participates in the previous Gear predicate
-                            // but belongs to the next logical chunk by the v1 cut convention.
-                            continue;
-                        }
+                        payloadLength += result.Consumed;
+                        inputIndex += result.Consumed;
                     }
 
-                    chunkBuffer[chunkLength] = candidate;
-                    chunkLength++;
-                    inputIndex++;
-
-                    if (chunkLength == fastCdc.Maximum)
+                    if (!result.HasBoundary)
                     {
-                        await EmitAsync(
-                            chunkBuffer,
-                            chunkLength,
-                            chunkOffset,
-                            hashSuite,
-                            sink,
-                            cancellationToken).ConfigureAwait(false);
-
-                        chunkOffset = checked(chunkOffset + chunkLength);
-                        chunkLength = 0;
-                        gearHash = 0;
+                        continue;
                     }
+
+                    if (payloadLength != result.CompletedChunkLength)
+                    {
+                        throw new InvalidOperationException(
+                            "Boundary state and payload accumulation diverged.");
+                    }
+
+                    await EmitAsync(
+                        chunkBuffer,
+                        payloadLength,
+                        chunkOffset,
+                        hashSuite,
+                        sink,
+                        cancellationToken).ConfigureAwait(false);
+
+                    chunkOffset = checked(chunkOffset + payloadLength);
+                    payloadLength = 0;
                 }
             }
 
-            if (chunkLength != 0)
+            int finalLength = boundaryState.Finish();
+            if (finalLength != payloadLength)
+            {
+                throw new InvalidOperationException(
+                    "Boundary state and payload accumulation diverged at EOF.");
+            }
+
+            if (payloadLength != 0)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 await EmitAsync(
                     chunkBuffer,
-                    chunkLength,
+                    payloadLength,
                     chunkOffset,
                     hashSuite,
                     sink,
