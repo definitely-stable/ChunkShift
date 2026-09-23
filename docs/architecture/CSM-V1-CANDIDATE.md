@@ -205,12 +205,12 @@ ManifestId = HashSuite.Hash(
     || UInt16LE(ChunkingProfileIdByteLength)
     || UTF8(ChunkingProfileId)
     || ProfileFingerprint[32]
-    || UInt64LE(TotalChunkCount)
-    || UInt64LE(TotalContentLength)
     || repeated {
          ChunkId[32]
          UInt32LE(Length)
        }
+    || UInt64LE(TotalChunkCount)
+    || UInt64LE(TotalContentLength)
 )
 ```
 
@@ -225,6 +225,13 @@ The following MUST NOT enter ManifestId:
 - optional ContentId.
 
 Changing any canonical semantic field above changes ManifestId.
+
+The final totals are deliberately encoded **after** the ordered chunk records. They are
+not known until source EOF, so placing them before the records would make a true
+single-pass, forward-only writer impossible without buffering/spooling the complete
+logical entry sequence or rereading the source. The ordering above binds the same
+semantic fields while allowing both writer and reader to compute ManifestId
+incrementally with bounded memory.
 
 ## 9. AUX sections
 
@@ -298,7 +305,8 @@ A conforming v1 reader enforces at least:
 - CBLK ChunkCount <= 4096;
 - every CBLK computed payload size matches PayloadLength exactly;
 - every offset/count/length multiplication/addition is checked;
-- section PayloadLength cannot exceed remaining physical bytes;
+- when the remaining physical byte length is known (for example, a seekable file or bounded range), section PayloadLength cannot exceed it;
+- on an unknown-length forward-only stream, the reader validates arithmetic and configured limits first, then consumes exactly PayloadLength bytes and treats premature EOF as truncation;
 - optional unknown sections are skipped/streamed, not blindly allocated;
 - total content length/count must match CEND and observed chunks;
 - lengths requiring a .NET `long`/memory operation must additionally fit that implementation boundary.
