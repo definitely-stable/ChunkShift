@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 
 namespace ChunkShift.Primitives;
 
@@ -10,6 +11,7 @@ namespace ChunkShift.Primitives;
 /// identifier grammar. Equality is ordinal. An absent selection is expressed with a
 /// <see langword="null"/> reference, not with a special instance.
 /// </remarks>
+[DebuggerDisplay("{Value,nq}")]
 public sealed class ChunkingProfileId : IEquatable<ChunkingProfileId>
 {
     /// <summary>

@@ -120,4 +120,46 @@ public class Hash256Tests
         Assert.NotEqual(zeroA, valueA);
         Assert.False(zeroA.FixedTimeEquals(valueA));
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(15)]
+    [InlineData(16)]
+    [InlineData(24)]
+    [InlineData(31)]
+    public void FixedTimeEquals_DetectsASingleBitDifferenceInEveryWord(int byteIndex)
+    {
+        byte[] changed = (byte[])SequenceBytes.Clone();
+        changed[byteIndex] ^= 0x80;
+
+        Hash256 value = Hash256.FromBytes(SequenceBytes);
+        Hash256 other = Hash256.FromBytes(changed);
+
+        Assert.False(value.FixedTimeEquals(other));
+        Assert.False(other.FixedTimeEquals(value));
+        Assert.Equal(value.Equals(other), value.FixedTimeEquals(other));
+    }
+
+    [Fact]
+    public void FixedTimeEquals_DoesNotAllocate()
+    {
+        Hash256 value = Hash256.FromBytes(SequenceBytes);
+        Hash256 other = Hash256.FromBytes(SequenceBytes);
+        _ = value.FixedTimeEquals(other);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        bool all = true;
+
+        for (int iteration = 0; iteration < 10_000; iteration++)
+        {
+            all &= value.FixedTimeEquals(other);
+        }
+
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.True(all);
+        Assert.True(allocated <= 1024, $"FixedTimeEquals allocated {allocated} bytes across 10,000 calls.");
+    }
 }

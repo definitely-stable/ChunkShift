@@ -1,10 +1,12 @@
 using System;
+using System.Diagnostics;
 
 namespace ChunkShift.Primitives;
 
 /// <summary>
 /// Identifies the exact uncompressed bytes of one content chunk.
 /// </summary>
+[DebuggerDisplay("{ToString(),nq}")]
 public readonly struct ChunkId : IEquatable<ChunkId>
 {
     /// <summary>

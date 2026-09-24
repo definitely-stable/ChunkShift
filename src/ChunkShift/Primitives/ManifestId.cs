@@ -1,10 +1,12 @@
 using System;
+using System.Diagnostics;
 
 namespace ChunkShift.Primitives;
 
 /// <summary>
 /// Identifies the logical manifest content independently of its physical encoding.
 /// </summary>
+[DebuggerDisplay("{ToString(),nq}")]
 public readonly struct ManifestId : IEquatable<ManifestId>
 {
     /// <summary>
