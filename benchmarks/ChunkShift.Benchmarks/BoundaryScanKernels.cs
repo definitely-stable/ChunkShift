@@ -241,11 +241,11 @@ internal static class BoundaryScanKernels
 
     /// <summary>
     /// A dependency chain of <paramref name="steps"/> steps, each one XOR and
-    /// one ADD on the previous result: two single-cycle ALU operations on every
-    /// x64 and ARM64 core this lab runs on, and nothing the JIT can fold or fuse.
-    /// Without hardware counters its time per step gives an <em>estimated</em>
-    /// clock (2 cycles per step); with counters, its measured cycles per step
-    /// check that assumption.
+    /// one ADD on the previous result, plus the loop-control instructions the
+    /// JIT emits. The nominal two-cycle dependency latency is a calibration
+    /// premise, not an architectural guarantee: hardware counters must validate
+    /// it before any cycle estimate is used. Without a valid PMU measurement,
+    /// elapsed time from this variant is not converted into cycles.
     /// </summary>
     internal static ulong CalibrationChain(int steps, ulong seed)
     {
