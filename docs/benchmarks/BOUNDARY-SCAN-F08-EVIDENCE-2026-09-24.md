@@ -29,7 +29,7 @@ Consequences:
 
 - A1-F01 (state in locals) and A1-F03 (no per-byte length/mask branches) are worth doing.
 - Even after both, the loop is not chain-bound: the F07 gate is above 1.15 on both architectures. These data therefore do not justify A1-F07 (the 2-byte unrolled chain).
-- The remaining gap is the predicate and mask cost, not the chain.
+- Non-chain overhead remains material after the local/split-loop variants. The predicate/mask work is one measured contributor (see NoChain), but this experiment does not uniquely attribute the entire remaining gap to it.
 
 ## Method
 
@@ -85,6 +85,6 @@ arm64 counter readings, per input byte, 64 KiB (256 KiB within 5%). These are no
 - The decision above rests only on time ratios, which do not depend on the counters. Read the arm64 counter table as relative, same-process-type comparisons at best.
 - If the counters were taken at face value: the production loop would execute about 26 instructions per byte at IPC 3.75, making it instruction-bound, not latency-bound. Locals would remove about 7.5 instructions per byte, and splitting the loops about 12 more. ChainFloor would cost about 1.2 cycles per hashed byte (0.94 per input byte ÷ (1 − 0.2197)). These readings are consistent with the time ratios, but they are not independent evidence.
 - NoChain is slower than ChainFloor on both architectures. The per-byte mask selection and predicate cost more than the carried chain itself.
-- **The calibration premise failed on arm64 and is not used.** The XOR+ADD step measured 2.92 cycles and 12.0 instructions, not the assumed 2 cycles and at most 6 instructions, even though the step reached Tier1 with the 4-instruction loop above. No cycles are derived from the calibration anywhere.
+- **The calibration premise failed on arm64 and is not used.** The XOR+ADD dependency itself was modeled as a nominal two-cycle floor, but the generated loop also contains loop-control instructions and the observed PMU readings were 2.92 cycles / 12.0 instructions per step despite Tier1 code. The runner therefore does not establish a portable two-cycle calibration. No cycles are derived from this calibration anywhere.
 - **x64 BDN results are excluded.** For ChainFloor 64 KiB, both BDN rounds measured 0.49 ns/B against the harness's 0.25 ns/B. BDN ChainFloor 256 KiB matched the harness at 0.25, and so did the first run's BDN rounds in the opposite pairing. The printed BDN disassembly shows identical machine code for both targets: the chain loop is `movzx; mov; lea r15,[r12+r15*2]; inc; cmp; jl`. The 2× difference therefore comes from where that code lands in a given process, not from what the JIT generated. A loop-alignment or front-end effect is likely, but it is not proven. The harness runs agree within a few percent, and arm64 BDN rounds agree with the harness within 3%.
 - The copy that A1-F05 removes is not measured here. This evidence says nothing about F05's size relative to F01/F03.
