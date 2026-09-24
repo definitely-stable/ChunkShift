@@ -96,7 +96,7 @@ Insert/delete/overwrite are represented at multiple sizes in the checked-in expe
 
 `fixed.reference.v1` remains the fixed-size control.
 
-M1/#4 adds the scalar `fastcdc.gear.chunkshift.v1` candidate through the **same Core kernel** used by future scanner/CSM paths. The checked-in smoke matrix exercises non-stable 64/128/256 KiB target presets:
+M1/#4 adds the scalar `fastcdc.gear.chunkshift.v1` candidate. Its boundary rules are shared by the in-memory reference (`ChunkingReference`) and the streaming kernel (`ChunkingKernel.ScanAsync`) that `ChunkScanner` and `ChunkManifest` run; the lab times both (see [Lanes](#lanes)). The checked-in smoke matrix exercises non-stable 64/128/256 KiB target presets:
 
 ```text
 minimum = target / 4
@@ -108,9 +108,20 @@ These are calibration presets, not the Core 0.1.0 default. #8 selects the stable
 
 `tools/reference/fastcdc_reference.py --verify` independently parses the normative GEAR table and verifies the 1 MiB deterministic golden boundary vector without calling the C# implementation.
 
+## Lanes
+
+Each experiment is timed in two lanes over the same source/target bytes:
+
+- **reference** (`metrics`): the in-memory scalar reference (`ChunkingReference`), which chunks a whole `ReadOnlySpan<byte>`;
+- **streaming** (`streaming`): `ChunkingKernel.ScanAsync` over a forward-only `Stream`, the path consumers run through `ChunkScanner` and `ChunkManifest`.
+
+The runner fails an experiment if the two lanes produce different chunk sequences, so the reuse/boundary/amplification metrics computed once from the reference lane also describe the streaming lane. Both chunk-sequence digests are kept as evidence and compared across architectures.
+
+**Throughput and allocation figures used for profile or performance decisions must come from the streaming lane.** The reference lane skips the stream read and carry-over work and, on the checked-in smoke matrix, is roughly 2x faster for FastCDC, so it overstates what consumers get; it stays as the oracle and as an upper bound on achievable throughput. `streaming.wallSecondsRelativeToReference` records the ratio per experiment.
+
 ## Metrics
 
-Before each experiment, the exact source/target workload is warmed up three times. Each experiment is then measured five times; wall time, CPU time and managed-allocation deltas use the median sample. **All individual samples are also retained** so variance/outliers are not lost behind the median.
+Before each experiment and lane, the exact source/target workload is warmed up three times. Each experiment is then measured five times; wall time, CPU time and managed-allocation deltas use the median sample. **All individual samples are also retained** so variance/outliers are not lost behind the median.
 
 Working-set values in this smoke runner remain same-process observational measurements; process-lifetime peak RSS is not treated as an isolated per-experiment peak. Profile/release decisions require the later isolated streaming/file lane owned by M1 measurement work. The measurement protocol records this limitation explicitly.
 
@@ -119,7 +130,7 @@ The portable JSON result contains:
 - source/target/measured bytes;
 - wall-clock seconds;
 - process CPU seconds;
-- GiB/s;
+- GiB/s (per lane);
 - process-wide managed allocation delta;
 - process lifetime peak RSS;
 - actual mean chunk size;
