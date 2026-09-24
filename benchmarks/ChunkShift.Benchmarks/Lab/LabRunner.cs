@@ -9,6 +9,12 @@ namespace ChunkShift.Benchmarks.Lab;
 
 public static class LabRunner
 {
+    internal const int SchemaVersion = 7;
+
+    // One smoke experiment takes a few seconds in its own process; a child
+    // that exceeds this is hung, not slow.
+    private static readonly TimeSpan IsolatedExperimentTimeout = TimeSpan.FromMinutes(5);
+
     private const int WarmupIterations = 3;
     private const int MeasurementIterations = 5;
 
@@ -39,6 +45,22 @@ public static class LabRunner
             return 2;
         }
 
+        bool isolate = args.Contains("--isolate", StringComparer.Ordinal);
+        string? onlyId = null;
+
+        if (args.Contains("--only", StringComparer.Ordinal) &&
+            (!TryGetArgument(args, "--only", out onlyId) || onlyId!.StartsWith("--", StringComparison.Ordinal)))
+        {
+            Console.Error.WriteLine("--only requires an experiment id.");
+            return 2;
+        }
+
+        if (isolate && onlyId is not null)
+        {
+            Console.Error.WriteLine("--isolate and --only are mutually exclusive.");
+            return 2;
+        }
+
         CorpusManifest corpus = Load<CorpusManifest>(corpusPath!);
         ExperimentManifest experiments = Load<ExperimentManifest>(experimentsPath!);
 
@@ -47,12 +69,76 @@ public static class LabRunner
             throw new InvalidOperationException("Unsupported benchmark manifest schema.");
         }
 
+        if (experiments.Experiments.DistinctBy(static experiment => experiment.Id).Count() != experiments.Experiments.Length)
+        {
+            throw new InvalidOperationException("Experiment ids must be unique.");
+        }
+
+        ExperimentDefinition[] selected = onlyId is null
+            ? experiments.Experiments
+            : experiments.Experiments.Where(experiment => experiment.Id == onlyId).ToArray();
+
+        if (selected.Length == 0)
+        {
+            throw new InvalidOperationException($"No experiment has id '{onlyId}'.");
+        }
+
+        string isolation = isolate
+            ? ProcessIsolationModes.PerExperiment
+            : onlyId is not null
+                ? ProcessIsolationModes.SingleExperiment
+                : ProcessIsolationModes.None;
+
         var corpusById = corpus.Entries.ToDictionary(static entry => entry.Id, StringComparer.Ordinal);
-        var results = new List<ExperimentResult>(experiments.Experiments.Length);
+        List<ExperimentResult> results = isolate
+            ? RunIsolated(Path.GetFullPath(corpusPath!), Path.GetFullPath(experimentsPath!), selected)
+            : RunInProcess(corpusById, selected);
 
-        StabilizeMeasuredShapes(experiments.Experiments);
+        LabSummary summary = CreateSummary(results);
 
-        foreach (ExperimentDefinition experiment in experiments.Experiments)
+        var run = new LabRun(
+            SchemaVersion,
+            DateTimeOffset.UtcNow,
+            new MeasurementProtocol(
+                WarmupIterations,
+                MeasurementIterations,
+                "median",
+                isolation == ProcessIsolationModes.None
+                    ? "same-process observational working-set samples; processPeakRssBytes is a process-lifetime upper bound across all experiments run before it, not a per-experiment peak; release decisions require isolated streaming evidence"
+                    : "processPeakRssBytes is the peak working set of a process that ran only this experiment: runtime start-up, corpus and mutation generation, stabilization of this experiment's shape and both lanes; it is neither per-lane nor resolved finely enough to show one chunk buffer",
+                "metrics: reference lane (in-memory ChunkingReference); streaming: ChunkingKernel.ScanAsync over a forward-only stream, the consumer path; chunk sequences of both lanes are digested as evidence",
+                StabilizationDescription,
+                "wallSecondsDispersion: within-experiment sample dispersion only; it does not estimate process-level effects (tiered JIT/PGO state, experiment order, thermal/frequency state)",
+                isolation),
+            new EnvironmentSnapshot(
+                RuntimeInformation.OSDescription,
+                RuntimeInformation.OSArchitecture.ToString(),
+                RuntimeInformation.ProcessArchitecture.ToString(),
+                RuntimeInformation.FrameworkDescription,
+                Environment.ProcessorCount,
+                Environment.GetEnvironmentVariable("GITHUB_SHA")),
+            summary,
+            results.ToArray());
+
+        string? directory = Path.GetDirectoryName(Path.GetFullPath(outputPath!));
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        File.WriteAllText(outputPath!, JsonSerializer.Serialize(run, JsonOptions));
+        return 0;
+    }
+
+    private static List<ExperimentResult> RunInProcess(
+        Dictionary<string, CorpusEntry> corpusById,
+        ExperimentDefinition[] selected)
+    {
+        var results = new List<ExperimentResult>(selected.Length);
+
+        StabilizeMeasuredShapes(selected);
+
+        foreach (ExperimentDefinition experiment in selected)
         {
             if (!corpusById.TryGetValue(experiment.CorpusId, out CorpusEntry? entry))
             {
@@ -154,37 +240,105 @@ public static class LabRunner
                 $"amplification={metrics.ChangeAmplification:F3} per {metrics.ChangedBytesBasis} byte");
         }
 
-        LabSummary summary = CreateSummary(results);
+        return results;
+    }
 
-        var run = new LabRun(
-            6,
-            DateTimeOffset.UtcNow,
-            new MeasurementProtocol(
-                WarmupIterations,
-                MeasurementIterations,
-                "median",
-                "same-process observational working-set samples; release decisions require isolated streaming evidence",
-                "metrics: reference lane (in-memory ChunkingReference); streaming: ChunkingKernel.ScanAsync over a forward-only stream, the consumer path; chunk sequences of both lanes are digested as evidence",
-                StabilizationDescription,
-                "wallSecondsDispersion: within-experiment sample dispersion only; it does not estimate process-level effects (tiered JIT/PGO state, experiment order, thermal/frequency state)"),
-            new EnvironmentSnapshot(
-                RuntimeInformation.OSDescription,
-                RuntimeInformation.OSArchitecture.ToString(),
-                RuntimeInformation.ProcessArchitecture.ToString(),
-                RuntimeInformation.FrameworkDescription,
-                Environment.ProcessorCount,
-                Environment.GetEnvironmentVariable("GITHUB_SHA")),
-            summary,
-            results.ToArray());
+    // Runs every selected experiment in a child process of this same program
+    // ("lab ... --only <id>") and merges their results in manifest order, so
+    // each processPeakRssBytes belongs to a process that ran one experiment.
+    private static List<ExperimentResult> RunIsolated(
+        string corpusPath,
+        string experimentsPath,
+        ExperimentDefinition[] selected)
+    {
+        var results = new List<ExperimentResult>(selected.Length);
+        string? commit = Environment.GetEnvironmentVariable("GITHUB_SHA");
+        string childDirectory = Path.Combine(Path.GetTempPath(), "chunkshift-lab-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(childDirectory);
 
-        string? directory = Path.GetDirectoryName(Path.GetFullPath(outputPath!));
-        if (!string.IsNullOrEmpty(directory))
+        try
         {
-            Directory.CreateDirectory(directory);
+            for (int index = 0; index < selected.Length; index++)
+            {
+                ExperimentDefinition experiment = selected[index];
+                string childOutput = Path.Combine(
+                    childDirectory,
+                    index.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".json");
+
+                using (Process child = StartChild(corpusPath, experimentsPath, childOutput, experiment.Id))
+                {
+                    if (!child.WaitForExit(IsolatedExperimentTimeout))
+                    {
+                        // Kill is asynchronous. Wait for actual termination before
+                        // the finally block removes the child's output directory,
+                        // otherwise Windows can report a cleanup error that masks
+                        // the original timeout.
+                        if (!child.HasExited)
+                        {
+                            child.Kill(entireProcessTree: true);
+                        }
+
+                        child.WaitForExit();
+                        throw new InvalidOperationException(
+                            $"Isolated run of experiment '{experiment.Id}' did not finish within {IsolatedExperimentTimeout.TotalMinutes:0} minutes.");
+                    }
+
+                    if (child.ExitCode != 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"Isolated run of experiment '{experiment.Id}' exited with code {child.ExitCode}.");
+                    }
+                }
+
+                LabRun childRun = Load<LabRun>(childOutput);
+
+                if (childRun.SchemaVersion != SchemaVersion ||
+                    childRun.Measurement.ProcessIsolation != ProcessIsolationModes.SingleExperiment ||
+                    childRun.Results.Length != 1 ||
+                    childRun.Results[0].ExperimentId != experiment.Id ||
+                    childRun.Environment.GitCommit != commit)
+                {
+                    throw new InvalidOperationException(
+                        $"Isolated run of experiment '{experiment.Id}' produced a result for a different schema, experiment, mode or commit.");
+                }
+
+                results.Add(childRun.Results[0]);
+            }
+        }
+        finally
+        {
+            Directory.Delete(childDirectory, recursive: true);
         }
 
-        File.WriteAllText(outputPath!, JsonSerializer.Serialize(run, JsonOptions));
-        return 0;
+        return results;
+    }
+
+    private static Process StartChild(string corpusPath, string experimentsPath, string outputPath, string experimentId)
+    {
+        string host = Environment.ProcessPath
+            ?? throw new InvalidOperationException("Cannot locate the running executable for an isolated run.");
+        var start = new ProcessStartInfo(host) { UseShellExecute = false };
+
+        // Under "dotnet ChunkShift.Benchmarks.dll" the host is dotnet itself.
+        if (string.Equals(Path.GetFileNameWithoutExtension(host), "dotnet", StringComparison.OrdinalIgnoreCase))
+        {
+            start.ArgumentList.Add(typeof(LabRunner).Assembly.Location);
+        }
+
+        foreach (string argument in new[]
+        {
+            "lab",
+            "--corpus", corpusPath,
+            "--experiments", experimentsPath,
+            "--output", outputPath,
+            "--only", experimentId,
+        })
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        return Process.Start(start)
+            ?? throw new InvalidOperationException($"Could not start the isolated run of experiment '{experimentId}'.");
     }
 
     private static ChunkRecord[] ChunkStreaming(

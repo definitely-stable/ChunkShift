@@ -82,11 +82,39 @@ jobs:
             --experiments benchmarks/experiments/experiments.v2.json \
             --output artifacts/benchmarks/lab-smoke.json
 
+      # One child process per experiment: the isolated run must reproduce the
+      # in-process evidence exactly and record its isolation mode.
+      - name: Run isolated lab and compare with the in-process run
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
+            lab \
+            --corpus benchmarks/corpus/corpus.v1.json \
+            --experiments benchmarks/experiments/experiments.v2.json \
+            --output artifacts/benchmarks/lab-smoke-isolated.json \
+            --isolate
+          dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
+            compare \
+            --left artifacts/benchmarks/lab-smoke.json \
+            --right artifacts/benchmarks/lab-smoke-isolated.json
+          python3 - <<'PY'
+          import json
+          inprocess = json.load(open("artifacts/benchmarks/lab-smoke.json"))
+          isolated = json.load(open("artifacts/benchmarks/lab-smoke-isolated.json"))
+          assert inprocess["measurement"]["processIsolation"] == "none"
+          assert isolated["measurement"]["processIsolation"] == "per-experiment"
+          assert [r["experimentId"] for r in isolated["results"]] == [r["experimentId"] for r in inprocess["results"]]
+          assert all(r["metrics"]["processPeakRssBytes"] > 0 for r in isolated["results"])
+          PY
+
       - name: Upload result
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: benchmark-lab-smoke
-          path: artifacts/benchmarks/lab-smoke.json
+          path: |
+            artifacts/benchmarks/lab-smoke.json
+            artifacts/benchmarks/lab-smoke-isolated.json
           if-no-files-found: error
           retention-days: 14
 
