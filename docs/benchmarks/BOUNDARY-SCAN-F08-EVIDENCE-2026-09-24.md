@@ -103,4 +103,20 @@ Local measurement, one x64 machine (Intel Xeon @ 2.10 GHz, 4 vCPU, .NET 10.0.12)
 | BDN `StreamingFastCdcBlake3`, 16 MiB, ms | 31.62 → 15.91 | 30.31 → 14.59 |
 | BDN `FastCdcBlake3` reference (control), ms | 14.44 → 14.65 | 13.74 → 13.87 |
 
-The production scan now runs at `ScalarLocals` speed, and the streaming path is within about 10% of the in-memory reference. On this machine `ScalarLocals` / `ChainFloor` is about 1.03, not the 1.50 the CI x64 runner measured, so this run cannot settle A1-F07 either way; the decision above stands until the CI job is rerun on this code.
+The production scan now runs at `ScalarLocals` speed, and the streaming path is within about 10% of the in-memory reference. On this machine `ScalarLocals` / `ChainFloor` is about 1.03, not the 1.50 the CI x64 runner measured, so this local run cannot settle A1-F07 either way.
+
+CI rerun on this code: `boundary-scan-f08` via workflow_dispatch, run 36048105886, commit `93ea08e`, same runners and harness as above. Harness medians, ns per input byte:
+
+| | x64 64K | x64 256K | arm64 64K | arm64 256K |
+|---|---|---|---|---|
+| `Scan` before (table above) | 1.200 | 1.155 | 2.051 | 2.052 |
+| `Scan` after | 0.418 | 0.378 | 0.342 | 0.344 |
+| `ScalarLocals` | 0.380 | 0.413 | 0.342 | 0.343 |
+| `ChainFloor` | 0.254 | 0.253 | 0.278 | 0.278 |
+| Scan / ScalarLocals (harness rounds) | 1.10, 1.10, 1.10 | 0.91, 0.92, 1.11 | 1.00, 1.00, 1.00 | 1.00, 0.99, 1.00 |
+| F07 gate, ScalarLocals / ChainFloor | 1.49, 1.50, 1.52 | 1.62, 1.64, 1.64 | 1.23, 1.23, 1.23 | 1.23, 1.23, 1.23 |
+
+- The production scan is 2.9–3.1× faster on x64 and 6.0× faster on arm64. It now matches `ScalarLocals` on arm64 and is within about 10% of it on x64.
+- arm64 counters (same caveats as above): `Scan` runs 6.24 instructions per byte, the same as `ScalarLocals`, down from 26.1.
+- The F07 gate stays above 1.15 on both architectures, so the CI data confirm the decision above: A1-F07 (the 2-byte unrolled chain) is still not justified. The local ~1.03 ratio does not reproduce on the CI runners.
+- x64 BDN rounds were excluded again by the harness/BDN agreement rule; arm64 BDN rounds agree with the harness.
