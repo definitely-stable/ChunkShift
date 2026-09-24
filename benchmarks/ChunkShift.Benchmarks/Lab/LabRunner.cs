@@ -11,6 +11,10 @@ public static class LabRunner
 {
     internal const int SchemaVersion = 7;
 
+    // One smoke experiment takes a few seconds in its own process; a child
+    // that exceeds this is hung, not slow.
+    private static readonly TimeSpan IsolatedExperimentTimeout = TimeSpan.FromMinutes(5);
+
     private const int WarmupIterations = 3;
     private const int MeasurementIterations = 5;
 
@@ -42,7 +46,14 @@ public static class LabRunner
         }
 
         bool isolate = args.Contains("--isolate", StringComparer.Ordinal);
-        _ = TryGetArgument(args, "--only", out string? onlyId);
+        string? onlyId = null;
+
+        if (args.Contains("--only", StringComparer.Ordinal) &&
+            (!TryGetArgument(args, "--only", out onlyId) || onlyId!.StartsWith("--", StringComparison.Ordinal)))
+        {
+            Console.Error.WriteLine("--only requires an experiment id.");
+            return 2;
+        }
 
         if (isolate && onlyId is not null)
         {
@@ -256,6 +267,14 @@ public static class LabRunner
 
                 using (Process child = StartChild(corpusPath, experimentsPath, childOutput, experiment.Id))
                 {
+                    if (!child.WaitForExit(IsolatedExperimentTimeout))
+                    {
+                        child.Kill(entireProcessTree: true);
+                        throw new InvalidOperationException(
+                            $"Isolated run of experiment '{experiment.Id}' did not finish within {IsolatedExperimentTimeout.TotalMinutes:0} minutes.");
+                    }
+
+                    // The timed wait does not wait for redirected output; this one does.
                     child.WaitForExit();
 
                     if (child.ExitCode != 0)

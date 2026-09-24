@@ -136,7 +136,8 @@ The portable JSON result contains:
 - process CPU seconds;
 - GiB/s (per lane);
 - process-wide managed allocation delta;
-- process lifetime peak RSS;
+- peak RSS (`processPeakRssBytes`), whose scope depends on `measurement.processIsolation`: `none` (process-lifetime upper bound over all experiments so far), `single-experiment` or `per-experiment` (the peak of a process that ran only this experiment);
+- `measurement.processIsolation` itself;
 - actual mean chunk size, its ratio to the nominal target (`meanToTargetRatio`) and the chunk-length standard deviation;
 - p50/p95/p99/max chunk length;
 - max-cut rate;
