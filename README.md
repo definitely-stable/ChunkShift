@@ -39,7 +39,7 @@ The current architecture sources of truth are:
 - [ROADMAP.md](ROADMAP.md) — program sequence, release gates and current critical path
 - [PLAN.md](PLAN.md) — milestone deliverables, tests, benchmarks and exit criteria
 
-The low-level raw chunk-stream API is intentionally **not frozen yet**. A callback with borrowed `ReadOnlyMemory<byte>` is the leading candidate, but issue [#20](https://github.com/definitely-stable/ChunkShift/issues/20) must compare push/pull, contiguous/segmented payload and Task/ValueTask alternatives before the Core `0.1.0` public baseline. Compare/diff is not part of Core `0.1.0`; it belongs to `ChunkShift.Patching`.
+The raw chunk-stream API shape is evidence-selected: issue [#20](https://github.com/definitely-stable/ChunkShift/issues/20) compared push/pull, contiguous/segmented payload and Task/ValueTask alternatives and froze the callback with borrowed `ReadOnlyMemory<byte>` ([phase-2 evidence](docs/benchmarks/SCANNER-API-PHASE2-EVIDENCE-2026-09-23.md)). The complete minimal Core public API and NativeAOT contract is frozen by issue [#6](https://github.com/definitely-stable/ChunkShift/issues/6) before the Core `0.1.0` public baseline. Compare/diff is not part of Core `0.1.0`; it belongs to `ChunkShift.Patching`.
 
 ## Product boundaries
 
