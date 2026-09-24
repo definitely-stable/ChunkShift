@@ -9,6 +9,7 @@ internal sealed class CsmInput : IDisposable
     private const int MaximumDeferredHashPrefix = 512;
 
     private readonly Stream _source;
+    private readonly long _startPosition = -1;
     private readonly byte[] _skipBuffer = new byte[SkipBufferSize];
     private readonly byte[] _deferredPrefix = new byte[MaximumDeferredHashPrefix];
     private int _deferredPrefixLength;
@@ -28,6 +29,21 @@ internal sealed class CsmInput : IDisposable
         }
 
         _source = source;
+
+        // Remaining bytes are derived from this start plus the bytes this
+        // input consumed, not from a later Position read, so a stream whose
+        // Position does not track what it returned cannot move the bound.
+        if (source.CanSeek)
+        {
+            try
+            {
+                _startPosition = source.Position;
+            }
+            catch (NotSupportedException)
+            {
+                _startPosition = -1;
+            }
+        }
     }
 
     internal ulong Offset { get; private set; }
@@ -36,16 +52,14 @@ internal sealed class CsmInput : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (!_source.CanSeek)
+        if (_startPosition < 0 || !_source.CanSeek)
         {
             return;
         }
 
-        long position;
         long length;
         try
         {
-            position = _source.Position;
             length = _source.Length;
         }
         catch (NotSupportedException)
@@ -53,13 +67,14 @@ internal sealed class CsmInput : IDisposable
             return;
         }
 
-        if (position < 0 || length < position)
+        ulong consumedEnd = checked((ulong)_startPosition + Offset);
+        if (length < 0 || (ulong)length < consumedEnd)
         {
             throw new InvalidDataException(
-                "CSM stream reported an invalid seekable length/position.");
+                "CSM stream reported a length shorter than the bytes already read.");
         }
 
-        ulong remaining = checked((ulong)(length - position));
+        ulong remaining = (ulong)length - consumedEnd;
         if (payloadLength > remaining)
         {
             throw new InvalidDataException(
@@ -100,9 +115,12 @@ internal sealed class CsmInput : IDisposable
             // stream: Stream.ReadAsync implementations may ignore the token.
             cancellationToken.ThrowIfCancellationRequested();
 
+            int requested = destination.Length - completed;
             int read = await _source
                 .ReadAsync(destination[completed..], cancellationToken)
                 .ConfigureAwait(false);
+
+            ValidateReadCount(read, requested);
 
             if (read == 0)
             {
@@ -170,9 +188,12 @@ internal sealed class CsmInput : IDisposable
             // stream: Stream.ReadAsync implementations may ignore the token.
             cancellationToken.ThrowIfCancellationRequested();
 
+            int requested = destination.Length - completed;
             int read = await _source
                 .ReadAsync(destination[completed..], cancellationToken)
                 .ConfigureAwait(false);
+
+            ValidateReadCount(read, requested);
 
             if (read == 0)
             {
@@ -195,6 +216,8 @@ internal sealed class CsmInput : IDisposable
             .ReadAsync(probe, cancellationToken)
             .ConfigureAwait(false);
 
+        ValidateReadCount(read, probe.Length);
+
         if (read != 0)
         {
             throw new InvalidDataException(
@@ -211,6 +234,20 @@ internal sealed class CsmInput : IDisposable
 
         _disposed = true;
         _physicalHasher?.Dispose();
+    }
+
+    /// <summary>
+    /// Rejects a count outside 0..requested. Such a count violates the Stream
+    /// contract; accepting it would slice past the bytes actually produced or
+    /// misreport a broken source as malformed CSM data.
+    /// </summary>
+    private static void ValidateReadCount(int read, int requested)
+    {
+        if ((uint)read > (uint)requested)
+        {
+            throw new InvalidOperationException(
+                $"The manifest stream returned {read} bytes for a {requested}-byte read; Stream.ReadAsync must return a count from 0 to the buffer length.");
+        }
     }
 
     private void AppendPhysical(ReadOnlySpan<byte> bytes)

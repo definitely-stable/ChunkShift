@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using ChunkShift.Chunking;
 using ChunkShift.Primitives;
 using ChunkShift.Profiles;
 
@@ -10,6 +11,17 @@ public static class LabRunner
 {
     private const int WarmupIterations = 3;
     private const int MeasurementIterations = 5;
+
+    // Process-wide stabilization before the matrix: every measured operation
+    // shape runs for at least this many rounds, while the overall stabilization
+    // phase lasts at least this much wall time. A pause between rounds lets
+    // tiered JIT/dynamic PGO install optimized code in the background.
+    // Without it the first experiment of each shape ran
+    // several times slower than its neighbours.
+    private const int StabilizationMinimumRounds = 5;
+    private static readonly TimeSpan StabilizationMinimumTime = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan StabilizationPause = TimeSpan.FromMilliseconds(200);
+    private const int StabilizationBytes = 8 * 1024 * 1024;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -38,7 +50,7 @@ public static class LabRunner
         var corpusById = corpus.Entries.ToDictionary(static entry => entry.Id, StringComparer.Ordinal);
         var results = new List<ExperimentResult>(experiments.Experiments.Length);
 
-        WarmUpHashSuites();
+        StabilizeMeasuredShapes(experiments.Experiments);
 
         foreach (ExperimentDefinition experiment in experiments.Experiments)
         {
@@ -54,13 +66,20 @@ public static class LabRunner
                 ? MutationGenerator.Identity(source)
                 : MutationGenerator.Apply(source, experiment.Mutation);
 
-            WarmUpExactWorkload(source, mutation.Target, experiment, hashSuite);
+            byte[] target = mutation.Target;
 
+            // Reference lane: in-memory ChunkingReference, the scalar oracle.
             Measurement measurement = Measure(
-                source,
-                mutation.Target,
-                experiment,
-                hashSuite);
+                () => (
+                    LabChunker.Chunk(source, experiment, hashSuite),
+                    LabChunker.Chunk(target, experiment, hashSuite)));
+
+            // Streaming lane: ChunkingKernel.ScanAsync over a forward-only
+            // stream, the path ChunkScanner and ChunkManifest run.
+            Measurement streaming = Measure(
+                () => (
+                    ChunkStreaming(source, experiment, hashSuite),
+                    ChunkStreaming(target, experiment, hashSuite)));
 
             long measuredBytes = checked((long)source.Length + mutation.Target.Length);
 
@@ -69,32 +88,50 @@ public static class LabRunner
                 measurement.TargetChunks,
                 mutation,
                 LabChunker.GetMaximumChunkSize(experiment),
+                experiment.ChunkSize,
                 source.Length,
                 mutation.Target.Length,
                 measuredBytes,
                 measurement.WallSeconds,
+                measurement.WallSecondsDispersion,
                 measurement.CpuSeconds,
                 measurement.AllocatedBytes,
                 measurement.ProcessPeakRssBytes);
 
-            ChunkRecord[] streamingSourceChunks = LabChunker
-                .ChunkStreamingAsync(source, experiment, hashSuite)
-                .AsTask()
-                .GetAwaiter()
-                .GetResult();
-            ChunkRecord[] streamingTargetChunks = LabChunker
-                .ChunkStreamingAsync(mutation.Target, experiment, hashSuite)
-                .AsTask()
-                .GetAwaiter()
-                .GetResult();
+            // Reuse/resync/amplification metrics are computed once, from the
+            // reference lane; they describe the streaming lane only if both
+            // lanes cut and hash identically.
+            if (!measurement.SourceChunks.AsSpan().SequenceEqual(streaming.SourceChunks) ||
+                !measurement.TargetChunks.AsSpan().SequenceEqual(streaming.TargetChunks))
+            {
+                throw new InvalidOperationException(
+                    $"Experiment '{experiment.Id}': streaming and reference lanes produced different chunk sequences.");
+            }
+
+            // Counted in a separate untimed pass so the counter never touches
+            // the measured samples; the count is deterministic.
+            var counters = new ChunkingKernelCounters();
+            _ = ChunkStreaming(source, experiment, hashSuite, counters);
+            _ = ChunkStreaming(target, experiment, hashSuite, counters);
+
+            var streamingMetrics = new StreamingLaneMetrics(
+                streaming.WallSeconds,
+                streaming.CpuSeconds,
+                streaming.WallSeconds <= 0 ? 0 : measuredBytes / (double)(1L << 30) / streaming.WallSeconds,
+                streaming.AllocatedBytes,
+                streaming.WallSecondsDispersion,
+                measurement.WallSeconds <= 0 ? 0 : streaming.WallSeconds / measurement.WallSeconds,
+                counters.BytesCopied,
+                measuredBytes == 0 ? 0 : counters.BytesCopied / (double)measuredBytes,
+                streaming.Samples);
 
             var evidence = new ExperimentEvidence(
                 LabEvidenceDigest.ComputeBytes(source),
                 LabEvidenceDigest.ComputeBytes(mutation.Target),
                 LabEvidenceDigest.ComputeChunkSequence(measurement.SourceChunks),
                 LabEvidenceDigest.ComputeChunkSequence(measurement.TargetChunks),
-                LabEvidenceDigest.ComputeChunkSequence(streamingSourceChunks),
-                LabEvidenceDigest.ComputeChunkSequence(streamingTargetChunks));
+                LabEvidenceDigest.ComputeChunkSequence(streaming.SourceChunks),
+                LabEvidenceDigest.ComputeChunkSequence(streaming.TargetChunks));
 
             results.Add(new ExperimentResult(
                 ExperimentFingerprint.Compute(experiment, entry),
@@ -107,23 +144,29 @@ public static class LabRunner
                 experiment.Mutation,
                 evidence,
                 measurement.Samples,
-                metrics));
+                metrics,
+                streamingMetrics));
 
             Console.WriteLine(
-                $"{experiment.Id} [{experiment.ProfileId}]: {metrics.GiBPerSecond:F3} GiB/s, reuse={metrics.ReuseRatio:P2}, " +
-                $"amplification={metrics.ChangeAmplification:F3}");
+                $"{experiment.Id} [{experiment.ProfileId}]: reference {metrics.GiBPerSecond:F3} GiB/s, " +
+                $"streaming {streamingMetrics.GiBPerSecond:F3} GiB/s ({streamingMetrics.WallSecondsRelativeToReference:F2}x time), " +
+                $"mean/target={metrics.MeanToTargetRatio:F3}, reuse={metrics.ReuseRatio:P2}, " +
+                $"amplification={metrics.ChangeAmplification:F3} per {metrics.ChangedBytesBasis} byte");
         }
 
         LabSummary summary = CreateSummary(results);
 
         var run = new LabRun(
-            3,
+            6,
             DateTimeOffset.UtcNow,
             new MeasurementProtocol(
                 WarmupIterations,
                 MeasurementIterations,
                 "median",
-                "same-process observational working-set samples; release decisions require isolated streaming evidence"),
+                "same-process observational working-set samples; release decisions require isolated streaming evidence",
+                "metrics: reference lane (in-memory ChunkingReference); streaming: ChunkingKernel.ScanAsync over a forward-only stream, the consumer path; chunk sequences of both lanes are digested as evidence",
+                StabilizationDescription,
+                "wallSecondsDispersion: within-experiment sample dispersion only; it does not estimate process-level effects (tiered JIT/PGO state, experiment order, thermal/frequency state)"),
             new EnvironmentSnapshot(
                 RuntimeInformation.OSDescription,
                 RuntimeInformation.OSArchitecture.ToString(),
@@ -144,12 +187,28 @@ public static class LabRunner
         return 0;
     }
 
-    private static Measurement Measure(
-        byte[] source,
-        byte[] target,
+    private static ChunkRecord[] ChunkStreaming(
+        byte[] data,
         ExperimentDefinition experiment,
-        HashSuiteId hashSuite)
+        HashSuiteId hashSuite,
+        ChunkingKernelCounters? counters = null)
     {
+        // The source is a MemoryStream, so the scan completes synchronously on
+        // this thread and blocking here adds no scheduling to the timing.
+        return LabChunker
+            .ChunkStreamingAsync(data, experiment, hashSuite, counters: counters)
+            .AsTask()
+            .GetAwaiter()
+            .GetResult();
+    }
+
+    private static Measurement Measure(Func<(ChunkRecord[] Source, ChunkRecord[] Target)> chunkBoth)
+    {
+        for (int iteration = 0; iteration < WarmupIterations; iteration++)
+        {
+            _ = chunkBoth();
+        }
+
         var samples = new MeasurementSample[MeasurementIterations];
         ChunkRecord[] sourceChunks = Array.Empty<ChunkRecord>();
         ChunkRecord[] targetChunks = Array.Empty<ChunkRecord>();
@@ -168,8 +227,7 @@ public static class LabRunner
             long workingSetBefore = process.WorkingSet64;
             long started = Stopwatch.GetTimestamp();
 
-            sourceChunks = LabChunker.Chunk(source, experiment, hashSuite);
-            targetChunks = LabChunker.Chunk(target, experiment, hashSuite);
+            (sourceChunks, targetChunks) = chunkBoth();
 
             long finished = Stopwatch.GetTimestamp();
             long allocatedAfter = GC.GetTotalAllocatedBytes(precise: true);
@@ -188,67 +246,88 @@ public static class LabRunner
             sourceChunks,
             targetChunks,
             Median(samples.Select(static sample => sample.WallSeconds)),
+            DistributionCalculator.Disperse(samples.Select(static sample => sample.WallSeconds)),
             Median(samples.Select(static sample => sample.CpuSeconds)),
             checked((long)Math.Round(Median(samples.Select(static sample => (double)sample.AllocatedBytes)))),
             samples.Max(static sample => sample.ProcessPeakRssBytes),
             samples);
     }
 
-    private static void WarmUpHashSuites()
+    private static readonly string StabilizationDescription = string.Create(
+        System.Globalization.CultureInfo.InvariantCulture,
+        $"before the matrix, every distinct (algorithm, chunk size, hash suite) runs both lanes over {StabilizationBytes} random bytes for at least {StabilizationMinimumRounds} rounds; the process-wide stabilization phase lasts at least {StabilizationMinimumTime.TotalSeconds:0} s, pausing {StabilizationPause.TotalMilliseconds:0} ms between rounds for background tier-up; then {WarmupIterations} warm-up iterations of each exact experiment workload per lane");
+
+    private static void StabilizeMeasuredShapes(IEnumerable<ExperimentDefinition> experiments)
     {
-        byte[] warmup = CorpusGenerator.Generate(
+        byte[] data = CorpusGenerator.Generate(
             new CorpusEntry(
-                "warmup",
+                "stabilization",
                 "internal",
                 "random",
-                1024 * 1024,
+                StabilizationBytes,
                 0xC4855A11UL,
-                "internal warm-up"));
+                "internal process stabilization"));
 
-        for (int iteration = 0; iteration < WarmupIterations; iteration++)
+        // The same operation shapes the measured lanes run, not only the hash
+        // primitives: both lanes of every algorithm/size/hash combination.
+        ExperimentDefinition[] shapes = experiments
+            .DistinctBy(static experiment => (experiment.Algorithm, experiment.ChunkSize, experiment.HashSuite))
+            .ToArray();
+
+        var elapsed = Stopwatch.StartNew();
+        int round = 0;
+
+        while (round < StabilizationMinimumRounds || elapsed.Elapsed < StabilizationMinimumTime)
         {
-            _ = FixedSizeReferenceChunker.Chunk(warmup, 64 * 1024, HashSuiteIds.Blake3256V1);
-            _ = FixedSizeReferenceChunker.Chunk(warmup, 64 * 1024, HashSuiteIds.Sha256V1);
+            foreach (ExperimentDefinition shape in shapes)
+            {
+                HashSuiteId hashSuite = ParseHashSuite(shape.HashSuite);
+                _ = LabChunker.Chunk(data, shape, hashSuite);
+                _ = ChunkStreaming(data, shape, hashSuite);
+            }
+
+            round++;
+            Thread.Sleep(StabilizationPause);
         }
+
+        Console.WriteLine(string.Create(
+            System.Globalization.CultureInfo.InvariantCulture,
+            $"stabilized {shapes.Length} measured shapes x 2 lanes in {round} rounds ({elapsed.Elapsed.TotalSeconds:F1} s)"));
     }
 
-    private static void WarmUpExactWorkload(
-        byte[] source,
-        byte[] target,
-        ExperimentDefinition experiment,
-        HashSuiteId hashSuite)
+    internal static LabSummary CreateSummary(IReadOnlyList<ExperimentResult> results)
     {
-        for (int iteration = 0; iteration < WarmupIterations; iteration++)
-        {
-            _ = LabChunker.Chunk(source, experiment, hashSuite);
-            _ = LabChunker.Chunk(target, experiment, hashSuite);
-        }
-    }
-
-    private static LabSummary CreateSummary(List<ExperimentResult> results)
-    {
-        DistributionSummary? all = DistributionCalculator.Summarize(
-            results
-                .Where(static result =>
-                    result.Mutation is not null &&
-                    result.Metrics.ResynchronizationDistanceBytes.HasValue)
-                .Select(static result => result.Metrics.ResynchronizationDistanceBytes));
-
-        Dictionary<string, DistributionSummary> byMutationKind = results
+        // Distances from different algorithms, profiles or mutation kinds are
+        // not one population, so they are never pooled. Experiments that did
+        // not resynchronize are counted, not dropped, so each distribution
+        // states how much of its group it describes.
+        ResynchronizationSummary[] groups = results
             .Where(static result =>
                 result.Mutation is not null &&
-                result.Metrics.ResynchronizationDistanceBytes.HasValue)
-            .GroupBy(
-                static result => result.Mutation!.Kind,
-                StringComparer.Ordinal)
-            .OrderBy(static group => group.Key, StringComparer.Ordinal)
-            .ToDictionary(
-                static group => group.Key,
-                static group => DistributionCalculator.Summarize(
-                    group.Select(static result => result.Metrics.ResynchronizationDistanceBytes))!,
-                StringComparer.Ordinal);
+                result.Metrics.ResynchronizationStatus != ResynchronizationStatuses.NotApplicable)
+            .GroupBy(static result => (result.Algorithm, result.ProfileId, result.Mutation!.Kind))
+            .OrderBy(static group => group.Key.Algorithm, StringComparer.Ordinal)
+            .ThenBy(static group => group.Key.ProfileId, StringComparer.Ordinal)
+            .ThenBy(static group => group.Key.Kind, StringComparer.Ordinal)
+            .Select(static group =>
+            {
+                int applicable = group.Count();
+                int resynchronized = group.Count(static result =>
+                    result.Metrics.ResynchronizationStatus == ResynchronizationStatuses.Resynchronized);
 
-        return new LabSummary(all, byMutationKind);
+                return new ResynchronizationSummary(
+                    group.Key.Algorithm,
+                    group.Key.ProfileId,
+                    group.Key.Kind,
+                    applicable,
+                    resynchronized,
+                    resynchronized / (double)applicable,
+                    DistributionCalculator.Summarize(
+                        group.Select(static result => result.Metrics.ResynchronizationDistanceBytes)));
+            })
+            .ToArray();
+
+        return new LabSummary(groups);
     }
 
     private static double Median(IEnumerable<double> values)
@@ -352,6 +431,7 @@ public static class LabRunner
         ChunkRecord[] SourceChunks,
         ChunkRecord[] TargetChunks,
         double WallSeconds,
+        SampleDispersion WallSecondsDispersion,
         double CpuSeconds,
         long AllocatedBytes,
         long ProcessPeakRssBytes,

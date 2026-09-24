@@ -199,6 +199,32 @@ public class ChunkingKernelStreamTests
         Assert.Empty(actual.Reconstructed);
     }
 
+    [Theory]
+    [InlineData(false, 1)]
+    [InlineData(false, 8191)]
+    [InlineData(true, 1)]
+    [InlineData(true, 8191)]
+    public async Task Counters_ReportEveryByteCopiedIntoTheChunkBuffer(bool fastCdc, int readLength)
+    {
+        byte[] input = CreateXorShiftBytes(512 * 1024 + 37, 0xB17E5C0Du);
+        ChunkingKernelProfile profile = fastCdc
+            ? ChunkingKernelProfile.FastCdcGear(FastCdcProfile.CreateM1Candidate(64 * 1024))
+            : ChunkingKernelProfile.Fixed(64 * 1024);
+        var counters = new ChunkingKernelCounters();
+
+        await ChunkingKernel.ScanAsync(
+            new SegmentedReadStream(input, [readLength]),
+            profile,
+            HashSuiteIds.Blake3256V1,
+            static (_, _, _) => ValueTask.CompletedTask,
+            counters);
+
+        // The current topology copies every consumed byte once from the read
+        // buffer into the chunk buffer (A1-F05). A single-buffer topology is
+        // expected to lower this and must update the expectation deliberately.
+        Assert.Equal(input.Length, counters.BytesCopied);
+    }
+
     private static async Task<CollectedScan> ScanAsync(
         Stream source,
         ChunkingKernelProfile profile,

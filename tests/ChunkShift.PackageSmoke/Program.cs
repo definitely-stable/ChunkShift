@@ -10,6 +10,15 @@
 //   * a 32 MiB generated non-seekable source through the scanner and the
 //     manifest create/verify path, each under a managed-allocation budget.
 //
+// A second mode proves the larger-than-memory claim (PLAN.md §7, RFC-0003
+// §5.7) in an isolated process: heavy validation generates a file several
+// times larger than a cgroup memory limit (swap disabled) and runs
+// --large-source inside that limit, so any full materialization of the source
+// gets the process OOM-killed instead of passing quietly:
+//
+//   ChunkShift.PackageSmoke --generate <file> <bytes>
+//   ChunkShift.PackageSmoke --large-source <file> --manifest <file> [--evidence <path>]
+//
 // Deterministic results are written as evidence lines (--evidence <path>) so
 // JIT vs AOT and x64 vs ARM64 runs can be compared byte-for-byte. Allocation
 // figures are printed to stdout only, because they are not deterministic.
@@ -25,6 +34,31 @@ const uint GeneratedSeed = 0x51A6E55u;
 // A full-source materialization alone would allocate at least 32 MiB. Leave
 // substantial runtime headroom while still detecting that class of regression.
 const long AllocationBudget = 16L * 1024 * 1024;
+
+if (args is ["--generate", string generatePath, string generateLength])
+{
+    await LargeSource.GenerateAsync(
+        Path.GetFullPath(generatePath),
+        long.Parse(generateLength, NumberStyles.None, CultureInfo.InvariantCulture));
+    return 0;
+}
+
+if (args is ["--large-source", string largePath, "--manifest", string largeManifestPath, .. string[] largeRest])
+{
+    string? largeEvidencePath = ParseEvidencePath(largeRest);
+    string line = await LargeSource.RunAsync(
+        Path.GetFullPath(largePath),
+        Path.GetFullPath(largeManifestPath));
+
+    Console.WriteLine(line);
+    if (largeEvidencePath is not null)
+    {
+        await File.WriteAllLinesAsync(largeEvidencePath, [line]);
+    }
+
+    Console.WriteLine("large-source smoke: OK");
+    return 0;
+}
 
 string? evidencePath = ParseEvidencePath(args);
 var evidence = new List<string>();
@@ -192,7 +226,10 @@ static string? ParseEvidencePath(string[] arguments)
         return Path.GetFullPath(arguments[1]);
     }
 
-    throw new ArgumentException("Usage: ChunkShift.PackageSmoke [--evidence <path>]");
+    throw new ArgumentException(
+        "Usage: ChunkShift.PackageSmoke [--evidence <path>] | " +
+        "--generate <file> <bytes> | " +
+        "--large-source <file> --manifest <file> [--evidence <path>]");
 }
 
 static string Invariant(FormattableString value) =>
@@ -287,6 +324,165 @@ static string DigestIds(List<ChunkId> ids)
     }
 
     return Convert.ToHexStringLower(hash.GetHashAndReset());
+}
+
+// Larger-than-memory scenario over a real file. The memory limit itself is
+// enforced by the caller (a cgroup); this code refuses to report success
+// unless that limit is present and the source is clearly larger than it.
+internal static class LargeSource
+{
+    private const uint Seed = 0x1A26E5EEu;
+    private const int MinimumSourceToLimitRatio = 8;
+
+    internal static async Task GenerateAsync(string path, long length)
+    {
+        using var generated = new GeneratedStream(length, Seed);
+        await using var file = new FileStream(
+            path,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 0,
+            FileOptions.Asynchronous);
+
+        await generated.CopyToAsync(file, 1024 * 1024);
+        Console.WriteLine(FormattableString.Invariant($"generated {length} bytes at {path}"));
+    }
+
+    internal static async Task<string> RunAsync(string sourcePath, string manifestPath)
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new PlatformNotSupportedException("--large-source reads its limit from Linux cgroup v2.");
+        }
+
+        long sourceLength = new FileInfo(sourcePath).Length;
+        (long memoryLimit, string swapLimit) = ReadCgroupLimits();
+
+        Console.WriteLine(FormattableString.Invariant(
+            $"large-source bytes={sourceLength} cgroup memory.max={memoryLimit} memory.swap.max={swapLimit}"));
+
+        Require(
+            swapLimit == "0",
+            "run inside a cgroup with swap disabled (memory.swap.max=0)");
+        Require(
+            memoryLimit > 0 && sourceLength >= memoryLimit * MinimumSourceToLimitRatio,
+            FormattableString.Invariant(
+                $"the source must be at least {MinimumSourceToLimitRatio}x the cgroup memory limit"));
+
+        ManifestInfo created;
+        await using (FileStream source = OpenSequential(sourcePath))
+        await using (var manifest = new FileStream(
+            manifestPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 0,
+            FileOptions.Asynchronous))
+        {
+            created = await ChunkManifest.CreateAsync(
+                source,
+                manifest,
+                new ManifestCreationOptions { IncludeBlockIndex = true });
+        }
+
+        Require(created.ContentLength == (ulong)sourceLength, "CreateAsync did not cover the whole file");
+
+        await using (FileStream manifest = OpenSequential(manifestPath))
+        {
+            ManifestVerificationResult structural = await ChunkManifest.VerifyManifestAsync(manifest);
+            Require(
+                structural.IsValid && structural.Manifest.ManifestId == created.ManifestId,
+                "VerifyManifestAsync rejected the large manifest");
+        }
+
+        ulong entries = 0;
+        ulong covered = 0;
+        await using (FileStream manifest = OpenSequential(manifestPath))
+        await using (ManifestReader reader = await ManifestReader.OpenAsync(manifest))
+        {
+            var batch = new ChunkEntry[4096];
+            int read;
+
+            while ((read = await reader.ReadAsync(batch)) != 0)
+            {
+                for (int item = 0; item < read; item++)
+                {
+                    Require(batch[item].Offset == covered, "ManifestReader entries are not contiguous");
+                    covered += batch[item].Length;
+                }
+
+                entries += (ulong)read;
+            }
+
+            Require(
+                reader.VerificationResult is { IsValid: true } &&
+                entries == created.ChunkCount &&
+                covered == created.ContentLength,
+                "ManifestReader did not stream the large manifest as valid");
+        }
+
+        await using (FileStream source = OpenSequential(sourcePath))
+        await using (FileStream manifest = OpenSequential(manifestPath))
+        {
+            ManifestVerificationResult verified = await ChunkManifest.VerifyAsync(source, manifest);
+            Require(verified.IsValid, "VerifyAsync rejected the large source");
+        }
+
+        long peakResident = ReadPeakResidentBytes();
+        Console.WriteLine(FormattableString.Invariant(
+            $"large-source peak-rss={peakResident} source/peak={(double)sourceLength / peakResident:F1}x"));
+        Require(peakResident < memoryLimit, "peak RSS reached the cgroup memory limit");
+
+        // Deterministic: compared across architectures, unlike the memory figures.
+        return FormattableString.Invariant(
+            $"large-source bytes={sourceLength} manifest-id={created.ManifestId} file-digest={created.FileDigest.ToHexLower()} chunks={created.ChunkCount} physical-bytes={created.PhysicalLength}");
+    }
+
+    private static FileStream OpenSequential(string path) => new(
+        path,
+        FileMode.Open,
+        FileAccess.Read,
+        FileShare.Read,
+        bufferSize: 0,
+        FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+    private static (long MemoryLimit, string SwapLimit) ReadCgroupLimits()
+    {
+        // cgroup v2: a single "0::/path" line.
+        string? relative = File.ReadLines("/proc/self/cgroup")
+            .Where(line => line.StartsWith("0::", StringComparison.Ordinal))
+            .Select(line => line[3..])
+            .FirstOrDefault();
+        Require(relative is not null, "no cgroup v2 membership in /proc/self/cgroup");
+
+        string directory = "/sys/fs/cgroup" + relative;
+        string memory = File.ReadAllText(Path.Combine(directory, "memory.max")).Trim();
+        string swapFile = Path.Combine(directory, "memory.swap.max");
+        string swap = File.Exists(swapFile) ? File.ReadAllText(swapFile).Trim() : "unavailable";
+
+        return (
+            memory == "max" ? 0 : long.Parse(memory, NumberStyles.None, CultureInfo.InvariantCulture),
+            swap);
+    }
+
+    private static long ReadPeakResidentBytes()
+    {
+        // VmHWM is the process's peak resident set size, in kB.
+        string line = File.ReadLines("/proc/self/status")
+            .First(value => value.StartsWith("VmHWM:", StringComparison.Ordinal));
+        string kilobytes = line["VmHWM:".Length..].Trim().Split(' ')[0];
+
+        return long.Parse(kilobytes, NumberStyles.None, CultureInfo.InvariantCulture) * 1024;
+    }
+
+    private static void Require(bool condition, string failure)
+    {
+        if (!condition)
+        {
+            throw new InvalidOperationException($"ChunkShift large-source smoke failed: {failure}.");
+        }
+    }
 }
 
 internal sealed record ScanResult(

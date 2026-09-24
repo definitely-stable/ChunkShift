@@ -96,7 +96,7 @@ Insert/delete/overwrite are represented at multiple sizes in the checked-in expe
 
 `fixed.reference.v1` remains the fixed-size control.
 
-M1/#4 adds the scalar `fastcdc.gear.chunkshift.v1` candidate through the **same Core kernel** used by future scanner/CSM paths. The checked-in smoke matrix exercises non-stable 64/128/256 KiB target presets:
+M1/#4 adds the scalar `fastcdc.gear.chunkshift.v1` candidate. Its boundary rules are shared by the in-memory reference (`ChunkingReference`) and the streaming kernel (`ChunkingKernel.ScanAsync`) that `ChunkScanner` and `ChunkManifest` run; the lab times both (see [Lanes](#lanes)). The checked-in smoke matrix exercises non-stable 64/128/256 KiB target presets:
 
 ```text
 minimum = target / 4
@@ -108,9 +108,22 @@ These are calibration presets, not the Core 0.1.0 default. #8 selects the stable
 
 `tools/reference/fastcdc_reference.py --verify` independently parses the normative GEAR table and verifies the 1 MiB deterministic golden boundary vector without calling the C# implementation.
 
+## Lanes
+
+Each experiment is timed in two lanes over the same source/target bytes:
+
+- **reference** (`metrics`): the in-memory scalar reference (`ChunkingReference`), which chunks a whole `ReadOnlySpan<byte>`;
+- **streaming** (`streaming`): `ChunkingKernel.ScanAsync` over a forward-only `Stream`, the path consumers run through `ChunkScanner` and `ChunkManifest`.
+
+The runner fails an experiment if the two lanes produce different chunk sequences, so the reuse/boundary/amplification metrics computed once from the reference lane also describe the streaming lane. Both chunk-sequence digests are kept as evidence and compared across architectures.
+
+**Throughput and allocation figures used for profile or performance decisions must come from the streaming lane.** The reference lane skips the stream read and carry-over work and, on the checked-in smoke matrix, was about 2.2x faster for FastCDC before process stabilization and about 1.35-1.56x faster after it (local win-x64 run), so it overstates what consumers get; it stays as the oracle and as an upper bound on achievable throughput. `streaming.wallSecondsRelativeToReference` records the ratio per experiment.
+
+`streaming.bytesCopied` is the number of bytes `ChunkingKernel` copied from its read buffer into its chunk buffer for the source and target together, counted by `ChunkingKernelCounters` in a separate untimed pass so the counter never touches the timed samples; `streaming.bytesCopiedPerInputByte` divides it by the measured bytes. The current two-buffer topology copies every byte once (1.0); this is the "bytes copied per GiB" regression signal in `docs/PERFORMANCE.md`, and a single-buffer topology (A1-F05) should lower it. The reference lane does not copy.
+
 ## Metrics
 
-Before each experiment, the exact source/target workload is warmed up three times. Each experiment is then measured five times; wall time, CPU time and managed-allocation deltas use the median sample. **All individual samples are also retained** so variance/outliers are not lost behind the median.
+Before the matrix, the runner stabilizes the process: every distinct (algorithm, chunk size, hash suite) in the experiment manifest runs **both** lanes over 8 MiB of random bytes for at least five rounds; the process-wide stabilization phase lasts at least three seconds, with a 200 ms pause between rounds so tiered compilation and dynamic PGO can install optimized code in the background. Without this, the first experiment of each operation shape ran several times slower than its neighbours (for example 0.36 vs 1.9 GiB/s for the first fixed-size experiment). Then, before each experiment and lane, the exact source/target workload is warmed up three times. Each experiment is then measured five times; wall time, CPU time and managed-allocation deltas use the median sample. **All individual samples are also retained** so variance/outliers are not lost behind the median, and each lane publishes `wallSecondsDispersion` (sample count, min, max, mean, sample standard deviation and coefficient of variation of the wall-time samples) so the samples need not be recomputed. This is **within-experiment** sample dispersion only: a low coefficient of variation does not rule out systematic process-level effects such as tiered JIT/PGO state, experiment order or thermal/frequency state, and five samples are not a calibrated noise band. Profile-selection evidence (#8) needs independent process launches and an order-balanced comparison, as `docs/PERFORMANCE.md` requires; this smoke runner does not provide that.
 
 Working-set values in this smoke runner remain same-process observational measurements; process-lifetime peak RSS is not treated as an isolated per-experiment peak. Profile/release decisions require the later isolated streaming/file lane owned by M1 measurement work. The measurement protocol records this limitation explicitly.
 
@@ -119,10 +132,10 @@ The portable JSON result contains:
 - source/target/measured bytes;
 - wall-clock seconds;
 - process CPU seconds;
-- GiB/s;
+- GiB/s (per lane);
 - process-wide managed allocation delta;
 - process lifetime peak RSS;
-- actual mean chunk size;
+- actual mean chunk size, its ratio to the nominal target (`meanToTargetRatio`) and the chunk-length standard deviation;
 - p50/p95/p99/max chunk length;
 - max-cut rate;
 - reused target bytes and reuse ratio;
@@ -168,7 +181,13 @@ first re-established boundary offset - affected target end
 
 No value is reported when there is no post-mutation region (for example, some append cases) or no re-established adjacency.
 
-The run summary additionally reports Resynchronization Distance p50/p95/p99/max across all available mutation observations and grouped by mutation kind. The checked-in smoke matrix has only a small number of traces per kind; profile-selection evidence must add repeated deterministic traces before treating those percentiles as statistically representative.
+Each result records `resynchronizationStatus`:
+
+- `not-applicable`: identity run, or no target bytes follow the affected range (for example, append);
+- `resynchronized`: a distance was found;
+- `not-resynchronized`: the target never re-established a full source suffix.
+
+The run summary reports Resynchronization Distance p50/p95/p99/max **per algorithm, profile and mutation kind**; distances from different profiles are never pooled. Each group states `applicableExperiments`, `resynchronizedExperiments` and `coverage` (their ratio). The percentiles describe only the resynchronized experiments, so a coverage below 1 means they are biased towards mutations the profile recovered from; fixed-size chunking never resynchronizes after an insert or delete whose size is not a multiple of the chunk size. The checked-in smoke matrix has only a small number of traces per group; profile-selection evidence must add repeated deterministic traces before treating those percentiles as statistically representative.
 
 ### Change Amplification
 
@@ -178,7 +197,21 @@ unique missing target chunk payload bytes
           logical mutation bytes
 ```
 
-The mutation-byte denominator is recorded by the deterministic mutation generator. For overwrite/localized-rewrite and random-rewrite, it is the actual final count of source byte positions whose values differ from target. This excludes coincidental equal rewrites and, for random-rewrite, repeated selections that cancel or hit the same byte.
+The mutation-byte denominator is recorded by the deterministic mutation generator and published per result as `logicalChangedBytes` with its `changedBytesBasis`:
+
+| Mutation kind | `changedBytesBasis` | Denominator |
+|---|---|---|
+| insert, prepend, append | `inserted` | inserted bytes |
+| delete | `deleted` | removed bytes |
+| overwrite, localized-rewrite, random-rewrite | `differing` | final count of positions whose value differs from the source |
+| move | `moved` | length of the relocated block |
+| reorder | `swapped` | total length of both swapped blocks |
+
+The `differing` basis excludes coincidental equal rewrites and, for random-rewrite, repeated selections that cancel or hit the same byte. **Change Amplification is comparable only between results with the same basis**: a moved block leaves its bytes intact, so its denominator measures displaced rather than new content.
+
+### Mean chunk size versus target
+
+`meanToTargetRatio` is the actual mean target-chunk length divided by the experiment's nominal chunk size. For fixed-size chunking it is at most 1 (only the final chunk is short). For the FastCDC M1 candidate the minimum is `target/4` and the normalized masks have `log2(target) + 1` and `log2(target) - 1` bits set, so the per-byte cut probability is `1/(2·target)` before the target and `2/target` after it, and, under the idealized assumption that cut decisions behave like independent per-byte trials (as on random input), the analytical mean is about **1.218 × target**, not 1.0. Real corpora differ: the smoke matrix measures about 1.31 / 1.12 / 1.10 × target on `game-pak-8m` for 64/128/256 KiB, and 4.0 × on `zero-8m`, where every cut is forced at the maximum. Profiles must therefore be compared by measured mean, not nominal target or the analytical figure; equal-mean calibration is not reachable while the target must be a power of two.
 
 ### Missing payload and CSP bytes
 
@@ -205,4 +238,4 @@ M0 establishes variance/noise first. Do not add a universal “5% regression” 
 
 `.github/workflows/benchmark-lab.yml` compiles/tests the lab and runs the deterministic experiment matrix when benchmark infrastructure changes.
 
-The scheduled heavy-validation matrix runs the same lab on Linux x64 and Linux ARM64, then a dedicated `cross-arch-determinism` job compares algorithm/profile identity plus source/target and ordered chunk-sequence evidence digests. The workflow fails on semantic differences. Timing, allocation and environment values are intentionally not compared.
+The scheduled heavy-validation matrix runs the same lab on Linux x64 and Linux ARM64, then a dedicated `cross-arch-determinism` job compares algorithm/profile identity plus source/target and ordered chunk-sequence evidence digests. The workflow fails on semantic differences. Before any evidence is compared, both results must record the same source revision (`environment.gitCommit`, from `GITHUB_SHA`); a missing, mixed or different revision fails closed. `compare --allow-unversioned` accepts two results that both lack a revision for local, non-release comparisons only, and prints a warning; CI never passes it. Timing, allocation and other environment values are intentionally not compared.

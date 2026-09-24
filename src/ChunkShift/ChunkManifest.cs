@@ -11,7 +11,10 @@ namespace ChunkShift;
 /// do not rewind. When an operation accepts both content and manifest/destination,
 /// those roles must use distinct <see cref="Stream"/> instances. Callers must not
 /// concurrently read, write, seek, rewind, or dispose a stream while ChunkShift is
-/// operating on it.
+/// operating on it. A read returning zero bytes is treated as end of stream; a
+/// stream whose <see cref="Stream.ReadAsync(Memory{byte}, CancellationToken)"/>
+/// returns a count outside zero to the buffer length causes
+/// <see cref="InvalidOperationException"/>.
 /// </remarks>
 public static class ChunkManifest
 {
@@ -23,6 +26,14 @@ public static class ChunkManifest
     /// <param name="options">Optional semantic/physical manifest settings.</param>
     /// <param name="cancellationToken">Cooperative cancellation token.</param>
     /// <returns>Information about the emitted logical and physical manifest.</returns>
+    /// <remarks>
+    /// The manifest is written forward while <paramref name="content"/> is read.
+    /// If the operation fails or is cancelled, the bytes already written remain in
+    /// <paramref name="destination"/> as an incomplete CSM that fails verification;
+    /// ChunkShift does not truncate or roll back a caller-owned destination. To
+    /// publish a manifest atomically, write it to a temporary file and move it into
+    /// place only after this method completes.
+    /// </remarks>
     public static async Task<ManifestInfo> CreateAsync(
         Stream content,
         Stream destination,
