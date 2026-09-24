@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using ChunkShift.Primitives;
 
 namespace ChunkShift.Tests.Primitives;
@@ -147,8 +148,26 @@ public class Hash256Tests
     {
         Hash256 value = Hash256.FromBytes(SequenceBytes);
         Hash256 other = Hash256.FromBytes(SequenceBytes);
-        _ = value.FixedTimeEquals(other);
 
+        // The first measured run absorbs one-time runtime work (tier-up/OSR of
+        // the loop), which CI observed at 2,688 bytes on ubuntu-24.04 net10.0
+        // (PR #100, run 36052178710). The minimum of the following runs is what
+        // the comparison itself costs: an allocation per call would add at
+        // least 240 KB to every run, so it cannot hide behind the minimum.
+        _ = MeasureFixedTimeEqualsAllocations(value, other);
+
+        long allocated = long.MaxValue;
+        for (int run = 0; run < 3; run++)
+        {
+            allocated = Math.Min(allocated, MeasureFixedTimeEqualsAllocations(value, other));
+        }
+
+        Assert.True(allocated <= 1024, $"FixedTimeEquals allocated {allocated} bytes across 10,000 calls.");
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static long MeasureFixedTimeEqualsAllocations(Hash256 value, Hash256 other)
+    {
         long before = GC.GetAllocatedBytesForCurrentThread();
         bool all = true;
 
@@ -160,6 +179,6 @@ public class Hash256Tests
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
         Assert.True(all);
-        Assert.True(allocated <= 1024, $"FixedTimeEquals allocated {allocated} bytes across 10,000 calls.");
+        return allocated;
     }
 }
