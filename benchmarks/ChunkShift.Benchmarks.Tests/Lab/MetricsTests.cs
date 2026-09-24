@@ -248,6 +248,34 @@ public class MetricsTests
         Assert.Equal(0, metrics.ResynchronizationDistanceBytes);
     }
 
+    [Theory]
+    [InlineData(16 * 1024)]
+    [InlineData(64 * 1024)]
+    [InlineData(256 * 1024)]
+    public void FastCdcMaximumChunkSizeMatchesTheChunkerThatCutsTheData(int target)
+    {
+        // Zero bytes never satisfy a FastCDC mask, so every chunk but the tail
+        // is cut at the profile maximum. MaxCutRate is only meaningful if
+        // GetMaximumChunkSize reports that same maximum.
+        var experiment = new ExperimentDefinition(
+            "fastcdc-max",
+            "zero",
+            LabChunker.FastCdcAlgorithm,
+            "unused",
+            "unused",
+            target,
+            HashSuiteIds.Blake3256V1.Value,
+            null);
+        byte[] zeros = new byte[8 * 1024 * 1024 + 123];
+
+        ChunkRecord[] chunks = LabChunker.Chunk(zeros, experiment, HashSuiteIds.Blake3256V1);
+        int maximum = LabChunker.GetMaximumChunkSize(experiment);
+
+        Assert.True(chunks.Length > 2);
+        Assert.All(chunks[..^1], chunk => Assert.Equal(maximum, chunk.Length));
+        Assert.True(chunks[^1].Length <= maximum);
+    }
+
     private static ChunkRecord Chunk(long offset, int length, byte fill)
     {
         return new ChunkRecord(
