@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using ChunkShift.Chunking;
 using ChunkShift.Primitives;
 using ChunkShift.Profiles;
 
@@ -107,6 +108,12 @@ public static class LabRunner
                     $"Experiment '{experiment.Id}': streaming and reference lanes produced different chunk sequences.");
             }
 
+            // Counted in a separate untimed pass so the counter never touches
+            // the measured samples; the count is deterministic.
+            var counters = new ChunkingKernelCounters();
+            _ = ChunkStreaming(source, experiment, hashSuite, counters);
+            _ = ChunkStreaming(target, experiment, hashSuite, counters);
+
             var streamingMetrics = new StreamingLaneMetrics(
                 streaming.WallSeconds,
                 streaming.CpuSeconds,
@@ -114,6 +121,8 @@ public static class LabRunner
                 streaming.AllocatedBytes,
                 streaming.WallSecondsDispersion,
                 measurement.WallSeconds <= 0 ? 0 : streaming.WallSeconds / measurement.WallSeconds,
+                counters.BytesCopied,
+                measuredBytes == 0 ? 0 : counters.BytesCopied / (double)measuredBytes,
                 streaming.Samples);
 
             var evidence = new ExperimentEvidence(
@@ -148,7 +157,7 @@ public static class LabRunner
         LabSummary summary = CreateSummary(results);
 
         var run = new LabRun(
-            5,
+            6,
             DateTimeOffset.UtcNow,
             new MeasurementProtocol(
                 WarmupIterations,
@@ -181,12 +190,13 @@ public static class LabRunner
     private static ChunkRecord[] ChunkStreaming(
         byte[] data,
         ExperimentDefinition experiment,
-        HashSuiteId hashSuite)
+        HashSuiteId hashSuite,
+        ChunkingKernelCounters? counters = null)
     {
         // The source is a MemoryStream, so the scan completes synchronously on
         // this thread and blocking here adds no scheduling to the timing.
         return LabChunker
-            .ChunkStreamingAsync(data, experiment, hashSuite)
+            .ChunkStreamingAsync(data, experiment, hashSuite, counters: counters)
             .AsTask()
             .GetAwaiter()
             .GetResult();

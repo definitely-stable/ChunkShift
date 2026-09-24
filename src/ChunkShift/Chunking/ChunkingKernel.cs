@@ -13,15 +13,34 @@ internal delegate ValueTask ChunkKernelSink(
     ReadOnlyMemory<byte> content,
     CancellationToken cancellationToken);
 
+/// <summary>
+/// Optional measurement counters for the <c>ChunkingKernel.ScanAsync</c> overload that takes them.
+/// Updated once per scanned span, never per byte.
+/// </summary>
+internal sealed class ChunkingKernelCounters
+{
+    /// <summary>Bytes copied from the read buffer into the chunk buffer.</summary>
+    internal long BytesCopied { get; set; }
+}
+
 internal static class ChunkingKernel
 {
     internal const int IoBufferSize = 64 * 1024;
+
+    internal static ValueTask ScanAsync(
+        Stream source,
+        ChunkingKernelProfile profile,
+        HashSuiteId hashSuite,
+        ChunkKernelSink sink,
+        CancellationToken cancellationToken = default) =>
+        ScanAsync(source, profile, hashSuite, sink, counters: null, cancellationToken);
 
     internal static async ValueTask ScanAsync(
         Stream source,
         ChunkingKernelProfile profile,
         HashSuiteId hashSuite,
         ChunkKernelSink sink,
+        ChunkingKernelCounters? counters,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -87,6 +106,11 @@ internal static class ChunkingKernel
                         ioBuffer
                             .AsSpan(inputIndex, result.Consumed)
                             .CopyTo(chunkBuffer.AsSpan(payloadLength));
+
+                        if (counters is not null)
+                        {
+                            counters.BytesCopied += result.Consumed;
+                        }
 
                         payloadLength += result.Consumed;
                         inputIndex += result.Consumed;

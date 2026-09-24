@@ -458,7 +458,7 @@ public class MetricsTests
             new ExperimentEvidence("s", "t", "sc", "tc"),
             [],
             metrics,
-            new StreamingLaneMetrics(1, 1, 1, 0, NoDispersion, 1, []));
+            new StreamingLaneMetrics(1, 1, 1, 0, NoDispersion, 1, 0, 0, []));
     }
 
     [Theory]
