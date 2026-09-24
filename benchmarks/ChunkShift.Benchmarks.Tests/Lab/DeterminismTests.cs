@@ -5,6 +5,87 @@ namespace ChunkShift.Benchmarks.Tests.Lab;
 
 public class DeterminismTests
 {
+    [Theory]
+    [InlineData("abc123", "abc123", false, "SameCommit")]
+    [InlineData("ABC123", "abc123", false, "SameCommit")]
+    [InlineData("abc123", "def456", false, "Rejected")]
+    [InlineData("abc123", null, false, "Rejected")]
+    [InlineData(null, "abc123", false, "Rejected")]
+    [InlineData(null, null, false, "Rejected")]
+    [InlineData("", " ", false, "Rejected")]
+    [InlineData(null, null, true, "Unversioned")]
+    [InlineData("abc123", null, true, "Rejected")]
+    [InlineData("abc123", "def456", true, "Rejected")]
+    public void ProvenanceCheckFailsClosed(
+        string? left,
+        string? right,
+        bool allowUnversioned,
+        string expected)
+    {
+        LabDeterminismComparer.CommitProvenance provenance = LabDeterminismComparer.CheckProvenance(
+            left,
+            right,
+            allowUnversioned,
+            out string? error);
+
+        Assert.Equal(Enum.Parse<LabDeterminismComparer.CommitProvenance>(expected), provenance);
+
+        if (provenance == LabDeterminismComparer.CommitProvenance.Rejected)
+        {
+            Assert.Contains("provenance", error, StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.Null(error);
+        }
+    }
+
+    [Fact]
+    public void CompareRejectsUnversionedResultsBeforeComparingEvidence()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), $"lab-compare-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            // Different evidence, no revision: the provenance check must fail
+            // first, so the exit code does not depend on the evidence at all.
+            string left = WriteRun(directory, "left.json", gitCommit: null, sourceSha: "aa");
+            string right = WriteRun(directory, "right.json", gitCommit: null, sourceSha: "bb");
+            string same = WriteRun(directory, "same.json", gitCommit: null, sourceSha: "aa");
+
+            Assert.Equal(1, LabDeterminismComparer.Run(["--left", left, "--right", right]));
+            Assert.Equal(1, LabDeterminismComparer.Run(["--left", left, "--right", same]));
+            Assert.Equal(
+                0,
+                LabDeterminismComparer.Run(["--left", left, "--right", same, "--allow-unversioned"]));
+            Assert.Equal(
+                1,
+                LabDeterminismComparer.Run(["--left", left, "--right", right, "--allow-unversioned"]));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private static string WriteRun(string directory, string name, string? gitCommit, string sourceSha)
+    {
+        // Only the fields the comparer reads, so this stays valid across lab
+        // schema changes that add metrics.
+        string commit = gitCommit is null ? "null" : $"\"{gitCommit}\"";
+        string json = $$$"""
+            {"schemaVersion":1,"environment":{"gitCommit":{{{commit}}}},
+             "results":[{"experimentId":"experiment","evidence":{
+               "sourceSha256":"{{{sourceSha}}}","targetSha256":"t",
+               "sourceChunkSequenceSha256":"sc","targetChunkSequenceSha256":"tc"}}]}
+            """;
+
+        string path = Path.Combine(directory, name);
+        File.WriteAllText(path, json);
+        return path;
+    }
+
     [Fact]
     public void SamePrngSeedProducesSameBytes()
     {
