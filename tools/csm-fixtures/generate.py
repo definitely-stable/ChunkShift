@@ -119,6 +119,7 @@ class Layout:
     core_payload_padding: bytes = b""
 
     include_block_index: bool = False
+    block_index_flags: int = 0
     block_index_version: int = 1
     block_index_physical_delta: int = 0
 
@@ -283,7 +284,7 @@ def build(
             )
             for content, physical in block_index
         )
-        output += section(b"BIDX", 0, bidx_payload)
+        output += section(b"BIDX", layout.block_index_flags, bidx_payload)
     for extra in layout.after_bidx:
         output += extra
 
@@ -566,6 +567,9 @@ def fixtures() -> dict[str, Vector]:
         "reject-bidx-unknown-version.csm": variant(
             reject("10: IndexVersion = 1"),
             bidx=True, block_index_version=2),
+        "reject-bidx-marked-required.csm": variant(
+            reject("4/10: BIDX is optional and cannot be REQUIRED"),
+            bidx=True, block_index_flags=REQUIRED),
         "reject-bidx-entry-does-not-match-cblk.csm": variant(
             reject("10: entries correspond one-to-one with CBLK"),
             bidx=True, block_index_physical_delta=1),

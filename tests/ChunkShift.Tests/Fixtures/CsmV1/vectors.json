@@ -130,6 +130,14 @@
       },
       "physicalLength": 532
     },
+    "reject-bidx-marked-required.csm": {
+      "expect": {
+        "failures": [],
+        "outcome": "reject",
+        "rule": "4/10: BIDX is optional and cannot be REQUIRED"
+      },
+      "physicalLength": 532
+    },
     "reject-bidx-unknown-version.csm": {
       "expect": {
         "failures": [],

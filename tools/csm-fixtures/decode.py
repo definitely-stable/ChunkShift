@@ -313,6 +313,8 @@ def _decode(data: bytes) -> dict[str, object]:
         if kind == b"BIDX":
             if seen_bidx:
                 raise Reject("BIDX appears more than once")
+            if flags & FLAG_REQUIRED:
+                raise Reject("BIDX is optional and cannot be REQUIRED")
             if payload_length < BIDX_FIXED:
                 raise Reject("BIDX payload shorter than its fixed prefix")
             payload = cursor.take(payload_length, "BIDX payload")
