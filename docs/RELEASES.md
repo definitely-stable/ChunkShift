@@ -134,18 +134,23 @@ GitHub-generated release notes may be used as input because they enumerate merge
 
 For a normal `0.1.Z` release:
 
-1. choose the next unused PATCH version;
+1. choose the next unused PATCH version and set `VersionPrefix` in `src/ChunkShift/ChunkShift.csproj` to it in a reviewed PR;
 2. ensure all intended PRs are merged to `main`;
 3. pass required build/test/AOT/compatibility/security gates;
 4. inspect package metadata and produced artifacts;
 5. update `CHANGELOG.md` and release notes;
 6. create a draft GitHub Release for `v0.1.Z`;
 7. attach/produce all intended artifacts;
-8. publish packages from the tagged/release commit;
+8. publish packages by dispatching the release workflow from `main` with that version and `publish_nuget`; the workflow refuses a version whose `X.Y.Z` differs from `VersionPrefix`, that is already on NuGet.org or whose tag already exists, and after a successful publish creates `v0.1.Z` on the exact commit it built;
 9. publish the GitHub Release as immutable;
 10. verify the released packages/artifacts can be consumed from a clean environment.
 
 If a release is wrong after publication, publish a new version. Never mutate the old version.
+
+Recovering a partially completed release workflow run:
+
+- **package published, symbols failed:** re-push the `.snupkg` from the run's `chunkshift-<version>` artifact with `dotnet nuget push <file>.snupkg --skip-duplicate`. The workflow pushes symbols separately for this reason. Re-running the workflow is refused, because the package version is already published.
+- **package published, `tag-release` failed:** create the tag by hand on the exact commit the run built (the run's `GITHUB_SHA`), for example `gh api repos/<owner>/<repo>/git/refs -f ref=refs/tags/v<version> -f sha=<run SHA>`. Never tag a different commit.
 
 ## 8. Breaking changes before 1.0.0
 
