@@ -121,7 +121,7 @@ The runner fails an experiment if the two lanes produce different chunk sequence
 
 ## Metrics
 
-Before each experiment and lane, the exact source/target workload is warmed up three times. Each experiment is then measured five times; wall time, CPU time and managed-allocation deltas use the median sample. **All individual samples are also retained** so variance/outliers are not lost behind the median.
+Before each experiment and lane, the exact source/target workload is warmed up three times. Each experiment is then measured five times; wall time, CPU time and managed-allocation deltas use the median sample. **All individual samples are also retained** so variance/outliers are not lost behind the median, and each lane publishes `wallSecondsDispersion` (sample count, min, max, mean, sample standard deviation and coefficient of variation of the wall-time samples) so a difference can be read against run-to-run spread without recomputing the samples. Five samples give a coarse spread estimate, not a calibrated noise band.
 
 Working-set values in this smoke runner remain same-process observational measurements; process-lifetime peak RSS is not treated as an isolated per-experiment peak. Profile/release decisions require the later isolated streaming/file lane owned by M1 measurement work. The measurement protocol records this limitation explicitly.
 
@@ -133,7 +133,7 @@ The portable JSON result contains:
 - GiB/s (per lane);
 - process-wide managed allocation delta;
 - process lifetime peak RSS;
-- actual mean chunk size;
+- actual mean chunk size, its ratio to the nominal target (`meanToTargetRatio`) and the chunk-length standard deviation;
 - p50/p95/p99/max chunk length;
 - max-cut rate;
 - reused target bytes and reuse ratio;
@@ -179,7 +179,13 @@ first re-established boundary offset - affected target end
 
 No value is reported when there is no post-mutation region (for example, some append cases) or no re-established adjacency.
 
-The run summary additionally reports Resynchronization Distance p50/p95/p99/max across all available mutation observations and grouped by mutation kind. The checked-in smoke matrix has only a small number of traces per kind; profile-selection evidence must add repeated deterministic traces before treating those percentiles as statistically representative.
+Each result records `resynchronizationStatus`:
+
+- `not-applicable`: identity run, or no target bytes follow the affected range (for example, append);
+- `resynchronized`: a distance was found;
+- `not-resynchronized`: the target never re-established a full source suffix.
+
+The run summary reports Resynchronization Distance p50/p95/p99/max **per algorithm, profile and mutation kind**; distances from different profiles are never pooled. Each group states `applicableExperiments`, `resynchronizedExperiments` and `coverage` (their ratio). The percentiles describe only the resynchronized experiments, so a coverage below 1 means they are biased towards mutations the profile recovered from; fixed-size chunking never resynchronizes after an insert or delete whose size is not a multiple of the chunk size. The checked-in smoke matrix has only a small number of traces per group; profile-selection evidence must add repeated deterministic traces before treating those percentiles as statistically representative.
 
 ### Change Amplification
 
@@ -189,7 +195,21 @@ unique missing target chunk payload bytes
           logical mutation bytes
 ```
 
-The mutation-byte denominator is recorded by the deterministic mutation generator. For overwrite/localized-rewrite and random-rewrite, it is the actual final count of source byte positions whose values differ from target. This excludes coincidental equal rewrites and, for random-rewrite, repeated selections that cancel or hit the same byte.
+The mutation-byte denominator is recorded by the deterministic mutation generator and published per result as `logicalChangedBytes` with its `changedBytesBasis`:
+
+| Mutation kind | `changedBytesBasis` | Denominator |
+|---|---|---|
+| insert, prepend, append | `inserted` | inserted bytes |
+| delete | `deleted` | removed bytes |
+| overwrite, localized-rewrite, random-rewrite | `differing` | final count of positions whose value differs from the source |
+| move | `moved` | length of the relocated block |
+| reorder | `swapped` | total length of both swapped blocks |
+
+The `differing` basis excludes coincidental equal rewrites and, for random-rewrite, repeated selections that cancel or hit the same byte. **Change Amplification is comparable only between results with the same basis**: a moved block leaves its bytes intact, so its denominator measures displaced rather than new content.
+
+### Mean chunk size versus target
+
+`meanToTargetRatio` is the actual mean target-chunk length divided by the experiment's nominal chunk size. For fixed-size chunking it is at most 1 (only the final chunk is short). For the FastCDC M1 candidate the minimum is `target/4` and the normalized masks have `log2(target) + 1` and `log2(target) - 1` bits set, so the per-byte cut probability is `1/(2·target)` before the target and `2/target` after it, and the expected mean is about **1.218 × target** on random input, not 1.0. Profiles must therefore be compared by actual mean, not nominal target; equal-mean calibration is not reachable while the target must be a power of two.
 
 ### Missing payload and CSP bytes
 

@@ -24,7 +24,7 @@ public static class MutationGenerator
 
     public static MutationResult Identity(byte[] source)
     {
-        return new MutationResult(source, 0, 0, 0);
+        return new MutationResult(source, 0, 0, 0, ChangedBytesBases.None);
     }
 
     private static MutationResult Insert(byte[] source, MutationDefinition definition, bool prepend, bool append)
@@ -41,7 +41,8 @@ public static class MutationGenerator
             target,
             offset,
             checked(offset + definition.SizeBytes),
-            definition.SizeBytes);
+            definition.SizeBytes,
+            ChangedBytesBases.Inserted);
     }
 
     private static MutationResult Delete(byte[] source, MutationDefinition definition)
@@ -49,7 +50,7 @@ public static class MutationGenerator
         int size = Math.Min(definition.SizeBytes, source.Length);
         if (size == source.Length)
         {
-            return new MutationResult(Array.Empty<byte>(), 0, 0, size);
+            return new MutationResult(Array.Empty<byte>(), 0, 0, size, ChangedBytesBases.Deleted);
         }
 
         int offset = ResolveOffset(source.Length - size + 1, definition.Seed);
@@ -58,7 +59,7 @@ public static class MutationGenerator
         source.AsSpan(0, offset).CopyTo(target);
         source.AsSpan(offset + size).CopyTo(target.AsSpan(offset));
 
-        return new MutationResult(target, offset, offset, size);
+        return new MutationResult(target, offset, offset, size, ChangedBytesBases.Deleted);
     }
 
     private static MutationResult Overwrite(byte[] source, MutationDefinition definition, bool localized)
@@ -76,7 +77,7 @@ public static class MutationGenerator
     {
         if (source.Length == 0)
         {
-            return new MutationResult(Array.Empty<byte>(), 0, 0, 0);
+            return new MutationResult(Array.Empty<byte>(), 0, 0, 0, ChangedBytesBases.Differing);
         }
 
         var target = source.ToArray();
@@ -126,7 +127,7 @@ public static class MutationGenerator
 
         int start = Math.Min(from, insertAt);
         int end = Math.Min(target.Length, Math.Max(from, insertAt) + size);
-        return new MutationResult(target, start, end, size);
+        return new MutationResult(target, start, end, size, ChangedBytesBases.Moved);
     }
 
     private static MutationResult Reorder(byte[] source, MutationDefinition definition)
@@ -162,7 +163,8 @@ public static class MutationGenerator
             target,
             Math.Min(firstOffset, secondOffset),
             checked(Math.Max(firstOffset, secondOffset) + blockSize),
-            checked(blockSize * 2L));
+            checked(blockSize * 2L),
+            ChangedBytesBases.Swapped);
     }
 
     private static MutationResult MeasureActualSameLengthChanges(byte[] source, byte[] target)
@@ -193,7 +195,7 @@ public static class MutationGenerator
             min = 0;
         }
 
-        return new MutationResult(target, min, max, actualChanges);
+        return new MutationResult(target, min, max, actualChanges, ChangedBytesBases.Differing);
     }
 
     private static int ResolveOffset(int exclusiveMax, ulong seed)

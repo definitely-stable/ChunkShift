@@ -76,10 +76,12 @@ public static class LabRunner
                 measurement.TargetChunks,
                 mutation,
                 LabChunker.GetMaximumChunkSize(experiment),
+                experiment.ChunkSize,
                 source.Length,
                 mutation.Target.Length,
                 measuredBytes,
                 measurement.WallSeconds,
+                measurement.WallSecondsDispersion,
                 measurement.CpuSeconds,
                 measurement.AllocatedBytes,
                 measurement.ProcessPeakRssBytes);
@@ -99,6 +101,7 @@ public static class LabRunner
                 streaming.CpuSeconds,
                 streaming.WallSeconds <= 0 ? 0 : measuredBytes / (double)(1L << 30) / streaming.WallSeconds,
                 streaming.AllocatedBytes,
+                streaming.WallSecondsDispersion,
                 measurement.WallSeconds <= 0 ? 0 : streaming.WallSeconds / measurement.WallSeconds,
                 streaming.Samples);
 
@@ -127,13 +130,14 @@ public static class LabRunner
             Console.WriteLine(
                 $"{experiment.Id} [{experiment.ProfileId}]: reference {metrics.GiBPerSecond:F3} GiB/s, " +
                 $"streaming {streamingMetrics.GiBPerSecond:F3} GiB/s ({streamingMetrics.WallSecondsRelativeToReference:F2}x time), " +
-                $"reuse={metrics.ReuseRatio:P2}, amplification={metrics.ChangeAmplification:F3}");
+                $"mean/target={metrics.MeanToTargetRatio:F3}, reuse={metrics.ReuseRatio:P2}, " +
+                $"amplification={metrics.ChangeAmplification:F3} per {metrics.ChangedBytesBasis} byte");
         }
 
         LabSummary summary = CreateSummary(results);
 
         var run = new LabRun(
-            4,
+            5,
             DateTimeOffset.UtcNow,
             new MeasurementProtocol(
                 WarmupIterations,
@@ -219,6 +223,7 @@ public static class LabRunner
             sourceChunks,
             targetChunks,
             Median(samples.Select(static sample => sample.WallSeconds)),
+            DistributionCalculator.Disperse(samples.Select(static sample => sample.WallSeconds)),
             Median(samples.Select(static sample => sample.CpuSeconds)),
             checked((long)Math.Round(Median(samples.Select(static sample => (double)sample.AllocatedBytes)))),
             samples.Max(static sample => sample.ProcessPeakRssBytes),
@@ -243,30 +248,39 @@ public static class LabRunner
         }
     }
 
-    private static LabSummary CreateSummary(List<ExperimentResult> results)
+    internal static LabSummary CreateSummary(IReadOnlyList<ExperimentResult> results)
     {
-        DistributionSummary? all = DistributionCalculator.Summarize(
-            results
-                .Where(static result =>
-                    result.Mutation is not null &&
-                    result.Metrics.ResynchronizationDistanceBytes.HasValue)
-                .Select(static result => result.Metrics.ResynchronizationDistanceBytes));
-
-        Dictionary<string, DistributionSummary> byMutationKind = results
+        // Distances from different algorithms, profiles or mutation kinds are
+        // not one population, so they are never pooled. Experiments that did
+        // not resynchronize are counted, not dropped, so each distribution
+        // states how much of its group it describes.
+        ResynchronizationSummary[] groups = results
             .Where(static result =>
                 result.Mutation is not null &&
-                result.Metrics.ResynchronizationDistanceBytes.HasValue)
-            .GroupBy(
-                static result => result.Mutation!.Kind,
-                StringComparer.Ordinal)
-            .OrderBy(static group => group.Key, StringComparer.Ordinal)
-            .ToDictionary(
-                static group => group.Key,
-                static group => DistributionCalculator.Summarize(
-                    group.Select(static result => result.Metrics.ResynchronizationDistanceBytes))!,
-                StringComparer.Ordinal);
+                result.Metrics.ResynchronizationStatus != ResynchronizationStatuses.NotApplicable)
+            .GroupBy(static result => (result.Algorithm, result.ProfileId, result.Mutation!.Kind))
+            .OrderBy(static group => group.Key.Algorithm, StringComparer.Ordinal)
+            .ThenBy(static group => group.Key.ProfileId, StringComparer.Ordinal)
+            .ThenBy(static group => group.Key.Kind, StringComparer.Ordinal)
+            .Select(static group =>
+            {
+                int applicable = group.Count();
+                int resynchronized = group.Count(static result =>
+                    result.Metrics.ResynchronizationStatus == ResynchronizationStatuses.Resynchronized);
 
-        return new LabSummary(all, byMutationKind);
+                return new ResynchronizationSummary(
+                    group.Key.Algorithm,
+                    group.Key.ProfileId,
+                    group.Key.Kind,
+                    applicable,
+                    resynchronized,
+                    resynchronized / (double)applicable,
+                    DistributionCalculator.Summarize(
+                        group.Select(static result => result.Metrics.ResynchronizationDistanceBytes)));
+            })
+            .ToArray();
+
+        return new LabSummary(groups);
     }
 
     private static double Median(IEnumerable<double> values)
@@ -370,6 +384,7 @@ public static class LabRunner
         ChunkRecord[] SourceChunks,
         ChunkRecord[] TargetChunks,
         double WallSeconds,
+        SampleDispersion WallSecondsDispersion,
         double CpuSeconds,
         long AllocatedBytes,
         long ProcessPeakRssBytes,
