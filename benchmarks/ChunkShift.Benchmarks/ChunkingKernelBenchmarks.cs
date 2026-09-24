@@ -58,4 +58,26 @@ public class ChunkingKernelBenchmarks
             HashSuiteIds.Sha256V1);
         return chunks.Length;
     }
+
+    // The consumer path: ChunkingKernel.ScanAsync over a Stream, including the
+    // read-buffer to chunk-buffer copy that ChunkingReference does not do.
+    [Benchmark]
+    public async Task<int> StreamingFastCdcBlake3()
+    {
+        FastCdcProfile profile = FastCdcProfile.CreateM1Candidate(TargetSize);
+        using var source = new MemoryStream(_data, writable: false);
+        int chunks = 0;
+
+        await ChunkingKernel.ScanAsync(
+            source,
+            ChunkingKernelProfile.FastCdcGear(profile),
+            HashSuiteIds.Blake3256V1,
+            (_, _, _) =>
+            {
+                chunks++;
+                return ValueTask.CompletedTask;
+            });
+
+        return chunks;
+    }
 }

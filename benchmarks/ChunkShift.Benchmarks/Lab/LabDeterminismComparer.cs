@@ -28,6 +28,29 @@ public static class LabDeterminismComparer
             return 1;
         }
 
+        bool allowUnversioned = args.Contains("--allow-unversioned", StringComparer.Ordinal);
+
+        // Evidence from different or unknown commits proves nothing about
+        // determinism, so provenance is checked before any evidence field.
+        CommitProvenance provenance = CheckProvenance(
+            left.Environment.GitCommit,
+            right.Environment.GitCommit,
+            allowUnversioned,
+            out string? provenanceError);
+
+        if (provenance == CommitProvenance.Rejected)
+        {
+            Console.Error.WriteLine(provenanceError);
+            return 1;
+        }
+
+        if (provenance == CommitProvenance.Unversioned)
+        {
+            Console.Error.WriteLine(
+                "WARNING: neither lab result records a source revision (--allow-unversioned). " +
+                "This comparison is unversioned, non-release evidence.");
+        }
+
         var leftById = left.Results.ToDictionary(static result => result.ExperimentId, StringComparer.Ordinal);
         var rightById = right.Results.ToDictionary(static result => result.ExperimentId, StringComparer.Ordinal);
 
@@ -87,9 +110,72 @@ public static class LabDeterminismComparer
         }
 
         Console.WriteLine(
-            $"Deterministic evidence matches for {leftById.Count} experiments. " +
+            $"Deterministic evidence matches for {leftById.Count} experiments at commit {left.Environment.GitCommit ?? "(unversioned)"}. " +
             $"Performance/environment fields were intentionally ignored.");
         return 0;
+    }
+
+    internal enum CommitProvenance
+    {
+        /// <summary>Both results record the same source revision.</summary>
+        SameCommit,
+
+        /// <summary>
+        /// Neither result records a revision and the caller explicitly
+        /// allowed it; never release or profile evidence.
+        /// </summary>
+        Unversioned,
+
+        /// <summary>Provenance is missing, mixed or different.</summary>
+        Rejected,
+    }
+
+    /// <summary>
+    /// Fail-closed provenance check: only two equal, recorded revisions compare
+    /// by default. "Unknown" and "unknown" do not prove one revision.
+    /// </summary>
+    internal static CommitProvenance CheckProvenance(
+        string? left,
+        string? right,
+        bool allowUnversioned,
+        out string? error)
+    {
+        bool leftMissing = string.IsNullOrWhiteSpace(left);
+        bool rightMissing = string.IsNullOrWhiteSpace(right);
+
+        if (leftMissing && rightMissing)
+        {
+            if (allowUnversioned)
+            {
+                error = null;
+                return CommitProvenance.Unversioned;
+            }
+
+            error =
+                "Source revision provenance is missing: neither lab result records a GitCommit " +
+                "(GITHUB_SHA). Evidence without a revision cannot be attributed to one commit; " +
+                "pass --allow-unversioned only for local, non-release comparisons.";
+            return CommitProvenance.Rejected;
+        }
+
+        if (leftMissing || rightMissing)
+        {
+            error =
+                $"Source revision provenance is mixed: only one lab result records a GitCommit " +
+                $"(left='{left}', right='{right}').";
+            return CommitProvenance.Rejected;
+        }
+
+        if (!string.Equals(left, right, StringComparison.OrdinalIgnoreCase))
+        {
+            error =
+                $"Source revision provenance differs: the lab results come from different commits " +
+                $"(left={left}, right={right}); deterministic evidence was not compared.";
+            return CommitProvenance.Rejected;
+        }
+
+        error = null;
+        return CommitProvenance.SameCommit;
     }
 
     private static bool Compare<T>(string experimentId, string field, T left, T right)

@@ -5,6 +5,8 @@ namespace ChunkShift.Benchmarks.Tests.Lab;
 
 public class MetricsTests
 {
+    private static readonly SampleDispersion NoDispersion = DistributionCalculator.Disperse([1]);
+
     [Fact]
     public void IdenticalLayoutsHaveFullReuseAndBoundarySurvival()
     {
@@ -19,10 +21,12 @@ public class MetricsTests
             chunks,
             identity,
             64 * 1024,
+            64 * 1024,
             source.Length,
             source.Length,
             source.Length * 2L,
             1,
+            NoDispersion,
             1,
             0,
             0);
@@ -52,15 +56,18 @@ public class MetricsTests
             chunks,
             MutationGenerator.Identity(source),
             64 * 1024,
+            64 * 1024,
             source.Length,
             source.Length,
             source.Length * 2L,
             1,
+            NoDispersion,
             1,
             0,
             0);
 
         Assert.Null(metrics.ResynchronizationDistanceBytes);
+        Assert.Equal(ResynchronizationStatuses.NotApplicable, metrics.ResynchronizationStatus);
     }
 
     [Fact]
@@ -80,10 +87,12 @@ public class MetricsTests
             targetChunks,
             mutation,
             64 * 1024,
+            64 * 1024,
             source.Length,
             mutation.Target.Length,
             source.Length + mutation.Target.LongLength,
             1,
+            NoDispersion,
             1,
             0,
             0);
@@ -102,17 +111,19 @@ public class MetricsTests
             new ChunkRecord(4, 4, missingId),
         ];
 
-        var mutation = new MutationResult(new byte[8], 0, 4, 4);
+        var mutation = new MutationResult(new byte[8], 0, 4, 4, ChangedBytesBases.Inserted);
 
         LabMetrics metrics = MetricsCalculator.Create(
             [],
             target,
             mutation,
             4,
+            4,
             0,
             8,
             8,
             1,
+            NoDispersion,
             1,
             0,
             0);
@@ -165,12 +176,14 @@ public class MetricsTests
         LabMetrics metrics = MetricsCalculator.Create(
             source,
             target,
-            new MutationResult(new byte[16], 8, 16, 8),
+            new MutationResult(new byte[16], 8, 16, 8, ChangedBytesBases.Differing),
+            4,
             4,
             16,
             16,
             32,
             1,
+            NoDispersion,
             1,
             0,
             0);
@@ -200,17 +213,20 @@ public class MetricsTests
         LabMetrics metrics = MetricsCalculator.Create(
             source,
             target,
-            new MutationResult(new byte[16], 0, 4, 4),
+            new MutationResult(new byte[16], 0, 4, 4, ChangedBytesBases.Differing),
+            4,
             4,
             16,
             16,
             32,
             1,
+            NoDispersion,
             1,
             0,
             0);
 
         Assert.Null(metrics.ResynchronizationDistanceBytes);
+        Assert.Equal(ResynchronizationStatuses.NotResynchronized, metrics.ResynchronizationStatus);
     }
 
     [Fact]
@@ -235,17 +251,214 @@ public class MetricsTests
         LabMetrics metrics = MetricsCalculator.Create(
             source,
             target,
-            new MutationResult(new byte[16], 0, 4, 4),
+            new MutationResult(new byte[16], 0, 4, 4, ChangedBytesBases.Differing),
+            4,
             4,
             16,
             16,
             32,
             1,
+            NoDispersion,
             1,
             0,
             0);
 
         Assert.Equal(0, metrics.ResynchronizationDistanceBytes);
+        Assert.Equal(ResynchronizationStatuses.Resynchronized, metrics.ResynchronizationStatus);
+    }
+
+    [Fact]
+    public void AppendLeavesNothingToResynchronize()
+    {
+        ChunkRecord[] source = [Chunk(0, 4, 1), Chunk(4, 4, 2)];
+        ChunkRecord[] target = [Chunk(0, 4, 1), Chunk(4, 4, 2), Chunk(8, 4, 3)];
+
+        LabMetrics metrics = MetricsCalculator.Create(
+            source,
+            target,
+            new MutationResult(new byte[12], 8, 12, 4, ChangedBytesBases.Inserted),
+            4,
+            4,
+            8,
+            12,
+            20,
+            1,
+            NoDispersion,
+            1,
+            0,
+            0);
+
+        Assert.Null(metrics.ResynchronizationDistanceBytes);
+        Assert.Equal(ResynchronizationStatuses.NotApplicable, metrics.ResynchronizationStatus);
+    }
+
+    [Fact]
+    public void ChunkSizeMetricsReportMeanToTargetRatioAndSpread()
+    {
+        ChunkRecord[] target = [Chunk(0, 2, 1), Chunk(2, 4, 2), Chunk(6, 6, 3)];
+
+        LabMetrics metrics = MetricsCalculator.Create(
+            target,
+            target,
+            new MutationResult(new byte[12], 0, 0, 0, ChangedBytesBases.None),
+            8,
+            3,
+            12,
+            12,
+            24,
+            1,
+            NoDispersion,
+            1,
+            0,
+            0);
+
+        Assert.Equal(4, metrics.MeanChunkBytes);
+        Assert.Equal(4d / 3d, metrics.MeanToTargetRatio, precision: 12);
+        Assert.Equal(Math.Sqrt(8d / 3d), metrics.ChunkBytesStandardDeviation, precision: 12);
+    }
+
+    [Fact]
+    public void ChangeAmplificationPublishesItsDenominator()
+    {
+        ChunkRecord[] source = [Chunk(0, 4, 1)];
+        ChunkRecord[] target = [Chunk(0, 8, 2)];
+
+        LabMetrics metrics = MetricsCalculator.Create(
+            source,
+            target,
+            new MutationResult(new byte[8], 0, 8, 8, ChangedBytesBases.Swapped),
+            8,
+            4,
+            4,
+            8,
+            12,
+            1,
+            NoDispersion,
+            1,
+            0,
+            0);
+
+        Assert.Equal(1, metrics.ChangeAmplification);
+        Assert.Equal(8, metrics.LogicalChangedBytes);
+        Assert.Equal(ChangedBytesBases.Swapped, metrics.ChangedBytesBasis);
+    }
+
+    [Theory]
+    [InlineData("insert", ChangedBytesBases.Inserted)]
+    [InlineData("prepend", ChangedBytesBases.Inserted)]
+    [InlineData("append", ChangedBytesBases.Inserted)]
+    [InlineData("delete", ChangedBytesBases.Deleted)]
+    [InlineData("overwrite", ChangedBytesBases.Differing)]
+    [InlineData("localized-rewrite", ChangedBytesBases.Differing)]
+    [InlineData("random-rewrite", ChangedBytesBases.Differing)]
+    [InlineData("move", ChangedBytesBases.Moved)]
+    [InlineData("reorder", ChangedBytesBases.Swapped)]
+    public void EveryMutationKindRecordsItsChangedBytesBasis(string kind, string expectedBasis)
+    {
+        byte[] source = CorpusGenerator.Generate(
+            new CorpusEntry("source", "test", "random", 64 * 1024, 10, "synthetic"));
+
+        MutationResult mutation = MutationGenerator.Apply(source, new MutationDefinition(kind, 1024, 11));
+
+        Assert.Equal(expectedBasis, mutation.ChangedBytesBasis);
+        Assert.Equal(ChangedBytesBases.None, MutationGenerator.Identity(source).ChangedBytesBasis);
+    }
+
+    [Fact]
+    public void DispersionUsesTheSampleStandardDeviation()
+    {
+        SampleDispersion dispersion = DistributionCalculator.Disperse([1, 2, 3, 4]);
+
+        Assert.Equal(4, dispersion.Count);
+        Assert.Equal(1, dispersion.Min);
+        Assert.Equal(4, dispersion.Max);
+        Assert.Equal(2.5, dispersion.Mean);
+        Assert.Equal(Math.Sqrt(5d / 3d), dispersion.StandardDeviation, precision: 12);
+        Assert.Equal(Math.Sqrt(5d / 3d) / 2.5, dispersion.CoefficientOfVariation, precision: 12);
+        Assert.Equal(0, DistributionCalculator.Disperse([7]).StandardDeviation);
+    }
+
+    [Fact]
+    public void ResynchronizationSummaryNeverPoolsProfilesAndReportsCoverage()
+    {
+        ExperimentResult[] results =
+        [
+            Result("fastcdc", "a", "insert", 100, ResynchronizationStatuses.Resynchronized),
+            Result("fastcdc", "a", "insert", null, ResynchronizationStatuses.NotResynchronized),
+            Result("fastcdc", "a", "insert", 300, ResynchronizationStatuses.Resynchronized),
+            Result("fastcdc", "a", "append", null, ResynchronizationStatuses.NotApplicable),
+            Result("fastcdc", "b", "insert", 5, ResynchronizationStatuses.Resynchronized),
+            Result("fixed", "c", "insert", null, ResynchronizationStatuses.NotResynchronized),
+        ];
+
+        ResynchronizationSummary[] groups = LabRunner.CreateSummary(results).ResynchronizationDistance;
+
+        Assert.Collection(
+            groups,
+            group =>
+            {
+                Assert.Equal(("fastcdc", "a", "insert"), (group.Algorithm, group.ProfileId, group.MutationKind));
+                Assert.Equal(3, group.ApplicableExperiments);
+                Assert.Equal(2, group.ResynchronizedExperiments);
+                Assert.Equal(2d / 3d, group.Coverage, precision: 12);
+                Assert.Equal(2, group.DistanceBytes!.Count);
+                Assert.Equal(300, group.DistanceBytes.Max);
+            },
+            group =>
+            {
+                Assert.Equal(("fastcdc", "b", "insert"), (group.Algorithm, group.ProfileId, group.MutationKind));
+                Assert.Equal(1, group.Coverage);
+                Assert.Equal(5, group.DistanceBytes!.P50);
+            },
+            group =>
+            {
+                Assert.Equal(("fixed", "c", "insert"), (group.Algorithm, group.ProfileId, group.MutationKind));
+                Assert.Equal(1, group.ApplicableExperiments);
+                Assert.Equal(0, group.Coverage);
+                Assert.Null(group.DistanceBytes);
+            });
+    }
+
+    private static ExperimentResult Result(
+        string algorithm,
+        string profileId,
+        string mutationKind,
+        long? distance,
+        string status)
+    {
+        ChunkRecord[] chunks = [Chunk(0, 4, 1)];
+        LabMetrics metrics = MetricsCalculator.Create(
+            chunks,
+            chunks,
+            new MutationResult(new byte[4], 0, 0, 0, ChangedBytesBases.None),
+            4,
+            4,
+            4,
+            4,
+            8,
+            1,
+            NoDispersion,
+            1,
+            0,
+            0) with
+        {
+            ResynchronizationDistanceBytes = distance,
+            ResynchronizationStatus = status,
+        };
+
+        return new ExperimentResult(
+            "fingerprint",
+            $"{algorithm}-{profileId}-{mutationKind}",
+            "corpus",
+            algorithm,
+            profileId,
+            "profile-fingerprint",
+            "hash-suite",
+            new MutationDefinition(mutationKind, 4, 1),
+            new ExperimentEvidence("s", "t", "sc", "tc"),
+            [],
+            metrics,
+            new StreamingLaneMetrics(1, 1, 1, 0, NoDispersion, 1, 0, 0, []));
     }
 
     [Theory]

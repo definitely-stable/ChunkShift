@@ -21,10 +21,11 @@ public static class LabChunker
         };
     }
 
-    public static async ValueTask<ChunkRecord[]> ChunkStreamingAsync(
+    internal static async ValueTask<ChunkRecord[]> ChunkStreamingAsync(
         byte[] data,
         ExperimentDefinition experiment,
         HashSuiteId hashSuite,
+        ChunkingKernelCounters? counters = null,
         CancellationToken cancellationToken = default)
     {
         ChunkingKernelProfile profile = experiment.Algorithm switch
@@ -47,6 +48,7 @@ public static class LabChunker
                 chunks.Add(new ChunkRecord(chunk.Offset, chunk.Length, chunk.Id.Value));
                 return ValueTask.CompletedTask;
             },
+            counters,
             cancellationToken).ConfigureAwait(false);
 
         return chunks.ToArray();
