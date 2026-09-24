@@ -29,6 +29,54 @@ Future / preview:
 
 The core package is intended to be useful by itself in desktop applications, launchers, build tools, services and ASP.NET Core hosts. It must not require Dependency Injection, ASP.NET Core, Patching or Repository.
 
+## Quickstart
+
+ChunkShift is not published to NuGet.org yet; until the first `0.1.Z` release, pack it into a local feed (see [Building from source](#building-from-source)) and register that feed, so later restores (a fresh clone, CI) find it too:
+
+```text
+dotnet pack src/ChunkShift/ChunkShift.csproj -c Release -o <feed> -p:PackageVersion=0.0.0-local.1
+dotnet nuget add source <feed> --name chunkshift-local
+dotnet add package ChunkShift --version 0.0.0-local.1
+```
+
+Scan a stream into content chunks. The handler runs once per chunk, in order; `content` is borrowed and valid only until the returned `ValueTask` completes:
+
+```csharp
+using ChunkShift;
+
+await using FileStream source = File.OpenRead("build.bin");
+
+await ChunkScanner.ScanAsync(source, (chunk, content, cancellationToken) =>
+{
+    Console.WriteLine($"{chunk.Offset} {chunk.Length} {chunk.Id}");
+    return ValueTask.CompletedTask;
+});
+```
+
+Create a binary CSM manifest and verify content against it later:
+
+```csharp
+// The manifest is written while the content is read, so write it to a
+// temporary file and move it into place only after CreateAsync succeeds.
+await using (FileStream content = File.OpenRead("build.bin"))
+await using (FileStream manifest = new("build.csm.tmp", FileMode.CreateNew))
+{
+    ManifestInfo info = await ChunkManifest.CreateAsync(content, manifest);
+    Console.WriteLine($"{info.ManifestId}: {info.ChunkCount} chunks");
+}
+
+File.Move("build.csm.tmp", "build.csm");
+
+await using (FileStream content = File.OpenRead("build.bin"))
+await using (FileStream manifest = File.OpenRead("build.csm"))
+{
+    ManifestVerificationResult result = await ChunkManifest.VerifyAsync(content, manifest);
+    Console.WriteLine(result.IsValid ? "valid" : $"invalid: {result.Failures}");
+}
+```
+
+Both paths read the source forward-only with bounded memory, so a network or request `Stream` works as well as a file. A failed `CreateAsync` leaves an incomplete manifest in its destination, which is why the snippet writes to a temporary file first. Complete console and ASP.NET Core request-streaming examples, including reserving the target name up front, are in [`samples/`](samples/README.md).
+
 ## Architecture
 
 The current architecture sources of truth are:
