@@ -88,3 +88,19 @@ arm64 counter readings, per input byte, 64 KiB (256 KiB within 5%). These are no
 - **The calibration premise failed on arm64 and is not used.** The XOR+ADD dependency itself was modeled as a nominal two-cycle floor, but the generated loop also contains loop-control instructions and the observed PMU readings were 2.92 cycles / 12.0 instructions per step despite Tier1 code. The runner therefore does not establish a portable two-cycle calibration. No cycles are derived from this calibration anywhere.
 - **x64 BDN results are excluded.** For ChainFloor 64 KiB, both BDN rounds measured 0.49 ns/B against the harness's 0.25 ns/B. BDN ChainFloor 256 KiB matched the harness at 0.25, and so did the first run's BDN rounds in the opposite pairing. The printed BDN disassembly shows identical machine code for both targets: the chain loop is `movzx; mov; lea r15,[r12+r15*2]; inc; cmp; jl`. The 2× difference therefore comes from where that code lands in a given process, not from what the JIT generated. A loop-alignment or front-end effect is likely, but it is not proven. The harness runs agree within a few percent, and arm64 BDN rounds agree with the harness within 3%.
 - The copy that A1-F05 removes is not measured here. This evidence says nothing about F05's size relative to F01/F03.
+
+## Follow-up: A1-F01 + A1-F03 applied
+
+`ChunkBoundaryState.Scan` now keeps the hash and chunk length in locals for the whole call, skips the unhashed prefix [0, Minimum) without a per-byte loop, and runs the strict and relaxed ranges as separate loops with their bounds computed once. The predicate, masks and cut convention are unchanged; the existing scalar/streaming differential tests, the CSM golden vectors and a new window-splitting test against `FastCdcScalar.FindCut` (`ChunkBoundaryStateTests`) pass, and the package smoke's CSM identities match between JIT and NativeAOT.
+
+Local measurement, one x64 machine (Intel Xeon @ 2.10 GHz, 4 vCPU, .NET 10.0.12), before → after. It is a single-machine sanity check, not a substitute for the CI harness rounds above; rerun the `boundary-scan-f08` job (workflow_dispatch) for cross-architecture evidence.
+
+| | 64 KiB | 256 KiB |
+|---|---|---|
+| f08 harness `Scan`, ns/B (2 rounds each) | 1.63, 1.64 → 0.58, 0.58 | 1.96, 1.66 → 0.59, 0.60 |
+| f08 harness `ScalarLocals` (control), ns/B | 0.60, 0.59 → 0.60, 0.58 | 0.58, 0.59 → 0.58, 0.58 |
+| f08 harness `ChainFloor` (control), ns/B | 0.57, 0.57 → 0.57, 0.57 | 0.57, 0.57 → 0.57, 0.57 |
+| BDN `StreamingFastCdcBlake3`, 16 MiB, ms | 31.62 → 15.91 | 30.31 → 14.59 |
+| BDN `FastCdcBlake3` reference (control), ms | 14.44 → 14.65 | 13.74 → 13.87 |
+
+The production scan now runs at `ScalarLocals` speed, and the streaming path is within about 10% of the in-memory reference. On this machine `ScalarLocals` / `ChainFloor` is about 1.03, not the 1.50 the CI x64 runner measured, so this run cannot settle A1-F07 either way; the decision above stands until the CI job is rerun on this code.
