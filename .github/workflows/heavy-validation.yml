@@ -82,24 +82,9 @@ jobs:
         shell: bash
         run: python3 tools/reference/fastcdc_reference.py --verify
 
-      - name: Verify independent CSM golden vectors
+      - name: Verify CSM vectors with the independent generator and decoder
         shell: bash
-        run: |
-          set -euo pipefail
-          generated="artifacts/csm-independent"
-          rm -rf "$generated"
-          python3 tools/csm-fixtures/generate.py --out "$generated"
-
-          for fixture in \
-            empty-sha256-no-bidx.csm \
-            one-entry-sha256-no-bidx.csm \
-            multiblock-sha256-no-bidx.csm \
-            multiblock-sha256-bidx.csm
-          do
-            cmp \
-              "tests/ChunkShift.Tests/Fixtures/CsmV1/$fixture" \
-              "$generated/$fixture"
-          done
+        run: python3 tools/csm-fixtures/generate.py --verify tests/ChunkShift.Tests/Fixtures/CsmV1
 
       - name: Verify external fastcdc-rs 5.0.0 vector
         if: matrix.rid == 'linux-x64'

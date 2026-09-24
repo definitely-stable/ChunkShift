@@ -38,6 +38,10 @@ internal sealed class CsmOutput : IDisposable
             return;
         }
 
+        // Observe cancellation here rather than relying on the caller's
+        // stream: Stream.WriteAsync implementations may ignore the token.
+        cancellationToken.ThrowIfCancellationRequested();
+
         _physicalHasher.Append(bytes.Span);
         await _destination.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
         Offset = checked(Offset + (uint)bytes.Length);
@@ -61,6 +65,8 @@ internal sealed class CsmOutput : IDisposable
             throw new InvalidOperationException(
                 "The physical digest must be finalized before the CSM trailer is written.");
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         await _destination.WriteAsync(trailer, cancellationToken).ConfigureAwait(false);
         Offset = checked(Offset + (uint)trailer.Length);

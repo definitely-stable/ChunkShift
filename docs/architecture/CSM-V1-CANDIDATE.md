@@ -93,6 +93,8 @@ Unknown section behavior:
 - REQUIRED set -> fail;
 - REQUIRED clear -> skip exactly PayloadLength bytes without allocating the payload.
 
+Known optional section behavior: `AUX0` and `BIDX` are optional physical metadata. Writers MUST emit them with REQUIRED clear, and readers MUST reject either one with REQUIRED set, because an optional section cannot demand to be understood. Writers set REQUIRED on `CORE`, `CBLK`, `CEND` and `FOOT`. A known section's type, not its REQUIRED flag, decides where it may appear (section 2.1).
+
 Section length plus header must fit the remaining physical file/range using checked UInt64 arithmetic.
 
 ## 5. CORE payload

@@ -35,6 +35,48 @@ files deliberately have the same ManifestId and different FileDigest/physical
 length, proving that BIDX and physical grouping metadata do not enter logical
 identity.
 
+## Conformance vectors and the independent decoder
+
+Besides the four golden fixtures, the generator emits one vector per rule it
+exercises, all over a small three-entry SHA-256 manifest:
+
+- `valid-*`: permitted physical differences (BIDX, an optional `AUX0`, an
+  unknown optional tail section, an unknown optional physical feature bit).
+  All share the ManifestId of `valid-small-sha256-no-bidx.csm` and differ in
+  FileDigest.
+- `integrity-*`: structurally valid representations with exactly one of
+  `BlockCrc`, `LogicalTotals`, `ManifestId` or `FileDigest` wrong. The public
+  API returns these as result flags.
+- `reject-*`: one violated MUST rule each (PREAMBLE, section header, CORE,
+  CBLK, section order, BIDX, FOOT, TRAILER, truncation). The public API throws
+  `InvalidDataException`.
+- `unsupported-*`: a grammatically valid but unknown HashSuite. The public API
+  throws `NotSupportedException`.
+
+Every vector is built from the byte layout with all unrelated offsets and
+digests kept consistent, so it breaks only the rule in its name.
+`vectors.json` records the expected verdict (`expect.outcome`,
+`expect.failures`, and the spec rule for rejections). Those expectations come
+from the generator's definitions, not from any decoder.
+
+`tools/csm-fixtures/decode.py` is a second, independent implementation of the
+reading side of the specification. It uses only the Python standard library
+and does not import the generator or any ChunkShift code. Two checks use the
+same `vectors.json`:
+
+- `CsmIndependentVectorTests` runs every vector through
+  `ChunkManifest.VerifyManifestAsync`;
+- CI runs `generate.py --verify`, which regenerates every file byte-for-byte,
+  compares `vectors.json`, and runs the independent decoder over every vector.
+
+## Regenerating
+
+Verify the checked-in directory:
+
+```text
+python tools/csm-fixtures/generate.py --verify tests/ChunkShift.Tests/Fixtures/CsmV1
+```
+
 Regenerate into a temporary directory with:
 
 ```text
@@ -43,4 +85,6 @@ python tools/csm-fixtures/generate.py --out <directory>
 
 Do not silently replace checked-in vectors. Any candidate-format byte change
 must update the specification, expected identities, fixtures, and review
-evidence together.
+evidence together. Adding a vector means adding its definition to
+`generate.py`; the C# test and `--verify` both fail for a `.csm` file that
+`vectors.json` does not list.

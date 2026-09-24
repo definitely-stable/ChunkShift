@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using ChunkShift.Chunking;
 using ChunkShift.Hashing;
@@ -61,8 +62,27 @@ public class FastCdcKernelTests
     [Fact]
     public void GearLookup_DoesNotAllocatePerLookup()
     {
-        _ = FastCdcGearTable.Get(0);
+        // The first call absorbs one-time runtime work (static initialization,
+        // tier-up/OSR of the loop), which on a loaded net8.0 Windows runner was
+        // observed at ~8 KB. The minimum of the following runs is what the
+        // lookup itself costs: a per-lookup allocation would add at least 24 MB
+        // to every run, so it cannot hide behind the minimum.
+        _ = MeasureGearLookupAllocations();
 
+        long allocated = long.MaxValue;
+        for (int run = 0; run < 3; run++)
+        {
+            allocated = Math.Min(allocated, MeasureGearLookupAllocations());
+        }
+
+        // This is a scaling regression guard, not a promise that the runtime/JIT
+        // performs zero incidental thread-local allocation on every architecture.
+        Assert.InRange(allocated, 0, 4096);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static long MeasureGearLookupAllocations()
+    {
         long before = GC.GetAllocatedBytesForCurrentThread();
         ulong accumulator = 0;
 
@@ -72,13 +92,8 @@ public class FastCdcKernelTests
         }
 
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-
-        // This is a scaling regression guard, not a promise that the runtime/JIT
-        // performs zero incidental thread-local allocation on every architecture.
-        // A per-lookup table allocation would be orders of magnitude above this
-        // fixed allowance across one million calls.
-        Assert.InRange(allocated, 0, 4096);
         GC.KeepAlive(accumulator);
+        return allocated;
     }
 
     [Fact]
