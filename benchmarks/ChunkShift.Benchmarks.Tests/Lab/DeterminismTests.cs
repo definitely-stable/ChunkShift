@@ -5,6 +5,21 @@ namespace ChunkShift.Benchmarks.Tests.Lab;
 
 public class DeterminismTests
 {
+    [Theory]
+    [InlineData("abc123", "abc123", true)]
+    [InlineData("ABC123", "abc123", true)]
+    [InlineData(null, null, true)]
+    [InlineData("abc123", "def456", false)]
+    [InlineData("abc123", null, false)]
+    [InlineData(null, "abc123", false)]
+    public void ComparerRequiresResultsFromOneCommit(string? left, string? right, bool expected)
+    {
+        bool same = LabDeterminismComparer.SameCommit(left, right, out string? error);
+
+        Assert.Equal(expected, same);
+        Assert.Equal(expected, error is null);
+    }
+
     [Fact]
     public void SamePrngSeedProducesSameBytes()
     {

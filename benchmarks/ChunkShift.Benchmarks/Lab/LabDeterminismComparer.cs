@@ -28,6 +28,14 @@ public static class LabDeterminismComparer
             return 1;
         }
 
+        // Evidence from different commits can differ legitimately, so a match
+        // or mismatch between them proves nothing about determinism.
+        if (!SameCommit(left.Environment.GitCommit, right.Environment.GitCommit, out string? commitError))
+        {
+            Console.Error.WriteLine(commitError);
+            return 1;
+        }
+
         var leftById = left.Results.ToDictionary(static result => result.ExperimentId, StringComparer.Ordinal);
         var rightById = right.Results.ToDictionary(static result => result.ExperimentId, StringComparer.Ordinal);
 
@@ -87,9 +95,35 @@ public static class LabDeterminismComparer
         }
 
         Console.WriteLine(
-            $"Deterministic evidence matches for {leftById.Count} experiments. " +
+            $"Deterministic evidence matches for {leftById.Count} experiments at commit {left.Environment.GitCommit ?? "(not recorded)"}. " +
             $"Performance/environment fields were intentionally ignored.");
         return 0;
+    }
+
+    internal static bool SameCommit(string? left, string? right, out string? error)
+    {
+        // Local runs have no GITHUB_SHA; two such results cannot be told apart
+        // and are accepted. One recorded commit alone is a mixed comparison.
+        if (string.IsNullOrEmpty(left) && string.IsNullOrEmpty(right))
+        {
+            error = null;
+            return true;
+        }
+
+        if (string.IsNullOrEmpty(left) || string.IsNullOrEmpty(right))
+        {
+            error = $"Only one lab result records a GitCommit: left='{left}', right='{right}'.";
+            return false;
+        }
+
+        if (!string.Equals(left, right, StringComparison.OrdinalIgnoreCase))
+        {
+            error = $"Lab results come from different commits: left={left}, right={right}.";
+            return false;
+        }
+
+        error = null;
+        return true;
     }
 
     private static bool Compare<T>(string experimentId, string field, T left, T right)
