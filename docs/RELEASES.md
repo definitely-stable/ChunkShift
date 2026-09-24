@@ -134,7 +134,7 @@ GitHub-generated release notes may be used as input because they enumerate merge
 
 For a normal `0.1.Z` release:
 
-1. choose the next unused PATCH version and set `VersionPrefix` in `src/ChunkShift/ChunkShift.csproj` to it in a reviewed PR;
+1. choose the next unused PATCH version and set `VersionPrefix` in `src/ChunkShift/ChunkShift.csproj` to it in a reviewed PR; in the same PR, move the `PublicAPI.Unshipped.txt` entries of every package being published into its `PublicAPI.Shipped.txt` (see §8.1);
 2. ensure all intended PRs are merged to `main`;
 3. pass required build/test/AOT/compatibility/security gates;
 4. inspect package metadata and produced artifacts;
@@ -164,6 +164,17 @@ It must have:
 - a prominent changelog/release-note entry.
 
 Persisted-format or identity changes remain subject to the relevant RFC compatibility rules even though SemVer major zero permits API instability.
+
+### 8.1 Public API baseline files
+
+Each package tracks its public surface with the PublicAPI analyzer:
+
+- `PublicAPI.Unshipped.txt` holds every public symbol that has not yet been in a published version. Before the first publication, the whole candidate surface lives here and may change freely through reviewed PRs.
+- `PublicAPI.Shipped.txt` holds the symbols of the last published version. It stays empty until the first publication (preview or normal).
+- Entries move from Unshipped to Shipped only in the release PR that sets `VersionPrefix` for a published version (§7 step 1), never in ordinary feature PRs, so `Shipped.txt` always describes something consumers could install.
+- After that, removing or changing a Shipped entry is a breaking change under this section: it needs `!`/`BREAKING CHANGE:`, a migration note and a changelog entry.
+
+Binary compatibility checking against the previous published package (`PackageValidationBaselineVersion`) starts once a published version exists; see #69.
 
 ## 9. Decision to release 1.0.0
 

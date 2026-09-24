@@ -1,10 +1,12 @@
 using System;
+using System.Diagnostics;
 
 namespace ChunkShift.Primitives;
 
 /// <summary>
 /// Identifies the canonical semantic definition of a chunking profile.
 /// </summary>
+[DebuggerDisplay("{ToString(),nq}")]
 public readonly struct ProfileFingerprint : IEquatable<ProfileFingerprint>
 {
     /// <summary>
