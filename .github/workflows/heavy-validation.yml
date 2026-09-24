@@ -124,6 +124,23 @@ jobs:
             "artifacts/package-smoke/jit-${{ matrix.rid }}.txt" \
             "artifacts/package-smoke/aot-${{ matrix.rid }}.txt"
 
+      - name: Larger-than-memory source in an isolated, memory-limited process
+        shell: bash
+        run: |
+          set -euo pipefail
+          smoke="${GITHUB_WORKSPACE}/artifacts/aot-publish/ChunkShift.PackageSmoke"
+          source="${RUNNER_TEMP}/large-source.bin"
+
+          # 4 GiB file, 128 MiB cgroup limit, no swap: materializing the source
+          # (or anything proportional to it) gets the process OOM-killed.
+          "$smoke" --generate "$source" 4294967296
+          sudo systemd-run --scope --quiet \
+            -p MemoryMax=128M -p MemorySwapMax=0 \
+            --uid="$(id -u)" --gid="$(id -g)" \
+            "$smoke" --large-source "$source" --manifest "${RUNNER_TEMP}/large-source.csm" \
+            --evidence "${GITHUB_WORKSPACE}/artifacts/package-smoke/large-${{ matrix.rid }}.txt"
+          rm -f "$source"
+
       - name: Upload package-smoke evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -205,7 +222,10 @@ jobs:
           diff -u \
             artifacts/package-smoke/aot-linux-x64.txt \
             artifacts/package-smoke/aot-linux-arm64.txt
-          cat artifacts/package-smoke/aot-linux-x64.txt
+          diff -u \
+            artifacts/package-smoke/large-linux-x64.txt \
+            artifacts/package-smoke/large-linux-arm64.txt
+          cat artifacts/package-smoke/aot-linux-x64.txt artifacts/package-smoke/large-linux-x64.txt
 
       - name: Compare deterministic evidence
         shell: bash
