@@ -3,7 +3,8 @@
 // EnableBuffering and no full materialization of the upload.
 //
 //   POST /chunks    store each new chunk in a content-addressed directory;
-//                   responds "chunks=<n> bytes=<n> stored=<n>"
+//                   responds "chunks=<n> bytes=<n> stored=<n>" (stored is
+//                   best-effort when the same content is uploaded concurrently)
 //   POST /manifest  respond with the binary CSM manifest of the request body
 //
 // Configuration (appsettings, environment or command line):
@@ -107,6 +108,11 @@ static void SetRequestBodyLimit(HttpContext context, long limit)
 // Content-addressed store: the file name is the ChunkId, so a chunk that is
 // already present is not written again. `content` is borrowed and only valid
 // until this method completes, which is why it is written out before returning.
+// Concurrent uploads of the same content may both write a chunk: the bytes are
+// identical, so the later rename harmlessly replaces the earlier copy, and the
+// "stored" count is best-effort under such races. (File.Move with
+// overwrite: false is a check followed by rename on Unix, not an atomic
+// no-replace, so it would not prevent this anyway.)
 static async ValueTask<bool> StoreChunkAsync(
     string store,
     ChunkInfo chunk,
@@ -124,14 +130,8 @@ static async ValueTask<bool> StoreChunkAsync(
     try
     {
         await File.WriteAllBytesAsync(temporary, content, cancellationToken);
-        File.Move(temporary, path, overwrite: false);
+        File.Move(temporary, path, overwrite: true);
         return true;
-    }
-    catch (IOException) when (File.Exists(path))
-    {
-        // Another request stored the same content first.
-        File.Delete(temporary);
-        return false;
     }
     catch
     {

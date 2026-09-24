@@ -259,9 +259,11 @@ jobs:
           set -e
           test "$status" -eq 2
           cmp "$work/content.csm" "$work/existing.csm"
+          test -z "$(find "$work" -name '*.tmp')"
 
           # ASP.NET Core: request-body streaming with an explicit 8 MiB limit.
-          export ASPNETCORE_URLS=http://127.0.0.1:5081
+          port=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
+          export ASPNETCORE_URLS="http://127.0.0.1:${port}"
           export ChunkShift__MaxRequestBodyBytes=$((8 * 1024 * 1024))
           export ChunkShift__ChunkStore="${GITHUB_WORKSPACE}/$work/store"
           dotnet samples/ChunkShift.Samples.AspNetCore/bin/Release/net10.0/ChunkShift.Samples.AspNetCore.dll \

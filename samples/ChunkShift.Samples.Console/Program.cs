@@ -26,7 +26,7 @@ try
         _ => Usage(),
     };
 }
-catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException)
 {
     Console.Error.WriteLine(ex.Message);
     return 2;
@@ -59,35 +59,38 @@ static async Task<int> ScanAsync(string contentPath, CancellationToken cancellat
 
 static async Task<int> CreateAsync(string contentPath, string manifestPath, CancellationToken cancellationToken)
 {
-    // The manifest is written forward while the content is read. A failed or
-    // cancelled run leaves an incomplete CSM behind, so write to a temporary
-    // file next to the target and move it into place only after success.
-    string temporaryPath = manifestPath + ".tmp";
+    // Reserve the target first with CreateNew (O_EXCL): an existing manifest
+    // fails the run at once, before any content is read, and no other writer
+    // can take the name meanwhile. Until the run ends, the reservation is an
+    // empty file, which verify rejects.
+    new FileStream(manifestPath, FileMode.CreateNew, FileAccess.Write, FileShare.None).Dispose();
+
+    // The manifest is written forward while the content is read, so a failed
+    // or cancelled run would leave an incomplete CSM behind. Write it to a
+    // uniquely named temporary file and rename it over the reservation only
+    // after success.
+    string temporaryPath = Invariant($"{manifestPath}.{Path.GetRandomFileName()}.tmp");
     ManifestInfo info;
 
-    await using (FileStream content = OpenRead(contentPath))
+    try
     {
-        // CreateNew: never overwrite a file this run did not create.
-        FileStream manifest = new(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-
-        try
+        await using FileStream content = OpenRead(contentPath);
+        await using (FileStream manifest = new(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
         {
-            await using (manifest)
-            {
-                info = await ChunkManifest.CreateAsync(
-                    content,
-                    manifest,
-                    new ManifestCreationOptions { IncludeBlockIndex = true },
-                    cancellationToken);
-            }
+            info = await ChunkManifest.CreateAsync(
+                content,
+                manifest,
+                new ManifestCreationOptions { IncludeBlockIndex = true },
+                cancellationToken);
+        }
 
-            File.Move(temporaryPath, manifestPath, overwrite: false);
-        }
-        catch
-        {
-            File.Delete(temporaryPath);
-            throw;
-        }
+        File.Move(temporaryPath, manifestPath, overwrite: true);
+    }
+    catch
+    {
+        File.Delete(temporaryPath);
+        File.Delete(manifestPath);
+        throw;
     }
 
     Console.WriteLine(Invariant($"manifest-id={info.ManifestId}"));
