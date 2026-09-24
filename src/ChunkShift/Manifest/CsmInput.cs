@@ -9,6 +9,7 @@ internal sealed class CsmInput : IDisposable
     private const int MaximumDeferredHashPrefix = 512;
 
     private readonly Stream _source;
+    private readonly long _startPosition = -1;
     private readonly byte[] _skipBuffer = new byte[SkipBufferSize];
     private readonly byte[] _deferredPrefix = new byte[MaximumDeferredHashPrefix];
     private int _deferredPrefixLength;
@@ -28,6 +29,21 @@ internal sealed class CsmInput : IDisposable
         }
 
         _source = source;
+
+        // Remaining bytes are derived from this start plus the bytes this
+        // input consumed, not from a later Position read, so a stream whose
+        // Position does not track what it returned cannot move the bound.
+        if (source.CanSeek)
+        {
+            try
+            {
+                _startPosition = source.Position;
+            }
+            catch (NotSupportedException)
+            {
+                _startPosition = -1;
+            }
+        }
     }
 
     internal ulong Offset { get; private set; }
@@ -36,16 +52,14 @@ internal sealed class CsmInput : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (!_source.CanSeek)
+        if (_startPosition < 0 || !_source.CanSeek)
         {
             return;
         }
 
-        long position;
         long length;
         try
         {
-            position = _source.Position;
             length = _source.Length;
         }
         catch (NotSupportedException)
@@ -53,13 +67,14 @@ internal sealed class CsmInput : IDisposable
             return;
         }
 
-        if (position < 0 || length < position)
+        ulong consumedEnd = checked((ulong)_startPosition + Offset);
+        if (length < 0 || (ulong)length < consumedEnd)
         {
             throw new InvalidDataException(
-                "CSM stream reported an invalid seekable length/position.");
+                "CSM stream reported a length shorter than the bytes already read.");
         }
 
-        ulong remaining = checked((ulong)(length - position));
+        ulong remaining = (ulong)length - consumedEnd;
         if (payloadLength > remaining)
         {
             throw new InvalidDataException(
