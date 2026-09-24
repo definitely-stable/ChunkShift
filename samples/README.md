@@ -5,7 +5,7 @@ way an application would:
 
 | Sample | Shows |
 |---|---|
-| [`ChunkShift.Samples.Console`](ChunkShift.Samples.Console/Program.cs) | `ChunkScanner.ScanAsync` over a file; `ChunkManifest.CreateAsync` published atomically (temporary file, then move); `ChunkManifest.VerifyAsync` |
+| [`ChunkShift.Samples.Console`](ChunkShift.Samples.Console/Program.cs) | `ChunkScanner.ScanAsync` over a file; `ChunkManifest.CreateAsync` that reserves the target up front (fails at once if it exists) and publishes via a temporary file renamed over the reservation; `ChunkManifest.VerifyAsync` |
 | [`ChunkShift.Samples.AspNetCore`](ChunkShift.Samples.AspNetCore/Program.cs) | `HttpRequest.Body` streamed straight into ChunkShift: per-chunk storage with backpressure, a CSM manifest response, `RequestAborted` cancellation and an explicit per-endpoint request-body limit |
 
 They are not part of `ChunkShift.slnx`. CI (`package-smoke`) builds both
