@@ -88,26 +88,26 @@ jobs:
             exit 1
           fi
 
-          # Refuse a version already on NuGet.org (never reused) and one below
-          # a published release: X.Y.Z must not be lower than any published
-          # core, and a pre-release must not follow its own stable release.
+          # Refuse any version that is not strictly higher, by SemVer 2.0
+          # precedence, than every version already on NuGet.org: that covers
+          # reuse (equal), lower cores, lower pre-releases (rc.2 < rc.10,
+          # beta < rc.1) and a pre-release after its own stable release.
           python3 - <<'PY'
           import json, os, sys
 
-          def core(version):
-              return tuple(int(part) for part in version.split("-", 1)[0].split("."))
+          def precedence(version):
+              core, _, pre = version.split("+", 1)[0].partition("-")
+              numbers = tuple(int(part) for part in core.split("."))
+              if not pre:
+                  return (numbers, 1, ())
+              return (numbers, 0, tuple(
+                  (0, int(part), "") if part.isdigit() else (1, 0, part)
+                  for part in pre.split(".")))
 
           requested = os.environ["VERSION"].lower()
-          published = json.load(open("nuget-versions.json"))["versions"]
-
-          if requested in published:
-              sys.exit(f"ChunkShift {requested} is already published on NuGet.org; published versions are never reused.")
-
-          for version in published:
-              if core(version) > core(requested):
-                  sys.exit(f"ChunkShift {requested} is lower than published {version}.")
-              if "-" in requested and "-" not in version and core(version) == core(requested):
-                  sys.exit(f"Pre-release {requested} cannot follow the published stable {version}.")
+          for version in json.load(open("nuget-versions.json"))["versions"]:
+              if precedence(version) >= precedence(requested):
+                  sys.exit(f"ChunkShift {requested} is not higher than published {version}; published versions are never reused.")
           PY
 
           if [[ -n "$(git ls-remote --tags origin "refs/tags/v${VERSION}")" ]]; then
@@ -177,7 +177,15 @@ jobs:
           NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
         run: |
           set -euo pipefail
-          dotnet nuget push "artifacts/packages/*.nupkg"             --api-key "${NUGET_API_KEY}"             --source "https://api.nuget.org/v3/index.json"
+          # The package itself must not exist yet: a duplicate fails. Symbols
+          # go separately and may be retried (--skip-duplicate), so a symbol
+          # upload failure after the package is published can be recovered.
+          dotnet nuget push "artifacts/packages/*.nupkg" --no-symbols \
+            --api-key "${NUGET_API_KEY}" \
+            --source "https://api.nuget.org/v3/index.json"
+          dotnet nuget push "artifacts/packages/*.snupkg" --skip-duplicate \
+            --api-key "${NUGET_API_KEY}" \
+            --source "https://api.nuget.org/v3/index.json"
 
   # Tags the exact commit the published packages were built from. A separate
   # job holds the only write permission and runs no repository code.

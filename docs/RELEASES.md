@@ -147,6 +147,11 @@ For a normal `0.1.Z` release:
 
 If a release is wrong after publication, publish a new version. Never mutate the old version.
 
+Recovering a partially completed release workflow run:
+
+- **package published, symbols failed:** re-push the `.snupkg` from the run's `chunkshift-<version>` artifact with `dotnet nuget push <file>.snupkg --skip-duplicate`. The workflow pushes symbols separately for this reason. Re-running the workflow is refused, because the package version is already published.
+- **package published, `tag-release` failed:** create the tag by hand on the exact commit the run built (the run's `GITHUB_SHA`), for example `gh api repos/<owner>/<repo>/git/refs -f ref=refs/tags/v<version> -f sha=<run SHA>`. Never tag a different commit.
+
 ## 8. Breaking changes before 1.0.0
 
 A breaking change is allowed during the `0.1.Z` train only when it is deliberate.
