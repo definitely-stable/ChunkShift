@@ -36,6 +36,12 @@ namespace ChunkShift;
 /// exception during a read leaves this reader unusable because the underlying
 /// stream position may already have advanced.
 /// </para>
+/// <para>
+/// The reader buffers a bounded amount of the manifest stream ahead of what it
+/// has parsed, so until <see cref="ReadAsync"/> returns zero the stream
+/// position does not correspond to the entries returned so far. Do not use
+/// the stream while the reader is open.
+/// </para>
 /// </remarks>
 public sealed class ManifestReader : IDisposable, IAsyncDisposable
 {

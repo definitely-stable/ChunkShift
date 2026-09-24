@@ -8,9 +8,17 @@ internal sealed class CsmInput : IDisposable
     // Small sections (PREAMBLE, headers, CORE, CEND, BIDX entries, FOOT,
     // TRAILER) are served from one bounded read-ahead buffer instead of one
     // source read each; payloads at least this large are read straight into
-    // the caller's destination. It also backs skips, so the reader holds no
-    // more memory than the former skip buffer.
-    private const int ReadAheadSize = 16 * 1024;
+    // the caller's destination. It also backs skips and replaces the former
+    // 16 KiB skip buffer. The size is a trade-off: bytes read ahead of a CBLK
+    // payload are copied twice, which cost measurable time on free-read
+    // sources at 16 KiB but not at 4 KiB, while the small sections of typical
+    // manifests still fit one fill (docs/benchmarks/CSM-READ-AHEAD-EVIDENCE-2026-09-24.md).
+    // BufferedStream is not used: every source read must still pass
+    // ValidateReadCount and observe the token, and the caller's stream must
+    // not be wrapped or disposed.
+    internal const int ReadAheadSize = 4 * 1024;
+    private const string TrailingBytesMessage =
+        "Bytes are present after the fixed CSM trailer.";
     private const int MaximumDeferredHashPrefix = 512;
 
     private readonly Stream _source;
@@ -18,6 +26,9 @@ internal sealed class CsmInput : IDisposable
     private readonly byte[] _readAhead = new byte[ReadAheadSize];
     private int _readAheadStart;
     private int _readAheadEnd;
+
+    // Bytes taken from the source, including read-ahead not yet consumed.
+    private ulong _sourceBytesRead;
     private readonly byte[] _deferredPrefix = new byte[MaximumDeferredHashPrefix];
     private int _deferredPrefixLength;
     private HashSuiteIncrementalHasher? _physicalHasher;
@@ -74,8 +85,13 @@ internal sealed class CsmInput : IDisposable
             return;
         }
 
+        // Compare the reported length with everything taken from the source,
+        // read-ahead included, so a source that returns more bytes than its
+        // Length is caught as soon as it does; the remaining-bytes bound
+        // below still counts only what the parser consumed.
         ulong consumedEnd = checked((ulong)_startPosition + Offset);
-        if (length < 0 || (ulong)length < consumedEnd)
+        ulong readEnd = checked((ulong)_startPosition + _sourceBytesRead);
+        if (length < 0 || (ulong)length < readEnd)
         {
             throw new InvalidDataException(
                 "CSM stream reported a length shorter than the bytes already read.");
@@ -142,11 +158,7 @@ internal sealed class CsmInput : IDisposable
                 (ulong)(_readAheadEnd - _readAheadStart),
                 remaining);
 
-            ConsumeReadAhead(
-                Span<byte>.Empty,
-                count,
-                hashed: true);
-
+            _ = ConsumeReadAhead(count, hashed: true);
             remaining -= (uint)count;
         }
     }
@@ -190,8 +202,7 @@ internal sealed class CsmInput : IDisposable
 
         if (_readAheadStart != _readAheadEnd)
         {
-            throw new InvalidDataException(
-                "Bytes are present after the fixed CSM trailer.");
+            throw new InvalidDataException(TrailingBytesMessage);
         }
 
         int read = await _source
@@ -202,8 +213,7 @@ internal sealed class CsmInput : IDisposable
 
         if (read != 0)
         {
-            throw new InvalidDataException(
-                "Bytes are present after the fixed CSM trailer.");
+            throw new InvalidDataException(TrailingBytesMessage);
         }
     }
 
@@ -260,10 +270,8 @@ internal sealed class CsmInput : IDisposable
                     remaining,
                     _readAheadEnd - _readAheadStart);
 
-                ConsumeReadAhead(
-                    destination.Span.Slice(completed, count),
-                    count,
-                    hashed);
+                ConsumeReadAhead(count, hashed)
+                    .CopyTo(destination.Span.Slice(completed, count));
 
                 completed += count;
                 continue;
@@ -287,6 +295,8 @@ internal sealed class CsmInput : IDisposable
                 throw new InvalidDataException(
                     $"Unexpected EOF at physical offset {Offset}.");
             }
+
+            _sourceBytesRead = checked(_sourceBytesRead + (uint)read);
 
             if (hashed)
             {
@@ -314,26 +324,20 @@ internal sealed class CsmInput : IDisposable
                 $"Unexpected EOF at physical offset {Offset}.");
         }
 
+        _sourceBytesRead = checked(_sourceBytesRead + (uint)read);
         _readAheadStart = 0;
         _readAheadEnd = read;
     }
 
     /// <summary>
-    /// Consumes <paramref name="count"/> buffered bytes, copying them into
-    /// <paramref name="destination"/> unless it is empty (a skip).
+    /// Consumes <paramref name="count"/> buffered bytes: hashes them if
+    /// requested, advances <see cref="Offset"/>, and returns them. The span is
+    /// valid until the next refill.
     /// </summary>
-    private void ConsumeReadAhead(
-        Span<byte> destination,
-        int count,
-        bool hashed)
+    private ReadOnlySpan<byte> ConsumeReadAhead(int count, bool hashed)
     {
         ReadOnlySpan<byte> bytes =
             _readAhead.AsSpan(_readAheadStart, count);
-
-        if (!destination.IsEmpty)
-        {
-            bytes.CopyTo(destination);
-        }
 
         if (hashed)
         {
@@ -342,6 +346,7 @@ internal sealed class CsmInput : IDisposable
 
         _readAheadStart += count;
         Offset = checked(Offset + (uint)count);
+        return bytes;
     }
 
     private void AppendPhysical(ReadOnlySpan<byte> bytes)

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ChunkShift.Manifest;
 
 namespace ChunkShift.Tests.Manifest;
 
@@ -89,6 +90,9 @@ public sealed class CsmReadAheadTests
             Path.Combine(AppContext.BaseDirectory, FixtureDirectory, "valid-small-sha256-bidx.csm"));
         var source = new ShapedReadStream(bytes, [int.MaxValue]);
 
+        // The premise: the whole representation fits in one read-ahead fill.
+        Assert.True(bytes.Length < CsmInput.ReadAheadSize);
+
         ManifestVerificationResult result = await ChunkManifest.VerifyManifestAsync(source);
 
         Assert.True(result.IsValid);
@@ -107,13 +111,39 @@ public sealed class CsmReadAheadTests
 
         Assert.True(result.IsValid);
 
-        // Buffered refills ask for the 16 KiB read-ahead; only CBLK payload
-        // remainders are read straight into the (bounded) block buffer.
-        Assert.InRange(source.MaxRequestedReadLength, 16 * 1024, 256 * 1024);
+        // Every request is a read-ahead fill (exactly the buffer), the one-byte
+        // end-of-stream probe, or a CBLK payload remainder read into place,
+        // which is at least a buffer long and at most one maximal CBLK record.
+        const int maximumCblkRecord = CsmFormat.SectionHeaderSize + CsmFormat.CblkPrefixSize
+            + ((int)CsmFormat.MaximumChunksPerBlock * (CsmFormat.HashSize + sizeof(uint))) + sizeof(uint);
+        Assert.All(
+            source.RequestedReadLengths,
+            requested => Assert.True(
+                requested == CsmInput.ReadAheadSize
+                || requested == 1
+                || requested is > CsmInput.ReadAheadSize and <= maximumCblkRecord,
+                $"Unexpected {requested}-byte read request."));
+        Assert.Equal(1, source.RequestedReadLengths.Count(static requested => requested == 1));
 
         // Two reads per full CBLK (payload remainder, then a refill that also
         // carries the next header) plus a few for the prefix and tail.
         Assert.InRange(source.Reads, 8, (2 * 8) + 4);
+    }
+
+    [Fact]
+    public async Task SeekableSourceReturningMoreThanItsLength_IsRejected()
+    {
+        byte[] bytes = await CsmBytes.CreateSyntheticAsync(entryCount: 2 * 4096, includeBlockIndex: false);
+
+        // Reports a length that ends inside the first read-ahead fill but
+        // serves every byte; the reader must notice before trusting the rest.
+        using var source = new UnderReportingLengthStream(bytes, reportedLength: 1024);
+
+        InvalidDataException exception =
+            await Assert.ThrowsAsync<InvalidDataException>(
+                () => ChunkManifest.VerifyManifestAsync(source));
+
+        Assert.Contains("length shorter than the bytes already read", exception.Message, StringComparison.Ordinal);
     }
 
     private static async Task<string> AssertSameOutcomeForEveryShapeAsync(byte[] bytes)
@@ -154,7 +184,7 @@ public sealed class CsmReadAheadTests
 
         internal int Reads { get; private set; }
 
-        internal int MaxRequestedReadLength { get; private set; }
+        internal List<int> RequestedReadLengths { get; } = [];
 
         public override bool CanRead => true;
 
@@ -188,12 +218,18 @@ public sealed class CsmReadAheadTests
 
         private int ReadCore(Span<byte> destination)
         {
-            MaxRequestedReadLength = Math.Max(MaxRequestedReadLength, destination.Length);
+            RequestedReadLengths.Add(destination.Length);
             int limit = shape[Reads++ % shape.Length];
             int count = Math.Min(Math.Min(limit, destination.Length), data.Length - _position);
             data.AsSpan(_position, count).CopyTo(destination);
             _position += count;
             return count;
         }
+    }
+
+    /// <summary>Seekable stream whose Length is smaller than the bytes it serves.</summary>
+    private sealed class UnderReportingLengthStream(byte[] data, long reportedLength) : MemoryStream(data, writable: false)
+    {
+        public override long Length => reportedLength;
     }
 }
