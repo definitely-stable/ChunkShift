@@ -26,7 +26,10 @@ Verdict model (matches the public .NET contract):
 Only the SHA-256 HashSuite is implemented, because BLAKE3 is not in the
 standard library; the golden vectors deliberately use SHA-256.
 
-Usage: decode.py FILE... prints one JSON verdict per file.
+Usage:
+  decode.py FILE...             print one JSON verdict per file;
+  decode.py --compare DIRECTORY compare .NET fuzz verdicts (verdicts-*.jsonl
+                                written by CsmReaderFuzzTests) with this decoder.
 """
 
 from __future__ import annotations
@@ -413,10 +416,57 @@ def _decode(data: bytes) -> dict[str, object]:
     }
 
 
+def verdict_text(verdict: dict[str, object]) -> str:
+    """Render a verdict the way the .NET fuzz harness does."""
+
+    outcome = str(verdict["outcome"])
+    if outcome == "integrity":
+        return "integrity:" + ",".join(verdict["failures"])  # type: ignore[arg-type]
+    return outcome
+
+
+def compare(directory: Path) -> int:
+    """Differential check of .NET fuzz verdicts against this decoder.
+
+    Reads every verdicts-*.jsonl written by CsmReaderFuzzTests (one JSON object
+    per line: {"file": ..., "verdict": ...}) and decodes each case.
+    """
+
+    checked = 0
+    mismatches: list[str] = []
+
+    for listing in sorted(directory.glob("verdicts-*.jsonl")):
+        for line in listing.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            case = json.loads(line)
+            verdict = decode((directory / case["file"]).read_bytes())
+            checked += 1
+            if verdict_text(verdict) != case["verdict"]:
+                mismatches.append(
+                    f"{case['file']}: .NET {case['verdict']!r}, "
+                    f"decoder {verdict_text(verdict)!r} ({verdict.get('reason', '')})"
+                )
+
+    for mismatch in mismatches[:50]:
+        print(mismatch, file=sys.stderr)
+
+    print(f"compared {checked} fuzz cases: {len(mismatches)} mismatches")
+    if checked == 0:
+        print("no fuzz cases found", file=sys.stderr)
+        return 1
+    return 1 if mismatches else 0
+
+
 def main(paths: list[str]) -> int:
     if not paths:
         print(__doc__, file=sys.stderr)
         return 2
+    if paths[0] == "--compare":
+        if len(paths) != 2:
+            print("usage: decode.py --compare DIRECTORY", file=sys.stderr)
+            return 2
+        return compare(Path(paths[1]))
     for path in paths:
         verdict = decode(Path(path).read_bytes())
         print(json.dumps({"file": path, **verdict}, sort_keys=True))
