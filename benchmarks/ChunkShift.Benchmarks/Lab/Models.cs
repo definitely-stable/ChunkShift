@@ -79,7 +79,8 @@ public sealed record MeasurementProtocol(
     int WarmupIterations,
     int MeasurementIterations,
     string Aggregation,
-    string MemoryMeasurement);
+    string MemoryMeasurement,
+    string Lanes);
 
 public sealed record DistributionSummary(
     int Count,
@@ -108,6 +109,18 @@ public sealed record ExperimentEvidence(
     string? SourceStreamingChunkSequenceSha256 = null,
     string? TargetStreamingChunkSequenceSha256 = null);
 
+/// <summary>
+/// Timing of the streaming lane: <c>ChunkingKernel.ScanAsync</c> over a
+/// forward-only <see cref="System.IO.Stream"/>, the path consumers run.
+/// </summary>
+public sealed record StreamingLaneMetrics(
+    double WallSeconds,
+    double CpuSeconds,
+    double GiBPerSecond,
+    long AllocatedBytes,
+    double WallSecondsRelativeToReference,
+    MeasurementSample[] Samples);
+
 public sealed record ExperimentResult(
     string DefinitionFingerprint,
     string ExperimentId,
@@ -119,7 +132,8 @@ public sealed record ExperimentResult(
     MutationDefinition? Mutation,
     ExperimentEvidence Evidence,
     MeasurementSample[] Samples,
-    LabMetrics Metrics);
+    LabMetrics Metrics,
+    StreamingLaneMetrics Streaming);
 
 public sealed record LabRun(
     int SchemaVersion,

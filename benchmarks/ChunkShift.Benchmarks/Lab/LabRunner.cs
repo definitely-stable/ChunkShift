@@ -54,13 +54,20 @@ public static class LabRunner
                 ? MutationGenerator.Identity(source)
                 : MutationGenerator.Apply(source, experiment.Mutation);
 
-            WarmUpExactWorkload(source, mutation.Target, experiment, hashSuite);
+            byte[] target = mutation.Target;
 
+            // Reference lane: in-memory ChunkingReference, the scalar oracle.
             Measurement measurement = Measure(
-                source,
-                mutation.Target,
-                experiment,
-                hashSuite);
+                () => (
+                    LabChunker.Chunk(source, experiment, hashSuite),
+                    LabChunker.Chunk(target, experiment, hashSuite)));
+
+            // Streaming lane: ChunkingKernel.ScanAsync over a forward-only
+            // stream, the path ChunkScanner and ChunkManifest run.
+            Measurement streaming = Measure(
+                () => (
+                    ChunkStreaming(source, experiment, hashSuite),
+                    ChunkStreaming(target, experiment, hashSuite)));
 
             long measuredBytes = checked((long)source.Length + mutation.Target.Length);
 
@@ -77,24 +84,31 @@ public static class LabRunner
                 measurement.AllocatedBytes,
                 measurement.ProcessPeakRssBytes);
 
-            ChunkRecord[] streamingSourceChunks = LabChunker
-                .ChunkStreamingAsync(source, experiment, hashSuite)
-                .AsTask()
-                .GetAwaiter()
-                .GetResult();
-            ChunkRecord[] streamingTargetChunks = LabChunker
-                .ChunkStreamingAsync(mutation.Target, experiment, hashSuite)
-                .AsTask()
-                .GetAwaiter()
-                .GetResult();
+            // Reuse/resync/amplification metrics are computed once, from the
+            // reference lane; they describe the streaming lane only if both
+            // lanes cut and hash identically.
+            if (!measurement.SourceChunks.AsSpan().SequenceEqual(streaming.SourceChunks) ||
+                !measurement.TargetChunks.AsSpan().SequenceEqual(streaming.TargetChunks))
+            {
+                throw new InvalidOperationException(
+                    $"Experiment '{experiment.Id}': streaming and reference lanes produced different chunk sequences.");
+            }
+
+            var streamingMetrics = new StreamingLaneMetrics(
+                streaming.WallSeconds,
+                streaming.CpuSeconds,
+                streaming.WallSeconds <= 0 ? 0 : measuredBytes / (double)(1L << 30) / streaming.WallSeconds,
+                streaming.AllocatedBytes,
+                measurement.WallSeconds <= 0 ? 0 : streaming.WallSeconds / measurement.WallSeconds,
+                streaming.Samples);
 
             var evidence = new ExperimentEvidence(
                 LabEvidenceDigest.ComputeBytes(source),
                 LabEvidenceDigest.ComputeBytes(mutation.Target),
                 LabEvidenceDigest.ComputeChunkSequence(measurement.SourceChunks),
                 LabEvidenceDigest.ComputeChunkSequence(measurement.TargetChunks),
-                LabEvidenceDigest.ComputeChunkSequence(streamingSourceChunks),
-                LabEvidenceDigest.ComputeChunkSequence(streamingTargetChunks));
+                LabEvidenceDigest.ComputeChunkSequence(streaming.SourceChunks),
+                LabEvidenceDigest.ComputeChunkSequence(streaming.TargetChunks));
 
             results.Add(new ExperimentResult(
                 ExperimentFingerprint.Compute(experiment, entry),
@@ -107,23 +121,26 @@ public static class LabRunner
                 experiment.Mutation,
                 evidence,
                 measurement.Samples,
-                metrics));
+                metrics,
+                streamingMetrics));
 
             Console.WriteLine(
-                $"{experiment.Id} [{experiment.ProfileId}]: {metrics.GiBPerSecond:F3} GiB/s, reuse={metrics.ReuseRatio:P2}, " +
-                $"amplification={metrics.ChangeAmplification:F3}");
+                $"{experiment.Id} [{experiment.ProfileId}]: reference {metrics.GiBPerSecond:F3} GiB/s, " +
+                $"streaming {streamingMetrics.GiBPerSecond:F3} GiB/s ({streamingMetrics.WallSecondsRelativeToReference:F2}x time), " +
+                $"reuse={metrics.ReuseRatio:P2}, amplification={metrics.ChangeAmplification:F3}");
         }
 
         LabSummary summary = CreateSummary(results);
 
         var run = new LabRun(
-            3,
+            4,
             DateTimeOffset.UtcNow,
             new MeasurementProtocol(
                 WarmupIterations,
                 MeasurementIterations,
                 "median",
-                "same-process observational working-set samples; release decisions require isolated streaming evidence"),
+                "same-process observational working-set samples; release decisions require isolated streaming evidence",
+                "metrics: reference lane (in-memory ChunkingReference); streaming: ChunkingKernel.ScanAsync over a forward-only stream, the consumer path; chunk sequences of both lanes are digested as evidence"),
             new EnvironmentSnapshot(
                 RuntimeInformation.OSDescription,
                 RuntimeInformation.OSArchitecture.ToString(),
@@ -144,12 +161,27 @@ public static class LabRunner
         return 0;
     }
 
-    private static Measurement Measure(
-        byte[] source,
-        byte[] target,
+    private static ChunkRecord[] ChunkStreaming(
+        byte[] data,
         ExperimentDefinition experiment,
         HashSuiteId hashSuite)
     {
+        // The source is a MemoryStream, so the scan completes synchronously on
+        // this thread and blocking here adds no scheduling to the timing.
+        return LabChunker
+            .ChunkStreamingAsync(data, experiment, hashSuite)
+            .AsTask()
+            .GetAwaiter()
+            .GetResult();
+    }
+
+    private static Measurement Measure(Func<(ChunkRecord[] Source, ChunkRecord[] Target)> chunkBoth)
+    {
+        for (int iteration = 0; iteration < WarmupIterations; iteration++)
+        {
+            _ = chunkBoth();
+        }
+
         var samples = new MeasurementSample[MeasurementIterations];
         ChunkRecord[] sourceChunks = Array.Empty<ChunkRecord>();
         ChunkRecord[] targetChunks = Array.Empty<ChunkRecord>();
@@ -168,8 +200,7 @@ public static class LabRunner
             long workingSetBefore = process.WorkingSet64;
             long started = Stopwatch.GetTimestamp();
 
-            sourceChunks = LabChunker.Chunk(source, experiment, hashSuite);
-            targetChunks = LabChunker.Chunk(target, experiment, hashSuite);
+            (sourceChunks, targetChunks) = chunkBoth();
 
             long finished = Stopwatch.GetTimestamp();
             long allocatedAfter = GC.GetTotalAllocatedBytes(precise: true);
@@ -209,19 +240,6 @@ public static class LabRunner
         {
             _ = FixedSizeReferenceChunker.Chunk(warmup, 64 * 1024, HashSuiteIds.Blake3256V1);
             _ = FixedSizeReferenceChunker.Chunk(warmup, 64 * 1024, HashSuiteIds.Sha256V1);
-        }
-    }
-
-    private static void WarmUpExactWorkload(
-        byte[] source,
-        byte[] target,
-        ExperimentDefinition experiment,
-        HashSuiteId hashSuite)
-    {
-        for (int iteration = 0; iteration < WarmupIterations; iteration++)
-        {
-            _ = LabChunker.Chunk(source, experiment, hashSuite);
-            _ = LabChunker.Chunk(target, experiment, hashSuite);
         }
     }
 
