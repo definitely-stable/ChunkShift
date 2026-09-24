@@ -23,6 +23,14 @@ public static class ChunkManifest
     /// <param name="options">Optional semantic/physical manifest settings.</param>
     /// <param name="cancellationToken">Cooperative cancellation token.</param>
     /// <returns>Information about the emitted logical and physical manifest.</returns>
+    /// <remarks>
+    /// The manifest is written forward while <paramref name="content"/> is read.
+    /// If the operation fails or is cancelled, the bytes already written remain in
+    /// <paramref name="destination"/> as an incomplete CSM that fails verification;
+    /// ChunkShift does not truncate or roll back a caller-owned destination. To
+    /// publish a manifest atomically, write it to a temporary file and move it into
+    /// place only after this method completes.
+    /// </remarks>
     public static async Task<ManifestInfo> CreateAsync(
         Stream content,
         Stream destination,

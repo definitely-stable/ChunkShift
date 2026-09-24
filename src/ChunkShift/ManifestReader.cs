@@ -24,6 +24,14 @@ namespace ChunkShift;
 /// were observed.
 /// </para>
 /// <para>
+/// Entries are provisional until the end of the representation. Block CRCs
+/// are checked before a block's entries are returned, but the logical
+/// <c>ManifestId</c>, <c>FileDigest</c> and totals are verified only after the
+/// last block, and <see cref="VerificationResult"/> stays null until
+/// <see cref="ReadAsync"/> returns zero. Do not act irreversibly on entries
+/// until <see cref="VerificationResult"/> reports a valid manifest.
+/// </para>
+/// <para>
 /// Reads are sequential and must not overlap. Cancellation or another
 /// exception during a read leaves this reader unusable because the underlying
 /// stream position may already have advanced.
@@ -148,7 +156,15 @@ public sealed class ManifestReader : IDisposable, IAsyncDisposable
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Releases the reader's internal buffers and hashing state. The caller-owned
+    /// stream is not disposed.
+    /// </summary>
+    /// <remarks>
+    /// Do not dispose the reader while a <see cref="ReadAsync"/> call is still
+    /// pending; await or cancel it first. Disposal is not synchronized with an
+    /// in-flight read.
+    /// </remarks>
     public void Dispose()
     {
         if (_disposed)
@@ -160,7 +176,7 @@ public sealed class ManifestReader : IDisposable, IAsyncDisposable
         _core.Dispose();
     }
 
-    /// <inheritdoc />
+    /// <inheritdoc cref="Dispose" />
     public ValueTask DisposeAsync()
     {
         Dispose();
