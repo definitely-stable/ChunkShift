@@ -116,7 +116,9 @@ public sealed record MeasurementProtocol(
     int MeasurementIterations,
     string Aggregation,
     string MemoryMeasurement,
-    string Lanes);
+    string Lanes,
+    string Stabilization,
+    string Dispersion);
 
 public sealed record DistributionSummary(
     int Count,

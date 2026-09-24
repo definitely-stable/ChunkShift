@@ -11,6 +11,16 @@ public static class LabRunner
     private const int WarmupIterations = 3;
     private const int MeasurementIterations = 5;
 
+    // Process-wide stabilization before the matrix: every measured operation
+    // shape runs for at least this many rounds and this much wall time, with a
+    // pause between rounds so tiered JIT/dynamic PGO can install optimized code
+    // in the background. Without it the first experiment of each shape ran
+    // several times slower than its neighbours.
+    private const int StabilizationMinimumRounds = 5;
+    private static readonly TimeSpan StabilizationMinimumTime = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan StabilizationPause = TimeSpan.FromMilliseconds(200);
+    private const int StabilizationBytes = 8 * 1024 * 1024;
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
@@ -38,7 +48,7 @@ public static class LabRunner
         var corpusById = corpus.Entries.ToDictionary(static entry => entry.Id, StringComparer.Ordinal);
         var results = new List<ExperimentResult>(experiments.Experiments.Length);
 
-        WarmUpHashSuites();
+        StabilizeMeasuredShapes(experiments.Experiments);
 
         foreach (ExperimentDefinition experiment in experiments.Experiments)
         {
@@ -144,7 +154,9 @@ public static class LabRunner
                 MeasurementIterations,
                 "median",
                 "same-process observational working-set samples; release decisions require isolated streaming evidence",
-                "metrics: reference lane (in-memory ChunkingReference); streaming: ChunkingKernel.ScanAsync over a forward-only stream, the consumer path; chunk sequences of both lanes are digested as evidence"),
+                "metrics: reference lane (in-memory ChunkingReference); streaming: ChunkingKernel.ScanAsync over a forward-only stream, the consumer path; chunk sequences of both lanes are digested as evidence",
+                StabilizationDescription,
+                "wallSecondsDispersion: within-experiment sample dispersion only; it does not estimate process-level effects (tiered JIT/PGO state, experiment order, thermal/frequency state)"),
             new EnvironmentSnapshot(
                 RuntimeInformation.OSDescription,
                 RuntimeInformation.OSArchitecture.ToString(),
@@ -230,22 +242,46 @@ public static class LabRunner
             samples);
     }
 
-    private static void WarmUpHashSuites()
+    private static readonly string StabilizationDescription = string.Create(
+        System.Globalization.CultureInfo.InvariantCulture,
+        $"before the matrix, every distinct (algorithm, chunk size, hash suite) runs both lanes over {StabilizationBytes} random bytes for at least {StabilizationMinimumRounds} rounds and {StabilizationMinimumTime.TotalSeconds:0} s, pausing {StabilizationPause.TotalMilliseconds:0} ms between rounds for background tier-up; then {WarmupIterations} warm-up iterations of each exact experiment workload per lane");
+
+    private static void StabilizeMeasuredShapes(IEnumerable<ExperimentDefinition> experiments)
     {
-        byte[] warmup = CorpusGenerator.Generate(
+        byte[] data = CorpusGenerator.Generate(
             new CorpusEntry(
-                "warmup",
+                "stabilization",
                 "internal",
                 "random",
-                1024 * 1024,
+                StabilizationBytes,
                 0xC4855A11UL,
-                "internal warm-up"));
+                "internal process stabilization"));
 
-        for (int iteration = 0; iteration < WarmupIterations; iteration++)
+        // The same operation shapes the measured lanes run, not only the hash
+        // primitives: both lanes of every algorithm/size/hash combination.
+        ExperimentDefinition[] shapes = experiments
+            .DistinctBy(static experiment => (experiment.Algorithm, experiment.ChunkSize, experiment.HashSuite))
+            .ToArray();
+
+        var elapsed = Stopwatch.StartNew();
+        int round = 0;
+
+        while (round < StabilizationMinimumRounds || elapsed.Elapsed < StabilizationMinimumTime)
         {
-            _ = FixedSizeReferenceChunker.Chunk(warmup, 64 * 1024, HashSuiteIds.Blake3256V1);
-            _ = FixedSizeReferenceChunker.Chunk(warmup, 64 * 1024, HashSuiteIds.Sha256V1);
+            foreach (ExperimentDefinition shape in shapes)
+            {
+                HashSuiteId hashSuite = ParseHashSuite(shape.HashSuite);
+                _ = LabChunker.Chunk(data, shape, hashSuite);
+                _ = ChunkStreaming(data, shape, hashSuite);
+            }
+
+            round++;
+            Thread.Sleep(StabilizationPause);
         }
+
+        Console.WriteLine(string.Create(
+            System.Globalization.CultureInfo.InvariantCulture,
+            $"stabilized {shapes.Length} measured shapes x 2 lanes in {round} rounds ({elapsed.Elapsed.TotalSeconds:F1} s)"));
     }
 
     internal static LabSummary CreateSummary(IReadOnlyList<ExperimentResult> results)
