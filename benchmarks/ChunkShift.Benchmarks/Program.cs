@@ -40,6 +40,6 @@ internal static class Program
         Console.WriteLine("ChunkShift benchmark lab");
         Console.WriteLine("  micro [BenchmarkDotNet options]");
         Console.WriteLine("  lab --corpus <manifest.json> --experiments <experiments.json> --output <result.json>");
-        Console.WriteLine("  compare --left <lab.json> --right <lab.json>");
+        Console.WriteLine("  compare --left <lab.json> --right <lab.json> [--allow-unversioned]");
     }
 }
