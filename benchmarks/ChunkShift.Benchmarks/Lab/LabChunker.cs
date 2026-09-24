@@ -54,10 +54,12 @@ public static class LabChunker
 
     public static int GetMaximumChunkSize(ExperimentDefinition experiment)
     {
+        // Read the maximum from the profile that actually chunks the data, so
+        // MaxCutRate stays correct if the min/target/max ratios change.
         return experiment.Algorithm switch
         {
             FixedAlgorithm => experiment.ChunkSize,
-            FastCdcAlgorithm => checked(experiment.ChunkSize * 4),
+            FastCdcAlgorithm => FastCdcProfile.CreateM1Candidate(experiment.ChunkSize).Maximum,
             _ => throw new InvalidOperationException($"Unsupported lab algorithm '{experiment.Algorithm}'."),
         };
     }
