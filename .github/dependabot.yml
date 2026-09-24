@@ -30,3 +30,14 @@ updates:
       actions:
         patterns:
           - "*"
+
+  # The Python tools use only the standard library, so pip has nothing to
+  # track; the Rust probe pins fastcdc-rs through Cargo.lock.
+  - package-ecosystem: "cargo"
+    directory: "/tools/reference/fastcdc-rs-probe"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 2
