@@ -56,7 +56,7 @@ BenchmarkDotNet: two rounds in opposite method order. Every method and case is i
 
 Hardware counters: BenchmarkDotNet's `HardwareCounters` is Windows-only, so `perf stat` counted `cycles:u`, `instructions:u`, `branches:u` and `branch-misses:u` over the harness's measured window only, through `--control fifo`. The PMU probe is fail-closed:
 
-- **arm64:** counted, so the arm64 counter values are **measured**.
+- **arm64:** counted. These are real counter readings, but see the caveats: their absolute meaning failed the calibration cross-check.
 - **x64:** not countable, so there are **no x64 cycle or instruction figures**, measured or estimated.
 
 ## Results (harness medians, ns per input byte)
@@ -69,7 +69,7 @@ Hardware counters: BenchmarkDotNet's `HardwareCounters` is Windows-only, so `per
 | ChainFloor | 0.254 | 0.253 | 0.278 | 0.278 |
 | NoChain | 0.407 | 0.404 | 0.462 | 0.464 |
 
-arm64 counters, per input byte, 64 KiB (256 KiB within 5%):
+arm64 counter readings, per input byte, 64 KiB (256 KiB within 5%). These are not validated in absolute terms; see the caveats:
 
 | Variant | cycles/B | instructions/B | IPC | branch-miss rate |
 |---|---|---|---|---|
@@ -81,9 +81,10 @@ arm64 counters, per input byte, 64 KiB (256 KiB within 5%):
 
 ## Interpretation and caveats
 
-- On arm64, the production loop executes about 26 instructions per byte at IPC 3.75. Branch misses are negligible. The loop is **instruction-bound**, not latency-bound. Moving the state into locals removes about 7.5 instructions per byte. Splitting the loops removes about 12 more.
-- ChainFloor on arm64 costs 0.94 cycles per input byte. Dividing by the hashed share (1 − 0.2197) gives about 1.2 cycles per hashed byte, close to a one-cycle chain step.
+- **The arm64 counters are not validated in absolute terms.** The calibration chain's Tier1 loop is 4 instructions per step (`eor; add; sub; cbnz`, printed in the job log). The counters report 12.0 instructions and 2.92 cycles per step for it, at IPC 4.1, which a 2-cycle dependency chain cannot reach. Either the counted window did not run that code, or the runner's `instructions`/`cycles` events do not mean what they are assumed to mean. The cause is not established.
+- The decision above rests only on time ratios, which do not depend on the counters. Read the arm64 counter table as relative, same-process-type comparisons at best.
+- If the counters were taken at face value: the production loop would execute about 26 instructions per byte at IPC 3.75, making it instruction-bound, not latency-bound. Locals would remove about 7.5 instructions per byte, and splitting the loops about 12 more. ChainFloor would cost about 1.2 cycles per hashed byte (0.94 per input byte ÷ (1 − 0.2197)). These readings are consistent with the time ratios, but they are not independent evidence.
 - NoChain is slower than ChainFloor on both architectures. The per-byte mask selection and predicate cost more than the carried chain itself.
-- **The calibration premise failed on arm64 and is not used.** The XOR+ADD step measured 2.92 cycles and 12.0 instructions, not the assumed 2 cycles and at most 6 instructions, even though the step reached Tier1. The job log prints its generated code for inspection. No cycles are derived from the calibration anywhere.
+- **The calibration premise failed on arm64 and is not used.** The XOR+ADD step measured 2.92 cycles and 12.0 instructions, not the assumed 2 cycles and at most 6 instructions, even though the step reached Tier1 with the 4-instruction loop above. No cycles are derived from the calibration anywhere.
 - **x64 BDN results are excluded.** For ChainFloor 64 KiB, both BDN rounds measured 0.49 ns/B against the harness's 0.25 ns/B. BDN ChainFloor 256 KiB matched the harness at 0.25, and so did the first run's BDN rounds in the opposite pairing. The printed BDN disassembly shows identical machine code for both targets: the chain loop is `movzx; mov; lea r15,[r12+r15*2]; inc; cmp; jl`. The 2× difference therefore comes from where that code lands in a given process, not from what the JIT generated. A loop-alignment or front-end effect is likely, but it is not proven. The harness runs agree within a few percent, and arm64 BDN rounds agree with the harness within 3%.
 - The copy that A1-F05 removes is not measured here. This evidence says nothing about F05's size relative to F01/F03.
