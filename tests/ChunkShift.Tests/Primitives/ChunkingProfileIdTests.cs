@@ -14,7 +14,15 @@ public class ChunkingProfileIdTests
     {
         var id = new ChunkingProfileId("fastcdc.gear.candidate1.64k");
         Assert.Equal("fastcdc.gear.candidate1.64k", id.Value);
-        Assert.False(id.IsDefault);
+    }
+
+    [Fact]
+    public void Constructor_Rejects_Null_WithPublicParameterName()
+    {
+        ArgumentNullException exception =
+            Assert.Throws<ArgumentNullException>(() => new ChunkingProfileId(null!));
+
+        Assert.Equal("value", exception.ParamName);
     }
 
     [Theory]
@@ -29,10 +37,16 @@ public class ChunkingProfileIdTests
     }
 
     [Fact]
-    public void Default_Has_IsDefault_True()
+    public void Type_HasNoInstanceWithoutAValidatedValue()
     {
-        var id = default(ChunkingProfileId);
-        Assert.True(id.IsDefault);
+        // A sealed reference type with only the validating constructor: there is
+        // no default(T) instance whose Value could be null.
+        Type type = typeof(ChunkingProfileId);
+
+        Assert.True(type.IsClass);
+        Assert.True(type.IsSealed);
+        Assert.Null(type.GetConstructor(Type.EmptyTypes));
+        Assert.Null(default(ChunkingProfileId));
     }
 
     [Fact]
@@ -40,13 +54,6 @@ public class ChunkingProfileIdTests
     {
         var id = new ChunkingProfileId("fastcdc.gear.candidate1.64k");
         Assert.Equal("fastcdc.gear.candidate1.64k", id.ToString());
-    }
-
-    [Fact]
-    public void ToString_Returns_Empty_ForDefault()
-    {
-        var id = default(ChunkingProfileId);
-        Assert.Equal(string.Empty, id.ToString());
     }
 
     [Fact]
@@ -76,7 +83,23 @@ public class ChunkingProfileIdTests
 
         Assert.True(id1 == id2);
         Assert.True(id1 != id3);
-        Assert.False(id1 == default);
+        Assert.False(id1 == null);
+        Assert.False(null == id1);
+        Assert.True((ChunkingProfileId?)null == null);
+    }
+
+    [Fact]
+    public void Equality_IsOrdinalOverTheValue()
+    {
+        var id = new ChunkingProfileId("fastcdc.gear.candidate1.64k");
+        var copy = new ChunkingProfileId(new string("fastcdc.gear.candidate1.64k".AsSpan()));
+
+        Assert.NotSame(id.Value, copy.Value);
+        Assert.True(id.Equals(copy));
+        Assert.Equal(
+            StringComparer.Ordinal.GetHashCode(id.Value),
+            id.GetHashCode());
+        Assert.False(id.Equals((ChunkingProfileId?)null));
     }
 
     [Fact]

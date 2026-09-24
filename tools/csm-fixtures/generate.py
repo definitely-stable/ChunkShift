@@ -603,6 +603,12 @@ def fixtures() -> dict[str, Vector]:
         "unsupported-unknown-hash-suite.csm": variant(
             unsupported("5: unknown HashSuite"),
             hash_suite_id=b"chunkshift.sha512.v1"),
+
+        # Well-formed CSM whose chunk Length does not fit the Int32
+        # ChunkInfo.Length of the .NET API (section 13 implementation boundary).
+        "unsupported-chunk-length-above-int32.csm": variant(
+            unsupported("13: chunk Length above the .NET Int32 API range"),
+            entries=[(hashlib.sha256(b"huge").digest(), 0x8000_0000)]),
     }
 
     return vectors

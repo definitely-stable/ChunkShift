@@ -10,10 +10,10 @@ internal static class ManifestResultMapper
             result.ProfileFingerprint,
             result.ManifestId,
             result.FileDigest,
-            result.ChunkCount,
-            result.ContentLength,
-            result.PhysicalLength,
-            result.ChunkBlockCount,
+            CsmParserMath.ToPublicInt64(result.ChunkCount, "ChunkCount"),
+            CsmParserMath.ToPublicInt64(result.ContentLength, "ContentLength"),
+            CsmParserMath.ToPublicInt64(result.PhysicalLength, "PhysicalLength"),
+            CsmParserMath.ToPublicInt64(result.ChunkBlockCount, "ChunkBlockCount"),
             result.HasBlockIndex);
 
     internal static ManifestInfo FromReadResult(
@@ -24,10 +24,10 @@ internal static class ManifestResultMapper
             result.ProfileFingerprint,
             result.StoredManifestId,
             result.StoredFileDigest,
-            result.ChunkCount,
-            result.ContentLength,
-            result.PhysicalLength,
-            result.ChunkBlockCount,
+            CsmParserMath.ToPublicInt64(result.ChunkCount, "ChunkCount"),
+            CsmParserMath.ToPublicInt64(result.ContentLength, "ContentLength"),
+            CsmParserMath.ToPublicInt64(result.PhysicalLength, "PhysicalLength"),
+            CsmParserMath.ToPublicInt64(result.ChunkBlockCount, "ChunkBlockCount"),
             result.HasBlockIndex);
 
     internal static ManifestVerificationFailure MapFailures(

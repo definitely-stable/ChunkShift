@@ -13,10 +13,10 @@ public sealed class ManifestInfo
         ProfileFingerprint profileFingerprint,
         ManifestId manifestId,
         Hash256 fileDigest,
-        ulong chunkCount,
-        ulong contentLength,
-        ulong physicalLength,
-        ulong chunkBlockCount,
+        long chunkCount,
+        long contentLength,
+        long physicalLength,
+        long chunkBlockCount,
         bool hasBlockIndex)
     {
         HashSuite = hashSuite;
@@ -49,16 +49,16 @@ public sealed class ManifestInfo
     public Hash256 FileDigest { get; }
 
     /// <summary>Gets the number of logical chunk entries.</summary>
-    public ulong ChunkCount { get; }
+    public long ChunkCount { get; }
 
     /// <summary>Gets the total logical content length in bytes.</summary>
-    public ulong ContentLength { get; }
+    public long ContentLength { get; }
 
     /// <summary>Gets the complete physical CSM length in bytes.</summary>
-    public ulong PhysicalLength { get; }
+    public long PhysicalLength { get; }
 
     /// <summary>Gets the number of physical CBLK sections.</summary>
-    public ulong ChunkBlockCount { get; }
+    public long ChunkBlockCount { get; }
 
     /// <summary>Gets whether this representation contains BIDX.</summary>
     public bool HasBlockIndex { get; }

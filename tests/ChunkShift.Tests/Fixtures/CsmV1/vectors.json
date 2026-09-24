@@ -450,6 +450,14 @@
       },
       "physicalLength": 428
     },
+    "unsupported-chunk-length-above-int32.csm": {
+      "expect": {
+        "failures": [],
+        "outcome": "unsupported",
+        "rule": "13: chunk Length above the .NET Int32 API range"
+      },
+      "physicalLength": 420
+    },
     "unsupported-unknown-hash-suite.csm": {
       "expect": {
         "failures": [],

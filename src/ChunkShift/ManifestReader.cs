@@ -68,30 +68,74 @@ public sealed class ManifestReader : IDisposable, IAsyncDisposable
     /// <summary>
     /// Opens a forward reader over a caller-owned CSM stream.
     /// </summary>
-    public static async Task<ManifestReader> OpenAsync(
+    /// <param name="manifest">Readable CSM stream owned by the caller.</param>
+    /// <param name="cancellationToken">Cooperative cancellation token.</param>
+    /// <returns>A reader positioned before the first logical chunk entry.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="manifest"/> is <see langword="null"/>. Thrown by this call, not by
+    /// the returned task.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="manifest"/> is not readable. Thrown by this call, not by the
+    /// returned task.
+    /// </exception>
+    /// <exception cref="InvalidDataException">
+    /// The CSM preamble or CORE section is malformed.
+    /// </exception>
+    /// <exception cref="NotSupportedException">
+    /// The manifest declares a hash suite this build does not support.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">
+    /// Cancellation is observed before the reader is open.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="manifest"/> returned a byte count outside the <see cref="Stream"/> contract.
+    /// </exception>
+    public static Task<ManifestReader> OpenAsync(
         Stream manifest,
         CancellationToken cancellationToken = default)
     {
-        CsmStreamReaderCore core =
-            await CsmStreamReaderCore.OpenAsync(
-                manifest,
-                cancellationToken).ConfigureAwait(false);
+        StreamArguments.ThrowIfNotReadable(manifest, nameof(manifest));
 
-        return new ManifestReader(core);
+        return OpenCoreAsync(manifest, cancellationToken);
     }
 
     /// <summary>
     /// Reads the next ordered logical chunk entries into <paramref name="destination"/>.
     /// Returns zero only after the CSM representation has been fully consumed.
     /// </summary>
+    /// <param name="destination">Buffer that receives the next entries; must not be empty.</param>
+    /// <param name="cancellationToken">Cooperative cancellation token.</param>
+    /// <returns>The number of entries written, or zero at the end of the representation.</returns>
     /// <remarks>
     /// A token that is already cancelled when the call starts throws
     /// <see cref="OperationCanceledException"/> without consuming anything, and
     /// the reader stays usable. Cancellation observed after the read has started
     /// leaves the reader unusable.
     /// </remarks>
-    public async ValueTask<int> ReadAsync(
-        Memory<ChunkEntry> destination,
+    /// <exception cref="ObjectDisposedException">
+    /// The reader has been disposed. Thrown by this call, not by the returned task.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// A previous read failed or was cancelled (thrown by this call), another read is
+    /// still in progress, or the stream returned a byte count outside the
+    /// <see cref="Stream"/> contract.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="destination"/> is empty. Thrown by this call, not by the returned task.
+    /// </exception>
+    /// <exception cref="InvalidDataException">
+    /// The CSM representation is malformed.
+    /// </exception>
+    /// <exception cref="NotSupportedException">
+    /// The manifest contains a chunk length above <see cref="int.MaxValue"/> or a content
+    /// length above <see cref="long.MaxValue"/>, which this API cannot represent.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">
+    /// Cancellation is observed.
+    /// </exception>
+    public ValueTask<int> ReadAsync(
+        Memory<ChunkInfo> destination,
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -109,6 +153,25 @@ public sealed class ManifestReader : IDisposable, IAsyncDisposable
                 nameof(destination));
         }
 
+        return ReadCoreAsync(destination, cancellationToken);
+    }
+
+    private static async Task<ManifestReader> OpenCoreAsync(
+        Stream manifest,
+        CancellationToken cancellationToken)
+    {
+        CsmStreamReaderCore core =
+            await CsmStreamReaderCore.OpenAsync(
+                manifest,
+                cancellationToken).ConfigureAwait(false);
+
+        return new ManifestReader(core);
+    }
+
+    private async ValueTask<int> ReadCoreAsync(
+        Memory<ChunkInfo> destination,
+        CancellationToken cancellationToken)
+    {
         // Checked before the read starts, so a token that is already cancelled
         // neither consumes entries nor leaves the reader unusable, even when
         // the next entries are already buffered and need no I/O.
@@ -209,16 +272,16 @@ public sealed class ManifestReader : IDisposable, IAsyncDisposable
     private static void CopyEntries(
         CsmChunkEntry[] source,
         int count,
-        Memory<ChunkEntry> destination)
+        Memory<ChunkInfo> destination)
     {
         for (int index = 0; index < count; index++)
         {
             CsmChunkEntry entry = source[index];
             destination.Span[index] =
-                new ChunkEntry(
-                    entry.Index,
-                    entry.Offset,
-                    entry.Length,
+                new ChunkInfo(
+                    CsmParserMath.ToPublicInt64(entry.Index, "chunk index"),
+                    CsmParserMath.ToPublicInt64(entry.Offset, "chunk offset"),
+                    CsmParserMath.ToPublicInt32(entry.Length, "chunk length"),
                     entry.Id);
         }
     }

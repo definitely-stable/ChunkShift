@@ -96,9 +96,9 @@ foreach (HashSuiteId suite in new[] { HashSuiteIds.Blake3256V1, HashSuiteIds.Sha
         Check(
             created.HashSuite == suite &&
             created.HasBlockIndex == includeBlockIndex &&
-            created.ChunkCount == (ulong)scan.Ids.Count &&
-            created.ContentLength == (ulong)bytes.LongLength &&
-            created.PhysicalLength == (ulong)manifest.Length,
+            created.ChunkCount == scan.Ids.Count &&
+            created.ContentLength == bytes.LongLength &&
+            created.PhysicalLength == manifest.Length,
             "CreateAsync summary disagrees with the scanner or the written bytes");
 
         manifest.Position = 0;
@@ -173,7 +173,7 @@ foreach (HashSuiteId suite in new[] { HashSuiteIds.Blake3256V1, HashSuiteIds.Sha
         allocated = GC.GetTotalAllocatedBytes(precise: true) - before;
 
         Check(
-            created.ContentLength == (ulong)GeneratedLength &&
+            created.ContentLength == GeneratedLength &&
             generated.BytesRead == GeneratedLength,
             "CreateAsync did not consume the complete generated stream");
     }
@@ -284,21 +284,21 @@ static async Task<ScanResult> ScanAsync(Stream source, HashSuiteId suite)
 static async Task CheckReaderMatchesScanAsync(Stream manifest, ScanResult scan)
 {
     await using ManifestReader reader = await ManifestReader.OpenAsync(manifest);
-    var batch = new ChunkEntry[5];
+    var batch = new ChunkInfo[5];
     int index = 0;
-    ulong offset = 0;
+    long offset = 0;
     int read;
 
     while ((read = await reader.ReadAsync(batch)) != 0)
     {
         for (int item = 0; item < read; item++, index++)
         {
-            ChunkEntry entry = batch[item];
+            ChunkInfo entry = batch[item];
             Check(
                 index < scan.Ids.Count &&
-                entry.Index == (ulong)index &&
+                entry.Index == index &&
                 entry.Offset == offset &&
-                entry.Length == (uint)scan.Lengths[index] &&
+                entry.Length == scan.Lengths[index] &&
                 entry.Id == scan.Ids[index],
                 "ManifestReader entries disagree with the scanner");
             offset += entry.Length;
@@ -386,7 +386,7 @@ internal static class LargeSource
                 new ManifestCreationOptions { IncludeBlockIndex = true });
         }
 
-        Require(created.ContentLength == (ulong)sourceLength, "CreateAsync did not cover the whole file");
+        Require(created.ContentLength == sourceLength, "CreateAsync did not cover the whole file");
 
         await using (FileStream manifest = OpenSequential(manifestPath))
         {
@@ -396,12 +396,12 @@ internal static class LargeSource
                 "VerifyManifestAsync rejected the large manifest");
         }
 
-        ulong entries = 0;
-        ulong covered = 0;
+        long entries = 0;
+        long covered = 0;
         await using (FileStream manifest = OpenSequential(manifestPath))
         await using (ManifestReader reader = await ManifestReader.OpenAsync(manifest))
         {
-            var batch = new ChunkEntry[4096];
+            var batch = new ChunkInfo[4096];
             int read;
 
             while ((read = await reader.ReadAsync(batch)) != 0)
@@ -412,7 +412,7 @@ internal static class LargeSource
                     covered += batch[item].Length;
                 }
 
-                entries += (ulong)read;
+                entries += read;
             }
 
             Require(

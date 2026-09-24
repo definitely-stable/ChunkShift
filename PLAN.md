@@ -112,7 +112,7 @@ Required outcomes:
 Deferred intentionally:
 
 - incremental vs one-shot chunk cryptographic hashing -> benchmark in #4;
-- ChunkerId/ManifestSchemaVersion/nullability public-surface cleanup -> #6;
+- ChunkerId/ManifestSchemaVersion/nullability public-surface cleanup -> #6 (done by #63: unused types removed, IDs are non-nullable reference value objects);
 - final real version-pair corpus decision -> #8.
 
 Exit met by PR #38: #4 can be implemented without choosing any known hidden persisted semantic or relying on the previously identified false metrics.

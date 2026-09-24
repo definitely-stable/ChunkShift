@@ -59,7 +59,7 @@ public sealed class CsmStreamContractTests
 
         InvalidOperationException exception =
             await Assert.ThrowsAsync<InvalidOperationException>(
-                () => reader.ReadAsync(new ChunkEntry[16])
+                () => reader.ReadAsync(new ChunkInfo[16])
                     .AsTask()
                     .WaitAsync(HangGuard));
 

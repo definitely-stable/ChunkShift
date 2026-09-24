@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using ChunkShift.Hashing;
@@ -445,7 +446,7 @@ internal static class CsmMutator
     internal static void ResealFileDigest(byte[] data)
     {
         if (data.Length < CsmFormat.PreambleSize + CsmFormat.TrailerSize ||
-            !TryReadHashSuite(data, out HashSuiteId hashSuite))
+            !TryReadHashSuite(data, out HashSuiteId? hashSuite))
         {
             return;
         }
@@ -455,9 +456,11 @@ internal static class CsmMutator
         digest.CopyTo(data.AsSpan(trailerOffset + 24, CsmFormat.HashSize));
     }
 
-    internal static bool TryReadHashSuite(byte[] data, out HashSuiteId hashSuite)
+    internal static bool TryReadHashSuite(
+        byte[] data,
+        [NotNullWhen(true)] out HashSuiteId? hashSuite)
     {
-        hashSuite = default;
+        hashSuite = null;
         int core = CsmFormat.PreambleSize;
         int prefix = core + CsmFormat.SectionHeaderSize;
 
