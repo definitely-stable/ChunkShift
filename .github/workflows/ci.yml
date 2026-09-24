@@ -212,6 +212,93 @@ jobs:
             -p:RestoreAdditionalProjectSources="${GITHUB_WORKSPACE}/artifacts/packages" \
             -- --evidence artifacts/package-smoke/jit-linux-x64.txt
 
+      - name: Build and run samples against produced package
+        shell: bash
+        run: |
+          set -euo pipefail
+          work=artifacts/samples
+          mkdir -p "$work"
+
+          for project in Console AspNetCore
+          do
+            dotnet build "samples/ChunkShift.Samples.${project}/ChunkShift.Samples.${project}.csproj" -c Release \
+              -p:ChunkShiftPackageVersion="${PACKAGE_VERSION}" \
+              -p:RestoreAdditionalProjectSources="${GITHUB_WORKSPACE}/artifacts/packages"
+          done
+
+          console() {
+            dotnet samples/ChunkShift.Samples.Console/bin/Release/net10.0/ChunkShift.Samples.Console.dll "$@"
+          }
+
+          head -c $((6 * 1024 * 1024)) /dev/urandom > "$work/content.bin"
+          head -c $((9 * 1024 * 1024)) /dev/urandom > "$work/oversized.bin"
+
+          # Console: scan, create, verify, then a content mismatch.
+          console scan "$work/content.bin" > "$work/scan.txt"
+          chunks=$(wc -l < "$work/scan.txt")
+          test "$chunks" -gt 0
+
+          console create "$work/content.bin" "$work/content.csm" > "$work/create.txt"
+          grep -q '^manifest-id=' "$work/create.txt"
+          console verify "$work/content.bin" "$work/content.csm" | grep -q '^valid=true '
+
+          cp "$work/content.bin" "$work/wrong.bin"
+          python3 -c 'import sys; p = sys.argv[1]; d = bytearray(open(p, "rb").read()); d[len(d) // 2] ^= 0x80; open(p, "wb").write(d)' "$work/wrong.bin"
+          set +e
+          console verify "$work/wrong.bin" "$work/content.csm" > "$work/mismatch.txt"
+          status=$?
+          set -e
+          test "$status" -eq 1
+          grep -q '^valid=false ' "$work/mismatch.txt"
+
+          # create never replaces an existing manifest.
+          cp "$work/content.csm" "$work/existing.csm"
+          set +e
+          console create "$work/wrong.bin" "$work/existing.csm" 2> /dev/null
+          status=$?
+          set -e
+          test "$status" -eq 2
+          cmp "$work/content.csm" "$work/existing.csm"
+
+          # ASP.NET Core: request-body streaming with an explicit 8 MiB limit.
+          export ASPNETCORE_URLS=http://127.0.0.1:5081
+          export ChunkShift__MaxRequestBodyBytes=$((8 * 1024 * 1024))
+          export ChunkShift__ChunkStore="${GITHUB_WORKSPACE}/$work/store"
+          dotnet samples/ChunkShift.Samples.AspNetCore/bin/Release/net10.0/ChunkShift.Samples.AspNetCore.dll \
+            > "$work/server.log" 2>&1 &
+          server=$!
+          trap 'kill "$server" 2> /dev/null || true; cat "$work/server.log"' EXIT
+
+          ready=false
+          for _ in $(seq 60)
+          do
+            if curl -sf -o /dev/null -X POST --data-binary '' "$ASPNETCORE_URLS/chunks"; then ready=true; break; fi
+            sleep 1
+          done
+          test "$ready" = true
+
+          post() {
+            curl -sS --fail -X POST -H 'Content-Type: application/octet-stream' \
+              --data-binary "@$1" "$ASPNETCORE_URLS/$2" "${@:3}"
+          }
+
+          # The server-side manifest verifies and matches the console one byte for byte.
+          post "$work/content.bin" manifest -o "$work/server.csm"
+          console verify "$work/content.bin" "$work/server.csm" | grep -q '^valid=true '
+          cmp "$work/content.csm" "$work/server.csm"
+
+          # Chunks are stored once; a repeated upload stores nothing new.
+          post "$work/content.bin" chunks > "$work/chunks-1.txt"
+          post "$work/content.bin" chunks > "$work/chunks-2.txt"
+          grep -qx "chunks=${chunks} bytes=$((6 * 1024 * 1024)) stored=${chunks}" "$work/chunks-1.txt"
+          grep -qx "chunks=${chunks} bytes=$((6 * 1024 * 1024)) stored=0" "$work/chunks-2.txt"
+          test "$(find "$work/store" -type f | wc -l)" -eq "$chunks"
+
+          # A body over the configured limit is refused, not silently accepted.
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/octet-stream' \
+            --data-binary "@$work/oversized.bin" "$ASPNETCORE_URLS/manifest" || true)
+          test "$code" = 413
+
       - name: Upload package smoke artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
