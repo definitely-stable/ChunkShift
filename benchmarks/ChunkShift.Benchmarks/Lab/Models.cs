@@ -118,7 +118,24 @@ public sealed record MeasurementProtocol(
     string MemoryMeasurement,
     string Lanes,
     string Stabilization,
-    string Dispersion);
+    string Dispersion,
+    string ProcessIsolation);
+
+/// <summary>
+/// Which process each experiment ran in, and so what
+/// <see cref="LabMetrics.ProcessPeakRssBytes"/> covers.
+/// </summary>
+public static class ProcessIsolationModes
+{
+    /// <summary>All experiments in one process: the peak is a lifetime upper bound.</summary>
+    public const string None = "none";
+
+    /// <summary>This process ran one experiment (<c>lab --only</c>).</summary>
+    public const string SingleExperiment = "single-experiment";
+
+    /// <summary>Merged from one child process per experiment (<c>lab --isolate</c>).</summary>
+    public const string PerExperiment = "per-experiment";
+}
 
 public sealed record DistributionSummary(
     int Count,
