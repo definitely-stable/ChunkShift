@@ -76,6 +76,12 @@ public sealed class ManifestReader : IDisposable, IAsyncDisposable
     /// Reads the next ordered logical chunk entries into <paramref name="destination"/>.
     /// Returns zero only after the CSM representation has been fully consumed.
     /// </summary>
+    /// <remarks>
+    /// A token that is already cancelled when the call starts throws
+    /// <see cref="OperationCanceledException"/> without consuming anything, and
+    /// the reader stays usable. Cancellation observed after the read has started
+    /// leaves the reader unusable.
+    /// </remarks>
     public async ValueTask<int> ReadAsync(
         Memory<ChunkEntry> destination,
         CancellationToken cancellationToken = default)
@@ -94,6 +100,11 @@ public sealed class ManifestReader : IDisposable, IAsyncDisposable
                 "Destination must contain at least one entry.",
                 nameof(destination));
         }
+
+        // Checked before the read starts, so a token that is already cancelled
+        // neither consumes entries nor leaves the reader unusable, even when
+        // the next entries are already buffered and need no I/O.
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (Interlocked.Exchange(ref _readInProgress, 1) != 0)
         {
