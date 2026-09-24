@@ -86,6 +86,22 @@ jobs:
         shell: bash
         run: python3 tools/csm-fixtures/generate.py --verify tests/ChunkShift.Tests/Fixtures/CsmV1
 
+      - name: Extended CSM reader fuzz with differential decoder check
+        shell: bash
+        env:
+          CHUNKSHIFT_FUZZ_ITERATIONS: 5000
+          CHUNKSHIFT_FUZZ_DUMP: ${{ runner.temp }}/csm-fuzz
+        run: |
+          set -euo pipefail
+          # Fresh seeds per run explore new inputs; any failure prints its seed
+          # and iteration, so it replays with CHUNKSHIFT_FUZZ_SEEDS.
+          base=$(( ${{ github.run_number }} * 16 ))
+          export CHUNKSHIFT_FUZZ_SEEDS="$base,$((base + 1)),$((base + 2)),$((base + 3))"
+          echo "fuzz seeds: $CHUNKSHIFT_FUZZ_SEEDS"
+          dotnet test tests/ChunkShift.Tests -c Release --no-build --no-restore -f net10.0 \
+            --filter "FullyQualifiedName~ChunkShift.Tests.Fuzzing"
+          python3 tools/csm-fixtures/decode.py --compare "$CHUNKSHIFT_FUZZ_DUMP"
+
       - name: Verify external fastcdc-rs 5.0.0 vector
         if: matrix.rid == 'linux-x64'
         shell: bash
