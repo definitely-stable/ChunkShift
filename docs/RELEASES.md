@@ -134,14 +134,14 @@ GitHub-generated release notes may be used as input because they enumerate merge
 
 For a normal `0.1.Z` release:
 
-1. choose the next unused PATCH version;
+1. choose the next unused PATCH version and set `VersionPrefix` in `src/ChunkShift/ChunkShift.csproj` to it in a reviewed PR;
 2. ensure all intended PRs are merged to `main`;
 3. pass required build/test/AOT/compatibility/security gates;
 4. inspect package metadata and produced artifacts;
 5. update `CHANGELOG.md` and release notes;
 6. create a draft GitHub Release for `v0.1.Z`;
 7. attach/produce all intended artifacts;
-8. publish packages from the tagged/release commit;
+8. publish packages by dispatching the release workflow from `main` with that version and `publish_nuget`; the workflow refuses a version whose `X.Y.Z` differs from `VersionPrefix`, that is already on NuGet.org or whose tag already exists, and after a successful publish creates `v0.1.Z` on the exact commit it built;
 9. publish the GitHub Release as immutable;
 10. verify the released packages/artifacts can be consumed from a clean environment.
 

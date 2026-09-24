@@ -60,6 +60,61 @@ jobs:
         with:
           global-json-file: global.json
 
+      # The requested version must be the one main declares: its X.Y.Z core
+      # equals VersionPrefix, so every release first bumps VersionPrefix in a
+      # reviewed PR. A version that is already on NuGet.org, or whose tag
+      # already exists, is refused before anything is built.
+      - name: Check version against VersionPrefix, NuGet.org and tags
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          prefix=$(dotnet msbuild src/ChunkShift/ChunkShift.csproj -getProperty:VersionPrefix | tr -d '[:space:]')
+          if [[ "${VERSION%%-*}" != "${prefix}" ]]; then
+            echo "Version ${VERSION} does not match VersionPrefix ${prefix} on this commit; bump VersionPrefix in a PR first." >&2
+            exit 1
+          fi
+
+          # NuGet.org flat container: 404 means the package id has no versions
+          # yet; any other non-200 answer is an error, not "not published".
+          status=$(curl -sS -o nuget-versions.json -w '%{http_code}' \
+            "https://api.nuget.org/v3-flatcontainer/chunkshift/index.json")
+          if [[ "${status}" == 404 ]]; then
+            echo '{"versions": []}' > nuget-versions.json
+          elif [[ "${status}" != 200 ]]; then
+            echo "NuGet.org version lookup failed with HTTP ${status}." >&2
+            exit 1
+          fi
+
+          # Refuse a version already on NuGet.org (never reused) and one below
+          # a published release: X.Y.Z must not be lower than any published
+          # core, and a pre-release must not follow its own stable release.
+          python3 - <<'PY'
+          import json, os, sys
+
+          def core(version):
+              return tuple(int(part) for part in version.split("-", 1)[0].split("."))
+
+          requested = os.environ["VERSION"].lower()
+          published = json.load(open("nuget-versions.json"))["versions"]
+
+          if requested in published:
+              sys.exit(f"ChunkShift {requested} is already published on NuGet.org; published versions are never reused.")
+
+          for version in published:
+              if core(version) > core(requested):
+                  sys.exit(f"ChunkShift {requested} is lower than published {version}.")
+              if "-" in requested and "-" not in version and core(version) == core(requested):
+                  sys.exit(f"Pre-release {requested} cannot follow the published stable {version}.")
+          PY
+
+          if [[ -n "$(git ls-remote --tags origin "refs/tags/v${VERSION}")" ]]; then
+            echo "Tag v${VERSION} already exists; release tags are never moved or reused." >&2
+            exit 1
+          fi
+
       - name: Restore
         run: dotnet restore ChunkShift.slnx
 
@@ -122,4 +177,28 @@ jobs:
           NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
         run: |
           set -euo pipefail
-          dotnet nuget push "artifacts/packages/*.nupkg"             --api-key "${NUGET_API_KEY}"             --source "https://api.nuget.org/v3/index.json"             --skip-duplicate
+          dotnet nuget push "artifacts/packages/*.nupkg"             --api-key "${NUGET_API_KEY}"             --source "https://api.nuget.org/v3/index.json"
+
+  # Tags the exact commit the published packages were built from. A separate
+  # job holds the only write permission and runs no repository code.
+  tag:
+    name: tag-release
+    needs: release
+    if: ${{ inputs.publish_nuget }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - name: Create v${{ inputs.version }} tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          # Fails if the tag already exists; an existing tag is never moved.
+          gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
+            -f ref="refs/tags/v${VERSION}" \
+            -f sha="${GITHUB_SHA}"
