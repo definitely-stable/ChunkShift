@@ -44,7 +44,53 @@ jobs:
         run: dotnet build ChunkShift.slnx -c Release --no-restore
 
       - name: Test
+        if: matrix.os != 'ubuntu-24.04'
         run: dotnet test ChunkShift.slnx -c Release --no-build --no-restore
+
+      - name: Test with coverage
+        if: matrix.os == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # One run per target framework so each report is attributable;
+          # ChunkShift.Tests is the only test project in ChunkShift.slnx.
+          for tfm in net8.0 net10.0; do
+            dotnet test tests/ChunkShift.Tests/ChunkShift.Tests.csproj -c Release --no-build --no-restore \
+              -f "$tfm" --collect "XPlat Code Coverage" --results-directory "artifacts/coverage/$tfm"
+          done
+
+      - name: Coverage summary
+        if: matrix.os == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          reports = sorted(Path("artifacts/coverage").rglob("coverage.cobertura.xml"))
+          if not reports:
+              raise SystemExit("no coverage reports were produced")
+
+          print("### Core coverage\n")
+          print("| Target framework | Lines | Branches |")
+          print("|---|---|---|")
+          for report in reports:
+              root = ET.parse(report).getroot()
+              tfm = report.relative_to("artifacts/coverage").parts[0]
+              lines = f"{float(root.get('line-rate')):.1%} ({root.get('lines-covered')}/{root.get('lines-valid')})"
+              branches = f"{float(root.get('branch-rate')):.1%} ({root.get('branches-covered')}/{root.get('branches-valid')})"
+              print(f"| {tfm} | {lines} | {branches} |")
+          PY
+
+      - name: Upload coverage
+        if: matrix.os == 'ubuntu-24.04'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage
+          path: artifacts/coverage/**/coverage.cobertura.xml
+          if-no-files-found: error
+          retention-days: 30
 
       - name: CLI CSM round-trip
         if: matrix.os == 'ubuntu-24.04'
