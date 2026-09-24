@@ -1,24 +1,24 @@
 # ChunkShift
 
-ChunkShift is an early-stage .NET project for **content-aware binary chunking, manifests and binary updates**.
+ChunkShift is a pre-release .NET project for **content-aware binary chunking, manifests and binary updates**.
 
 The first public product is a small embeddable Core that maps a byte stream into stable content chunks and creates, reads and verifies binary manifests without requiring Patching, a ChunkShift server or a repository. Exact delta reconstruction is the following Patching stage.
 
-> **Project status:** architecture and compatibility contracts are being frozen before the main implementation. The APIs and formats described in the RFCs are candidates until their milestone freeze gates are complete.
+> **Project status:** the Core is implemented on `main` — deterministic chunking with BLAKE3-256/SHA-256, the bounded raw scanner, CSM create/read/verify and a CLI over them, with golden and independently decoded conformance vectors, fuzzing, x64/ARM64 determinism, packaged NativeAOT and larger-than-memory streaming evidence. Nothing is published yet. The current phase is **freezing** the public API ([#6](https://github.com/definitely-stable/ChunkShift/issues/6)), the default chunking profile ([#8](https://github.com/definitely-stable/ChunkShift/issues/8)) and the CSM/compatibility baseline ([#9](https://github.com/definitely-stable/ChunkShift/issues/9)); until those gates close, the API, the default ProfileId and the CSM format are candidates and may still change. Patching (CSP) has not started. See [ROADMAP.md](ROADMAP.md#current-state).
 
 ## Target usage layers
 
 ```text
-ChunkShift
+ChunkShift                                   implemented; API/profile/CSM freeze in progress
   standalone embedded/local SDK
   deterministic chunking + raw chunk stream
   CSM create/read/verify
 
-ChunkShift.Patching
+ChunkShift.Patching                          not started (after Core 0.1.0)
   compare/diff + reuse analysis
   create/apply exact CSP binary updates
 
-ChunkShift.Cli
+ChunkShift.Cli                               create/inspect/verify; not packaged yet
   engineering and end-user workflows
 
 Future / preview:
@@ -87,7 +87,7 @@ The current architecture sources of truth are:
 - [ROADMAP.md](ROADMAP.md) — program sequence, release gates and current critical path
 - [PLAN.md](PLAN.md) — milestone deliverables, tests, benchmarks and exit criteria
 
-The raw chunk-stream API shape is evidence-selected: issue [#20](https://github.com/definitely-stable/ChunkShift/issues/20) compared push/pull, contiguous/segmented payload and Task/ValueTask alternatives and froze the callback with borrowed `ReadOnlyMemory<byte>` ([phase-2 evidence](docs/benchmarks/SCANNER-API-PHASE2-EVIDENCE-2026-09-23.md)). The complete minimal Core public API and NativeAOT contract is frozen by issue [#6](https://github.com/definitely-stable/ChunkShift/issues/6) before the Core `0.1.0` public baseline. Compare/diff is not part of Core `0.1.0`; it belongs to `ChunkShift.Patching`.
+The raw chunk-stream API shape is evidence-selected: issue [#20](https://github.com/definitely-stable/ChunkShift/issues/20) compared push/pull, contiguous/segmented payload and Task/ValueTask alternatives and froze the callback with borrowed `ReadOnlyMemory<byte>` ([phase-2 evidence](docs/benchmarks/SCANNER-API-PHASE2-EVIDENCE-2026-09-23.md)). The complete minimal Core public API and NativeAOT contract will be frozen by issue [#6](https://github.com/definitely-stable/ChunkShift/issues/6) before the Core `0.1.0` public baseline. Compare/diff is not part of Core `0.1.0`; it belongs to `ChunkShift.Patching`.
 
 ## Product boundaries
 

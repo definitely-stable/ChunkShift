@@ -214,7 +214,13 @@ The `differing` basis excludes coincidental equal rewrites and, for random-rewri
 
 ### Mean chunk size versus target
 
-`meanToTargetRatio` is the actual mean target-chunk length divided by the experiment's nominal chunk size. For fixed-size chunking it is at most 1 (only the final chunk is short). For the FastCDC M1 candidate the minimum is `target/4` and the normalized masks have `log2(target) + 1` and `log2(target) - 1` bits set, so the per-byte cut probability is `1/(2·target)` before the target and `2/target` after it, and, under the idealized assumption that cut decisions behave like independent per-byte trials (as on random input), the analytical mean is about **1.218 × target**, not 1.0. Real corpora differ: the smoke matrix measures about 1.31 / 1.12 / 1.10 × target on `game-pak-8m` for 64/128/256 KiB, and 4.0 × on `zero-8m`, where every cut is forced at the maximum. Profiles must therefore be compared by measured mean, not nominal target or the analytical figure; equal-mean calibration is not reachable while the target must be a power of two.
+`meanToTargetRatio` is the actual mean target-chunk length divided by the experiment's nominal chunk size. For fixed-size chunking it is at most 1 (only the final chunk is short). For the FastCDC M1 candidate the minimum is `target/4` and the normalized masks have `log2(target) + 1` and `log2(target) - 1` bits set, so the per-byte cut probability is `1/(2·target)` before the target and `2/target` after it, and, under the idealized assumption that cut decisions behave like independent per-byte trials (as on random input), the analytical mean is about **1.218 × target**, not 1.0. Real corpora differ: the smoke matrix measures about 1.31 / 1.12 / 1.10 × target on `game-pak-8m` for 64/128/256 KiB, and 4.0 × on `zero-8m`, where every cut is forced at the maximum. Profiles must therefore be compared by measured mean, never by nominal target or the analytical figure.
+
+Calibration rule for profile comparisons (#8):
+
+- **Compare actual measured means.** Every result reports the mean it actually produced on that corpus; the nominal target is a parameter, never a stand-in for the mean.
+- **Calibrate candidates to a close measured mean where their parameters allow.** A candidate with a free size parameter (the fixed-size baseline, or another CDC algorithm) is run at a size chosen from the measured mean of the candidate it is compared against on the same corpus, not at that candidate's nominal target.
+- **Where exact calibration is not reachable, report the gap instead of hiding it.** The FastCDC M1 candidate only accepts power-of-two targets, so its mean cannot be tuned continuously; comparisons then pair the closest measured means and state their ratio next to the result.
 
 ### Missing payload and CSP bytes
 
