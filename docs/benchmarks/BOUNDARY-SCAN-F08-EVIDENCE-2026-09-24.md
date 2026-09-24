@@ -88,3 +88,35 @@ arm64 counter readings, per input byte, 64 KiB (256 KiB within 5%). These are no
 - **The calibration premise failed on arm64 and is not used.** The XOR+ADD dependency itself was modeled as a nominal two-cycle floor, but the generated loop also contains loop-control instructions and the observed PMU readings were 2.92 cycles / 12.0 instructions per step despite Tier1 code. The runner therefore does not establish a portable two-cycle calibration. No cycles are derived from this calibration anywhere.
 - **x64 BDN results are excluded.** For ChainFloor 64 KiB, both BDN rounds measured 0.49 ns/B against the harness's 0.25 ns/B. BDN ChainFloor 256 KiB matched the harness at 0.25, and so did the first run's BDN rounds in the opposite pairing. The printed BDN disassembly shows identical machine code for both targets: the chain loop is `movzx; mov; lea r15,[r12+r15*2]; inc; cmp; jl`. The 2× difference therefore comes from where that code lands in a given process, not from what the JIT generated. A loop-alignment or front-end effect is likely, but it is not proven. The harness runs agree within a few percent, and arm64 BDN rounds agree with the harness within 3%.
 - The copy that A1-F05 removes is not measured here. This evidence says nothing about F05's size relative to F01/F03.
+
+## Follow-up: A1-F01 + A1-F03 applied
+
+`ChunkBoundaryState.Scan` now keeps the hash and chunk length in locals for the whole call, skips the unhashed prefix [0, Minimum) without a per-byte loop, and runs the strict and relaxed ranges as separate loops with their bounds computed once. The predicate, masks and cut convention are unchanged; the existing scalar/streaming differential tests, the CSM golden vectors and a new window-splitting test against `FastCdcScalar.FindCut` (`ChunkBoundaryStateTests`) pass, and the package smoke's CSM identities match between JIT and NativeAOT.
+
+Local measurement, one x64 machine (Intel Xeon @ 2.10 GHz, 4 vCPU, .NET 10.0.12), before → after. It is a single-machine sanity check, not a substitute for the CI harness rounds above; rerun the `boundary-scan-f08` job (workflow_dispatch) for cross-architecture evidence.
+
+| | 64 KiB | 256 KiB |
+|---|---|---|
+| f08 harness `Scan`, ns/B (2 rounds each) | 1.63, 1.64 → 0.58, 0.58 | 1.96, 1.66 → 0.59, 0.60 |
+| f08 harness `ScalarLocals` (control), ns/B | 0.60, 0.59 → 0.60, 0.58 | 0.58, 0.59 → 0.58, 0.58 |
+| f08 harness `ChainFloor` (control), ns/B | 0.57, 0.57 → 0.57, 0.57 | 0.57, 0.57 → 0.57, 0.57 |
+| BDN `StreamingFastCdcBlake3`, 16 MiB, ms | 31.62 → 15.91 | 30.31 → 14.59 |
+| BDN `FastCdcBlake3` reference (control), ms | 14.44 → 14.65 | 13.74 → 13.87 |
+
+The production scan now runs at `ScalarLocals` speed, and the streaming path is within about 10% of the in-memory reference. On this machine `ScalarLocals` / `ChainFloor` is about 1.03, not the 1.50 the CI x64 runner measured, so this local run cannot settle A1-F07 either way.
+
+CI rerun on this code: `boundary-scan-f08` via workflow_dispatch, run 36048105886, commit `93ea08e`, same runners and harness as above. Harness medians, ns per input byte:
+
+| | x64 64K | x64 256K | arm64 64K | arm64 256K |
+|---|---|---|---|---|
+| `Scan` before (table above) | 1.200 | 1.155 | 2.051 | 2.052 |
+| `Scan` after | 0.418 | 0.378 | 0.342 | 0.344 |
+| `ScalarLocals` | 0.380 | 0.413 | 0.342 | 0.343 |
+| `ChainFloor` | 0.254 | 0.253 | 0.278 | 0.278 |
+| Scan / ScalarLocals (harness rounds) | 1.10, 1.10, 1.10 | 0.91, 0.92, 1.11 | 1.00, 1.00, 1.00 | 1.00, 0.99, 1.00 |
+| F07 gate, ScalarLocals / ChainFloor | 1.49, 1.50, 1.52 | 1.62, 1.64, 1.64 | 1.23, 1.23, 1.23 | 1.23, 1.23, 1.23 |
+
+- The production scan is 2.9–3.1× faster on x64 and 6.0× faster on arm64. It now matches `ScalarLocals` on arm64 and is within about 10% of it on x64.
+- arm64 counters (same caveats as above): `Scan` runs 6.24 instructions per byte, the same as `ScalarLocals`, down from 26.1.
+- The F07 gate stays above 1.15 on both architectures, so the CI data confirm the decision above: A1-F07 (the 2-byte unrolled chain) is still not justified. The local ~1.03 ratio does not reproduce on the CI runners.
+- x64 BDN rounds were excluded again by the harness/BDN agreement rule; arm64 BDN rounds agree with the harness.

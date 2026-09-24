@@ -66,48 +66,91 @@ internal struct ChunkBoundaryState
             return new ChunkBoundaryScanResult(consumed, 0);
         }
 
+        return ScanFastCdc(source);
+    }
+
+    /// <summary>
+    /// FastCDC boundary scan with the same predicate and cut convention as
+    /// <see cref="FastCdcScalar.FindCut"/>. The state lives in locals for the
+    /// whole call (this struct is hoisted into an async state machine, where
+    /// field access per byte is a load/store through a reference), the unhashed
+    /// prefix [0, Minimum) is skipped without a per-byte loop, and the strict and
+    /// relaxed ranges run as separate loops with bounds computed once, so the
+    /// per-byte work is one gear step and one mask test.
+    /// </summary>
+    private ChunkBoundaryScanResult ScanFastCdc(ReadOnlySpan<byte> source)
+    {
         FastCdcProfile fastCdc = _profile.FastCdc;
+        int chunkLength = _chunkLength;
+        ulong gearHash = _gearHash;
         int index = 0;
 
-        while (index < source.Length)
+        if (chunkLength < fastCdc.Minimum)
         {
-            byte candidate = source[index];
+            // Minimum < Maximum, so the prefix never completes a chunk.
+            int skipped = Math.Min(fastCdc.Minimum - chunkLength, source.Length);
+            chunkLength += skipped;
+            index = skipped;
+        }
 
-            if (_chunkLength >= fastCdc.Minimum)
+        if (chunkLength < fastCdc.Target)
+        {
+            // Bytes at chunk-relative positions [chunkLength, Target) use the strict mask.
+            int end = index + Math.Min(fastCdc.Target - chunkLength, source.Length - index);
+            ulong strictMask = fastCdc.StrictMask;
+
+            for (int i = index; i < end; i++)
             {
-                ulong nextHash = unchecked(
-                    (_gearHash << 1) + FastCdcGearTable.Get(candidate));
-                ulong mask = _chunkLength < fastCdc.Target
-                    ? fastCdc.StrictMask
-                    : fastCdc.RelaxedMask;
+                gearHash = unchecked((gearHash << 1) + FastCdcGearTable.Get(source[i]));
 
-                if ((nextHash & mask) == 0)
+                if ((gearHash & strictMask) == 0)
                 {
-                    int completed = _chunkLength;
-                    _chunkLength = 0;
-                    _gearHash = 0;
-
                     // The candidate participates in the predicate for the previous
                     // chunk but belongs to the next chunk by the v1 cut convention.
-                    return new ChunkBoundaryScanResult(index, completed);
+                    return CompleteAt(i, chunkLength + (i - index));
                 }
-
-                _gearHash = nextHash;
             }
 
-            _chunkLength++;
-            index++;
+            chunkLength += end - index;
+            index = end;
+        }
 
-            if (_chunkLength == fastCdc.Maximum)
+        if (chunkLength >= fastCdc.Target)
+        {
+            // Bytes at positions [Target, Maximum) use the relaxed mask; a chunk
+            // that reaches Maximum without a cut is forced.
+            int end = index + Math.Min(fastCdc.Maximum - chunkLength, source.Length - index);
+            ulong relaxedMask = fastCdc.RelaxedMask;
+
+            for (int i = index; i < end; i++)
             {
-                int completed = _chunkLength;
-                _chunkLength = 0;
-                _gearHash = 0;
-                return new ChunkBoundaryScanResult(index, completed);
+                gearHash = unchecked((gearHash << 1) + FastCdcGearTable.Get(source[i]));
+
+                if ((gearHash & relaxedMask) == 0)
+                {
+                    return CompleteAt(i, chunkLength + (i - index));
+                }
+            }
+
+            chunkLength += end - index;
+            index = end;
+
+            if (chunkLength == fastCdc.Maximum)
+            {
+                return CompleteAt(index, chunkLength);
             }
         }
 
+        _chunkLength = chunkLength;
+        _gearHash = gearHash;
         return new ChunkBoundaryScanResult(index, 0);
+    }
+
+    private ChunkBoundaryScanResult CompleteAt(int consumed, int completed)
+    {
+        _chunkLength = 0;
+        _gearHash = 0;
+        return new ChunkBoundaryScanResult(consumed, completed);
     }
 
     internal int Finish()

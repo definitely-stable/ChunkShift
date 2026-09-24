@@ -14,8 +14,10 @@ namespace ChunkShift.Benchmarks;
 /// <item><c>Scan</c>: the production <see cref="ChunkBoundaryState.Scan"/> fed
 /// 64 KiB windows like <c>ChunkingKernel.ScanAsync</c>, with its state in a heap
 /// object as it is in the async state machine.</item>
-/// <item><c>ScanLocals</c>: the same loop and branches with the hash and length
-/// in locals (the A1-F01 prototype).</item>
+/// <item><c>ScanLocals</c>: the loop and branches production used before A1-F01/F03,
+/// with the hash and length in locals (the A1-F01 prototype). Production now
+/// also skips the prefix and splits the strict/relaxed loops, so it is no
+/// longer the same loop as <c>Scan</c>.</item>
 /// <item><c>ScalarLocals</c>: <see cref="FastCdcScalar.FindCut"/>, locals plus
 /// split strict/relaxed loops without per-byte length checks (A1-F01 + F03).</item>
 /// <item><c>ChainFloor</c>: only <c>h = (h &lt;&lt; 1) + gear[b]</c> over the bytes
@@ -267,9 +269,9 @@ internal static class BoundaryScanKernels
             : data.Slice(start + profile.Minimum, length - profile.Minimum);
 
     /// <summary>
-    /// <see cref="ChunkBoundaryState"/>'s FastCDC loop with the hash and chunk
-    /// length held in locals for the duration of a call (A1-F01 prototype).
-    /// Same predicate, same branches, same cut convention.
+    /// <see cref="ChunkBoundaryState"/>'s pre-A1-F01 FastCDC loop with the hash
+    /// and chunk length held in locals for the duration of a call (A1-F01
+    /// prototype). Same predicate, same branches, same cut convention.
     /// </summary>
     private struct LocalsBoundaryState
     {
