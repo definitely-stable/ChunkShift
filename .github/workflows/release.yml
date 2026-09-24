@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Exact SemVer package version (for example 0.1.0 or 0.1.1-rc.1)"
+        description: "Exact 0.1.Z SemVer package version without build metadata (for example 0.1.0 or 0.1.1-rc.1)"
         required: true
         type: string
       publish_nuget:
@@ -47,10 +47,34 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          if [[ ! "${VERSION}" =~ ^0\.1\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "Version must follow the current 0.1.Z release train." >&2
-            exit 1
-          fi
+          python3 - <<'PY'
+          import os
+          import re
+          import sys
+
+          version = os.environ["VERSION"]
+          # Strict SemVer 2.0 shape for the current 0.1.Z train. Build metadata
+          # is intentionally disallowed because NuGet normalizes it away for
+          # package identity and the release workflow must have one canonical
+          # version string.
+          match = re.fullmatch(
+              r"0\.1\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?",
+              version,
+          )
+          if match is None:
+              sys.exit(
+                  "Version must be a canonical 0.1.Z SemVer value "
+                  "(for example 0.1.0 or 0.1.1-rc.1), without build metadata."
+              )
+
+          prerelease = match.group(2)
+          if prerelease:
+              for identifier in prerelease.split("."):
+                  if identifier.isdigit() and len(identifier) > 1 and identifier[0] == "0":
+                      sys.exit(
+                          f"Numeric pre-release identifier '{identifier}' must not contain leading zeroes."
+                      )
+          PY
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -104,9 +128,10 @@ jobs:
                   (0, int(part), "") if part.isdigit() else (1, 0, part)
                   for part in pre.split(".")))
 
-          requested = os.environ["VERSION"].lower()
+          requested = os.environ["VERSION"]
           for version in json.load(open("nuget-versions.json"))["versions"]:
-              if precedence(version) >= precedence(requested):
+              # NuGet compares pre-release labels case-insensitively.
+              if precedence(version.lower()) >= precedence(requested.lower()):
                   sys.exit(f"ChunkShift {requested} is not higher than published {version}; published versions are never reused.")
           PY
 
