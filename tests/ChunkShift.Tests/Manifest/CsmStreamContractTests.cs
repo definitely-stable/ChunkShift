@@ -52,9 +52,10 @@ public sealed class CsmStreamContractTests
         await using ManifestReader reader =
             await ManifestReader.OpenAsync(manifest).WaitAsync(HangGuard);
 
-        // The next read is the first CBLK header; misreport the one after it,
-        // which reads the chunk block payload.
-        int misreportAt = manifest.Reads + 2;
+        // OpenAsync leaves the first CBLK header and the start of its payload in
+        // the reader's read-ahead buffer; the payload is larger than that
+        // buffer, so the next stream read fetches the rest of the chunk block.
+        int misreportAt = manifest.Reads + 1;
         manifest.MisreportAtRead = misreportAt;
 
         InvalidOperationException exception =
