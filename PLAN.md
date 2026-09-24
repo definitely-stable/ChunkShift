@@ -1,7 +1,7 @@
 # ChunkShift implementation plan
 
 Status: Active  
-Last reviewed: 2026-09-23
+Last reviewed: 2026-09-24
 
 Program order: [ROADMAP.md](ROADMAP.md)  
 Release policy: [docs/RELEASES.md](docs/RELEASES.md)
@@ -143,7 +143,7 @@ Required correctness:
 
 Required measurements:
 
-- 64/128/256 KiB actual-mean candidates;
+- 64/128/256 KiB candidates compared by measured mean (see §11 calibration rule);
 - fixed-size baseline;
 - BLAKE3 vs SHA-256;
 - throughput, CPU, allocations, bytes copied;
@@ -187,11 +187,13 @@ Independent evidence:
 - vectors contain enough information for an independent decoder/checker;
 - before Core 0.1.0, at least one small independent vector verifier/generator must validate the frozen fixtures.
 
+Status: delivered on `main` for the current candidate by the [#68](https://github.com/definitely-stable/ChunkShift/issues/68) evidence stage — independent stdlib-only Python decoder over committed `vectors.json` (PR #73), deterministic mutational reader fuzzing with differential comparison against that decoder (PR #74), cancellation on every manifest API (PR #71) and a 4 GiB source under a 128 MiB cgroup limit in heavy validation (PR #76). The fixtures must be re-verified once #9 freezes CSM v1.
+
 ## 8. Raw scanner — complete ([#16](https://github.com/definitely-stable/ChunkShift/issues/16))
 
 Goal: make Core useful without manifest materialization.
 
-Leading candidate remains callback + borrowed contiguous memory; [#20](https://github.com/definitely-stable/ChunkShift/issues/20) decides the final public shape.
+[#20](https://github.com/definitely-stable/ChunkShift/issues/20) selected callback + borrowed contiguous memory as the public shape.
 
 Required semantics/tests are owned by RFC-0002/[#16](https://github.com/definitely-stable/ChunkShift/issues/16) and include:
 
@@ -212,6 +214,8 @@ Additional Core release requirement:
 
 - heavy validation installs the produced NuGet package into a clean NativeAOT consumer and executes real scanning with both BLAKE3 and SHA-256;
 - primitive-only AOT smoke is not sufficient once scanner exists.
+
+Status: delivered by PR #61 (`tests/ChunkShift.PackageSmoke`: JIT in CI, JIT + NativeAOT on x64/ARM64 in heavy validation, NativeAOT in release).
 
 ## 9. Scanner API bake-off — complete ([#20](https://github.com/definitely-stable/ChunkShift/issues/20))
 
@@ -235,7 +239,7 @@ When measured differences are inside calibrated noise, choose the simpler contra
 
 ## 10. Minimal public Core API — [#6](https://github.com/definitely-stable/ChunkShift/issues/6)
 
-After [#5](https://github.com/definitely-stable/ChunkShift/issues/5)/[#16](https://github.com/definitely-stable/ChunkShift/issues/16)/[#20](https://github.com/definitely-stable/ChunkShift/issues/20), freeze the smallest candidate API needed by real consumers.
+After [#5](https://github.com/definitely-stable/ChunkShift/issues/5)/[#16](https://github.com/definitely-stable/ChunkShift/issues/16)/[#20](https://github.com/definitely-stable/ChunkShift/issues/20) (all complete), freeze the smallest candidate API needed by real consumers. The owner scope decisions that must precede the freeze are tracked in [#63](https://github.com/definitely-stable/ChunkShift/issues/63) (unreachable public types, default-ID nullability, API hygiene, Shipped/Unshipped policy) and [#65](https://github.com/definitely-stable/ChunkShift/issues/65) (progress/compression/authenticity/anti-rollback).
 
 Acceptance:
 
@@ -252,7 +256,15 @@ Acceptance:
 
 Dependencies: [#3](https://github.com/definitely-stable/ChunkShift/issues/3), [#4](https://github.com/definitely-stable/ChunkShift/issues/4). Patching is not a dependency.
 
-Use equal-mean calibration and both synthetic + real/local product corpus evidence. Compare at least 64/128/256 KiB actual means and required CDC/reference candidates.
+Use both synthetic + real/local product corpus evidence. Compare at least 64/128/256 KiB mean classes and the required CDC/reference candidates.
+
+Calibration rule (full text: [M0-LAB.md](docs/benchmarks/M0-LAB.md#mean-chunk-size-versus-target)):
+
+- compare **actual measured means**, reported per corpus next to each result;
+- where a candidate's parameters allow (fixed-size baseline, other CDC algorithms), calibrate it to a close measured mean of the candidate it is compared against on the same corpus;
+- **never treat the nominal target as the actual mean** — the FastCDC M1 candidate measures roughly 1.1–1.3× its power-of-two target on real-like data and up to 4× on degenerate input, and cannot be tuned continuously, so exact equal-mean calibration is not always reachable; pair the closest measured means and state the ratio.
+
+Lab infrastructure for this is complete ([#67](https://github.com/definitely-stable/ChunkShift/issues/67)): streaming-kernel lane (PR #77), profile-derived maximum (PR #78), per-profile resync coverage, mean/target ratio and sample spread (PR #84), bytes copied (PR #87), same-commit comparison (PR #88), boundary-scan hardware-counter evidence (PR #92) and per-experiment process isolation (PR #93). Remaining #8 inputs are the real version-pair corpus and a broader matrix with repeated traces.
 
 Output is the selected Core 0.1.0 profile semantics/ProfileId plus evidence, not a package release by itself.
 
@@ -277,7 +289,7 @@ CSP/Patching delivery is deferred.
 
 Dependencies: [#5](https://github.com/definitely-stable/ChunkShift/issues/5), [#6](https://github.com/definitely-stable/ChunkShift/issues/6), [#8](https://github.com/definitely-stable/ChunkShift/issues/8), [#17](https://github.com/definitely-stable/ChunkShift/issues/17), [#20](https://github.com/definitely-stable/ChunkShift/issues/20).
 
-Must close:
+Must close (owner decisions feeding this gate: [#64](https://github.com/definitely-stable/ChunkShift/issues/64) ProfileId encoding and verification contract, [#65](https://github.com/definitely-stable/ChunkShift/issues/65)):
 
 - Core public API;
 - CSM v1;
@@ -291,6 +303,10 @@ Must close:
 - corruption/resource-bound/fuzz evidence;
 - independent compatibility-vector verification;
 - console and ASP.NET clean-package examples.
+
+Already on `main` for the current candidate: JIT/NativeAOT package-consumer evidence (PR #61), >RAM streaming (PR #76), reader fuzzing (PR #74), independent vector verification (PR #73), coverage artifact (PR #75), console and ASP.NET Core package-consumer samples (PR #89). What remains is the freeze itself — API (#6), profile (#8), ASP.NET host proof (#17) — and re-running this evidence against the frozen baseline.
+
+Release mechanics that are still open decisions are tracked in [#69](https://github.com/definitely-stable/ChunkShift/issues/69): preview strategy, CLI packaging, and the package-validation/PublicAPI baseline after the first published version.
 
 CSP is **not** part of this gate.
 
@@ -341,7 +357,7 @@ Result evidence must preserve:
 - individual measurement samples;
 - platform/runtime metadata.
 
-Same-process peak RSS is not sufficient for a release-sensitive memory conclusion; streaming/file scenarios use isolated process evidence when that decision matters.
+Same-process peak RSS is not sufficient for a release-sensitive memory conclusion; streaming/file scenarios use isolated process evidence when that decision matters (`lab ... --isolate`, PR #93).
 
 ## 15. Runtime support
 
