@@ -201,6 +201,8 @@ public sealed record StreamingLaneMetrics(
     long AllocatedBytes,
     SampleDispersion WallSecondsDispersion,
     double WallSecondsRelativeToReference,
+    long BytesCopied,
+    double BytesCopiedPerInputByte,
     MeasurementSample[] Samples);
 
 public sealed record ExperimentResult(
