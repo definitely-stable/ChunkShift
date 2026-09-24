@@ -35,3 +35,6 @@ tools/**/target/
 TestResults/
 backups/
 /.work
+
+# Samples: local chunk store of ChunkShift.Samples.AspNetCore
+samples/**/chunk-store/

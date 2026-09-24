@@ -31,6 +31,11 @@ internal static class Program
             return LabDeterminismComparer.Run(args[1..]);
         }
 
+        if (string.Equals(mode, "f08", StringComparison.OrdinalIgnoreCase))
+        {
+            return BoundaryScanHarness.Run(args[1..]);
+        }
+
         PrintUsage();
         return 2;
     }
@@ -39,7 +44,8 @@ internal static class Program
     {
         Console.WriteLine("ChunkShift benchmark lab");
         Console.WriteLine("  micro [BenchmarkDotNet options]");
-        Console.WriteLine("  lab --corpus <manifest.json> --experiments <experiments.json> --output <result.json>");
+        Console.WriteLine("  lab --corpus <manifest.json> --experiments <experiments.json> --output <result.json> [--isolate | --only <id>]");
         Console.WriteLine("  compare --left <lab.json> --right <lab.json> [--allow-unversioned]");
+        Console.WriteLine("  f08 --variant <name> --target <bytes> [--seconds 5] [--warmup-seconds 3] [--perf-ctl <fifo> --perf-ack <fifo>]");
     }
 }

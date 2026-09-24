@@ -269,13 +269,19 @@ public static class LabRunner
                 {
                     if (!child.WaitForExit(IsolatedExperimentTimeout))
                     {
-                        child.Kill(entireProcessTree: true);
+                        // Kill is asynchronous. Wait for actual termination before
+                        // the finally block removes the child's output directory,
+                        // otherwise Windows can report a cleanup error that masks
+                        // the original timeout.
+                        if (!child.HasExited)
+                        {
+                            child.Kill(entireProcessTree: true);
+                        }
+
+                        child.WaitForExit();
                         throw new InvalidOperationException(
                             $"Isolated run of experiment '{experiment.Id}' did not finish within {IsolatedExperimentTimeout.TotalMinutes:0} minutes.");
                     }
-
-                    // The timed wait does not wait for redirected output; this one does.
-                    child.WaitForExit();
 
                     if (child.ExitCode != 0)
                     {
