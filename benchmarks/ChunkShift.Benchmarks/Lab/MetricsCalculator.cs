@@ -7,16 +7,21 @@ public static class MetricsCalculator
         ChunkRecord[] target,
         MutationResult mutation,
         int configuredMaxChunkSize,
+        int targetChunkSize,
         long sourceBytes,
         long targetBytes,
         long measuredBytes,
         double wallSeconds,
+        SampleDispersion wallSecondsDispersion,
         double cpuSeconds,
         long allocatedBytes,
         long processPeakRssBytes)
     {
         int[] lengths = target.Select(static chunk => chunk.Length).Order().ToArray();
         double mean = lengths.Length == 0 ? 0 : lengths.Average();
+        double standardDeviation = lengths.Length == 0
+            ? 0
+            : Math.Sqrt(lengths.Average(length => (length - mean) * (length - mean)));
         int max = lengths.Length == 0 ? 0 : lengths[^1];
         double maxCutRate = lengths.Length == 0
             ? 0
@@ -34,9 +39,16 @@ public static class MetricsCalculator
 
         double reuseRatio = targetBytes == 0 ? 1 : reusedBytes / (double)targetBytes;
         double boundarySurvival = ComputeBoundarySurvival(source, target);
-        long? resync = mutation.LogicalChangedBytes == 0
-            ? null
-            : ComputeResynchronizationDistance(source, target, mutation.AffectedTargetEnd);
+        long? resync = null;
+        string resyncStatus = ResynchronizationStatuses.NotApplicable;
+
+        if (mutation.LogicalChangedBytes != 0 && mutation.AffectedTargetEnd < targetBytes)
+        {
+            resync = ComputeResynchronizationDistance(source, target, mutation.AffectedTargetEnd);
+            resyncStatus = resync.HasValue
+                ? ResynchronizationStatuses.Resynchronized
+                : ResynchronizationStatuses.NotResynchronized;
+        }
 
         double changeAmplification = mutation.LogicalChangedBytes == 0
             ? 0
@@ -52,11 +64,14 @@ public static class MetricsCalculator
             targetBytes,
             measuredBytes,
             wallSeconds,
+            wallSecondsDispersion,
             cpuSeconds,
             wallSeconds <= 0 ? 0 : measuredBytes / (double)(1L << 30) / wallSeconds,
             allocatedBytes,
             processPeakRssBytes,
             mean,
+            targetChunkSize <= 0 ? 0 : mean / targetChunkSize,
+            standardDeviation,
             Percentile(lengths, 0.50),
             Percentile(lengths, 0.95),
             Percentile(lengths, 0.99),
@@ -66,7 +81,10 @@ public static class MetricsCalculator
             reuseRatio,
             boundarySurvival,
             resync,
+            resyncStatus,
             changeAmplification,
+            mutation.LogicalChangedBytes,
+            mutation.ChangedBytesBasis,
             uniqueMissingPayloadBytes,
             null,
             logicalManifestBytes,
