@@ -37,15 +37,11 @@ internal readonly struct FastCdcProfile
         }
     }
 
-    internal ChunkingProfileId CandidateProfileId
-    {
-        get
-        {
-            ProfileFingerprint fingerprint = ComputeFingerprint();
-            return new ChunkingProfileId(
-                $"fastcdc.gear.candidate.v1.m{Minimum}.t{Target}.x{Maximum}.f{fingerprint}");
-        }
-    }
+    // A short semantic label; the ProfileFingerprint recorded next to it in CORE
+    // is the authoritative digest and is never embedded in the label (#64).
+    // Non-final: #8 chooses the stable profile names.
+    internal ChunkingProfileId CandidateProfileId =>
+        new($"fastcdc.gear.candidate.v1.m{Minimum}.t{Target}.x{Maximum}");
 
     internal ProfileFingerprint ComputeFingerprint()
     {

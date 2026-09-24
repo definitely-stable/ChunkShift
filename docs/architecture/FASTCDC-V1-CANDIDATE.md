@@ -50,7 +50,9 @@ For M1 measurement only, #4 defines three **non-stable calibration presets**:
 | 128 KiB | 32 KiB | 512 KiB |
 | 256 KiB | 64 KiB | 1 MiB |
 
-They use `minimum = target / 4` and `maximum = target * 4`. These values exist to run comparable lab evidence; #8 may select different release-profile values.\n\nFor these non-stable candidates, `CandidateProfileId` includes minimum/target/maximum plus the full semantic `ProfileFingerprint`; changing any bound semantic therefore produces a different candidate identifier rather than colliding on target size alone.
+They use `minimum = target / 4` and `maximum = target * 4`. These values exist to run comparable lab evidence; #8 may select different release-profile values.
+
+These non-stable candidates are identified as `fastcdc.gear.candidate.v1.m<minimum>.t<target>.x<maximum>`, so changing a bound produces a different candidate identifier rather than colliding on target size alone. The identifier does not embed the `ProfileFingerprint`; CSM records the fingerprint in its own CORE field, and a reader that registers the identifier checks it (PROFILE-FINGERPRINT-V1, #64).
 
 ## 2. GEAR table
 

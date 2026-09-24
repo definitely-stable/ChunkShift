@@ -604,6 +604,14 @@ def fixtures() -> dict[str, Vector]:
             unsupported("5: unknown HashSuite"),
             hash_suite_id=b"chunkshift.sha512.v1"),
 
+        # A ProfileId the .NET build registers, recorded with another profile's
+        # fingerprint: manifest-only verification reports ProfileSemantics (#64).
+        # Every other check passes, because the fingerprint that enters ManifestId
+        # is the recorded one.
+        "integrity-profile-semantics-known-id-wrong-fingerprint.csm": variant(
+            integrity("ProfileSemantics"),
+            profile_id=b"fastcdc.gear.candidate.v1.m16384.t65536.x262144"),
+
         # Well-formed CSM whose chunk Length does not fit the Int32
         # ChunkInfo.Length of the .NET API (section 13 implementation boundary).
         "unsupported-chunk-length-above-int32.csm": variant(

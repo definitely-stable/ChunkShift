@@ -170,7 +170,7 @@ public class DeterminismTests
             "fastcdc-streaming-evidence",
             "corpus",
             LabChunker.FastCdcAlgorithm,
-            "fastcdc.gear.candidate.v1.m16384.t65536.x262144.f054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0",
+            "fastcdc.gear.candidate.v1.m16384.t65536.x262144",
             "054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0",
             target,
             HashSuiteIds.Blake3256V1.Value,

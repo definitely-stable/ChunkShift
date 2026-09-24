@@ -78,9 +78,17 @@ public static class ChunkManifest
     /// <param name="cancellationToken">Cooperative cancellation token.</param>
     /// <returns>The manifest description and any integrity mismatches.</returns>
     /// <remarks>
+    /// <para>
     /// Integrity mismatches are returned in <see cref="ManifestVerificationResult"/>.
     /// Malformed format, unsupported required semantics, I/O failure, and cancellation
     /// use normal .NET exceptions.
+    /// </para>
+    /// <para>
+    /// The content is not read, so the chunking profile is not needed: a ProfileId this
+    /// build does not know is accepted. A known ProfileId whose recorded fingerprint
+    /// differs from this build's semantics is reported as
+    /// <see cref="ManifestVerificationFailure.ProfileSemantics"/>.
+    /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="manifest"/> is <see langword="null"/>. Thrown by this call, not by
@@ -121,8 +129,17 @@ public static class ChunkManifest
     /// <param name="cancellationToken">Cooperative cancellation token.</param>
     /// <returns>The manifest description and any integrity, profile, or content mismatches.</returns>
     /// <remarks>
+    /// <para>
     /// Both streams remain owned by the caller. Content/profile/integrity mismatches
     /// are result flags rather than exceptions.
+    /// </para>
+    /// <para>
+    /// Verifying content means chunking it with the manifest's profile, so a ProfileId
+    /// this build does not know throws <see cref="NotSupportedException"/>. A known
+    /// ProfileId whose recorded fingerprint differs is reported as
+    /// <see cref="ManifestVerificationFailure.ProfileSemantics"/>, and the content is
+    /// then not chunked.
+    /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="content"/> or <paramref name="manifest"/> is <see langword="null"/>.

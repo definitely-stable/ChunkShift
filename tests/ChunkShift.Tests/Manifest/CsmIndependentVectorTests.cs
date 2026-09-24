@@ -219,6 +219,7 @@ public sealed class CsmIndependentVectorTests
                 "LogicalTotals" => ManifestVerificationFailure.LogicalTotals,
                 "ManifestId" => ManifestVerificationFailure.ManifestId,
                 "FileDigest" => ManifestVerificationFailure.FileDigest,
+                "ProfileSemantics" => ManifestVerificationFailure.ProfileSemantics,
                 string other => throw new InvalidOperationException(
                     $"Unknown failure name '{other}' in vectors.json."),
                 null => throw new InvalidOperationException(

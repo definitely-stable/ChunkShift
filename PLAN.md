@@ -239,7 +239,7 @@ When measured differences are inside calibrated noise, choose the simpler contra
 
 ## 10. Minimal public Core API — [#6](https://github.com/definitely-stable/ChunkShift/issues/6)
 
-After [#5](https://github.com/definitely-stable/ChunkShift/issues/5)/[#16](https://github.com/definitely-stable/ChunkShift/issues/16)/[#20](https://github.com/definitely-stable/ChunkShift/issues/20) (all complete), freeze the smallest candidate API needed by real consumers. The owner scope decisions that must precede the freeze are tracked in [#63](https://github.com/definitely-stable/ChunkShift/issues/63) (unreachable public types, default-ID nullability, API hygiene, Shipped/Unshipped policy) and [#65](https://github.com/definitely-stable/ChunkShift/issues/65) (progress/compression/authenticity/anti-rollback).
+After [#5](https://github.com/definitely-stable/ChunkShift/issues/5)/[#16](https://github.com/definitely-stable/ChunkShift/issues/16)/[#20](https://github.com/definitely-stable/ChunkShift/issues/20) (all complete), freeze the smallest candidate API needed by real consumers. The API surface decisions of [#63](https://github.com/definitely-stable/ChunkShift/issues/63) are applied (PRs #95, #96: unreachable types removed, reference-type IDs, Int64/Int32 integer model, synchronous argument validation, Shipped/Unshipped policy in docs/RELEASES.md §8.1). [#65](https://github.com/definitely-stable/ChunkShift/issues/65) (progress/compression/authenticity/anti-rollback) must still be decided before the freeze.
 
 Acceptance:
 
@@ -289,7 +289,7 @@ CSP/Patching delivery is deferred.
 
 Dependencies: [#5](https://github.com/definitely-stable/ChunkShift/issues/5), [#6](https://github.com/definitely-stable/ChunkShift/issues/6), [#8](https://github.com/definitely-stable/ChunkShift/issues/8), [#17](https://github.com/definitely-stable/ChunkShift/issues/17), [#20](https://github.com/definitely-stable/ChunkShift/issues/20).
 
-Must close (owner decisions feeding this gate: [#64](https://github.com/definitely-stable/ChunkShift/issues/64) ProfileId encoding and verification contract, [#65](https://github.com/definitely-stable/ChunkShift/issues/65)):
+Must close (owner decisions feeding this gate: [#65](https://github.com/definitely-stable/ChunkShift/issues/65); the ProfileId rule and verification matrix of [#64](https://github.com/definitely-stable/ChunkShift/issues/64) are settled in PROFILE-FINGERPRINT-V1 and CSM-V1-CANDIDATE §14):
 
 - Core public API;
 - CSM v1;

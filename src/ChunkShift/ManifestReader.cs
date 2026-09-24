@@ -63,6 +63,12 @@ public sealed class ManifestReader : IDisposable, IAsyncDisposable
     /// Gets the final verification result after <see cref="ReadAsync"/> returns zero;
     /// otherwise null.
     /// </summary>
+    /// <remarks>
+    /// Uses the same manifest-only rules as
+    /// <see cref="ChunkManifest.VerifyManifestAsync(Stream, CancellationToken)"/>,
+    /// including <see cref="ManifestVerificationFailure.ProfileSemantics"/> for a known
+    /// ProfileId with a different fingerprint.
+    /// </remarks>
     public ManifestVerificationResult? VerificationResult { get; private set; }
 
     /// <summary>
