@@ -100,9 +100,12 @@ internal sealed class CsmInput : IDisposable
             // stream: Stream.ReadAsync implementations may ignore the token.
             cancellationToken.ThrowIfCancellationRequested();
 
+            int requested = destination.Length - completed;
             int read = await _source
                 .ReadAsync(destination[completed..], cancellationToken)
                 .ConfigureAwait(false);
+
+            ValidateReadCount(read, requested);
 
             if (read == 0)
             {
@@ -170,9 +173,12 @@ internal sealed class CsmInput : IDisposable
             // stream: Stream.ReadAsync implementations may ignore the token.
             cancellationToken.ThrowIfCancellationRequested();
 
+            int requested = destination.Length - completed;
             int read = await _source
                 .ReadAsync(destination[completed..], cancellationToken)
                 .ConfigureAwait(false);
+
+            ValidateReadCount(read, requested);
 
             if (read == 0)
             {
@@ -195,6 +201,8 @@ internal sealed class CsmInput : IDisposable
             .ReadAsync(probe, cancellationToken)
             .ConfigureAwait(false);
 
+        ValidateReadCount(read, probe.Length);
+
         if (read != 0)
         {
             throw new InvalidDataException(
@@ -211,6 +219,20 @@ internal sealed class CsmInput : IDisposable
 
         _disposed = true;
         _physicalHasher?.Dispose();
+    }
+
+    /// <summary>
+    /// Rejects a count outside 0..requested. Such a count violates the Stream
+    /// contract; accepting it would slice past the bytes actually produced or
+    /// misreport a broken source as malformed CSM data.
+    /// </summary>
+    private static void ValidateReadCount(int read, int requested)
+    {
+        if ((uint)read > (uint)requested)
+        {
+            throw new InvalidOperationException(
+                $"The manifest stream returned {read} bytes for a {requested}-byte read; Stream.ReadAsync must return a count from 0 to the buffer length.");
+        }
     }
 
     private void AppendPhysical(ReadOnlySpan<byte> bytes)
