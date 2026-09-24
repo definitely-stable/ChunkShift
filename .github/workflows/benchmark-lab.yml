@@ -430,6 +430,10 @@ jobs:
           # Which tiers the measured methods reached (Tier0, OSR, Tier1).
           grep -hE 'JIT compiled .*(CalibrationChain|ChainFloor|NoChain|FindCut|BoundaryScanKernels:Scan|ChunkBoundaryState:Scan|LocalsBoundaryState:Scan)' \
             "$OUT"/jit-disasm-*.txt | sort | uniq -c | tee "$OUT/jit-tiers.txt"
+          # The calibration chain's generated code, every tier, for the
+          # calibration-premise check.
+          awk '/Assembly listing for method .*CalibrationChain/ { p = 1 } p { print } /Total bytes of code/ { p = 0 }' \
+            "$OUT/jit-disasm-Calibrate.txt"
 
       - name: Summarize F08 evidence
         shell: bash

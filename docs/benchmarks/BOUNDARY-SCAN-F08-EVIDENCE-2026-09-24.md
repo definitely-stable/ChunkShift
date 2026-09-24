@@ -2,21 +2,34 @@
 
 Status: evidence for FINAL-REPORT A1-F08; input to A1-F01/F03/F07/F05 sequencing  
 Branch/PR: `perf/f08-boundary-scan-counters` / #92  
-Measured commit: `70f77bc4ec3a32cc11179c08a626e1ade6401432`, benchmark-lab run 35995900680 (artifacts `boundary-scan-f08-x64`, `boundary-scan-f08-arm64`)  
-Environment: GitHub Actions `ubuntu-24.04` (x64) and `ubuntu-24.04-arm` (arm64), .NET 10, BenchmarkDotNet 0.15.8 default job
+Measured commit: `e2fbfeae06d50745859e30919eac31b02939988c`, benchmark-lab run 35998840081 (artifacts `boundary-scan-f08-x64`, `boundary-scan-f08-arm64`). The first run on `70f77bc` warmed the harness variants too little to guarantee Tier1 code (about 14 calls, where tier-up needs 30); it is superseded and not quoted here.  
+Environment: GitHub Actions `ubuntu-24.04` (x64) and `ubuntu-24.04-arm` (arm64), .NET 10.0.12, BenchmarkDotNet 0.15.8 default job
 
 ## Decision
 
-**The FastCDC boundary loop is not bound by the latency of its gear-hash chain.** Scan / ChainFloor, the rule fixed before measuring (latency-bound iff ≤ 1.15 in every round), was:
+**The FastCDC boundary loop is not bound by the latency of its gear-hash chain.** The rule was fixed before measuring: latency-bound iff Scan / ChainFloor ≤ 1.15 in every round used. Results:
 
-| | BDN rounds | harness rounds |
+| | harness rounds | BDN rounds |
 |---|---|---|
-| x64, 64 KiB | 4.70, 2.37 | 4.58, 4.58, 4.60 |
-| x64, 256 KiB | 2.40, 4.68 | 4.56, 4.29, 4.55 |
-| arm64, 64 KiB | 7.34, 7.34 | 7.05, 7.05, 7.05 |
-| arm64, 256 KiB | 7.33, 7.34 | 7.05, 7.05, 7.05 |
+| x64, 64 KiB | 4.73, 4.88, 4.72 | 2.42, 2.43 — excluded, disagree with the harness |
+| x64, 256 KiB | 4.75, 4.58, 4.46 | 4.74, 4.64 — excluded, disagree with the harness |
+| arm64, 64 KiB | 7.38, 7.38, 7.39 | 7.34, 7.35 |
+| arm64, 256 KiB | 7.38, 7.38, 7.38 | 7.34, 7.34 |
 
-Consequences: A1-F01 (state in locals) and A1-F03 (no per-byte length/mask branches) are worth doing; A1-F07 (2-byte unrolled chain) has little headroom left once they are done.
+Secondary analysis, added after the first results at review (harness rounds):
+
+| | F01: Scan / ScanLocals | F01+F03: Scan / ScalarLocals | F07 gate: ScalarLocals / ChainFloor |
+|---|---|---|---|
+| x64, 64 KiB | 1.38, 1.41, 1.38 | 3.16, 3.24, 2.88 | 1.50, 1.50, 1.64 |
+| x64, 256 KiB | 1.44, 1.33, 1.29 | 3.15, 3.04, 2.98 | 1.51, 1.51, 1.50 |
+| arm64, 64 KiB | 2.16, 2.17, 2.17 | 6.00, 5.99, 6.01 | 1.23, 1.23, 1.23 |
+| arm64, 256 KiB | 2.06, 2.04, 2.17 | 6.00, 6.01, 6.00 | 1.23, 1.23, 1.23 |
+
+Consequences:
+
+- A1-F01 (state in locals) and A1-F03 (no per-byte length/mask branches) are worth doing.
+- Even after both, the loop is not chain-bound: the F07 gate is above 1.15 on both architectures. These data therefore do not justify A1-F07 (the 2-byte unrolled chain).
+- The remaining gap is the predicate and mask cost, not the chain.
 
 ## Method
 
@@ -29,47 +42,48 @@ All variants run in memory over the same 16 MiB SplitMix64 data, with no I/O, co
 - **NoChain**: the same bytes, loads, mask selection and predicate branch, without carrying `h`;
 - **Calibrate**: an XOR+ADD dependency chain.
 
-The three cutting variants must produce the identical cut sequence before anything is timed. BenchmarkDotNet ran two rounds with opposite method order. The `f08` harness ran three rounds with alternating variant order, one process per variant and target, 5 s measured after ≥ 3 s / ≥ 5 rounds of stabilization.
+The three cutting variants must produce the identical cut sequence before anything is timed.
 
-Hardware counters: BenchmarkDotNet's `HardwareCounters` is Windows-only, so `perf stat` (`cycles:u`, `instructions:u`, `branches:u`, `branch-misses:u`) counted only the harness's measured window, through `--control fifo`. The PMU probe is fail-closed:
+Scan and ScanLocals also walk each chunk's unhashed prefix [0, Minimum). That prefix is 21.97% (64 KiB) and 21.88% (256 KiB) of the data; the harness reports it. ScalarLocals, ChainFloor and NoChain skip the prefix. The primary ratio therefore mixes prefix cost, field state and chain cost. The F07 gate compares two variants that hash the same bytes.
 
-- **arm64:** the probe counted all four events, so the arm64 counter values are **measured**.
-- **x64:** the probe could not count them, so there are **no x64 counter values**. The x64 "cycles" in the job summary are an estimate that assumes 2 cycles per calibration step.
+Harness (`f08`):
+
+- three rounds with alternating variant order, one process per variant and target;
+- warmup of ≥ 64 calls and ≥ 3 s, pausing every 8 calls; the JIT summary in the job log shows every measured method reaching Tier1;
+- 5 s measured.
+
+BenchmarkDotNet: two rounds in opposite method order. Every method and case is its own process anyway, so the order only spreads machine drift. BDN rounds enter the rule only if they agree with each other within 10% and with the harness within 15%.
+
+Hardware counters: BenchmarkDotNet's `HardwareCounters` is Windows-only, so `perf stat` counted `cycles:u`, `instructions:u`, `branches:u` and `branch-misses:u` over the harness's measured window only, through `--control fifo`. The PMU probe is fail-closed:
+
+- **arm64:** counted, so the arm64 counter values are **measured**.
+- **x64:** not countable, so there are **no x64 cycle or instruction figures**, measured or estimated.
 
 ## Results (harness medians, ns per input byte)
 
 | Variant | x64 64K | x64 256K | arm64 64K | arm64 256K |
 |---|---|---|---|---|
-| Scan | 1.200 | 1.199 | 2.048 | 2.049 |
-| ScanLocals | 0.839 | 0.866 | 0.975 | 0.979 |
-| ScalarLocals | 0.415 | 0.451 | 0.342 | 0.343 |
-| ChainFloor | 0.262 | 0.264 | 0.291 | 0.291 |
-| NoChain | 0.429 | 0.426 | 0.484 | 0.474 |
+| Scan | 1.200 | 1.155 | 2.051 | 2.052 |
+| ScanLocals | 0.872 | 0.871 | 0.947 | 0.998 |
+| ScalarLocals | 0.381 | 0.381 | 0.342 | 0.342 |
+| ChainFloor | 0.254 | 0.253 | 0.278 | 0.278 |
+| NoChain | 0.407 | 0.404 | 0.462 | 0.464 |
 
-arm64 counters, per input byte, 64 KiB (256 KiB within 1%):
+arm64 counters, per input byte, 64 KiB (256 KiB within 5%):
 
 | Variant | cycles/B | instructions/B | IPC | branch-miss rate |
 |---|---|---|---|---|
-| Scan | 6.96 | 25.5 | 3.67 | 0.00006 |
-| ScanLocals | 3.31 | 18.6 | 5.63 | 0.00005 |
-| ScalarLocals | 1.16 | 6.24 | 5.38 | 0.00003 |
-| ChainFloor | 0.985 | 4.97 | 5.04 | 0.00004 |
-| NoChain | 1.64 | 8.48 | 5.17 | 0.00003 |
-
-Time ratios between neighbouring variants:
-
-| | x64 64K | x64 256K | arm64 64K | arm64 256K |
-|---|---|---|---|---|
-| Scan / ScanLocals (A1-F01) | 1.43 | 1.38 | 2.10 | 2.09 |
-| ScanLocals / ScalarLocals (A1-F03) | 2.02 | 1.92 | 2.85 | 2.85 |
-| ScalarLocals / ChainFloor (A1-F07 headroom) | 1.58 | 1.71 | 1.18 | 1.18 |
+| Scan | 6.96 | 26.1 | 3.75 | 0.00005 |
+| ScanLocals | 3.21 | 18.6 | 5.80 | 0.00003 |
+| ScalarLocals | 1.16 | 6.24 | 5.39 | 0.00002 |
+| ChainFloor | 0.942 | 4.68 | 4.97 | 0.00002 |
+| NoChain | 1.57 | 8.06 | 5.14 | 0.00003 |
 
 ## Interpretation and caveats
 
-- On arm64, the production loop executes 25.5 instructions per byte at IPC 3.67. Branch misses are negligible. The loop is **instruction-bound**, not latency-bound. Moving the state into locals removes about 7 instructions per byte. Splitting the loops removes about 12 more.
+- On arm64, the production loop executes about 26 instructions per byte at IPC 3.75. Branch misses are negligible. The loop is **instruction-bound**, not latency-bound. Moving the state into locals removes about 7.5 instructions per byte. Splitting the loops removes about 12 more.
+- ChainFloor on arm64 costs 0.94 cycles per input byte. Dividing by the hashed share (1 − 0.2197) gives about 1.2 cycles per hashed byte, close to a one-cycle chain step.
 - NoChain is slower than ChainFloor on both architectures. The per-byte mask selection and predicate cost more than the carried chain itself.
-- ChainFloor and NoChain hash only chunk-relative positions [Minimum, length). Scan also walks the first `Minimum` bytes of each chunk, cheaply. Their ns per *input* byte therefore understate the cost per *hashed* byte. Assuming mean chunk ≈ 1.22 × target and Minimum = target / 4, about 79% of bytes are hashed. On that assumption, which is an estimate, the arm64 floor is about 1.24 cycles per hashed byte, and Scan / ChainFloor stays ≥ 3.6 (x64 harness) and ≥ 5.6 (arm64).
-- **The calibration assumption failed where it could be checked.** On arm64 the XOR+ADD step measured 2.81 cycles, not the assumed 2. The x64 cycles/byte estimates in the job summary should therefore not be quoted. The decision above uses only time ratios within one machine and run.
-- x64 BenchmarkDotNet rounds are bimodal between processes: ChainFloor was 0.25 vs 0.49 ns/B and ScanLocals 0.84 vs 1.02 ns/B. The harness processes agree within 2%, and arm64 BDN rounds agree within 1%. The likely cause is process-to-process code placement, which is not proven. Even the lowest x64 BDN ratio (2.37) is far above the threshold.
-- JIT disassembly of every variant is in the artifacts (`jit-disasm-*.txt`, BDN `*-asm.md`). This document does not rely on it.
-- The copy that A1-F05 removes is not measured here, so this evidence says nothing about F05's size relative to F01/F03.
+- **The calibration premise failed on arm64 and is not used.** The XOR+ADD step measured 2.92 cycles and 12.0 instructions, not the assumed 2 cycles and at most 6 instructions, even though the step reached Tier1. The job log prints its generated code for inspection. No cycles are derived from the calibration anywhere.
+- **x64 BDN results are excluded.** For ChainFloor 64 KiB, both BDN rounds measured 0.49 ns/B against the harness's 0.25 ns/B. BDN ChainFloor 256 KiB matched the harness at 0.25, and so did the first run's BDN rounds in the opposite pairing. The printed BDN disassembly shows identical machine code for both targets: the chain loop is `movzx; mov; lea r15,[r12+r15*2]; inc; cmp; jl`. The 2× difference therefore comes from where that code lands in a given process, not from what the JIT generated. A loop-alignment or front-end effect is likely, but it is not proven. The harness runs agree within a few percent, and arm64 BDN rounds agree with the harness within 3%.
+- The copy that A1-F05 removes is not measured here. This evidence says nothing about F05's size relative to F01/F03.
