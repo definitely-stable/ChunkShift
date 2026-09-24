@@ -1,3 +1,5 @@
+using ChunkShift.Chunking;
+
 namespace ChunkShift.Manifest;
 
 internal static class ManifestResultMapper
@@ -59,9 +61,22 @@ internal static class ManifestResultMapper
         return mapped;
     }
 
+    // Manifest-only verification (VerifyManifestAsync, ManifestReader): integrity
+    // flags plus ProfileSemantics when this build knows the declared ProfileId and
+    // its fingerprint differs. An unknown ProfileId is not a failure here.
     internal static ManifestVerificationResult ToVerificationResult(
-        CsmReadResult result) =>
-        new(
-            FromReadResult(result),
-            MapFailures(result.Failures));
+        CsmReadResult result)
+    {
+        ManifestVerificationFailure failures = MapFailures(result.Failures);
+
+        if (ChunkScanConfiguration.TryResolveProfileRegistration(
+                result.ProfileId,
+                out ChunkScanConfiguration.ProfileRegistration registration) &&
+            registration.Fingerprint != result.ProfileFingerprint)
+        {
+            failures |= ManifestVerificationFailure.ProfileSemantics;
+        }
+
+        return new ManifestVerificationResult(FromReadResult(result), failures);
+    }
 }

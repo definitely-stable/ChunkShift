@@ -160,6 +160,8 @@ ProfileFingerprint =
 
 Whitespace, JSON property order and documentation edits must not change an algorithm identity.
 
+`ChunkingProfileId` is the short, stable semantic label; `ProfileFingerprint` is the authoritative digest of the semantics. A ProfileId never embeds the fingerprint, and a reader that knows a ProfileId checks the recorded fingerprint against it ([PROFILE-FINGERPRINT-V1](PROFILE-FINGERPRINT-V1.md), #64).
+
 ### 4.4 Manifest model
 
 Previous direction: `ManifestIdentity` materializes `ImmutableArray<ChunkDescriptor>` where each descriptor includes Index, Offset, Length, Hash and BoundaryKind.

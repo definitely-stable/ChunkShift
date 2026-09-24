@@ -83,6 +83,19 @@
       "hasBidx": false,
       "physicalLength": 492
     },
+    "integrity-profile-semantics-known-id-wrong-fingerprint.csm": {
+      "cblkCount": 1,
+      "chunkCount": 3,
+      "contentLength": 23,
+      "expect": {
+        "failures": [
+          "ProfileSemantics"
+        ],
+        "outcome": "integrity"
+      },
+      "hasBidx": false,
+      "physicalLength": 515
+    },
     "multiblock-sha256-bidx.csm": {
       "cblkCount": 2,
       "chunkCount": 4097,

@@ -336,6 +336,23 @@ Recompute ManifestId from CORE semantics plus ordered `(ChunkId, Length)` record
 
 Recompute FileDigest over all bytes before TRAILER and compare with TRAILER.
 
+### Profile semantics
+
+CORE records `ChunkingProfileId` and `ProfileFingerprint` independently (PROFILE-FINGERPRINT-V1). The format does not require a reader to know any profile. A reader that registers the declared `ChunkingProfileId` compares its own fingerprint for that identifier with the recorded one and reports a mismatch as a profile-semantics failure; an identifier it does not register is not a failure for manifest-only verification.
+
+Verifying content against a manifest means re-chunking it with the manifest's profile, so it additionally requires the reader to register that profile.
+
+The .NET API maps the levels to outcomes as follows ([#64](https://github.com/definitely-stable/ChunkShift/issues/64)):
+
+| Situation | Manifest-only (`VerifyManifestAsync`, `ManifestReader`) | Content (`VerifyAsync`) |
+| --- | --- | --- |
+| malformed CSM | `InvalidDataException` | `InvalidDataException` |
+| unknown HashSuite | `NotSupportedException` | `NotSupportedException` |
+| unknown ProfileId | accepted | `NotSupportedException` |
+| known ProfileId, different fingerprint | `ProfileSemantics` | `ProfileSemantics` (content not chunked) |
+| content differs | — | `Content` |
+| bad CBLK CRC / ManifestId / FileDigest | `BlockCrc` / `ManifestId` / `FileDigest` | `BlockCrc` / `ManifestId` / `FileDigest` |
+
 Hash equality proves integrity against a trusted expected value; it does not by itself provide authenticity/signature semantics.
 
 ## 15. Streaming/finalization behavior

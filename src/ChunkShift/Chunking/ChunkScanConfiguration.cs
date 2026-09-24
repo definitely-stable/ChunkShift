@@ -11,6 +11,8 @@ internal static class ChunkScanConfiguration
     internal static ChunkingKernelProfile ResolveProfile(ChunkingProfileId? requested) =>
         ResolveProfileRegistration(requested).KernelProfile;
 
+    // Chunking needs the exact semantics, so an unknown profile cannot run and
+    // is NotSupported. A null request selects the pre-release default.
     internal static ProfileRegistration ResolveProfileRegistration(
         ChunkingProfileId? requested)
     {
@@ -19,22 +21,41 @@ internal static class ChunkScanConfiguration
             return Candidate64K.Value;
         }
 
-        if (requested == Candidate64K.Value.Id)
+        if (TryResolveProfileRegistration(requested, out ProfileRegistration registration))
         {
-            return Candidate64K.Value;
-        }
-
-        if (requested == Candidate128K.Value.Id)
-        {
-            return Candidate128K.Value;
-        }
-
-        if (requested == Candidate256K.Value.Id)
-        {
-            return Candidate256K.Value;
+            return registration;
         }
 
         throw new NotSupportedException($"Unsupported ChunkingProfileId '{requested}'.");
+    }
+
+    // Manifest-only verification never runs the chunker: an unknown ProfileId is
+    // not an error there, while a known one lets the caller check the recorded
+    // ProfileFingerprint against this build's semantics.
+    internal static bool TryResolveProfileRegistration(
+        ChunkingProfileId profileId,
+        out ProfileRegistration registration)
+    {
+        if (profileId == Candidate64K.Value.Id)
+        {
+            registration = Candidate64K.Value;
+            return true;
+        }
+
+        if (profileId == Candidate128K.Value.Id)
+        {
+            registration = Candidate128K.Value;
+            return true;
+        }
+
+        if (profileId == Candidate256K.Value.Id)
+        {
+            registration = Candidate256K.Value;
+            return true;
+        }
+
+        registration = default;
+        return false;
     }
 
     // Returns the canonical instance, so later suite dispatch compares by
@@ -99,9 +120,9 @@ internal static class ChunkScanConfiguration
         {
             FastCdcProfile profile = FastCdcProfile.CreateM1Candidate(target);
 
-            // CandidateProfileId includes the full semantic fingerprint and is
-            // deliberately computed once during type initialization. Profile
-            // resolution is on every explicit scan and must remain allocation-free.
+            // The fingerprint is computed once during type initialization.
+            // Profile resolution is on every explicit scan and must remain
+            // allocation-free.
             ProfileFingerprint fingerprint = profile.ComputeFingerprint();
             return new ProfileRegistration(
                 profile.CandidateProfileId,

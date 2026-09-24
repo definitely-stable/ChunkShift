@@ -1,7 +1,7 @@
 # Profile Fingerprint Candidate V1
 
 Status: M0 normative candidate; public compatibility freeze remains M3  
-Last reviewed: 2026-09-22
+Last reviewed: 2026-09-24
 
 This document defines the M0 semantic fingerprint contract used by issue #2.
 
@@ -26,6 +26,21 @@ ProfileFingerprint v1 deliberately uses fixed SHA-256 as its identity function. 
 The manifest/repository-selected `HashSuiteId` therefore does **not** change the fingerprint of the same chunking-profile semantics. HashSuite selection remains orthogonal to `ChunkingProfileId` and `ProfileFingerprint`.
 
 Content identities such as ChunkId/ContentId/ManifestId continue to use the selected HashSuite where their specifications say so.
+
+## ProfileId and ProfileFingerprint
+
+A manifest records both, and they have different jobs ([#64](https://github.com/definitely-stable/ChunkShift/issues/64)):
+
+- `ChunkingProfileId` is a **short, stable semantic identifier**: a human-readable label such as a name plus version that tells a reader which profile the producer used.
+- `ProfileFingerprint` is the **authoritative digest** of the exact semantics defined above.
+
+Rules:
+
+- A `ChunkingProfileId` MUST NOT embed the full `ProfileFingerprint` (or its hex form). The fingerprint travels in its own field; duplicating it in the label only makes the label long and the two fields able to disagree.
+- A stable `ChunkingProfileId` never changes semantics. Different semantics need a different identifier (RFC-0001 §15), and the fingerprint is what proves which semantics a manifest actually used.
+- An implementation that registers a `ChunkingProfileId` knows its fingerprint. When a manifest pairs a registered identifier with a different fingerprint, verification reports a profile-semantics mismatch; an identifier the implementation does not register can still be verified manifest-only, but content cannot be chunked with it (CSM-V1-CANDIDATE §14).
+
+The final identifiers of the 0.1.0 stable profiles are chosen by [#8](https://github.com/definitely-stable/ChunkShift/issues/8). Until then the candidates are named `fastcdc.gear.candidate.v1.m<minimum>.t<target>.x<maximum>`.
 
 ## Canonical semantic encoding
 

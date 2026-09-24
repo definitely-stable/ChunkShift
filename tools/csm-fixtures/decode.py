@@ -16,8 +16,8 @@ Verdict model (matches the public .NET contract):
 
 - ``valid``        every check passed;
 - ``integrity``    structurally valid, but one or more of BlockCrc,
-                   LogicalTotals, ManifestId, FileDigest mismatched
-                   (the .NET API returns these as result flags);
+                   LogicalTotals, ManifestId, FileDigest, ProfileSemantics
+                   mismatched (the .NET API returns these as result flags);
 - ``reject``       malformed or non-conforming representation
                    (the .NET API throws InvalidDataException);
 - ``unsupported``  grammatically valid but unknown HashSuite, or a chunk
@@ -80,6 +80,21 @@ ID_FIRST = set(b"abcdefghijklmnopqrstuvwxyz0123456789")
 ID_REST = ID_FIRST | set(b"._-")
 
 U64_MAX = (1 << 64) - 1
+
+# ProfileIds the .NET build registers, with the ProfileFingerprint of their
+# semantics (#64). This is a fact about the build under test, like its supported
+# HashSuites, not part of the CSM format: manifest-only verification accepts an
+# unknown ProfileId and reports ProfileSemantics for a known one whose recorded
+# fingerprint differs. The fingerprints are pinned by the .NET tests
+# (FastCdcKernelTests.CandidateProfileIdentity_IsDeterministic).
+REGISTERED_PROFILES = {
+    b"fastcdc.gear.candidate.v1.m16384.t65536.x262144": bytes.fromhex(
+        "054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0"),
+    b"fastcdc.gear.candidate.v1.m32768.t131072.x524288": bytes.fromhex(
+        "74d375951d3cd4d165fdad5866c6de0b7a9231c794f16444930ac5acdd65b3da"),
+    b"fastcdc.gear.candidate.v1.m65536.t262144.x1048576": bytes.fromhex(
+        "d8fc289d93f8f8b6308498891831638743cce8dde789417f25cf5f3d8f7fbae4"),
+}
 
 # Public .NET API range (ChunkInfo.Length is Int32; lengths and offsets are Int64).
 I32_MAX = (1 << 31) - 1
@@ -411,6 +426,11 @@ def _decode(data: bytes) -> dict[str, object]:
     computed_file_digest = new_hash(data[:digest_end]).digest()
     if computed_file_digest != stored_file_digest:
         failures.add("FileDigest")
+
+    # Profile semantics (#64): only a registered ProfileId can be checked.
+    registered = REGISTERED_PROFILES.get(profile_raw)
+    if registered is not None and registered != profile_fingerprint:
+        failures.add("ProfileSemantics")
 
     return {
         "outcome": "integrity" if failures else "valid",

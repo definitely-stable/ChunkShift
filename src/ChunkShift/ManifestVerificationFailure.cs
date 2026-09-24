@@ -22,8 +22,16 @@ public enum ManifestVerificationFailure
     FileDigest = 1 << 3,
 
     /// <summary>
-    /// The declared ProfileId resolves locally but its fingerprint differs.
+    /// The declared ProfileId is known to this build, but the ProfileFingerprint
+    /// recorded next to it differs from the fingerprint of that profile's semantics.
     /// </summary>
+    /// <remarks>
+    /// Reported by manifest-only and content verification alike. An unknown ProfileId
+    /// is not this failure: manifest-only verification accepts it, and content
+    /// verification throws <see cref="NotSupportedException"/> because it cannot chunk
+    /// with semantics it does not have. When this flag is set, content verification
+    /// does not chunk the content and does not report <see cref="Content"/>.
+    /// </remarks>
     ProfileSemantics = 1 << 4,
 
     /// <summary>
