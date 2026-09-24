@@ -468,51 +468,41 @@ public class ChunkScannerTests
     }
 
     [Fact]
-    public async Task BorrowedContent_MayBeReusedImmediatelyAfterCallbackCompletes()
+    public async Task BorrowedContent_IsReusedAfterCallbackCompletes()
     {
         byte[] input = CreateXorShiftBytes(2 * 1024 * 1024, 0xB0A0D123u);
+        FastCdcProfile fastCdc = FastCdcProfile.CreateM1Candidate(64 * 1024);
         ReadOnlyMemory<byte> retained = default;
         byte[]? firstSnapshot = null;
-        bool observedReuse = false;
+        long firstEnd = 0;
+        long reusedBy = -1;
         int calls = 0;
-
-        ChunkingProfileId profileId =
-            FastCdcProfile.CreateM1Candidate(64 * 1024).CandidateProfileId;
 
         await ChunkScanner.ScanAsync(
             new MemoryStream(input, writable: false),
-            (_, content, _) =>
+            (chunk, content, _) =>
             {
                 if (calls == 0)
                 {
                     retained = content;
                     firstSnapshot = content.ToArray();
+                    firstEnd = chunk.Offset + chunk.Length;
                 }
-                else if (calls == 1)
+                else if (reusedBy < 0 && !retained.Span.SequenceEqual(firstSnapshot))
                 {
-                    Assert.NotNull(firstSnapshot);
-
-                    int commonLength = Math.Min(retained.Length, content.Length);
-                    Assert.True(commonLength > 0);
-
-                    Assert.True(
-                        retained.Span[..commonLength]
-                            .SequenceEqual(content.Span[..commonLength]));
-
-                    Assert.False(
-                        firstSnapshot.AsSpan(0, commonLength)
-                            .SequenceEqual(content.Span[..commonLength]));
-
-                    observedReuse = true;
+                    reusedBy = chunk.Offset + chunk.Length;
                 }
 
                 calls++;
                 return ValueTask.CompletedTask;
             },
-            new ChunkScanOptions { ProfileId = profileId });
+            new ChunkScanOptions { ProfileId = fastCdc.CandidateProfileId });
 
+        // The kernel keeps one bounded buffer, so the first chunk's memory is
+        // overwritten once the scan has moved about one buffer further; a copy
+        // per chunk or an unbounded buffer would never overwrite it.
         Assert.True(calls > 1);
-        Assert.True(observedReuse);
+        Assert.InRange(reusedBy, firstEnd + 1, firstEnd + (2L * fastCdc.Maximum));
     }
 
     [Fact]

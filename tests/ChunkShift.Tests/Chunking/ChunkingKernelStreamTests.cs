@@ -99,6 +99,84 @@ public class ChunkingKernelStreamTests
         Assert.Equal([65536, 65536, 65536, 65536, 17], actual.Chunks.Select(static c => c.Length));
     }
 
+    public static TheoryData<string> BufferEdgeCaseProfiles => new()
+    {
+        "fixed-1", "fixed-1000", "fixed-4096", "fixed-100000", "fixed-300000",
+        "fastcdc-zero-64k", "fastcdc-zero-256k",
+        "fastcdc-t256-x1024", "fastcdc-t4k-x16k", "fastcdc-t16k-x64k", "fastcdc-t32k-x128k",
+    };
+
+    [Theory]
+    [MemberData(nameof(BufferEdgeCaseProfiles))]
+    public async Task BufferEdgeCasesMatchContiguousReference(string name)
+    {
+        // Fixed sizes that do not divide the 64 KiB read size, zero input that
+        // forces FastCDC cuts at Maximum, and small FastCDC profiles whose
+        // chunks share the minimum-size kernel buffer exercise every place where
+        // the pending chunk meets the end of the single kernel buffer.
+        (ChunkingKernelProfile profile, byte[] input) = CreateEdgeCase(name);
+
+        ChunkKernelChunk[] expected = ChunkingReference.Chunk(input, profile, HashSuiteIds.Sha256V1);
+
+        foreach (int[] segmentation in new[] { new[] { int.MaxValue }, new[] { 1, 31, 4095, 2, 65535, 70001 } })
+        {
+            CollectedScan actual = await ScanAsync(
+                new SegmentedReadStream(input, segmentation),
+                profile,
+                HashSuiteIds.Sha256V1);
+
+            Assert.Equal(expected, actual.Chunks);
+            Assert.Equal(input, actual.Reconstructed);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(BufferEdgeCaseProfiles))]
+    public async Task ReadsStayAtTheFullReadSize(string name)
+    {
+        (ChunkingKernelProfile profile, byte[] input) = CreateEdgeCase(name);
+        var source = new SegmentedReadStream(input, [int.MaxValue]);
+
+        _ = await ScanAsync(source, profile, HashSuiteIds.Sha256V1);
+
+        // The two-buffer kernel issued one full read per 64 KiB (plus the EOF
+        // read). Reads may shrink only where the space left before the buffer
+        // end is short: fixed sizes that do not divide the read size, and the
+        // occasional compaction point of content-defined chunks. Small profiles
+        // must not fall back to one read per chunk.
+        int fullReads = (input.Length / ChunkingKernel.IoBufferSize) + 2;
+        double allowance = name is "fixed-100000" or "fixed-300000" ? 1.5 : 1.05;
+        Assert.InRange(source.Reads, 1, (int)(fullReads * allowance) + 1);
+        Assert.All(source.RequestedLengths, requested => Assert.InRange(requested, 1, ChunkingKernel.IoBufferSize));
+    }
+
+    private static (ChunkingKernelProfile Profile, byte[] Input) CreateEdgeCase(string name)
+    {
+        byte[] random = CreateXorShiftBytes((3 * 1024 * 1024) + 7, 0x0DDBA11u);
+
+        return name switch
+        {
+            "fixed-1" => (ChunkingKernelProfile.Fixed(1), CreateXorShiftBytes(4099, 0x0DDBA11u)),
+            "fixed-1000" => (ChunkingKernelProfile.Fixed(1000), random),
+            "fixed-4096" => (ChunkingKernelProfile.Fixed(4096), random),
+            "fixed-100000" => (ChunkingKernelProfile.Fixed(100_000), random),
+            "fixed-300000" => (ChunkingKernelProfile.Fixed(300_000), random),
+            "fastcdc-zero-64k" => ZeroFastCdc(64 * 1024),
+            "fastcdc-zero-256k" => ZeroFastCdc(256 * 1024),
+            "fastcdc-t256-x1024" => (ChunkingKernelProfile.FastCdcGear(new FastCdcProfile(64, 256, 1024)), random),
+            "fastcdc-t4k-x16k" => (ChunkingKernelProfile.FastCdcGear(new FastCdcProfile(1024, 4096, 16384)), random),
+            "fastcdc-t16k-x64k" => (ChunkingKernelProfile.FastCdcGear(new FastCdcProfile(4096, 16384, 65536)), random),
+            "fastcdc-t32k-x128k" => (ChunkingKernelProfile.FastCdcGear(FastCdcProfile.CreateM1Candidate(32 * 1024)), random),
+            _ => throw new ArgumentException($"Unknown edge case '{name}'.", nameof(name)),
+        };
+
+        static (ChunkingKernelProfile, byte[]) ZeroFastCdc(int target)
+        {
+            ChunkingKernelProfile profile = ChunkingKernelProfile.FastCdcGear(FastCdcProfile.CreateM1Candidate(target));
+            return (profile, new byte[(3 * profile.Maximum) + 12345]);
+        }
+    }
+
     [Fact]
     public async Task FastCdc_ScalarAndStreamingAgreeAcrossProfilesSuitesSeedsAndSegmentation()
     {
@@ -204,7 +282,7 @@ public class ChunkingKernelStreamTests
     [InlineData(false, 8191)]
     [InlineData(true, 1)]
     [InlineData(true, 8191)]
-    public async Task Counters_ReportEveryByteCopiedIntoTheChunkBuffer(bool fastCdc, int readLength)
+    public async Task Counters_ReportOnlyPendingPrefixMoves(bool fastCdc, int readLength)
     {
         byte[] input = CreateXorShiftBytes(512 * 1024 + 37, 0xB17E5C0Du);
         ChunkingKernelProfile profile = fastCdc
@@ -219,10 +297,13 @@ public class ChunkingKernelStreamTests
             static (_, _, _) => ValueTask.CompletedTask,
             counters);
 
-        // The current topology copies every consumed byte once from the read
-        // buffer into the chunk buffer (A1-F05). A single-buffer topology is
-        // expected to lower this and must update the expectation deliberately.
-        Assert.Equal(input.Length, counters.BytesCopied);
+        // Single-buffer topology (A1-F05): reads land after the pending chunk,
+        // and only the pending prefix is moved when the buffer end is reached.
+        // A moved prefix is emitted before the next move, so no byte moves
+        // twice; the two-buffer topology copied every byte (1.0 per input byte).
+        // Short reads only change where the moves happen. The measured ratios
+        // are recorded in docs/benchmarks/KERNEL-SINGLE-BUFFER-EVIDENCE-2026-09-24.md.
+        Assert.InRange(counters.BytesCopied, 0, input.Length / 2);
     }
 
     private static async Task<CollectedScan> ScanAsync(
@@ -303,8 +384,15 @@ public class ChunkingKernelStreamTests
             return ValueTask.FromResult(ReadCore(buffer.Span));
         }
 
+        internal int Reads { get; private set; }
+
+        internal List<int> RequestedLengths { get; } = [];
+
         private int ReadCore(Span<byte> destination)
         {
+            Reads++;
+            RequestedLengths.Add(destination.Length);
+
             if (_position == _data.Length)
             {
                 return 0;
