@@ -183,7 +183,7 @@ internal static class CliApp
                 manifest,
                 cancellationToken).ConfigureAwait(false);
 
-        var entries = new ChunkEntry[512];
+        var entries = new ChunkInfo[512];
         while (await reader.ReadAsync(
             entries,
             cancellationToken).ConfigureAwait(false) != 0)
@@ -327,8 +327,8 @@ internal static class CliApp
         ref HashSuiteId? current,
         HashSuiteId requested)
     {
-        if (current.HasValue &&
-            current.Value != requested)
+        if (current is not null &&
+            current != requested)
         {
             throw new ArgumentException(
                 "Choose only one of --sha256 or --blake3.");

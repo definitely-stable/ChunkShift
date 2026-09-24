@@ -489,6 +489,15 @@ internal sealed class CsmStreamReaderCore : IDisposable
                     "CBLK chunk lengths must be positive.");
             }
 
+            // Well-formed CSM, but outside the public .NET model (ChunkInfo.Length
+            // is Int32; RFC-0002 limits every stable profile to Int32 chunks).
+            // Enforced here so every API reaches the same verdict for these bytes.
+            if (length > int.MaxValue)
+            {
+                throw new NotSupportedException(
+                    $"CBLK chunk length {length} exceeds the Int32 range of the ChunkShift .NET API.");
+            }
+
             _manifestId.Append(id, length);
             blockContentLength = CsmParserMath.Add(
                 blockContentLength,
@@ -522,6 +531,13 @@ internal sealed class CsmStreamReaderCore : IDisposable
             _observedContentLength,
             blockContentLength,
             "observed content length");
+
+        if (_observedContentLength > long.MaxValue)
+        {
+            throw new NotSupportedException(
+                "CSM content length exceeds the Int64 range of the ChunkShift .NET API.");
+        }
+
         _cblkCount = CsmParserMath.Add(
             _cblkCount,
             1,

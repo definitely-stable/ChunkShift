@@ -492,13 +492,15 @@ Large-manifest traversal uses a concrete buffered reader:
 ```csharp
 public sealed class ManifestReader : IDisposable, IAsyncDisposable
 {
-    public int Read(Span<ChunkEntry> destination);
+    public int Read(Span<ChunkInfo> destination);
 
     public ValueTask<int> ReadAsync(
-        Memory<ChunkEntry> destination,
+        Memory<ChunkInfo> destination,
         CancellationToken cancellationToken = default);
 }
 ```
+
+Manifest entries use the same `ChunkInfo` (Index/Offset as `Int64`, Length as `Int32`) that the raw scanner emits; a separate `ChunkEntry` with unsigned fields was removed before the API freeze (#63).
 
 Patching uses similarly small one-shot operations.
 

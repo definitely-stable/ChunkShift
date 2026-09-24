@@ -18,9 +18,9 @@ public sealed class ManifestReaderTests
         await using ManifestReader reader =
             await ManifestReader.OpenAsync(manifest);
 
-        var batch = new ChunkEntry[7];
-        ulong count = 0;
-        ulong offset = 0;
+        var batch = new ChunkInfo[7];
+        long count = 0;
+        long offset = 0;
 
         while (true)
         {
@@ -42,12 +42,12 @@ public sealed class ManifestReaderTests
             }
         }
 
-        Assert.Equal((ulong)entryCount, count);
+        Assert.Equal((long)entryCount, count);
         Assert.True(reader.IsCompleted);
         Assert.NotNull(reader.VerificationResult);
         Assert.True(reader.VerificationResult.IsValid);
         Assert.Equal(
-            (ulong)entryCount,
+            (long)entryCount,
             reader.VerificationResult.Manifest.ChunkCount);
         Assert.Equal(
             offset,
@@ -79,7 +79,7 @@ public sealed class ManifestReaderTests
         await using ManifestReader reader =
             await ManifestReader.OpenAsync(corrupted);
 
-        var destination = new ChunkEntry[16];
+        var destination = new ChunkInfo[16];
         int read = await reader.ReadAsync(destination);
 
         Assert.Equal(0, read);
@@ -117,8 +117,8 @@ public sealed class ManifestReaderTests
             await ManifestReader.OpenAsync(
                 new MemoryStream(bytes, writable: false));
 
-        var batch = new ChunkEntry[1000];
-        ulong exposed = 0;
+        var batch = new ChunkInfo[1000];
+        long exposed = 0;
         int read;
 
         while ((read = await reader.ReadAsync(batch)) != 0)
@@ -130,14 +130,14 @@ public sealed class ManifestReaderTests
             }
         }
 
-        Assert.Equal(4096UL, exposed);
+        Assert.Equal(4096L, exposed);
         Assert.True(reader.IsCompleted);
         Assert.NotNull(reader.VerificationResult);
         Assert.Equal(
             ManifestVerificationFailure.BlockCrc,
             reader.VerificationResult.Failures);
         Assert.Equal(
-            (ulong)entryCount,
+            (long)entryCount,
             reader.VerificationResult.Manifest.ChunkCount);
         Assert.Equal(0, await reader.ReadAsync(batch));
     }
@@ -154,11 +154,11 @@ public sealed class ManifestReaderTests
 
         await Assert.ThrowsAsync<ArgumentException>(
             async () => await reader.ReadAsync(
-                Memory<ChunkEntry>.Empty));
+                Memory<ChunkInfo>.Empty));
 
-        var one = new ChunkEntry[1];
+        var one = new ChunkInfo[1];
         Assert.Equal(1, await reader.ReadAsync(one));
-        Assert.Equal(0UL, one[0].Index);
+        Assert.Equal(0L, one[0].Index);
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public sealed class ManifestReaderTests
 
             try
             {
-                var buffer = new ChunkEntry[8];
+                var buffer = new ChunkInfo[8];
                 while (await reader.ReadAsync(buffer) != 0)
                 {
                 }

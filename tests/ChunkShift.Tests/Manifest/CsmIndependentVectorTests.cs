@@ -48,8 +48,8 @@ public sealed class CsmIndependentVectorTests
         byte[] bytes = File.ReadAllBytes(FixturePath(name));
 
         Assert.Equal(
-            vector.GetProperty("physicalLength").GetUInt64(),
-            (ulong)bytes.LongLength);
+            vector.GetProperty("physicalLength").GetInt64(),
+            bytes.LongLength);
 
         Task<ManifestVerificationResult> verification =
             ChunkManifest.VerifyManifestAsync(
@@ -83,19 +83,19 @@ public sealed class CsmIndependentVectorTests
 
         ManifestInfo manifest = result.Manifest;
         Assert.Equal(
-            vector.GetProperty("chunkCount").GetUInt64(),
+            vector.GetProperty("chunkCount").GetInt64(),
             manifest.ChunkCount);
         Assert.Equal(
-            vector.GetProperty("contentLength").GetUInt64(),
+            vector.GetProperty("contentLength").GetInt64(),
             manifest.ContentLength);
         Assert.Equal(
-            vector.GetProperty("cblkCount").GetUInt64(),
+            vector.GetProperty("cblkCount").GetInt64(),
             manifest.ChunkBlockCount);
         Assert.Equal(
             vector.GetProperty("hasBidx").GetBoolean(),
             manifest.HasBlockIndex);
         Assert.Equal(
-            vector.GetProperty("physicalLength").GetUInt64(),
+            vector.GetProperty("physicalLength").GetInt64(),
             manifest.PhysicalLength);
 
         if (outcome == "valid")

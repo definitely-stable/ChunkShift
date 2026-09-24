@@ -14,58 +14,49 @@ internal static class ChunkScanConfiguration
     internal static ProfileRegistration ResolveProfileRegistration(
         ChunkingProfileId? requested)
     {
-        if (!requested.HasValue)
+        if (requested is null)
         {
             return Candidate64K.Value;
         }
 
-        ChunkingProfileId id = requested.Value;
-        if (id.IsDefault)
-        {
-            throw new ArgumentException(
-                "A default ChunkingProfileId is not a valid explicit profile selection.",
-                nameof(requested));
-        }
-
-        if (id == Candidate64K.Value.Id)
+        if (requested == Candidate64K.Value.Id)
         {
             return Candidate64K.Value;
         }
 
-        if (id == Candidate128K.Value.Id)
+        if (requested == Candidate128K.Value.Id)
         {
             return Candidate128K.Value;
         }
 
-        if (id == Candidate256K.Value.Id)
+        if (requested == Candidate256K.Value.Id)
         {
             return Candidate256K.Value;
         }
 
-        throw new NotSupportedException($"Unsupported ChunkingProfileId '{id}'.");
+        throw new NotSupportedException($"Unsupported ChunkingProfileId '{requested}'.");
     }
 
+    // Returns the canonical instance, so later suite dispatch compares by
+    // reference before falling back to an ordinal string comparison.
     internal static HashSuiteId ResolveHashSuite(HashSuiteId? requested)
     {
-        if (!requested.HasValue)
+        if (requested is null)
         {
             return HashSuiteIds.Default;
         }
 
-        HashSuiteId id = requested.Value;
-        if (id.IsDefault)
+        if (requested == HashSuiteIds.Blake3256V1)
         {
-            throw new ArgumentException(
-                "A default HashSuiteId is not a valid explicit hash-suite selection.",
-                nameof(requested));
+            return HashSuiteIds.Blake3256V1;
         }
 
-        if (id != HashSuiteIds.Blake3256V1 && id != HashSuiteIds.Sha256V1)
+        if (requested == HashSuiteIds.Sha256V1)
         {
-            throw new NotSupportedException($"Unsupported HashSuiteId '{id}'.");
+            return HashSuiteIds.Sha256V1;
         }
 
-        return id;
+        throw new NotSupportedException($"Unsupported HashSuiteId '{requested}'.");
     }
 
     private static class Candidate64K

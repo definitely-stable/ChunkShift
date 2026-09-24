@@ -313,7 +313,7 @@ A conforming v1 reader enforces at least:
 - on an unknown-length forward-only stream, the reader validates arithmetic and configured limits first, then consumes exactly PayloadLength bytes and treats premature EOF as truncation;
 - optional unknown sections are skipped/streamed, not blindly allocated;
 - total content length/count must match CEND and observed chunks;
-- lengths requiring a .NET `long`/memory operation must additionally fit that implementation boundary;
+- lengths requiring a .NET `long`/memory operation must additionally fit that implementation boundary: the .NET API exposes chunk lengths as `Int32` and offsets/totals as `Int64`, so a well-formed manifest with a chunk Length above `Int32.MaxValue` or a content length above `Int64.MaxValue` is reported as unsupported (`NotSupportedException`), not as malformed. Every stable profile already satisfies these bounds (RFC-0002 §6);
 - this .NET candidate tracks at most 262,144 CBLK entries for optional BIDX validation and refuses to generate/validate a larger BIDX rather than grow metadata without bound.
 
 Configurable operational limits may be stricter than the format maxima. Operational limits are not persisted compatibility limits unless the format specification explicitly says otherwise.

@@ -304,6 +304,36 @@ public class ChunkScannerTests
             $"Explicit profile resolution allocated {allocated} bytes across 10,000 calls.");
     }
 
+    [Theory]
+    [InlineData("chunkshift.blake3-256.v1")]
+    [InlineData("chunkshift.sha256.v1")]
+    public void ExplicitHashSuiteResolution_IsCanonicalAndAllocationFree(string value)
+    {
+        // A caller-constructed instance is equal by ordinal value, and resolution
+        // hands back the canonical instance used by the hash dispatch.
+        var requested = new HashSuiteId(value);
+        HashSuiteId canonical = ChunkScanConfiguration.ResolveHashSuite(requested);
+
+        Assert.NotSame(requested, canonical);
+        Assert.Equal(requested, canonical);
+        Assert.True(
+            ReferenceEquals(canonical, HashSuiteIds.Blake3256V1) ||
+            ReferenceEquals(canonical, HashSuiteIds.Sha256V1));
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+
+        for (int iteration = 0; iteration < 10_000; iteration++)
+        {
+            _ = ChunkScanConfiguration.ResolveHashSuite(requested);
+        }
+
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.True(
+            allocated <= 16 * 1024,
+            $"Explicit hash-suite resolution allocated {allocated} bytes across 10,000 calls.");
+    }
+
     [Fact]
     public void InvalidArgumentsAndUnsupportedSemantics_FailBeforeReading()
     {
@@ -348,27 +378,48 @@ public class ChunkScannerTests
                 });
         });
 
-        Assert.Throws<ArgumentException>(() =>
-        {
-            _ = ChunkScanner.ScanAsync(
-                Stream.Null,
-                handler,
-                new ChunkScanOptions
-                {
-                    ProfileId = default(ChunkingProfileId),
-                });
-        });
+    }
 
-        Assert.Throws<ArgumentException>(() =>
-        {
-            _ = ChunkScanner.ScanAsync(
-                Stream.Null,
-                handler,
-                new ChunkScanOptions
-                {
-                    HashSuite = default(HashSuiteId),
-                });
-        });
+    [Fact]
+    public async Task NullSelections_UseTheDefaults()
+    {
+        // With reference-type identifiers there is no invalid default instance:
+        // null is the only "not selected" state and means the default.
+        byte[] data = new byte[300_000];
+        new Random(7).NextBytes(data);
+
+        var implicitIds = new List<ChunkId>();
+        await ChunkScanner.ScanAsync(
+            new MemoryStream(data),
+            (chunk, _, _) =>
+            {
+                implicitIds.Add(chunk.Id);
+                return ValueTask.CompletedTask;
+            });
+
+        var explicitNullIds = new List<ChunkId>();
+        await ChunkScanner.ScanAsync(
+            new MemoryStream(data),
+            (chunk, _, _) =>
+            {
+                explicitNullIds.Add(chunk.Id);
+                return ValueTask.CompletedTask;
+            },
+            new ChunkScanOptions { ProfileId = null, HashSuite = null });
+
+        var explicitDefaultIds = new List<ChunkId>();
+        await ChunkScanner.ScanAsync(
+            new MemoryStream(data),
+            (chunk, _, _) =>
+            {
+                explicitDefaultIds.Add(chunk.Id);
+                return ValueTask.CompletedTask;
+            },
+            new ChunkScanOptions { HashSuite = HashSuiteIds.Default });
+
+        Assert.NotEmpty(implicitIds);
+        Assert.Equal(implicitIds, explicitNullIds);
+        Assert.Equal(implicitIds, explicitDefaultIds);
     }
 
     [Fact]

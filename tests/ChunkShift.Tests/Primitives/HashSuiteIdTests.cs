@@ -19,8 +19,30 @@ public class HashSuiteIdTests
         var id = new HashSuiteId("chunkshift.example.v1");
 
         Assert.Equal("chunkshift.example.v1", id.Value);
-        Assert.False(id.IsDefault);
         Assert.Equal(id, new HashSuiteId("chunkshift.example.v1"));
+        Assert.True(id == new HashSuiteId("chunkshift.example.v1"));
+        Assert.False(id == null);
+        Assert.Equal("chunkshift.example.v1", id.ToString());
+    }
+
+    [Fact]
+    public void Constructor_RejectsNull_WithPublicParameterName()
+    {
+        ArgumentNullException exception =
+            Assert.Throws<ArgumentNullException>(() => new HashSuiteId(null!));
+
+        Assert.Equal("value", exception.ParamName);
+    }
+
+    [Fact]
+    public void Type_HasNoInstanceWithoutAValidatedValue()
+    {
+        Type type = typeof(HashSuiteId);
+
+        Assert.True(type.IsClass);
+        Assert.True(type.IsSealed);
+        Assert.Null(type.GetConstructor(Type.EmptyTypes));
+        Assert.Null(default(HashSuiteId));
     }
 
     [Theory]

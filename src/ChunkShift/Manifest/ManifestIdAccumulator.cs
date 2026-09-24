@@ -20,19 +20,8 @@ internal sealed class ManifestIdAccumulator : IDisposable
         ChunkingProfileId profileId,
         ProfileFingerprint profileFingerprint)
     {
-        if (hashSuite.IsDefault)
-        {
-            throw new ArgumentException(
-                "Manifest identity requires a non-default HashSuiteId.",
-                nameof(hashSuite));
-        }
-
-        if (profileId.IsDefault)
-        {
-            throw new ArgumentException(
-                "Manifest identity requires a non-default ChunkingProfileId.",
-                nameof(profileId));
-        }
+        ArgumentNullException.ThrowIfNull(hashSuite);
+        ArgumentNullException.ThrowIfNull(profileId);
 
         _hasher = HashSuiteIncrementalHasher.Create(hashSuite);
         _hasher.Append(Domain);

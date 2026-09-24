@@ -20,7 +20,9 @@ Verdict model (matches the public .NET contract):
                    (the .NET API returns these as result flags);
 - ``reject``       malformed or non-conforming representation
                    (the .NET API throws InvalidDataException);
-- ``unsupported``  grammatically valid but unknown HashSuite
+- ``unsupported``  grammatically valid but unknown HashSuite, or a chunk
+                   Length above Int32.MaxValue or a content length above
+                   Int64.MaxValue, which the .NET API cannot represent
                    (the .NET API throws NotSupportedException).
 
 Only the SHA-256 HashSuite is implemented, because BLAKE3 is not in the
@@ -78,6 +80,10 @@ ID_FIRST = set(b"abcdefghijklmnopqrstuvwxyz0123456789")
 ID_REST = ID_FIRST | set(b"._-")
 
 U64_MAX = (1 << 64) - 1
+
+# Public .NET API range (ChunkInfo.Length is Int32; lengths and offsets are Int64).
+I32_MAX = (1 << 31) - 1
+I64_MAX = (1 << 63) - 1
 
 
 def _crc32c_table() -> list[int]:
@@ -274,6 +280,8 @@ def _decode(data: bytes) -> dict[str, object]:
             (length,) = struct.unpack_from("<I", payload, lengths_start + index * 4)
             if length == 0:
                 raise Reject("CBLK chunk Length must be > 0")
+            if length > I32_MAX:
+                raise Unsupported("chunk Length exceeds the .NET Int32 API range")
             identity.update(chunk_id)
             identity.update(struct.pack("<I", length))
             block_length += length
@@ -283,6 +291,8 @@ def _decode(data: bytes) -> dict[str, object]:
         observed_length += block_length
         if observed_length > U64_MAX:
             raise Reject("content length overflows UInt64")
+        if observed_length > I64_MAX:
+            raise Unsupported("content length exceeds the .NET Int64 API range")
 
     # --- Section 7: CEND ----------------------------------------------------
     cend_offset = section_offset

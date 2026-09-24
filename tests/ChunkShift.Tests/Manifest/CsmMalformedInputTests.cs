@@ -385,7 +385,7 @@ public sealed class CsmMalformedInputTests
         using var storage = new MemoryStream(mutated, writable: false);
         await using ManifestReader reader =
             await ManifestReader.OpenAsync(storage);
-        var entries = new ChunkEntry[64];
+        var entries = new ChunkInfo[64];
 
         await Assert.ThrowsAsync<InvalidDataException>(
             async () =>

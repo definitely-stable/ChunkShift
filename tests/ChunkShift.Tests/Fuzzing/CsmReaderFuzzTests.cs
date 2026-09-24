@@ -182,7 +182,7 @@ public sealed class CsmReaderFuzzTests
         try
         {
             await using ManifestReader reader = await ManifestReader.OpenAsync(source);
-            var batch = new ChunkEntry[batchSize];
+            var batch = new ChunkInfo[batchSize];
 
             while (await reader.ReadAsync(batch) != 0)
             {
@@ -388,7 +388,7 @@ public sealed class CsmReaderFuzzTests
         {
             // The Python decoder implements SHA-256 only.
             if (input.Length > MaximumDumpedCaseBytes ||
-                !CsmMutator.TryReadHashSuite(input, out HashSuiteId suite) ||
+                !CsmMutator.TryReadHashSuite(input, out HashSuiteId? suite) ||
                 suite != HashSuiteIds.Sha256V1)
             {
                 return;

@@ -201,13 +201,13 @@ public sealed class ManifestCancellationTests
 
         // Load the first CBLK so the next entries are buffered and a read would
         // need no I/O: cancellation must still win.
-        var first = new ChunkEntry[1];
+        var first = new ChunkInfo[1];
         Assert.Equal(1, await reader.ReadAsync(first));
         long bytesAfterFirstRead = manifest.BytesRead;
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => reader.ReadAsync(
-                new ChunkEntry[16],
+                new ChunkInfo[16],
                 new CancellationToken(canceled: true))
                 .AsTask()
                 .WaitAsync(HangGuard));
@@ -215,9 +215,9 @@ public sealed class ManifestCancellationTests
         Assert.Equal(bytesAfterFirstRead, manifest.BytesRead);
 
         // Nothing was consumed, so the reader continues exactly where it was.
-        var rest = new ChunkEntry[MultiBlockEntryCount];
+        var rest = new ChunkInfo[MultiBlockEntryCount];
         int read;
-        ulong expectedIndex = 1;
+        long expectedIndex = 1;
 
         while ((read = await reader.ReadAsync(rest)) != 0)
         {
@@ -227,7 +227,7 @@ public sealed class ManifestCancellationTests
             }
         }
 
-        Assert.Equal((ulong)MultiBlockEntryCount, expectedIndex);
+        Assert.Equal((long)MultiBlockEntryCount, expectedIndex);
         Assert.NotNull(reader.VerificationResult);
         Assert.True(reader.VerificationResult.IsValid);
     }
@@ -248,7 +248,7 @@ public sealed class ManifestCancellationTests
         await using ManifestReader reader =
             await ManifestReader.OpenAsync(manifest);
 
-        var batch = new ChunkEntry[MultiBlockEntryCount];
+        var batch = new ChunkInfo[MultiBlockEntryCount];
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => reader.ReadAsync(batch, cancellation.Token)

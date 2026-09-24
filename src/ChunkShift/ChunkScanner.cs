@@ -46,13 +46,14 @@ public static class ChunkScanner
     /// <returns>A task that represents the complete scan.</returns>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="source"/> or <paramref name="handler"/> is <see langword="null"/>.
+    /// Thrown by this call, not by the returned task.
     /// </exception>
     /// <exception cref="ArgumentException">
-    /// <paramref name="source"/> is not readable, or an explicitly supplied identifier is
-    /// the default/uninitialized value.
+    /// <paramref name="source"/> is not readable. Thrown by this call, not by the returned task.
     /// </exception>
     /// <exception cref="NotSupportedException">
     /// An explicitly requested profile or hash suite is not supported by this build.
+    /// Thrown by this call, not by the returned task.
     /// </exception>
     /// <exception cref="OperationCanceledException">
     /// Cancellation is observed before the scan completes.
