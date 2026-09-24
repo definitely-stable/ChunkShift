@@ -66,7 +66,7 @@ jobs:
         run: dotnet test benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-build --no-restore
 
       - name: Validate benchmark evidence scripts
-        run: python3 -m py_compile benchmarks/scripts/summarize_scanner_phase2.py benchmarks/scripts/summarize_scanner_freeze.py
+        run: python3 -m py_compile benchmarks/scripts/summarize_scanner_phase2.py benchmarks/scripts/summarize_scanner_freeze.py benchmarks/scripts/summarize_boundary_scan_f08.py
 
       - name: Verify independent FastCDC vector
         shell: bash
@@ -275,5 +275,163 @@ jobs:
           path: |
             artifacts/benchmarks/scanner-api-freeze-${{ matrix.arch }}
             artifacts/benchmarks/scanner-api-freeze-${{ matrix.arch }}.log
+          if-no-files-found: error
+          retention-days: 30
+
+
+  # A1-F08: is the boundary loop bound by the latency of its gear-hash chain?
+  # BoundaryScanBenchmarks (BDN, two rounds in opposite method order) and the
+  # f08 harness under perf stat (alternating variant order per round). The PMU
+  # probe is fail-closed: without countable cycles:u the job reports timings
+  # and a calibration *estimate*, never counter values.
+  boundary-scan-f08:
+    name: boundary-scan-f08 (${{ matrix.arch }})
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'perf/f08'))
+    needs: smoke
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    env:
+      ROUNDS: "3"
+      OUT: artifacts/benchmarks/boundary-scan-f08-${{ matrix.arch }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+
+      - name: Build
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Probe PMU
+        id: pmu
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p "$OUT"
+          status=unavailable
+          {
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends linux-tools-common "linux-tools-$(uname -r)" ||
+              sudo apt-get install -y --no-install-recommends linux-tools-common linux-tools-azure
+          } > "$OUT/perf-install.log" 2>&1
+          if command -v perf > /dev/null && sudo sysctl -w kernel.perf_event_paranoid=1; then
+            perf stat -x, -o "$OUT/pmu-probe.csv" -e cycles:u,instructions:u,branches:u,branch-misses:u -- true
+            counted=$(grep -cE '^[0-9]+,[^,]*,(cycles|instructions|branches|branch-misses):u,' "$OUT/pmu-probe.csv" 2> /dev/null || true)
+            if [ "${counted:-0}" -eq 4 ]; then
+              status=available
+            fi
+          fi
+          echo "PMU: $status (kernel $(uname -r))" | tee "$OUT/pmu.txt"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Run BoundaryScanBenchmarks (two rounds, opposite order)
+        shell: bash
+        run: |
+          set -euo pipefail
+          methods=(Scan ScanLocals ScalarLocals ChainFloor NoChain)
+          for round in 1 2
+          do
+            order=("${methods[@]}")
+            if [ "$round" -eq 2 ]; then
+              order=(NoChain ChainFloor ScalarLocals ScanLocals Scan)
+            fi
+            for method in "${order[@]}"
+            do
+              dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
+                micro \
+                --exporters GitHub FullJSON \
+                --artifacts "$OUT/bdn-round$round/$method" \
+                --filter "ChunkShift.Benchmarks.BoundaryScanBenchmarks.$method" \
+                | tee -a "$OUT/bdn.log"
+            done
+          done
+
+      - name: Run f08 harness rounds
+        shell: bash
+        env:
+          PMU: ${{ steps.pmu.outputs.status }}
+        run: |
+          set -euo pipefail
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          variants=(Scan ScanLocals ScalarLocals ChainFloor NoChain Calibrate)
+          mkdir -p "$OUT/harness"
+          for round in $(seq "$ROUNDS")
+          do
+            order=("${variants[@]}")
+            if [ $((round % 2)) -eq 0 ]; then
+              order=(Calibrate NoChain ChainFloor ScalarLocals ScanLocals Scan)
+            fi
+            for variant in "${order[@]}"
+            do
+              for target in 65536 262144
+              do
+                stem="$OUT/harness/round$round-$variant-$target"
+                if [ "$PMU" = available ]; then
+                  rm -f ctl.fifo ack.fifo
+                  mkfifo ctl.fifo ack.fifo
+                  # A hung control handshake fails the run instead of the job timeout.
+                  timeout 600 perf stat -x, -o "$stem.perf.csv" \
+                    -e cycles:u,instructions:u,branches:u,branch-misses:u \
+                    -D -1 --control fifo:ctl.fifo,ack.fifo -- \
+                    dotnet "$dll" f08 --variant "$variant" --target "$target" \
+                      --perf-ctl ctl.fifo --perf-ack ack.fifo \
+                    > "$stem.txt"
+                else
+                  timeout 600 dotnet "$dll" f08 --variant "$variant" --target "$target" > "$stem.txt"
+                fi
+                cat "$stem.txt"
+              done
+            done
+          done
+
+      - name: Capture JIT disassembly
+        shell: bash
+        run: |
+          set -euo pipefail
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          for variant in Scan ScanLocals ScalarLocals ChainFloor NoChain Calibrate
+          do
+            DOTNET_JitDisasm='Scan FindCut ChainFloor NoChain CalibrationChain' \
+            DOTNET_JitStdOutFile="$OUT/jit-disasm-$variant.txt" \
+              dotnet "$dll" f08 --variant "$variant" --target 65536 --seconds 1 --warmup-seconds 2
+          done
+
+      - name: Summarize F08 evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/summarize_boundary_scan_f08.py \
+            --harness "$OUT/harness" \
+            --bdn "$OUT/bdn-round1" \
+            --bdn "$OUT/bdn-round2" \
+            --pmu "${{ steps.pmu.outputs.status }}" \
+            --rounds "$ROUNDS" \
+            --commit "${{ github.event.pull_request.head.sha || github.sha }}" \
+            --arch "${{ matrix.arch }}" \
+            --json "$OUT/f08-summary.json" \
+            --markdown "$OUT/f08-summary.md"
+          cat "$OUT/f08-summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload F08 evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: boundary-scan-f08-${{ matrix.arch }}
+          path: ${{ env.OUT }}
           if-no-files-found: error
           retention-days: 30
