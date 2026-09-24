@@ -280,10 +280,11 @@ jobs:
 
 
   # A1-F08: is the boundary loop bound by the latency of its gear-hash chain?
-  # BoundaryScanBenchmarks (BDN, two rounds in opposite method order) and the
-  # f08 harness under perf stat (alternating variant order per round). The PMU
-  # probe is fail-closed: without countable cycles:u the job reports timings
-  # and a calibration *estimate*, never counter values.
+  # BoundaryScanBenchmarks (BDN, two rounds in opposite method order; every
+  # method and case is its own process anyway, so the order only spreads
+  # machine drift) and the f08 harness under perf stat (alternating variant
+  # order per round). The PMU probe is fail-closed: without countable cycles:u
+  # the job reports timings only, never counter values or derived cycles.
   boundary-scan-f08:
     name: boundary-scan-f08 (${{ matrix.arch }})
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'perf/f08'))
@@ -407,9 +408,13 @@ jobs:
           for variant in Scan ScanLocals ScalarLocals ChainFloor NoChain Calibrate
           do
             DOTNET_JitDisasm='Scan FindCut ChainFloor NoChain CalibrationChain' \
+            DOTNET_JitDisasmSummary=1 \
             DOTNET_JitStdOutFile="$OUT/jit-disasm-$variant.txt" \
               dotnet "$dll" f08 --variant "$variant" --target 65536 --seconds 1 --warmup-seconds 2
           done
+          # Which tiers the measured methods reached (Tier0, OSR, Tier1).
+          grep -hE 'JIT compiled .*(CalibrationChain|ChainFloor|NoChain|FindCut|BoundaryScanKernels:Scan|ChunkBoundaryState:Scan|LocalsBoundaryState:Scan)' \
+            "$OUT"/jit-disasm-*.txt | sort | uniq -c | tee "$OUT/jit-tiers.txt"
 
       - name: Summarize F08 evidence
         shell: bash

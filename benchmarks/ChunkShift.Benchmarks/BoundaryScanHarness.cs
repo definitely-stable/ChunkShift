@@ -11,14 +11,21 @@ namespace ChunkShift.Benchmarks;
 /// f08 --variant &lt;name&gt; --target &lt;bytes&gt; [--seconds 5] [--warmup-seconds 3]
 ///     [--perf-ctl &lt;fifo&gt; --perf-ack &lt;fifo&gt;]
 /// </code>
-/// With <c>--perf-ctl</c>, the harness sends <c>enable</c> after warmup and
+/// Warmup makes at least 64 calls of the variant (one per pass) and lasts at
+/// least <c>--warmup-seconds</c>, so its methods run Tier1 code, not OSR code,
+/// in the measured window. With <c>--perf-ctl</c>, the harness sends <c>enable</c> after warmup and
 /// <c>disable</c> after the measured window to a <c>perf stat -D -1 --control
 /// fifo:ctl,ack</c> session, so process start-up, data generation and tiered
 /// JIT warmup are not counted. Prints one <c>key=value</c> line.
 /// </summary>
 internal static class BoundaryScanHarness
 {
-    private const int WarmupMinimumRounds = 5;
+    // Tiered compilation promotes a method to Tier1 only after 30 calls
+    // (counted once start-up tier0 activity has settled), and a method with a
+    // loop runs OSR code until then. One pass is one call, so warmup must make
+    // well over 30 calls, not merely last long enough.
+    private const int WarmupMinimumCalls = 64;
+    private const int WarmupCallsPerPause = 8;
     private static readonly TimeSpan WarmupPause = TimeSpan.FromMilliseconds(200);
 
     public static int Run(string[] args)
@@ -47,15 +54,21 @@ internal static class BoundaryScanHarness
         BoundaryScanKernels.Case @case = BoundaryScanKernels.CreateCase(int.Parse(target, CultureInfo.InvariantCulture));
         long expected = BoundaryScanKernels.Run(variant, @case);
 
-        // Same stabilization contract as the lab: a minimum number of rounds
-        // and of wall time, pausing so tiered JIT/dynamic PGO can install
-        // optimized code before anything is counted.
+        // At least WarmupMinimumCalls passes and the warmup time, pausing every
+        // few calls so the background tier-up of the variant's methods lands
+        // before anything is counted.
         var warmupClock = Stopwatch.StartNew();
-        for (int round = 0; round < WarmupMinimumRounds || warmupClock.Elapsed < warmup; round++)
+        for (int call = 1; call <= WarmupMinimumCalls || warmupClock.Elapsed < warmup; call++)
         {
             Check(BoundaryScanKernels.Run(variant, @case), expected);
-            Thread.Sleep(WarmupPause);
+
+            if (call % WarmupCallsPerPause == 0)
+            {
+                Thread.Sleep(WarmupPause);
+            }
         }
+
+        Thread.Sleep(WarmupPause);
 
         using PerfControl? perf = perfCtl is null ? null : new PerfControl(perfCtl, perfAck!);
         perf?.Send("enable");
@@ -75,7 +88,7 @@ internal static class BoundaryScanHarness
         long bytes = passes * @case.Data.Length;
         double seconds = clock.Elapsed.TotalSeconds;
         Console.WriteLine(Invariant(
-            $"variant={variant} target={target} passes={passes} bytes={bytes} seconds={seconds:F6} ns-per-byte={seconds * 1e9 / bytes:F6} checksum={expected} counted={(perf is null ? "no" : "yes")}"));
+            $"variant={variant} target={target} passes={passes} bytes={bytes} seconds={seconds:F6} ns-per-byte={seconds * 1e9 / bytes:F6} checksum={expected} unhashed-fraction={@case.UnhashedFraction:F6} counted={(perf is null ? "no" : "yes")}"));
         return 0;
     }
 

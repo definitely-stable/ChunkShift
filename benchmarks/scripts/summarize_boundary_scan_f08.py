@@ -14,7 +14,14 @@ Every expected run must be present and self-consistent, or the script fails.
 The decision rule was fixed before measuring: the loop is called
 latency-bound when Scan / ChainFloor <= 1.15 in every BDN round and every
 harness round; "not latency-bound" when it is above 1.15 in all of them;
-anything else is "inconclusive".
+anything else is "inconclusive". BDN rounds enter the rule only when they
+agree with each other and with the harness; otherwise they are reported and
+excluded.
+
+A secondary analysis, added after the first results, is labeled as such:
+F01 = Scan / ScanLocals, F01+F03 = Scan / ScalarLocals, and the F07 gate
+ScalarLocals / ChainFloor <= 1.15 (both hash almost the same bytes, whereas
+Scan also walks each chunk's unhashed [0, Minimum) prefix).
 """
 
 from __future__ import annotations
@@ -31,8 +38,15 @@ HARNESS_VARIANTS = VARIANTS + ["Calibrate"]
 TARGETS = [65536, 262144]
 EVENTS = ["cycles:u", "instructions:u", "branches:u", "branch-misses:u"]
 THRESHOLD = 1.15
-# Two dependent single-cycle ALU operations per calibration step.
+# Two dependent single-cycle ALU operations per calibration step. With a PMU
+# the premise is checked: cycles within 10% of 2 and at most 6 instructions
+# per step (xor, add, counter, compare/branch).
 CALIBRATION_CYCLES_PER_STEP = 2.0
+CALIBRATION_CYCLE_TOLERANCE = 0.10
+CALIBRATION_MAX_INSTRUCTIONS_PER_STEP = 6.0
+# BDN rounds must agree with each other and with the harness to be used.
+BDN_ROUND_SPREAD_LIMIT = 1.10
+BDN_HARNESS_TOLERANCE = 0.15
 
 
 def parse_args() -> argparse.Namespace:
@@ -75,9 +89,12 @@ def parse_perf(path: Path) -> dict[str, float]:
     return counts
 
 
-def load_harness(directory: Path, rounds: int, pmu: bool) -> dict[tuple[str, int], list[dict[str, Any]]]:
+def load_harness(
+    directory: Path, rounds: int, pmu: bool
+) -> tuple[dict[tuple[str, int], list[dict[str, Any]]], dict[int, float]]:
     runs: dict[tuple[str, int], list[dict[str, Any]]] = {}
     checksums: dict[tuple[str, int], str] = {}
+    unhashed: dict[int, str] = {}
 
     for round_number in range(1, rounds + 1):
         for variant in HARNESS_VARIANTS:
@@ -92,6 +109,8 @@ def load_harness(directory: Path, rounds: int, pmu: bool) -> dict[tuple[str, int
                 key = (variant, target)
                 if checksums.setdefault(key, line["checksum"]) != line["checksum"]:
                     raise ValueError(f"{stem}: checksum differs from an earlier round.")
+                if unhashed.setdefault(target, line["unhashed-fraction"]) != line["unhashed-fraction"]:
+                    raise ValueError(f"{stem}: unhashed fraction differs from another run of this target.")
 
                 run: dict[str, Any] = {
                     "round": round_number,
@@ -106,7 +125,7 @@ def load_harness(directory: Path, rounds: int, pmu: bool) -> dict[tuple[str, int
                     run["branch_miss_rate"] = counts["branch-misses:u"] / counts["branches:u"]
                 runs.setdefault(key, []).append(run)
 
-    return runs
+    return runs, {target: float(value) for target, value in unhashed.items()}
 
 
 def load_bdn(directories: list[Path]) -> list[dict[tuple[str, int], float]]:
@@ -135,54 +154,97 @@ def decide(ratios: list[float]) -> str:
     return "inconclusive"
 
 
+def ratio_line(label: str, values: list[float]) -> str:
+    return f"{label}: " + ", ".join(f"{value:.3f}" for value in values)
+
+
 def main() -> int:
     args = parse_args()
     pmu = args.pmu == "available"
-    harness = load_harness(args.harness, args.rounds, pmu)
+    harness, unhashed = load_harness(args.harness, args.rounds, pmu)
     bdn = load_bdn(args.bdn)
+    rounds = range(1, args.rounds + 1)
+
+    def per_round(variant: str, target: int, field: str) -> dict[int, float]:
+        return {run["round"]: run[field] for run in harness[(variant, target)]}
+
+    def median(variant: str, target: int, field: str) -> float:
+        return statistics.median(per_round(variant, target, field).values())
+
+    # Calibration premise: checked where counters exist, never assumed valid.
+    if pmu:
+        calibration_problems = []
+        for target in TARGETS:
+            cycles = median("Calibrate", target, "cycles_per_byte")
+            instructions = median("Calibrate", target, "instructions_per_byte")
+            if abs(cycles - CALIBRATION_CYCLES_PER_STEP) / CALIBRATION_CYCLES_PER_STEP > CALIBRATION_CYCLE_TOLERANCE:
+                calibration_problems.append(f"{target}: {cycles:.2f} cycles/step")
+            if instructions > CALIBRATION_MAX_INSTRUCTIONS_PER_STEP:
+                calibration_problems.append(f"{target}: {instructions:.2f} instructions/step")
+        calibration = "premise failed (" + "; ".join(calibration_problems) + ")" if calibration_problems else "premise validated"
+    else:
+        calibration = "unvalidated (no PMU)"
+
+    # BDN rounds must agree with each other and with the harness.
+    bdn_problems = []
+    for variant in VARIANTS:
+        for target in TARGETS:
+            values = [medians[(variant, target)] / 16_777_216 for medians in bdn]
+            if max(values) / min(values) > BDN_ROUND_SPREAD_LIMIT:
+                bdn_problems.append(f"{variant}/{target}: rounds {', '.join(f'{v:.4f}' for v in values)} ns/B")
+            reference = median(variant, target, "ns_per_byte")
+            for value in values:
+                if abs(value - reference) / reference > BDN_HARNESS_TOLERANCE:
+                    bdn_problems.append(f"{variant}/{target}: BDN {value:.4f} vs harness {reference:.4f} ns/B")
+    bdn_used = not bdn_problems
 
     result: dict[str, Any] = {
         "commit": args.commit,
         "arch": args.arch,
         "pmu": args.pmu,
         "threshold": THRESHOLD,
+        "calibration": calibration,
+        "bdn_used_in_decision": bdn_used,
+        "bdn_problems": bdn_problems,
         "targets": {},
     }
 
     md = [
         f"# A1-F08 boundary-scan evidence — {args.arch}",
         "",
-        f"Commit `{args.commit}`. PMU: **{args.pmu}**."
-        + ("" if pmu else " Cycles below are an **estimate** from the calibration chain"
-           f" (assumed {CALIBRATION_CYCLES_PER_STEP:g} cycles per step), not a measurement."),
+        f"Commit `{args.commit}`. PMU: **{args.pmu}**. Calibration: **{calibration}**.",
         "",
         f"Decision rule (fixed before measuring): Scan / ChainFloor <= {THRESHOLD} in every "
-        "BDN and harness round means latency-bound.",
+        "BDN and harness round means latency-bound. BDN rounds are "
+        + ("**used**." if bdn_used else "**excluded: BDN rounds disagree** (" + "; ".join(bdn_problems) + ")."),
         "",
     ]
 
     for target in TARGETS:
-        calibrate = statistics.median(run["ns_per_byte"] for run in harness[("Calibrate", target)])
-        estimated_ghz = CALIBRATION_CYCLES_PER_STEP / calibrate
-
-        bdn_ratios = [medians[("Scan", target)] / medians[("ChainFloor", target)] for medians in bdn]
-        harness_by_round = {
-            variant: {run["round"]: run for run in harness[(variant, target)]}
-            for variant in HARNESS_VARIANTS
-        }
         harness_ratios = [
-            harness_by_round["Scan"][r]["ns_per_byte"] / harness_by_round["ChainFloor"][r]["ns_per_byte"]
-            for r in range(1, args.rounds + 1)
+            per_round("Scan", target, "ns_per_byte")[r] / per_round("ChainFloor", target, "ns_per_byte")[r]
+            for r in rounds
         ]
-        decision = decide(bdn_ratios + harness_ratios)
+        bdn_ratios = [medians[("Scan", target)] / medians[("ChainFloor", target)] for medians in bdn]
+        decision = decide(harness_ratios + (bdn_ratios if bdn_used else []))
+
+        def ratios(numerator: str, denominator: str) -> list[float]:
+            return [
+                per_round(numerator, target, "ns_per_byte")[r] / per_round(denominator, target, "ns_per_byte")[r]
+                for r in rounds
+            ]
+
+        f01 = ratios("Scan", "ScanLocals")
+        f01_f03 = ratios("Scan", "ScalarLocals")
+        f07_gate = ratios("ScalarLocals", "ChainFloor")
+        f07 = decide(f07_gate)
 
         rows = []
         for variant in HARNESS_VARIANTS:
             runs = harness[(variant, target)]
-            ns = statistics.median(run["ns_per_byte"] for run in runs)
             row: dict[str, Any] = {
                 "variant": variant,
-                "harness_ns_per_byte_median": ns,
+                "harness_ns_per_byte_median": median(variant, target, "ns_per_byte"),
                 "harness_ns_per_byte_min": min(run["ns_per_byte"] for run in runs),
                 "harness_ns_per_byte_max": max(run["ns_per_byte"] for run in runs),
                 "bdn_ns_per_byte": [
@@ -190,30 +252,42 @@ def main() -> int:
                 ] if variant != "Calibrate" else None,
             }
             if pmu:
-                row["cycles_per_byte_measured"] = statistics.median(run["cycles_per_byte"] for run in runs)
-                row["ipc"] = statistics.median(run["ipc"] for run in runs)
-                row["instructions_per_byte"] = statistics.median(run["instructions_per_byte"] for run in runs)
-                row["branch_miss_rate"] = statistics.median(run["branch_miss_rate"] for run in runs)
-            else:
-                row["cycles_per_byte_estimated"] = ns * estimated_ghz
+                row["cycles_per_byte_measured"] = median(variant, target, "cycles_per_byte")
+                row["ipc"] = median(variant, target, "ipc")
+                row["instructions_per_byte"] = median(variant, target, "instructions_per_byte")
+                row["branch_miss_rate"] = median(variant, target, "branch_miss_rate")
             rows.append(row)
 
         result["targets"][str(target)] = {
             "decision": decision,
-            "scan_over_chain_floor_bdn": bdn_ratios,
+            "unhashed_fraction": unhashed[target],
             "scan_over_chain_floor_harness": harness_ratios,
-            "estimated_ghz_from_calibration": estimated_ghz,
+            "scan_over_chain_floor_bdn": bdn_ratios,
+            "secondary": {
+                "f01_scan_over_scan_locals": f01,
+                "f01_f03_scan_over_scalar_locals": f01_f03,
+                "f07_gate_scalar_locals_over_chain_floor": f07_gate,
+                "f07_gate": f07,
+            },
             "variants": rows,
         }
 
         md += [
             f"## Target {target // 1024} KiB — {decision}",
             "",
-            "Scan / ChainFloor: BDN rounds "
-            + ", ".join(f"{ratio:.3f}" for ratio in bdn_ratios)
-            + "; harness rounds "
-            + ", ".join(f"{ratio:.3f}" for ratio in harness_ratios)
-            + ".",
+            ratio_line("Scan / ChainFloor, harness rounds", harness_ratios) + ".",
+            ratio_line("Scan / ChainFloor, BDN rounds", bdn_ratios)
+            + ("." if bdn_used else " (excluded)."),
+            "",
+            f"Unhashed prefix [0, Minimum): {unhashed[target]:.2%} of the data (walked by Scan/ScanLocals, "
+            "skipped by ScalarLocals/ChainFloor/NoChain).",
+            "",
+            "Secondary analysis (added after the first results, harness rounds):",
+            "",
+            "- " + ratio_line("F01, Scan / ScanLocals", f01),
+            "- " + ratio_line("F01+F03, Scan / ScalarLocals", f01_f03),
+            "- " + ratio_line(f"F07 gate, ScalarLocals / ChainFloor (<= {THRESHOLD} means chain-bound after F01+F03)", f07_gate)
+            + f" → {f07}",
             "",
         ]
         if pmu:
@@ -223,8 +297,8 @@ def main() -> int:
             ]
         else:
             md += [
-                "| Variant | ns/B (harness median, min–max) | ns/B (BDN rounds) | cycles/B (estimated) |",
-                "|---|---|---|---|",
+                "| Variant | ns/B (harness median, min–max) | ns/B (BDN rounds) |",
+                "|---|---|---|",
             ]
         for row in rows:
             bdn_cell = (
@@ -243,18 +317,12 @@ def main() -> int:
                     f"{row['instructions_per_byte']:.2f}",
                     f"{row['branch_miss_rate']:.5f}",
                 ]
-            else:
-                cells.append(f"{row['cycles_per_byte_estimated']:.3f}")
             md.append("| " + " | ".join(cells) + " |")
         md.append("")
 
-    clocks = ", ".join(
-        f"{result['targets'][str(t)]['estimated_ghz_from_calibration']:.2f} GHz" for t in TARGETS
-    )
     md += [
         "Calibrate is a chain of XOR+ADD steps; its row is per step, not per byte. "
-        + ("Its measured cycles per step check the 2-cycle assumption." if pmu else
-           f"Estimated clock: {clocks}."),
+        "No cycles are derived from it without a PMU: the estimate is unvalidated.",
         "",
     ]
 

@@ -52,6 +52,13 @@ internal static class BoundaryScanKernels
         internal ChunkingKernelProfile KernelProfile { get; }
 
         internal int[] Cuts { get; }
+
+        /// <summary>
+        /// Share of the data in chunk prefixes [0, Minimum): bytes the cutting
+        /// variants walk but ChainFloor/NoChain never touch.
+        /// </summary>
+        internal double UnhashedFraction =>
+            Cuts.Sum(length => (long)Math.Min(length, Profile.Minimum)) / (double)Data.Length;
     }
 
     internal static Case CreateCase(int target)
