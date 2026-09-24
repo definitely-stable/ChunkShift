@@ -11,7 +11,10 @@ namespace ChunkShift;
 /// do not rewind. When an operation accepts both content and manifest/destination,
 /// those roles must use distinct <see cref="Stream"/> instances. Callers must not
 /// concurrently read, write, seek, rewind, or dispose a stream while ChunkShift is
-/// operating on it.
+/// operating on it. A read returning zero bytes is treated as end of stream; a
+/// stream whose <see cref="Stream.ReadAsync(Memory{byte}, CancellationToken)"/>
+/// returns a count outside zero to the buffer length causes
+/// <see cref="InvalidOperationException"/>.
 /// </remarks>
 public static class ChunkManifest
 {
