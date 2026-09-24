@@ -26,8 +26,10 @@
 .DS_Store
 Thumbs.db
 
-# Temporary
-tools/
+# Python / Rust reference tooling under tools/ is tracked; only build output is ignored.
+__pycache__/
+*.pyc
+tools/**/target/
 
 
 TestResults/

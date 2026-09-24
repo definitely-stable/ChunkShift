@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Fixtures\CsmV1\*.csm"
+    <None Update="Fixtures\CsmV1\*.csm;Fixtures\CsmV1\vectors.json"
           CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
