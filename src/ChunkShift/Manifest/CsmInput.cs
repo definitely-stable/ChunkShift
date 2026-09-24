@@ -96,6 +96,10 @@ internal sealed class CsmInput : IDisposable
         int completed = 0;
         while (completed < destination.Length)
         {
+            // Observe cancellation here rather than relying on the caller's
+            // stream: Stream.ReadAsync implementations may ignore the token.
+            cancellationToken.ThrowIfCancellationRequested();
+
             int read = await _source
                 .ReadAsync(destination[completed..], cancellationToken)
                 .ConfigureAwait(false);
@@ -162,6 +166,10 @@ internal sealed class CsmInput : IDisposable
         int completed = 0;
         while (completed < destination.Length)
         {
+            // Observe cancellation here rather than relying on the caller's
+            // stream: Stream.ReadAsync implementations may ignore the token.
+            cancellationToken.ThrowIfCancellationRequested();
+
             int read = await _source
                 .ReadAsync(destination[completed..], cancellationToken)
                 .ConfigureAwait(false);
@@ -180,6 +188,7 @@ internal sealed class CsmInput : IDisposable
     internal async ValueTask EnsureEofAsync(CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        cancellationToken.ThrowIfCancellationRequested();
 
         byte[] probe = new byte[1];
         int read = await _source
