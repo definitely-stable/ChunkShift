@@ -362,6 +362,21 @@ jobs:
             done
           done
 
+      # Round-to-round BDN differences are diagnosed from the generated code:
+      # print both rounds' disassembly of the methods that moved most.
+      - name: Print BDN disassembly per round
+        shell: bash
+        run: |
+          set -euo pipefail
+          for method in ChainFloor ScanLocals
+          do
+            for round in 1 2
+            do
+              echo "===== $method, BDN round $round ====="
+              find "$OUT/bdn-round$round/$method" -name '*-asm.md' -print -exec cat {} \;
+            done
+          done
+
       - name: Run f08 harness rounds
         shell: bash
         env:
