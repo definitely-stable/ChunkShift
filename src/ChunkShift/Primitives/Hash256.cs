@@ -1,7 +1,7 @@
 using System;
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
 
 namespace ChunkShift.Primitives;
 
@@ -9,6 +9,7 @@ namespace ChunkShift.Primitives;
 /// Represents an arbitrary 256-bit value (32 bytes).
 /// Every possible bit pattern is valid, including the all-zero value.
 /// </summary>
+[DebuggerDisplay("{ToHexLower(),nq}")]
 public readonly struct Hash256 : IEquatable<Hash256>
 {
     private readonly ulong _a;
@@ -153,23 +154,35 @@ public readonly struct Hash256 : IEquatable<Hash256>
     }
 
     /// <summary>
-    /// Compares this value with another using a fixed-time byte comparison.
+    /// Compares this value with another in time that does not depend on where the
+    /// values differ.
     /// </summary>
+    /// <remarks>
+    /// Use this when comparing a secret-derived or attacker-probed digest; ordinary
+    /// equality may return at the first differing word. The comparison combines all
+    /// four 64-bit words without branching and allocates nothing.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
     public bool FixedTimeEquals(Hash256 other)
     {
-        Span<byte> left = stackalloc byte[32];
-        Span<byte> right = stackalloc byte[32];
+        ulong difference =
+            (_a ^ other._a)
+            | (_b ^ other._b)
+            | (_c ^ other._c)
+            | (_d ^ other._d);
 
-        WriteBytes(left);
-        other.WriteBytes(right);
-
-        return CryptographicOperations.FixedTimeEquals(left, right);
+        return difference == 0;
     }
 
     /// <inheritdoc />
     public override bool Equals(object? obj) => obj is Hash256 other && Equals(other);
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Deliberately randomized per process (<see cref="HashCode"/>), so digests that an
+    /// attacker can choose cannot be crafted to collide in a hash table. Never persist
+    /// or compare hash codes across processes; use the 256-bit value itself.
+    /// </remarks>
     public override int GetHashCode() => HashCode.Combine(_a, _b, _c, _d);
 
     /// <summary>
