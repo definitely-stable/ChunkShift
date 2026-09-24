@@ -65,11 +65,15 @@ internal static class ChunkingKernel
         // One pooled buffer holds the pending chunk followed by bytes read but
         // not yet scanned. Reads land directly after the pending data, so a
         // chunk is hashed and handed to the sink where it was read; only the
-        // pending prefix is moved to the front when the buffer end is reached
-        // (A1-F05). Capacity is the profile maximum: a pending chunk is always
-        // shorter than that, so there is always room for at least one byte.
-        byte[] buffer = ArrayPool<byte>.Shared.Rent(chunkCapacity);
-        int readSize = Math.Min(IoBufferSize, chunkCapacity);
+        // pending prefix is moved to the front when fewer than one read's worth
+        // of space is left (A1-F05). A pending chunk is always shorter than the
+        // profile maximum, so a buffer of at least that size always has room.
+        // Small profiles get two read buffers' worth, so several chunks share a
+        // buffer and reads stay at the full read size instead of shrinking to
+        // the space left after each cut.
+        int bufferCapacity = Math.Max(chunkCapacity, 2 * IoBufferSize);
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferCapacity);
+        const int readSize = IoBufferSize;
 
         try
         {
@@ -83,7 +87,7 @@ internal static class ChunkingKernel
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (chunkCapacity - filled < readSize && chunkStart > 0)
+                if (bufferCapacity - filled < readSize && chunkStart > 0)
                 {
                     int pending = filled - chunkStart;
                     buffer.AsSpan(chunkStart, pending).CopyTo(buffer);
@@ -98,7 +102,7 @@ internal static class ChunkingKernel
                     filled = pending;
                 }
 
-                int requested = Math.Min(readSize, chunkCapacity - filled);
+                int requested = Math.Min(readSize, bufferCapacity - filled);
                 if (requested == 0)
                 {
                     // A zero-length read would look like EOF and truncate silently.
