@@ -12,9 +12,10 @@ public static class LabRunner
     private const int MeasurementIterations = 5;
 
     // Process-wide stabilization before the matrix: every measured operation
-    // shape runs for at least this many rounds and this much wall time, with a
-    // pause between rounds so tiered JIT/dynamic PGO can install optimized code
-    // in the background. Without it the first experiment of each shape ran
+    // shape runs for at least this many rounds, while the overall stabilization
+    // phase lasts at least this much wall time. A pause between rounds lets
+    // tiered JIT/dynamic PGO install optimized code in the background.
+    // Without it the first experiment of each shape ran
     // several times slower than its neighbours.
     private const int StabilizationMinimumRounds = 5;
     private static readonly TimeSpan StabilizationMinimumTime = TimeSpan.FromSeconds(3);
@@ -244,7 +245,7 @@ public static class LabRunner
 
     private static readonly string StabilizationDescription = string.Create(
         System.Globalization.CultureInfo.InvariantCulture,
-        $"before the matrix, every distinct (algorithm, chunk size, hash suite) runs both lanes over {StabilizationBytes} random bytes for at least {StabilizationMinimumRounds} rounds and {StabilizationMinimumTime.TotalSeconds:0} s, pausing {StabilizationPause.TotalMilliseconds:0} ms between rounds for background tier-up; then {WarmupIterations} warm-up iterations of each exact experiment workload per lane");
+        $"before the matrix, every distinct (algorithm, chunk size, hash suite) runs both lanes over {StabilizationBytes} random bytes for at least {StabilizationMinimumRounds} rounds; the process-wide stabilization phase lasts at least {StabilizationMinimumTime.TotalSeconds:0} s, pausing {StabilizationPause.TotalMilliseconds:0} ms between rounds for background tier-up; then {WarmupIterations} warm-up iterations of each exact experiment workload per lane");
 
     private static void StabilizeMeasuredShapes(IEnumerable<ExperimentDefinition> experiments)
     {
