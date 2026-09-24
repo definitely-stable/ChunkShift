@@ -99,6 +99,39 @@ public class ChunkingKernelStreamTests
         Assert.Equal([65536, 65536, 65536, 65536, 17], actual.Chunks.Select(static c => c.Length));
     }
 
+    [Theory]
+    [InlineData(false, 1)]
+    [InlineData(false, 1000)]
+    [InlineData(false, 100_000)]
+    [InlineData(false, 300_000)]
+    [InlineData(true, 64 * 1024)]
+    [InlineData(true, 256 * 1024)]
+    public async Task BufferEdgeCasesMatchContiguousReference(bool zeroFastCdc, int size)
+    {
+        // Fixed sizes that do not divide the 64 KiB read size, and zero input that
+        // forces FastCDC cuts at Maximum, exercise every place where the pending
+        // chunk meets the end of the single kernel buffer.
+        ChunkingKernelProfile profile = zeroFastCdc
+            ? ChunkingKernelProfile.FastCdcGear(FastCdcProfile.CreateM1Candidate(size))
+            : ChunkingKernelProfile.Fixed(size);
+        byte[] input = zeroFastCdc
+            ? new byte[(3 * profile.Maximum) + 12345]
+            : CreateXorShiftBytes(size == 1 ? 4099 : (3 * 1024 * 1024) + 7, 0x0DDBA11u);
+
+        ChunkKernelChunk[] expected = ChunkingReference.Chunk(input, profile, HashSuiteIds.Sha256V1);
+
+        foreach (int[] segmentation in new[] { new[] { int.MaxValue }, new[] { 1, 31, 4095, 2, 65535, 70001 } })
+        {
+            CollectedScan actual = await ScanAsync(
+                new SegmentedReadStream(input, segmentation),
+                profile,
+                HashSuiteIds.Sha256V1);
+
+            Assert.Equal(expected, actual.Chunks);
+            Assert.Equal(input, actual.Reconstructed);
+        }
+    }
+
     [Fact]
     public async Task FastCdc_ScalarAndStreamingAgreeAcrossProfilesSuitesSeedsAndSegmentation()
     {
@@ -204,7 +237,7 @@ public class ChunkingKernelStreamTests
     [InlineData(false, 8191)]
     [InlineData(true, 1)]
     [InlineData(true, 8191)]
-    public async Task Counters_ReportEveryByteCopiedIntoTheChunkBuffer(bool fastCdc, int readLength)
+    public async Task Counters_ReportOnlyPendingPrefixMoves(bool fastCdc, int readLength)
     {
         byte[] input = CreateXorShiftBytes(512 * 1024 + 37, 0xB17E5C0Du);
         ChunkingKernelProfile profile = fastCdc
@@ -219,10 +252,19 @@ public class ChunkingKernelStreamTests
             static (_, _, _) => ValueTask.CompletedTask,
             counters);
 
-        // The current topology copies every consumed byte once from the read
-        // buffer into the chunk buffer (A1-F05). A single-buffer topology is
-        // expected to lower this and must update the expectation deliberately.
-        Assert.Equal(input.Length, counters.BytesCopied);
+        // Single-buffer topology (A1-F05): reads land after the pending chunk,
+        // and only the pending prefix is moved when the buffer end is reached.
+        // Fixed 64 KiB chunks fill the 64 KiB buffer exactly, so nothing moves.
+        // FastCDC moves a fraction of the input; the two-buffer topology copied
+        // every byte (1.0 per input byte).
+        if (fastCdc)
+        {
+            Assert.InRange(counters.BytesCopied, 1, input.Length / 4);
+        }
+        else
+        {
+            Assert.Equal(0, counters.BytesCopied);
+        }
     }
 
     private static async Task<CollectedScan> ScanAsync(

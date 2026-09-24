@@ -468,7 +468,7 @@ public class ChunkScannerTests
     }
 
     [Fact]
-    public async Task BorrowedContent_MayBeReusedImmediatelyAfterCallbackCompletes()
+    public async Task BorrowedContent_IsReusedAfterCallbackCompletes()
     {
         byte[] input = CreateXorShiftBytes(2 * 1024 * 1024, 0xB0A0D123u);
         ReadOnlyMemory<byte> retained = default;
@@ -488,22 +488,14 @@ public class ChunkScannerTests
                     retained = content;
                     firstSnapshot = content.ToArray();
                 }
-                else if (calls == 1)
+                else if (!observedReuse)
                 {
                     Assert.NotNull(firstSnapshot);
 
-                    int commonLength = Math.Min(retained.Length, content.Length);
-                    Assert.True(commonLength > 0);
-
-                    Assert.True(
-                        retained.Span[..commonLength]
-                            .SequenceEqual(content.Span[..commonLength]));
-
-                    Assert.False(
-                        firstSnapshot.AsSpan(0, commonLength)
-                            .SequenceEqual(content.Span[..commonLength]));
-
-                    observedReuse = true;
+                    // The kernel may place later chunks anywhere in its buffer;
+                    // the contract only says the first chunk's memory is not
+                    // preserved once its callback has completed.
+                    observedReuse = !retained.Span.SequenceEqual(firstSnapshot);
                 }
 
                 calls++;

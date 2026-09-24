@@ -19,7 +19,10 @@ internal delegate ValueTask ChunkKernelSink(
 /// </summary>
 internal sealed class ChunkingKernelCounters
 {
-    /// <summary>Bytes copied from the read buffer into the chunk buffer.</summary>
+    /// <summary>
+    /// Bytes moved inside the kernel buffer: the pending chunk prefix moved to the
+    /// front when the buffer end is reached. Bytes read from the source are not counted.
+    /// </summary>
     internal long BytesCopied { get; set; }
 }
 
@@ -59,24 +62,53 @@ internal static class ChunkingKernel
                 "Chunking profile maximum must be positive.");
         }
 
-        byte[] chunkBuffer = ArrayPool<byte>.Shared.Rent(chunkCapacity);
-        byte[] ioBuffer = ArrayPool<byte>.Shared.Rent(
-            Math.Min(IoBufferSize, chunkCapacity));
+        // One pooled buffer holds the pending chunk followed by bytes read but
+        // not yet scanned. Reads land directly after the pending data, so a
+        // chunk is hashed and handed to the sink where it was read; only the
+        // pending prefix is moved to the front when the buffer end is reached
+        // (A1-F05). Capacity is the profile maximum: a pending chunk is always
+        // shorter than that, so there is always room for at least one byte.
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(chunkCapacity);
+        int readSize = Math.Min(IoBufferSize, chunkCapacity);
 
         try
         {
             var boundaryState = new ChunkBoundaryState(profile);
-            int payloadLength = 0;
+            int chunkStart = 0;
+            int scanned = 0;
+            int filled = 0;
             long chunkOffset = 0;
 
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                int requested = Math.Min(IoBufferSize, chunkCapacity);
+                if (chunkCapacity - filled < readSize && chunkStart > 0)
+                {
+                    int pending = filled - chunkStart;
+                    buffer.AsSpan(chunkStart, pending).CopyTo(buffer);
+
+                    if (counters is not null)
+                    {
+                        counters.BytesCopied += pending;
+                    }
+
+                    chunkStart = 0;
+                    scanned = pending;
+                    filled = pending;
+                }
+
+                int requested = Math.Min(readSize, chunkCapacity - filled);
+                if (requested == 0)
+                {
+                    // A zero-length read would look like EOF and truncate silently.
+                    throw new InvalidOperationException(
+                        "Pending chunk filled the kernel buffer without a boundary.");
+                }
+
                 int read = await source
                     .ReadAsync(
-                        ioBuffer.AsMemory(0, requested),
+                        buffer.AsMemory(filled, requested),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -94,33 +126,20 @@ internal static class ChunkingKernel
                     break;
                 }
 
-                int inputIndex = 0;
+                filled += read;
 
-                while (inputIndex < read)
+                while (scanned < filled)
                 {
                     ChunkBoundaryScanResult result =
-                        boundaryState.Scan(ioBuffer.AsSpan(inputIndex, read - inputIndex));
-
-                    if (result.Consumed > 0)
-                    {
-                        ioBuffer
-                            .AsSpan(inputIndex, result.Consumed)
-                            .CopyTo(chunkBuffer.AsSpan(payloadLength));
-
-                        if (counters is not null)
-                        {
-                            counters.BytesCopied += result.Consumed;
-                        }
-
-                        payloadLength += result.Consumed;
-                        inputIndex += result.Consumed;
-                    }
+                        boundaryState.Scan(buffer.AsSpan(scanned, filled - scanned));
+                    scanned += result.Consumed;
 
                     if (!result.HasBoundary)
                     {
                         continue;
                     }
 
+                    int payloadLength = scanned - chunkStart;
                     if (payloadLength != result.CompletedChunkLength)
                     {
                         throw new InvalidOperationException(
@@ -128,7 +147,8 @@ internal static class ChunkingKernel
                     }
 
                     await EmitAsync(
-                        chunkBuffer,
+                        buffer,
+                        chunkStart,
                         payloadLength,
                         chunkOffset,
                         hashSuite,
@@ -136,24 +156,25 @@ internal static class ChunkingKernel
                         cancellationToken).ConfigureAwait(false);
 
                     chunkOffset = checked(chunkOffset + payloadLength);
-                    payloadLength = 0;
+                    chunkStart = scanned;
                 }
             }
 
             int finalLength = boundaryState.Finish();
-            if (finalLength != payloadLength)
+            if (finalLength != filled - chunkStart)
             {
                 throw new InvalidOperationException(
                     "Boundary state and payload accumulation diverged at EOF.");
             }
 
-            if (payloadLength != 0)
+            if (finalLength != 0)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 await EmitAsync(
-                    chunkBuffer,
-                    payloadLength,
+                    buffer,
+                    chunkStart,
+                    finalLength,
                     chunkOffset,
                     hashSuite,
                     sink,
@@ -162,13 +183,13 @@ internal static class ChunkingKernel
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(ioBuffer);
-            ArrayPool<byte>.Shared.Return(chunkBuffer);
+            ArrayPool<byte>.Shared.Return(buffer);
         }
     }
 
     private static ValueTask EmitAsync(
-        byte[] chunkBuffer,
+        byte[] buffer,
+        int start,
         int length,
         long offset,
         HashSuiteId hashSuite,
@@ -176,10 +197,10 @@ internal static class ChunkingKernel
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Hash256 hash = HashSuiteHasher.Hash(hashSuite, chunkBuffer.AsSpan(0, length));
+        Hash256 hash = HashSuiteHasher.Hash(hashSuite, buffer.AsSpan(start, length));
         cancellationToken.ThrowIfCancellationRequested();
 
         var chunk = new ChunkKernelChunk(offset, length, new ChunkId(hash));
-        return sink(chunk, chunkBuffer.AsMemory(0, length), cancellationToken);
+        return sink(chunk, buffer.AsMemory(start, length), cancellationToken);
     }
 }
