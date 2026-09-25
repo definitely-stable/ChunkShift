@@ -1,6 +1,6 @@
 # CDC 0.1 bake-off protocol (#8)
 
-Status: **proposed; must be accepted before any real-corpus result is inspected**
+Status: **accepted** on merge of PR #106 (2026-09-25), before any real-corpus result was inspected (§12)
 Issue: [#8](https://github.com/definitely-stable/ChunkShift/issues/8)
 Inputs: [CDC-PREFREEZE-DECISION-2026-09.md](CDC-PREFREEZE-DECISION-2026-09.md) (§3, §9, §11), `benchmarks/experiments/prefreeze.v1.json`, real-corpus manifest schema 1 (`Lab/Prefreeze/RealCorpus.cs`, `PrefreezeModels.cs`)
 Baseline: `main` at `9157131`; Core semantics, API, CSM format and every ProfileId/ProfileFingerprint unchanged
@@ -66,7 +66,7 @@ The run reads a manifest in real-corpus schema 1. Each family records:
 | `retrievedUtc` | retrieval date |
 | `versions[]` | ordered oldest → newest; each with `version`, `path`, `sizeBytes`, `sha256` |
 
-`RealCorpus.Validate` rejects a manifest with a missing split, category, provenance, license or retrieval date, fewer than two versions, a duplicate family id, a missing file, a wrong size or a wrong SHA-256, before any chunking.
+`RealCorpus.Validate` rejects a manifest before any chunking when it has an empty or duplicate family id, a missing split, category, provenance, license or retrieval date, fewer than two versions, an empty or duplicate version label within a family, an empty path, a SHA-256 that is not 64 lowercase hex characters, a missing file, a wrong size or a wrong SHA-256. Version labels form the transition and evidence ids, so they must be unambiguous.
 
 Payloads never enter Git. The manifest (without payloads) and the SHA-256 list are attached to the #8 decision note so the run can be reproduced by anyone holding the same files.
 
@@ -91,7 +91,7 @@ L7 layout variants (stable vs reordered assets, per-asset vs whole-pack compress
 | 3–4 | `short-history` | yes, but its limitation is recorded |
 | 2 | `pair-only` | **no**: it can support or contradict, never decide |
 
-The target is ≥ 5 consecutive versions for the primary game family. Only real `full-history` and `short-history` families count as `selectionEligibleFamilies` in the output; pair-only and synthetic entries do not.
+The target is ≥ 5 consecutive versions for the primary game family. Only real `full-history` and `short-history` families are **selection-eligible**. Pair-only families stay in `families[]` next to the others, but the decision-level `familyComparison[]` metrics for real data are computed from eligible families only (`basis: selection-eligible`, `comparedFamilies`). A pair-only result, however extreme, cannot move those numbers. When a split has no eligible family, its comparison metrics are null.
 
 ## 5. Calibration / holdout split
 
@@ -99,7 +99,9 @@ The target is ≥ 5 consecutive versions for the primary game family. Only real 
 - It is written into the manifest **before** the first profile comparison is run on any real data, and the manifest is committed to the #8 decision record (without payloads) with its SHA-256 before results are read.
 - Each priority category that has two or more families puts at least one in each split; for example `game-family-A → calibration`, `game-family-B → holdout`.
 - After results have been viewed, the split cannot change. A family that turns out to be broken (wrong bytes, licensing problem) is **removed** with a written reason; it is not moved to the other split.
-- A run with no holdout family can calibrate but cannot select (the runner warns). A run with no calibration family is also warned about: there is nothing to calibrate against before reading the holdout.
+- Having a family in each split is not enough; each split needs **selection-eligible** evidence. The runner reports `eligibleCalibrationFamilies`, `eligibleHoldoutFamilies` and `selectionPossible`.
+- `selectionPossible` is false unless at least one eligible holdout family exists. A final selection is **impossible** from such a run: a holdout that holds only pair-only families gives no eligible evidence.
+- A run with no calibration family, or only pair-only calibration families, is warned about: there is nothing eligible to calibrate against before reading the holdout.
 - Calibration families are used to check that the candidates behave as expected and that the tooling works on real payloads. The selection in §9 reads the holdout.
 
 ## 6. Transitions and aggregation
@@ -171,7 +173,12 @@ Throughput, CPU, allocations, bytes copied and RSS are noisy and are measured se
 
 ## 9. Selection rules (read on the holdout)
 
-**Thresholds.** All comparisons use the family-level `adjacent` results. A difference on a primary metric is **relative** to the reference candidate's value on the same family: ReuseRatio `(a − b) / b`, and UniqueMissingPayloadBytes `(b − a) / b`, where lower missing bytes is better. A change is **material** when it exceeds **0.5%** relative on either primary metric. Anything smaller counts as equivalent. The thresholds are fixed here, before results exist.
+**Thresholds.** All comparisons use the family-level `adjacent` results of the same family at the same nominal target. Both primary metrics are compared as normalized ratios, in **absolute percentage points**, for candidate `a` against reference `b`:
+
+- reuse improvement: `ReuseRatio(a) − ReuseRatio(b)`;
+- missing-bytes improvement: `missing/target(b) − missing/target(a)`, where `missing/target = UniqueMissingPayloadBytes / TargetBytes` and lower is better.
+
+A change is **material** when either delta exceeds **0.5 percentage points** in absolute value. Anything smaller counts as equivalent. Absolute points stay defined when a ratio is 0, and they do not turn a tiny absolute change, such as 0.2% → 0.4%, into a large relative one. These thresholds are fixed here, before results exist.
 
 
 1. Compare the three primary size points on the holdout family table, `adjacent` scope first.
@@ -186,7 +193,7 @@ Warmed-prefix is compared with `current` on the holdout **only** as a regression
 
 Semantics are reopened only if **both** hold:
 
-- warmed-prefix improves ReuseRatio **or** UniqueMissingPayloadBytes by **more than 0.5% relative** to `current` on at least one holdout family, at the same nominal target; **and**
+- warmed-prefix improves reuse **or** missing/target by **more than 0.5 percentage points** over `current` (§9 thresholds) on at least one eligible holdout family, at the same nominal target; **and**
 - no holdout family regresses materially (§9 thresholds) under warmed-prefix on either primary metric.
 
 Otherwise the result is recorded as **rejected / lab-only**, and no Core ProfileId is created for it. The per-file `currentCutsInTransient` / `warmedCutsInTransient` columns are reported either way (CDC-PREFREEZE §3 residual risk).
@@ -203,4 +210,4 @@ The #8 decision note attaches:
 
 ## 12. Acceptance of this protocol
 
-This protocol is accepted when it is merged to `main` and #8's body references it. Real-corpus results produced before that point do not count as #8 evidence.
+This protocol was accepted when PR #106 merged to `main`, and #8's body references it. Real-corpus results produced before that point do not count as #8 evidence. Any later change to it follows the rule in the introduction: a rule changed after real-corpus results have been seen invalidates the run.

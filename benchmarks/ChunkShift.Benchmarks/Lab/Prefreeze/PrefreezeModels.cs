@@ -148,9 +148,15 @@ public sealed record PrefreezeFamilyAggregate(
     double ManifestBytesPerSourceGiB);
 
 /// <summary>
-/// Family-level results compared across families of one split with equal
+/// Family-level results compared across the families of one split with equal
 /// weight per family: the mean, and the worst family for reuse and missing bytes.
 /// </summary>
+/// <param name="Basis"><c>selection-eligible</c> for real families: the metrics
+/// cover only full-history and short-history families, so a pair-only family is
+/// reported in <c>families[]</c> but never moves the decision-level numbers.
+/// <c>synthetic</c> for synthetic lanes, which are descriptive and never select.</param>
+/// <param name="ComparedFamilies">Families the metrics cover. When it is 0 the
+/// metrics are null: there is no eligible evidence to compare.</param>
 public sealed record PrefreezeFamilyComparison(
     string Lane,
     string Split,
@@ -159,13 +165,15 @@ public sealed record PrefreezeFamilyComparison(
     string Scope,
     int Families,
     int SelectionEligibleFamilies,
-    double MeanActualMeanBytes,
-    double MeanReuseRatio,
-    double WorstReuseRatio,
-    double MeanUniqueMissingPayloadRatio,
-    double WorstUniqueMissingPayloadRatio,
-    double MeanBoundarySurvival,
-    double WorstForcedMaximumRate);
+    string Basis,
+    int ComparedFamilies,
+    double? MeanActualMeanBytes,
+    double? MeanReuseRatio,
+    double? WorstReuseRatio,
+    double? MeanUniqueMissingPayloadRatio,
+    double? WorstUniqueMissingPayloadRatio,
+    double? MeanBoundarySurvival,
+    double? WorstForcedMaximumRate);
 
 /// <summary>
 /// #99 E4: a projection of later pack/Range behaviour, not a Repository
@@ -204,10 +212,19 @@ public sealed record RealCorpusVersion(
     long SizeBytes,
     string Sha256);
 
+/// <param name="EligibleCalibrationFamilies">Calibration families with at least
+/// three versions; pair-only families never count.</param>
+/// <param name="EligibleHoldoutFamilies">Holdout families with at least three
+/// versions; pair-only families never count.</param>
+/// <param name="SelectionPossible">False unless at least one eligible holdout
+/// family exists: without it no stable profile may be selected from this run.</param>
 public sealed record RealCorpusSummary(
     int Families,
     int CalibrationFamilies,
     int HoldoutFamilies,
+    int EligibleCalibrationFamilies,
+    int EligibleHoldoutFamilies,
+    bool SelectionPossible,
     string[] PairOnlyFamilies,
     string[] ShortHistoryFamilies,
     string[] Warnings);

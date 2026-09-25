@@ -70,7 +70,7 @@ The one differing boundary (`low-entropy-runs-8m`, 128 KiB) is a warmed-candidat
 
 **Residual risk.** Periodic low-entropy content could in principle make the current candidate's transient hit systematically, cutting at `Minimum + k` where the warmed candidate would force `Maximum`. No such case appears in the 256 single-byte runs, the 7-byte pattern, the 4 KiB repeated pattern, the 4-symbol and 16-symbol alphabets or the zero runs. The real-corpus run (§9) reports `currentCutsInTransient` and `warmedCutsInTransient` per file, so a real case would be visible.
 
-**Decision rule for #8.** Revisit semantics only if the holdout real corpus shows warmed-prefix improving unique missing bytes or reuse by more than 0.5% on some family, with no family regressing. Without that evidence, the external `v2016` oracle (§5) and the existing vectors favour the current semantics.
+**Decision rule for #8.** Revisit semantics only if the holdout real corpus shows warmed-prefix improving unique missing bytes or reuse by more than 0.5% on some family, with no family regressing. Without that evidence, the external `v2016` oracle (§5) and the existing vectors favour the current semantics. [CDC-0.1-BAKEOFF-PROTOCOL.md](CDC-0.1-BAKEOFF-PROTOCOL.md) §9–§10 makes this exact: 0.5 percentage points on the normalized reuse and missing/target ratios, on selection-eligible holdout families.
 
 ## 4. Post-#98 baseline and Amdahl decomposition (A)
 

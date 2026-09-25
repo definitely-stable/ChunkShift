@@ -348,7 +348,7 @@ internal static class PrefreezeRunner
 
         if (run.RealCorpus is { } real)
         {
-            text.AppendLine(Invariant($"Real corpus: {real.Families} families ({real.CalibrationFamilies} calibration, {real.HoldoutFamilies} holdout)."));
+            text.AppendLine(Invariant($"Real corpus: {real.Families} families ({real.CalibrationFamilies} calibration, {real.HoldoutFamilies} holdout; selection-eligible {real.EligibleCalibrationFamilies} calibration, {real.EligibleHoldoutFamilies} holdout). Selection possible: {(real.SelectionPossible ? "yes" : "no")}."));
             foreach (string warning in real.Warnings)
             {
                 text.AppendLine("- warning: " + warning);
@@ -416,12 +416,15 @@ internal static class PrefreezeRunner
         text.AppendLine();
         text.AppendLine("## Across families (equal weight per family)");
         text.AppendLine();
-        text.AppendLine("| lane | split | target | candidate | scope | families | selection-eligible | mean actual | reuse mean / worst | missing/target mean / worst | survival mean | forced-max worst |");
-        text.AppendLine("|---|---|---:|---|---|---:|---:|---:|---:|---:|---:|---:|");
+        text.AppendLine("Real groups compare selection-eligible families only (full- and short-history); pair-only families appear above but never here. `n/a` means no eligible family.");
+        text.AppendLine();
+        text.AppendLine("| lane | split | target | candidate | scope | families | basis | compared | mean actual | reuse mean / worst | missing/target mean / worst | survival mean | forced-max worst |");
+        text.AppendLine("|---|---|---:|---|---|---:|---|---:|---:|---:|---:|---:|---:|");
         foreach (PrefreezeFamilyComparison c in run.FamilyComparison)
         {
+            string mean = c.MeanActualMeanBytes is { } bytes ? Invariant($"{bytes / 1024:F1} KiB") : "n/a";
             text.AppendLine(Invariant(
-                $"| {c.Lane} | {c.Split} | {Size(c.NominalTarget)} | {c.Candidate} | {c.Scope} | {c.Families} | {c.SelectionEligibleFamilies} | {c.MeanActualMeanBytes / 1024:F1} KiB | {c.MeanReuseRatio:P2} / {c.WorstReuseRatio:P2} | {c.MeanUniqueMissingPayloadRatio:P2} / {c.WorstUniqueMissingPayloadRatio:P2} | {c.MeanBoundarySurvival:P2} | {c.WorstForcedMaximumRate:P2} |"));
+                $"| {c.Lane} | {c.Split} | {Size(c.NominalTarget)} | {c.Candidate} | {c.Scope} | {c.Families} | {c.Basis} | {c.ComparedFamilies} | {mean} | {Percent(c.MeanReuseRatio)} / {Percent(c.WorstReuseRatio)} | {Percent(c.MeanUniqueMissingPayloadRatio)} / {Percent(c.WorstUniqueMissingPayloadRatio)} | {Percent(c.MeanBoundarySurvival)} | {Percent(c.WorstForcedMaximumRate)} |"));
         }
 
         text.AppendLine();
@@ -450,6 +453,8 @@ internal static class PrefreezeRunner
     private static string Size(int bytes) => bytes >= 1024 * 1024
         ? Invariant($"{bytes / (1024 * 1024)} MiB")
         : Invariant($"{bytes / 1024} KiB");
+
+    private static string Percent(double? ratio) => ratio is null ? "n/a" : Invariant($"{ratio.Value:P2}");
 
     private static string Bytes(long? bytes) => bytes is null ? "n/a" : Invariant($"{bytes.Value / 1024.0:F1} KiB");
 

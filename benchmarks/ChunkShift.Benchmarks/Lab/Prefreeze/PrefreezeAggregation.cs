@@ -37,13 +37,27 @@ internal static class PrefreezeAggregation
             .Select(group => Aggregate([.. group], group.Key.Scope, History(group.Key.Scope, group.Key.CorpusId, real)))
             .ToArray();
 
-    /// <summary>One row per (lane, split, target, candidate, scope); every family has equal weight.</summary>
+    internal const string SelectionEligibleBasis = "selection-eligible";
+
+    internal static bool IsSelectionEligible(PrefreezeFamilyAggregate family) =>
+        family.History is FullHistory or ShortHistory;
+
+    /// <summary>
+    /// One row per (lane, split, target, candidate, scope); every compared family
+    /// has equal weight. Real groups compare only selection-eligible families, so a
+    /// pair-only family can support or contradict in <c>families[]</c> but never
+    /// changes these numbers; with no eligible family the metrics are null.
+    /// </summary>
     internal static PrefreezeFamilyComparison[] AcrossFamilies(IEnumerable<PrefreezeFamilyAggregate> families) =>
         families
             .GroupBy(static family => (family.Lane, family.Split, family.NominalTarget, family.Candidate, family.Scope))
             .Select(static group =>
             {
                 PrefreezeFamilyAggregate[] members = [.. group];
+                bool synthetic = group.Key.Scope == Synthetic;
+                PrefreezeFamilyAggregate[] compared = synthetic ? members : members.Where(IsSelectionEligible).ToArray();
+                bool any = compared.Length > 0;
+
                 return new PrefreezeFamilyComparison(
                     group.Key.Lane,
                     group.Key.Split,
@@ -51,14 +65,16 @@ internal static class PrefreezeAggregation
                     group.Key.NominalTarget,
                     group.Key.Scope,
                     members.Length,
-                    members.Count(static family => family.History is FullHistory or ShortHistory),
-                    members.Average(static family => family.ActualMeanBytes),
-                    members.Average(static family => family.ReuseRatio),
-                    members.Min(static family => family.ReuseRatio),
-                    members.Average(static family => family.UniqueMissingPayloadRatio),
-                    members.Max(static family => family.UniqueMissingPayloadRatio),
-                    members.Average(static family => family.BoundarySurvival),
-                    members.Max(static family => family.ForcedMaximumRate));
+                    members.Count(IsSelectionEligible),
+                    synthetic ? Synthetic : SelectionEligibleBasis,
+                    compared.Length,
+                    any ? compared.Average(static family => family.ActualMeanBytes) : null,
+                    any ? compared.Average(static family => family.ReuseRatio) : null,
+                    any ? compared.Min(static family => family.ReuseRatio) : null,
+                    any ? compared.Average(static family => family.UniqueMissingPayloadRatio) : null,
+                    any ? compared.Max(static family => family.UniqueMissingPayloadRatio) : null,
+                    any ? compared.Average(static family => family.BoundarySurvival) : null,
+                    any ? compared.Max(static family => family.ForcedMaximumRate) : null);
             })
             .ToArray();
 
