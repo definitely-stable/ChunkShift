@@ -171,6 +171,9 @@ Throughput, CPU, allocations, bytes copied and RSS are noisy and are measured se
 
 ## 9. Selection rules (read on the holdout)
 
+**Thresholds.** All comparisons use the family-level `adjacent` results. A difference on a primary metric is **relative** to the reference candidate's value on the same family: ReuseRatio `(a − b) / b`, and UniqueMissingPayloadBytes `(b − a) / b`, where lower missing bytes is better. A change is **material** when it exceeds **0.5%** relative on either primary metric. Anything smaller counts as equivalent. The thresholds are fixed here, before results exist.
+
+
 1. Compare the three primary size points on the holdout family table, `adjacent` scope first.
 2. A size point that materially regresses reuse or missing/target on any eligible holdout family relative to another size point needs a written justification from the cost metrics (actual mean, chunks/GiB, manifest/GiB), or it is rejected.
 3. `skipped` results and the calibration families are supporting evidence. They can reveal a problem, but they do not overturn a clean holdout result on their own.
@@ -183,8 +186,8 @@ Warmed-prefix is compared with `current` on the holdout **only** as a regression
 
 Semantics are reopened only if **both** hold:
 
-- warmed-prefix improves ReuseRatio **or** UniqueMissingPayloadBytes by **more than 0.5%** on at least one holdout family; **and**
-- no holdout family regresses materially under warmed-prefix.
+- warmed-prefix improves ReuseRatio **or** UniqueMissingPayloadBytes by **more than 0.5% relative** to `current` on at least one holdout family, at the same nominal target; **and**
+- no holdout family regresses materially (§9 thresholds) under warmed-prefix on either primary metric.
 
 Otherwise the result is recorded as **rejected / lab-only**, and no Core ProfileId is created for it. The per-file `currentCutsInTransient` / `warmedCutsInTransient` columns are reported either way (CDC-PREFREEZE §3 residual risk).
 
