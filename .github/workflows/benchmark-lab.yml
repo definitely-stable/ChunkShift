@@ -72,6 +72,16 @@ jobs:
         shell: bash
         run: python3 tools/reference/fastcdc_reference.py --verify
 
+      - name: Verify frozen real-corpus materialization recipe
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_cdc_real_corpus.py \
+            --manifest docs/benchmarks/cdc-0.1-corpus/real-corpus.json \
+            --source-checksums docs/benchmarks/cdc-0.1-corpus/source-assets.sha256 \
+            --output "$RUNNER_TEMP/chunkshift-cdc-real-corpus" \
+            --check-only
+
       - name: Run deterministic lab
         shell: bash
         run: |
@@ -593,3 +603,171 @@ jobs:
               assert [d["warmedChunkSequenceDigest"] for d in x64["divergence"]] == [d["warmedChunkSequenceDigest"] for d in arm["divergence"]]
               print(f"{lane}: {len(left)} rows identical on x64 and arm64")
           PY
+
+  # #8: deterministic scorecard over the frozen real multi-version corpus.
+  # The corpus is reconstructed from upstream release assets and verified
+  # against the committed source checksums, manifest and corpus lock before
+  # any candidate is instantiated. Quality runs are real-only; synthetic #99
+  # evidence remains in cdc-prefreeze above.
+  cdc-real-prefreeze:
+    name: cdc-real-prefreeze (${{ matrix.arch }})
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'chore/8-real-corpus-bakeoff'))
+    needs: smoke
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 240
+    env:
+      OUT: artifacts/benchmarks/cdc-real-prefreeze-${{ matrix.arch }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+
+      - name: Build
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Materialize and verify frozen real corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT"
+          python3 benchmarks/scripts/materialize_cdc_real_corpus.py \
+            --manifest docs/benchmarks/cdc-0.1-corpus/real-corpus.json \
+            --source-checksums docs/benchmarks/cdc-0.1-corpus/source-assets.sha256 \
+            --output "$RUNNER_TEMP/chunkshift-cdc-real-corpus" \
+            | tee "$OUT/materialize.log"
+
+      - name: Revalidate frozen lock before measurement
+        shell: bash
+        run: |
+          set -euo pipefail
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          dotnet "$dll" prefreeze validate-real \
+            --real "$RUNNER_TEMP/chunkshift-cdc-real-corpus/real-corpus.json" \
+            --plan benchmarks/experiments/prefreeze.v1.json \
+            --lock-output "$OUT/corpus-lock.json" \
+            > "$OUT/validation.json"
+          cmp docs/benchmarks/cdc-0.1-corpus/corpus-lock.json "$OUT/corpus-lock.json"
+          python3 - <<'PY'
+          import json
+          validation = json.load(open("artifacts/benchmarks/cdc-real-prefreeze-${{ matrix.arch }}/validation.json"))
+          assert validation["selectionPossible"] is True
+          assert validation["eligibleCalibrationFamilies"] == 3
+          assert validation["eligibleHoldoutFamilies"] == 3
+          assert validation["warnings"] == []
+          print("frozen lock and eligibility verified")
+          PY
+
+      - name: Run deterministic real-corpus scorecard
+        shell: bash
+        run: |
+          set -euo pipefail
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          for lane in fine coarse
+          do
+            timeout 10800 dotnet "$dll" prefreeze \
+              --plan benchmarks/experiments/prefreeze.v1.json \
+              --lane "$lane" \
+              --real "$RUNNER_TEMP/chunkshift-cdc-real-corpus/real-corpus.json" \
+              --no-synthetic \
+              --output "$OUT/prefreeze-real-$lane.json" \
+              --markdown "$OUT/prefreeze-real-$lane.md"
+          done
+          {
+            echo "### #8 real-corpus scorecard (${{ matrix.arch }})"
+            echo
+            sed -n '1,24p' "$OUT/prefreeze-real-fine.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload deterministic real-corpus evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cdc-real-prefreeze-${{ matrix.arch }}
+          path: ${{ env.OUT }}
+          if-no-files-found: error
+          retention-days: 30
+
+  cdc-real-prefreeze-compare:
+    name: cdc-real-prefreeze-compare
+    needs: cdc-real-prefreeze
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Download deterministic real-corpus evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: cdc-real-prefreeze-*
+          path: evidence
+
+      - name: Compare deterministic evidence across architectures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          def keyed_rows(run):
+              return {
+                  (r["corpusId"], r["nominalTarget"], r["candidate"], r["mutationId"]):
+                  r["targetChunkSequenceDigest"]
+                  for r in run["rows"]
+              }
+
+          def keyed_divergence(run, field):
+              return {
+                  (r["corpusId"], r["target"]): r[field]
+                  for r in run["divergence"]
+              }
+
+          lines = []
+          for lane in ("fine", "coarse"):
+              x64 = json.load(open(f"evidence/cdc-real-prefreeze-x64/prefreeze-real-{lane}.json"))
+              arm = json.load(open(f"evidence/cdc-real-prefreeze-arm64/prefreeze-real-{lane}.json"))
+
+              assert x64["scope"] == arm["scope"] == "real"
+              assert x64["realCorpus"] == arm["realCorpus"]
+              assert keyed_rows(x64) == keyed_rows(arm), f"{lane}: x64/arm64 target chunk sequences differ"
+              assert keyed_divergence(x64, "currentChunkSequenceDigest") == keyed_divergence(
+                  arm, "currentChunkSequenceDigest"
+              ), f"{lane}: current divergence digests differ"
+              assert keyed_divergence(x64, "warmedChunkSequenceDigest") == keyed_divergence(
+                  arm, "warmedChunkSequenceDigest"
+              ), f"{lane}: warmed divergence digests differ"
+              assert x64["families"] == arm["families"], f"{lane}: family aggregates differ"
+              assert x64["familyComparison"] == arm["familyComparison"], f"{lane}: family comparisons differ"
+
+              count = len(x64["rows"])
+              lines.append(f"- {lane}: {count} real transition rows are deterministic on x64/arm64")
+
+          summary = "### #8 cross-architecture determinism\n\n" + "\n".join(lines) + "\n"
+          print(summary)
+          Path("cross-arch-summary.md").write_text(summary, encoding="utf-8")
+          PY
+          cat cross-arch-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload cross-architecture verdict
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cdc-real-prefreeze-cross-arch
+          path: cross-arch-summary.md
+          if-no-files-found: error
+          retention-days: 30
+
