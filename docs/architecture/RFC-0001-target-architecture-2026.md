@@ -234,7 +234,7 @@ Persistent identity types are semantically distinct even when they share a 256-b
 ChunkId = HashSuite.Hash(exact uncompressed chunk bytes)
 ```
 
-Compression, encryption and pack placement do not change the ChunkId.
+Compression, encryption and pack placement do not change the ChunkId. [RFC-0004](RFC-0004-core-0.1-deferred-product-concerns.md) §3 assigns compression to physical encodings only.
 
 ### 5.2 ContentId
 
@@ -676,6 +676,8 @@ CRC32C is only an accidental-corruption detector.
 A hash is not a signature.
 
 ManifestId/PatchId must be signable by an external detached-signature layer, but first-party signing is deferred until separately designed and reviewed.
+
+[RFC-0004](RFC-0004-core-0.1-deferred-product-concerns.md) §4–§5 fixes where this layer lives: a detached envelope outside CSM, with no signature in `AUX`. Anti-rollback metadata sits on the signed update-policy layer and never enters `ManifestId`.
 
 ### 13.3 Confidentiality
 

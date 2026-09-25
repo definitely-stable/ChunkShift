@@ -1,6 +1,6 @@
 # CDC pre-freeze decision note (#99) — 2026-09
 
-Status: evidence and recommendation for [#8](https://github.com/definitely-stable/ChunkShift/issues/8); **not complete** until the real-corpus part in [§10](#10-exit-criteria-status) are done
+Status: **pre-freeze semantic decision complete** ([#99](https://github.com/definitely-stable/ChunkShift/issues/99) closes on it). Final profile size, `min/target/max`, stable-profile count, stable ProfileId and the default profile are owned by [#8](https://github.com/definitely-stable/ChunkShift/issues/8), which runs the real-corpus protocol of [§9](#9-real-corpus-protocol-for-8-c-l7) (see [§11](#11-ownership-99-vs-8))
 Issue: [#99](https://github.com/definitely-stable/ChunkShift/issues/99)
 Baseline: `main` at `9c6e172` (#98 local-state/split-loop scan and #101 single-buffer kernel are merged); persisted semantics unchanged
 Local environment for the numbers below: one x64 VM (Intel Xeon @ 2.80 GHz, 4 vCPU), Ubuntu 24.04, .NET 10.0.12 runtime. Single-machine numbers are sanity checks, not release evidence. The CI jobs added here produce the x64/arm64 evidence.
@@ -12,7 +12,7 @@ Local environment for the numbers below: one x64 VM (Intel Xeon @ 2.80 GHz, 4 vC
 3. The SIMD/parallel "64-byte locality" argument **partly applies** to the current profile. After a 47-position transient per chunk, every tested position is a pure function of a 48-byte window. A two-pass candidate/reducer design that replays only this transient with scalar code matches the scalar oracle bit for bit (tested). Keeping the current semantics therefore adds a 47-byte scalar replay per chunk to a future SIMD backend (about 0.06% of bytes at a 64 KiB target), which is not a reason to change semantics.
 4. **SIMD stays post-freeze.** It is a same-profile backend and never needs a new ProfileId. The Amdahl ceiling is material on both CI architectures: boundary detection is 52–55% (BLAKE3) and 35% (SHA-256) of streaming time on x64, and 27% (BLAKE3) and 38–39% (SHA-256) on arm64 (§4). The work is handed to #14 with the gates in §7, which these numbers meet.
 5. **fastcdc-rs `v2016` is the matching external oracle; `v2020` is not.** fastcdc-rs 5.0.0's two-byte `v2020` loop never tests the last position of an odd-length final window. We found one input where `v2020` differs from `v2016`, from the ChunkShift scalar reference and from the Python reference (§5). This does not change ChunkShift semantics. It does rule out "two-byte rolling" as a same-profile optimization unless the odd EOF window is handled exactly.
-6. The default size, `min/target/max` and the stable-profile count are **not** decided here. They need the real multi-version corpus with a holdout (§9). Nominal targets measure about 1.1–1.45× their power-of-two value on high-entropy synthetic data and up to 4× on degenerate data (§6). #8 must compare **actual** means.
+6. The default size, `min/target/max` and the stable-profile count are **not** decided here. They need the real multi-version corpus with a holdout (§9), which #8 owns (§11). Nominal targets measure about 1.1–1.45× their power-of-two value on high-entropy synthetic data and up to 4× on degenerate data (§6). #8 must compare **actual** means.
 
 ## 1. What this change adds (lab only; no Core, API or format change)
 
@@ -215,15 +215,35 @@ The families to obtain are listed in #99 C: game PAK/IoStore, Unity bundles, .NE
 |---|---|
 | PR #98 accepted or rejected with measured reasons | **accepted** (§4) |
 | dedicated x64 + arm64 post-#98 boundary evidence | **done**: run 36048105886 (#98's code) and run 36087064749 (#99 head, after #101), §4 |
-| current vs warmed compared at close actual means | **done on synthetic data** (identical means, §3); **open** on real holdout |
+| current vs warmed compared at close actual means | **done on synthetic data** (identical means, §3). The real-holdout check moves to #8 under the §3 decision rule. |
 | exact statement of where Xet's 64-byte proof applies | **done** (§2): W = 48, 47-position transient, reducer replay tested. Xet's own spec was not re-fetched in this environment (egress blocked); the Xet column uses #99's description. |
-| real multi-version corpus with holdout discipline | **tooling done** (§9); **corpus open**, owned by #8 |
+| real multi-version corpus with holdout discipline | **tooling and protocol done** (§9). Obtaining the corpus and running it moves to #8 (§11). |
 | quality evaluated separately from throughput | **done** (`prefreeze` has no timing; `amdahl` has no quality) |
 | low-entropy/pathological behaviour explicit | **done** for synthetic cases (§2, §3, §6) |
 | maximum benefit of further boundary optimization quantified | **done** on CI x64 and arm64 (§4). Chunk sequences from both lanes are identical across architectures (`cdc-prefreeze-compare`). |
 | same-profile vs new-profile optimizations distinguished | **done** (§7) |
 | first stable profile independent of CSP/Repository | **yes**: nothing here depends on #7/#10/#13 |
-| #8 has enough evidence to freeze without a semantic/performance blind spot | **semantics: yes** (current). **Size/min/max: no**; this waits on the real corpus. |
+| #8 has enough evidence to freeze without a semantic/performance blind spot | **semantics: yes** (current). Size/min/max is #8's own selection on the real corpus, not a #99 blind spot. |
+
+## 11. Ownership: #99 vs #8
+
+Earlier revisions of this note kept #99 open until the real multi-version corpus had run. That corpus is #8's input, and #99 feeds #8, so each issue waited on the other. The boundary is now:
+
+| #99 owns (done in this note) | #8 owns (open) |
+|---|---|
+| Gear semantic decision: keep `fastcdc.gear.chunkshift.v1` (§2, §3) | obtaining the real version histories (§9, #99 C families) |
+| warmed-prefix comparison and its revisit rule (§3) | the calibration/holdout split, assigned before any parameter is inspected |
+| locality proof, transient length and reducer replay (§2) | the candidate size comparison at 64/128/256 KiB actual means, plus the optional coarse lane |
+| post-#98 baseline and optimization ceiling (§4) | reuse, missing-byte, resync and density metrics on real traces |
+| external `v2016` oracle (§5) | `min/target/max`, stable-profile count and the stable ProfileId |
+| same-profile vs new-profile classification (§7) | the default profile |
+| measurement methodology and tooling for #8 (§9, `prefreeze.v1.json`, real-corpus manifest schema 1) | the #8 decision note, including corpus limitations |
+
+Rules that carry over into #8:
+
+- **Warmed-prefix stays lab-only.** It gets no Core ProfileId. #8 reopens semantics only if the holdout corpus meets the §3 rule: warmed-prefix improves unique missing bytes or reuse by more than 0.5% on some family, and no family regresses.
+- The real-corpus run reports `currentCutsInTransient` and `warmedCutsInTransient` per file (§3 residual risk).
+- New-profile candidates (threshold, regression, Google/Stadia, next-generation CDC) stay in #14 (§7, §8). #8 selects parameters within the current semantics.
 
 ## Sources and evidence tiers (L10)
 
