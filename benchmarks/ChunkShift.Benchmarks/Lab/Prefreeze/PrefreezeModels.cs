@@ -228,3 +228,36 @@ public sealed record RealCorpusSummary(
     string[] PairOnlyFamilies,
     string[] ShortHistoryFamilies,
     string[] Warnings);
+
+/// <summary>
+/// Output of <c>prefreeze validate-real</c>: the manifest checks without any
+/// chunking. Digests are SHA-256 over the exact bytes of the files.
+/// </summary>
+/// <param name="ExperimentPlanSha256">Null unless <c>--plan</c> was given.</param>
+public sealed record RealCorpusValidation(
+    string ManifestSha256,
+    string? ExperimentPlanSha256,
+    int Families,
+    int CalibrationFamilies,
+    int HoldoutFamilies,
+    int EligibleCalibrationFamilies,
+    int EligibleHoldoutFamilies,
+    bool SelectionPossible,
+    string[] PairOnlyFamilies,
+    string[] ShortHistoryFamilies,
+    string[] Warnings);
+
+/// <summary>
+/// Corpus lock written before the first #8 measurement: it fixes the manifest
+/// and the candidate matrix. It holds no local paths, payload content or
+/// measured results.
+/// </summary>
+/// <param name="ProtocolBaseline">The commit that accepted the #8 bake-off protocol.</param>
+public sealed record RealCorpusLock(
+    int SchemaVersion,
+    string ManifestSha256,
+    string ExperimentPlanSha256,
+    string ProtocolBaseline,
+    int EligibleCalibrationFamilies,
+    int EligibleHoldoutFamilies,
+    bool SelectionPossible);
