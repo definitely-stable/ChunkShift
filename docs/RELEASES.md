@@ -195,7 +195,7 @@ Before enabling NuGet publication for the first time:
 1. create/configure the GitHub `release` environment;
 2. configure a nuget.org Trusted Publishing policy for this repository and workflow file `release.yml`;
 3. set `NUGET_USER` to the nuget.org profile name used by that policy;
-4. enable the repository/tag/immutable-release protections tracked by the governance issue;
+4. enable the repository/tag/immutable-release protections tracked by the governance issue [#24](https://github.com/definitely-stable/ChunkShift/issues/24); this is a hard gate for the first publication, preview or stable;
 5. run the workflow with publication disabled and inspect the exact `.nupkg`/`.snupkg` artifacts first.
 
 The workflow exchanges GitHub OIDC identity for a short-lived nuget.org API key only when publication is explicitly requested. Do not add a long-lived NuGet API key secret as the normal release path.

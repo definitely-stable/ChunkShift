@@ -265,7 +265,7 @@ Calibration rule (full text: [M0-LAB.md](docs/benchmarks/M0-LAB.md#mean-chunk-si
 - where a candidate's parameters allow (fixed-size baseline, other CDC algorithms), calibrate it to a close measured mean of the candidate it is compared against on the same corpus;
 - **never treat the nominal target as the actual mean** — the FastCDC M1 candidate measures roughly 1.1–1.3× its power-of-two target on real-like data and up to 4× on degenerate input, and cannot be tuned continuously, so exact equal-mean calibration is not always reachable; pair the closest measured means and state the ratio.
 
-Lab infrastructure for this is complete ([#67](https://github.com/definitely-stable/ChunkShift/issues/67)): streaming-kernel lane (PR #77), profile-derived maximum (PR #78), per-profile resync coverage, mean/target ratio and sample spread (PR #84), bytes copied (PR #87), same-commit comparison (PR #88), boundary-scan hardware-counter evidence (PR #92) and per-experiment process isolation (PR #93). Remaining #8 inputs are the real version-pair corpus and a broader matrix with repeated traces. The #99 pre-freeze note ([CDC-PREFREEZE-DECISION-2026-09.md](docs/benchmarks/CDC-PREFREEZE-DECISION-2026-09.md)) keeps the current Gear prefix semantics, bounds the boundary-scan Amdahl ceiling and adds the `prefreeze` scorecard with a real-corpus manifest (calibration/holdout split) that #8 runs on real multi-version traces.
+Lab infrastructure for this is complete ([#67](https://github.com/definitely-stable/ChunkShift/issues/67)): streaming-kernel lane (PR #77), profile-derived maximum (PR #78), per-profile resync coverage, mean/target ratio and sample spread (PR #84), bytes copied (PR #87), same-commit comparison (PR #88), boundary-scan hardware-counter evidence (PR #92) and per-experiment process isolation (PR #93). Remaining #8 inputs are the real version-pair corpus and a broader matrix with repeated traces. The #99 pre-freeze note ([CDC-PREFREEZE-DECISION-2026-09.md](docs/benchmarks/CDC-PREFREEZE-DECISION-2026-09.md)) keeps the current Gear prefix semantics, bounds the boundary-scan Amdahl ceiling and adds the `prefreeze` scorecard with a real-corpus manifest (calibration/holdout split) that #8 runs on real multi-version traces. #99 is complete on semantics. Its §11 moves corpus acquisition, the calibration/holdout run, size selection, the stable ProfileId and the default to #8. Warmed-prefix stays lab-only unless the holdout meets the §3 revisit rule.
 
 Output is the selected Core 0.1.0 profile semantics/ProfileId plus evidence, not a package release by itself.
 
@@ -290,7 +290,7 @@ CSP/Patching delivery is deferred.
 
 Dependencies: [#5](https://github.com/definitely-stable/ChunkShift/issues/5), [#6](https://github.com/definitely-stable/ChunkShift/issues/6), [#8](https://github.com/definitely-stable/ChunkShift/issues/8), [#17](https://github.com/definitely-stable/ChunkShift/issues/17), [#20](https://github.com/definitely-stable/ChunkShift/issues/20).
 
-Must close (owner decisions feeding this gate: [#65](https://github.com/definitely-stable/ChunkShift/issues/65); the ProfileId rule and verification matrix of [#64](https://github.com/definitely-stable/ChunkShift/issues/64) are settled in PROFILE-FINGERPRINT-V1 and CSM-V1-CANDIDATE §14):
+Must close (owner decisions feeding this gate: [#65](https://github.com/definitely-stable/ChunkShift/issues/65), decided by RFC-0004; the ProfileId rule and verification matrix of [#64](https://github.com/definitely-stable/ChunkShift/issues/64) are settled in PROFILE-FINGERPRINT-V1 and CSM-V1-CANDIDATE §14):
 
 - Core public API;
 - CSM v1;
@@ -310,6 +310,8 @@ Already on `main` for the current candidate: JIT/NativeAOT package-consumer evid
 Release mechanics that are still open decisions are tracked in [#69](https://github.com/definitely-stable/ChunkShift/issues/69): preview strategy, CLI packaging, and the package-validation/PublicAPI baseline after the first published version.
 
 CSP is **not** part of this gate.
+
+Publishing the 0.1.0 package, or any earlier preview, additionally requires [#24](https://github.com/definitely-stable/ChunkShift/issues/24): squash-only `main`, release-tag protection and immutable releases enforced on GitHub (docs/RELEASES.md §10 step 4). #24 does not block #6, #8 or #17.
 
 ## 12. Patching — [#7](https://github.com/definitely-stable/ChunkShift/issues/7)
 
