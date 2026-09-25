@@ -117,10 +117,10 @@ Completed release-evidence stage: [#68](https://github.com/definitely-stable/Chu
                                       v
                             #9 Core 0.1.0 gate  <-- #69 release decisions
                                       |
-                                      v
-                        first publication  <-- #24 repository/tag/
-                                               immutable-release enforcement
-                                      |
+                                      +------> first NuGet publication
+                                      |          (also requires #24:
+                                      |           repository/tag/immutable-
+                                      |           release enforcement)
                                       v
                            #7 Patching/CSP loop
                                       |
@@ -210,6 +210,5 @@ Order:
 
 1. run the same-commit evidence of [CORE-0.1-API-FREEZE §6](docs/architecture/CORE-0.1-API-FREEZE.md#6-same-commit-evidence-run-required-to-close-6) and close [#6](https://github.com/definitely-stable/ChunkShift/issues/6); [#65](https://github.com/definitely-stable/ChunkShift/issues/65) is decided (RFC-0004) and [#99](https://github.com/definitely-stable/ChunkShift/issues/99) handed its real-corpus part to #8;
 2. run [#8](https://github.com/definitely-stable/ChunkShift/issues/8) (real version histories → calibration/holdout → 64/128/256 KiB actual means plus the optional coarse lane → `min/target/max`, stable ProfileId, default) and [#17](https://github.com/definitely-stable/ChunkShift/issues/17) in parallel;
-3. decide [#69](https://github.com/definitely-stable/ChunkShift/issues/69) (preview strategy, CLI packaging) and close [#9](https://github.com/definitely-stable/ChunkShift/issues/9) for Core 0.1.0;
-4. complete [#24](https://github.com/definitely-stable/ChunkShift/issues/24) before the first NuGet publication, preview or stable;
-5. only then start [#7](https://github.com/definitely-stable/ChunkShift/issues/7) Patching ([#66](https://github.com/definitely-stable/ChunkShift/issues/66) writes the CSP candidate spec first).
+3. decide [#69](https://github.com/definitely-stable/ChunkShift/issues/69) (preview strategy, CLI packaging) and close [#9](https://github.com/definitely-stable/ChunkShift/issues/9) for Core 0.1.0; the first NuGet publication (preview or stable) additionally waits on [#24](https://github.com/definitely-stable/ChunkShift/issues/24), which blocks nothing else;
+4. only then start [#7](https://github.com/definitely-stable/ChunkShift/issues/7) Patching ([#66](https://github.com/definitely-stable/ChunkShift/issues/66) writes the CSP candidate spec first).

@@ -2,7 +2,7 @@
 
 Status: API audit complete. #6 closes after the same-commit evidence run of [§6](#6-same-commit-evidence-run-required-to-close-6).  
 Issue: [#6](https://github.com/definitely-stable/ChunkShift/issues/6)  
-Audited surface: `src/ChunkShift/PublicAPI.Unshipped.txt` at `main` `22252b2`, 123 entries; `PublicAPI.Shipped.txt` is empty  
+Audited surface: `src/ChunkShift/PublicAPI.Unshipped.txt` at `main` `22252b2`, 124 entries; `PublicAPI.Shipped.txt` is empty  
 Inputs: [#20](https://github.com/definitely-stable/ChunkShift/issues/20) scanner shape, [#63](https://github.com/definitely-stable/ChunkShift/issues/63) surface decisions (PRs #95, #96), [#64](https://github.com/definitely-stable/ChunkShift/issues/64) profile/verification contract (PR #97), [RFC-0004](RFC-0004-core-0.1-deferred-product-concerns.md) (#65)
 
 ## 1. What "freeze" means here
