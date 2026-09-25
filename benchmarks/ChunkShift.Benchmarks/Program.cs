@@ -1,5 +1,6 @@
 using BenchmarkDotNet.Running;
 using ChunkShift.Benchmarks.Lab;
+using ChunkShift.Benchmarks.Lab.Prefreeze;
 
 namespace ChunkShift.Benchmarks;
 
@@ -36,6 +37,16 @@ internal static class Program
             return BoundaryScanHarness.Run(args[1..]);
         }
 
+        if (string.Equals(mode, "amdahl", StringComparison.OrdinalIgnoreCase))
+        {
+            return AmdahlHarness.Run(args[1..]);
+        }
+
+        if (string.Equals(mode, "prefreeze", StringComparison.OrdinalIgnoreCase))
+        {
+            return PrefreezeRunner.Run(args[1..]);
+        }
+
         PrintUsage();
         return 2;
     }
@@ -47,5 +58,7 @@ internal static class Program
         Console.WriteLine("  lab --corpus <manifest.json> --experiments <experiments.json> --output <result.json> [--isolate | --only <id>]");
         Console.WriteLine("  compare --left <lab.json> --right <lab.json> [--allow-unversioned]");
         Console.WriteLine("  f08 --variant <name> --target <bytes> [--seconds 5] [--warmup-seconds 3] [--perf-ctl <fifo> --perf-ack <fifo>]");
+        Console.WriteLine("  amdahl [--target <bytes>]... [--rounds 3] [--seconds 2] [--warmup-seconds 2]");
+        Console.WriteLine("  prefreeze --plan <plan.json> --output <result.json> [--markdown <summary.md>] [--lane <name>] [--real <real-corpus.json>] [--no-synthetic]");
     }
 }

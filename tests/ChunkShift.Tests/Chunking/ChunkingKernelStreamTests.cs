@@ -26,6 +26,30 @@ public class ChunkingKernelStreamTests
         Assert.Equal(input, actual.Reconstructed);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(65536)]
+    public async Task FastCdc_OddFinalWindowTestsItsLastPosition(int segment)
+    {
+        // The last position of an odd final window is a boundary candidate
+        // (FASTCDC-V1-CANDIDATE §4). fastcdc-rs 5.0.0 v2020's two-byte loop
+        // never tests it and returns one 16387-byte chunk for this input;
+        // v2016 and the independent Python reference agree with the split
+        // below (#99, tools/reference).
+        byte[] input = new byte[16 * 1024 + 3];
+        input[^3] = 2;
+        input[^2] = 255;
+        input[^1] = 65;
+        ChunkingKernelProfile profile = ChunkingKernelProfile.FastCdcGear(FastCdcProfile.CreateM1Candidate(64 * 1024));
+
+        ChunkKernelChunk[] expected = ChunkingReference.Chunk(input, profile, HashSuiteIds.Blake3256V1);
+        CollectedScan actual = await ScanAsync(new SegmentedReadStream(input, [segment]), profile, HashSuiteIds.Blake3256V1);
+
+        Assert.Equal([(0L, 16386), (16386L, 1)], expected.Select(static chunk => (chunk.Offset, chunk.Length)));
+        Assert.Equal(expected, actual.Chunks);
+    }
+
     [Fact]
     public async Task FastCdc_RandomShortReadsMatchContiguousReference()
     {
