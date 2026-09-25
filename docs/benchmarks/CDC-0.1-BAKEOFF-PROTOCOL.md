@@ -13,7 +13,7 @@ This document fixes how #8 measures and decides **before** the measurements exis
 |---|---|
 | algorithm semantics are `fastcdc.gear.chunkshift.v1` | CDC-PREFREEZE §2, FASTCDC-V1-CANDIDATE |
 | prefix semantics are current: zero Gear state at `Minimum`, prefix `[0, Minimum)` unhashed | CDC-PREFREEZE §2, §3 |
-| warmed-prefix is lab-only and gets no Core ProfileId; it is a regression guard (§8 here), not a contender | CDC-PREFREEZE §3, §11 |
+| warmed-prefix is lab-only and gets no Core ProfileId; it is a regression guard (§10 here), not a contender | CDC-PREFREEZE §3, §11 |
 | SIMD, two-pass and pipeline parallelism are post-freeze same-profile optimizations | CDC-PREFREEZE §7 |
 | new CDC algorithms (VectorCDC, SeqCDC, WideCDC, Chonkers, threshold/regression Gear, Google/Stadia Gear) belong to #14 | CDC-PREFREEZE §7, §8 |
 
@@ -42,7 +42,7 @@ Primary (all with current `fastcdc.gear.chunkshift.v1` semantics):
 Controls:
 
 - `fixed` at the same nominal sizes (lower bound on content-defined value);
-- `warmed-prefix` at the same nominal sizes, **only** for the §8 regression guard.
+- `warmed-prefix` at the same nominal sizes, **only** for the §10 regression guard.
 
 The coarse lane (512 KiB / 1 MiB / 2 MiB) runs as exploratory evidence. It can motivate a later profile but cannot by itself be selected as the 0.1.0 default.
 
@@ -91,7 +91,7 @@ L7 layout variants (stable vs reordered assets, per-asset vs whole-pack compress
 | 3–4 | `short-history` | yes, but its limitation is recorded |
 | 2 | `pair-only` | **no**: it can support or contradict, never decide |
 
-The target is ≥ 5 consecutive versions for the primary game family. Pair-only families are counted separately (`selectionEligibleFamilies` in the output).
+The target is ≥ 5 consecutive versions for the primary game family. Only real `full-history` and `short-history` families count as `selectionEligibleFamilies` in the output; pair-only and synthetic entries do not.
 
 ## 5. Calibration / holdout split
 

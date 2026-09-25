@@ -72,8 +72,14 @@ public class PrefreezeRunnerTests
         Assert.StartsWith("lab.", warmed.ProfileId, StringComparison.Ordinal);
         Assert.Equal(GearCandidate.WarmedAlgorithmId, warmed.Algorithm);
 
+        // Synthetic families are aggregated too, but never count toward selection.
+        Assert.All(first.Families, static family => Assert.Equal(PrefreezeAggregation.Synthetic, family.History));
+        Assert.All(first.FamilyComparison, static comparison => Assert.Equal(0, comparison.SelectionEligibleFamilies));
+
         string markdown = PrefreezeRunner.Summarize(first);
         Assert.Contains("Current vs warmed-prefix", markdown, StringComparison.Ordinal);
+        Assert.Contains("## Family-level results", markdown, StringComparison.Ordinal);
+        Assert.Contains("## Across families", markdown, StringComparison.Ordinal);
     }
 
     [Fact]

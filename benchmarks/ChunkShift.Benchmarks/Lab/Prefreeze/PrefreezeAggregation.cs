@@ -51,7 +51,7 @@ internal static class PrefreezeAggregation
                     group.Key.NominalTarget,
                     group.Key.Scope,
                     members.Length,
-                    members.Count(static family => family.History != PairOnly),
+                    members.Count(static family => family.History is FullHistory or ShortHistory),
                     members.Average(static family => family.ActualMeanBytes),
                     members.Average(static family => family.ReuseRatio),
                     members.Min(static family => family.ReuseRatio),
