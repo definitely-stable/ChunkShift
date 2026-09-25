@@ -1,10 +1,10 @@
 # CDC 0.1 real corpus (#8): CORPUS FROZEN
 
-Status: **corpus frozen before any real-corpus measurement.** No `prefreeze --real` run, candidate chunking, profile comparison or runtime bake-off has been executed on these payloads.
+Status: **freeze record.** The corpus was frozen by PR #108 before any real-corpus measurement. The first deterministic measurement was later completed by PR #109; see [CDC-0.1-REAL-BAKEOFF-2026-09.md](CDC-0.1-REAL-BAKEOFF-2026-09.md). Runtime guardrails have not yet been run.
 Issue: [#8](https://github.com/definitely-stable/ChunkShift/issues/8) · Protocol: [CDC-0.1-BAKEOFF-PROTOCOL.md](CDC-0.1-BAKEOFF-PROTOCOL.md) (§4, §5)
 Baseline: `main` at `697c881`; protocol baseline `80058a1177306817ed06c95143a3c54bf16229bd` (PR #106)
 
-This note records the real multi-version corpus for the #8 bake-off, its calibration/holdout split and the lock. It holds no measurement result.
+This note records the real multi-version corpus for the #8 bake-off, its calibration/holdout split and the lock as they existed before results were observed. Measurement results live in the separate deterministic evidence note linked above; the manifest and lock here remain unchanged.
 
 ## 1. Lock
 
@@ -100,4 +100,4 @@ Then run `prefreeze validate-real` (§1). It fails on any byte difference.
 
 ## 6. Change rule after this commit
 
-From this commit on, the calibration/holdout assignment, the version lists, the family set, `prefreeze.v1.json`, the materiality threshold and the candidate set stay as locked. A family found broken (wrong bytes, licensing problem) is removed with a written reason, never moved to the other split (protocol §5). Any other change needs a documented reason and a new lock before any result is read.
+The calibration/holdout assignment, version lists, family set, `prefreeze.v1.json`, materiality threshold and candidate set were locked before PR #109 produced the first result. Results have now been read. Under the protocol introduction and §5, changing those inputs or decision rules would invalidate the PR #109 bake-off; a broken family may only be removed with a written reason and is never moved to the other split. Any amended experiment must explicitly record the invalidation and establish a new lock/holdout before replacement results are interpreted.
