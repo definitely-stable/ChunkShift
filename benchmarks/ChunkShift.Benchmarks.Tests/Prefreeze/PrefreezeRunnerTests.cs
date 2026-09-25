@@ -72,8 +72,14 @@ public class PrefreezeRunnerTests
         Assert.StartsWith("lab.", warmed.ProfileId, StringComparison.Ordinal);
         Assert.Equal(GearCandidate.WarmedAlgorithmId, warmed.Algorithm);
 
+        // Synthetic families are aggregated too, but never count toward selection.
+        Assert.All(first.Families, static family => Assert.Equal(PrefreezeAggregation.Synthetic, family.History));
+        Assert.All(first.FamilyComparison, static comparison => Assert.Equal(0, comparison.SelectionEligibleFamilies));
+
         string markdown = PrefreezeRunner.Summarize(first);
         Assert.Contains("Current vs warmed-prefix", markdown, StringComparison.Ordinal);
+        Assert.Contains("## Family-level results", markdown, StringComparison.Ordinal);
+        Assert.Contains("## Across families", markdown, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -124,6 +130,103 @@ public class PrefreezeRunnerTests
             Assert.All(
                 run.Rows.Where(static row => row.MutationKind == "version-adjacent" && row.Candidate != PrefreezeCandidate.Fixed),
                 static row => Assert.True(row.ReuseRatio > 0.5));
+
+            // One family-level result per (candidate, scope); raw rows stay.
+            Assert.Equal(3 * 2, run.Families.Length);
+            Assert.All(run.Families, static family => Assert.Equal(PrefreezeAggregation.ShortHistory, family.History));
+            Assert.Equal(
+                [3, 3, 3],
+                run.Families.Where(static family => family.Scope == PrefreezeAggregation.Adjacent).Select(static family => family.Transitions));
+            Assert.Equal(
+                [3, 3, 3],
+                run.Families.Where(static family => family.Scope == PrefreezeAggregation.Skipped).Select(static family => family.Transitions));
+            Assert.All(run.FamilyComparison, static comparison => Assert.Equal(1, comparison.Families));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void FamiliesHaveEqualWeightWhateverTheirTransitionCount()
+    {
+        // Family "long" has three transitions with reuse 0; family "mid" has one
+        // with reuse 1. Pooling the rows would give 0.25; per family, 0.5.
+        PrefreezeRow[] rows =
+        [
+            Row("long", "1->2", reusedBytes: 0, missingBytes: 100),
+            Row("long", "2->3", reusedBytes: 0, missingBytes: 100),
+            Row("long", "3->4", reusedBytes: 0, missingBytes: 100),
+            Row("mid", "1->2", reusedBytes: 100, missingBytes: 0),
+        ];
+        var real = new RealCorpusSummary(2, 0, 2, 0, 2, true, [], ["mid"], []);
+
+        PrefreezeFamilyAggregate[] families = PrefreezeAggregation.ByFamily(rows, real);
+        PrefreezeFamilyComparison comparison = Assert.Single(PrefreezeAggregation.AcrossFamilies(families));
+
+        Assert.Equal(PrefreezeAggregation.ShortHistory, families.Single(static family => family.FamilyId == "mid").History);
+        Assert.Equal(PrefreezeAggregation.FullHistory, families.Single(static family => family.FamilyId == "long").History);
+        Assert.Equal(300, families.Single(static family => family.FamilyId == "long").UniqueMissingPayloadBytes);
+        Assert.Equal(2, comparison.ComparedFamilies);
+        Assert.Equal(0.5, comparison.MeanReuseRatio!.Value, 12);
+        Assert.Equal(0, comparison.WorstReuseRatio!.Value, 12);
+        Assert.Equal(0.5, comparison.MeanUniqueMissingPayloadRatio!.Value, 12);
+        Assert.Equal(1, comparison.WorstUniqueMissingPayloadRatio!.Value, 12);
+    }
+
+    [Fact]
+    public void ExtremePairOnlyFamilyNeverMovesTheEligibleComparison()
+    {
+        PrefreezeRow[] eligible =
+        [
+            Row("long", "1->2", reusedBytes: 90, missingBytes: 10),
+            Row("mid", "1->2", reusedBytes: 70, missingBytes: 30),
+        ];
+
+        // Reuse 0 and missing 100%: the worst possible family, but pair-only.
+        PrefreezeRow[] withPair = [.. eligible, Row("pair", "1->2", reusedBytes: 0, missingBytes: 100)];
+        var real = new RealCorpusSummary(3, 0, 3, 0, 2, true, ["pair"], ["mid"], []);
+
+        PrefreezeFamilyComparison without = Assert.Single(PrefreezeAggregation.AcrossFamilies(PrefreezeAggregation.ByFamily(eligible, real)));
+        PrefreezeFamilyAggregate[] families = PrefreezeAggregation.ByFamily(withPair, real);
+        PrefreezeFamilyComparison with = Assert.Single(PrefreezeAggregation.AcrossFamilies(families));
+
+        // The pair-only family is still reported at family level.
+        Assert.Equal(PrefreezeAggregation.PairOnly, families.Single(static family => family.FamilyId == "pair").History);
+        Assert.Equal(3, with.Families);
+        Assert.Equal(2, with.SelectionEligibleFamilies);
+        Assert.Equal(2, with.ComparedFamilies);
+        Assert.Equal(PrefreezeAggregation.SelectionEligibleBasis, with.Basis);
+
+        // Every decision-level number is unchanged.
+        Assert.Equal(without with { Families = 3 }, with);
+        Assert.Equal(0.8, with.MeanReuseRatio!.Value, 12);
+        Assert.Equal(0.7, with.WorstReuseRatio!.Value, 12);
+        Assert.Equal(0.3, with.WorstUniqueMissingPayloadRatio!.Value, 12);
+    }
+
+    [Fact]
+    public void HoldoutOnlyPairIsLabelledAsUnableToCalibrateOrSelect()
+    {
+        string directory = Directory.CreateTempSubdirectory("chunkshift-prefreeze-").FullName;
+
+        try
+        {
+            string manifestPath = WriteFamily(directory, versions: 2, split: RealCorpus.Holdout, corruptDigest: false);
+
+            PrefreezeRun run = PrefreezeRunner.Execute(SmallPlan(), null, synthetic: false, manifestPath, TextWriter.Null);
+
+            Assert.Equal(["game"], run.RealCorpus!.PairOnlyFamilies);
+            Assert.Contains(run.RealCorpus.Warnings, static warning => warning.StartsWith("no calibration", StringComparison.Ordinal));
+            Assert.Contains(run.RealCorpus.Warnings, static warning => warning.StartsWith("pair-only", StringComparison.Ordinal));
+            Assert.False(run.RealCorpus.SelectionPossible);
+            Assert.All(run.FamilyComparison, static comparison =>
+            {
+                Assert.Equal(0, comparison.SelectionEligibleFamilies);
+                Assert.Equal(0, comparison.ComparedFamilies);
+                Assert.Null(comparison.MeanReuseRatio);
+            });
         }
         finally
         {
@@ -134,20 +237,80 @@ public class PrefreezeRunnerTests
     [Theory]
     [InlineData("corrupt-digest")]
     [InlineData("no-split")]
+    [InlineData("uppercase-digest")]
+    [InlineData("short-digest")]
+    [InlineData("duplicate-version")]
+    [InlineData("empty-version")]
+    [InlineData("empty-path")]
+    [InlineData("empty-id")]
     public void RealCorpusManifestIsRejectedBeforeAnyChunking(string defect)
     {
         string directory = Directory.CreateTempSubdirectory("chunkshift-prefreeze-").FullName;
 
         try
         {
-            string manifestPath = WriteFamily(
-                directory,
-                versions: 2,
-                split: defect == "no-split" ? "" : RealCorpus.Holdout,
-                corruptDigest: defect == "corrupt-digest");
+            string manifestPath = WriteFamilies(directory, defect, ("game", 3, RealCorpus.Holdout));
 
             Assert.Throws<InvalidOperationException>(() =>
                 PrefreezeRunner.Execute(SmallPlan(), null, synthetic: false, manifestPath, TextWriter.Null));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void PairOnlyHoldoutCannotSelectEvenWithAnEligibleCalibrationFamily()
+    {
+        string directory = Directory.CreateTempSubdirectory("chunkshift-prefreeze-").FullName;
+
+        try
+        {
+            string manifestPath = WriteFamilies(
+                directory, null, ("game-a", 5, RealCorpus.Calibration), ("game-b", 2, RealCorpus.Holdout));
+
+            PrefreezeRun run = PrefreezeRunner.Execute(SmallPlan(), null, synthetic: false, manifestPath, TextWriter.Null);
+
+            Assert.Equal(1, run.RealCorpus!.EligibleCalibrationFamilies);
+            Assert.Equal(0, run.RealCorpus.EligibleHoldoutFamilies);
+            Assert.False(run.RealCorpus.SelectionPossible);
+            Assert.Contains(run.RealCorpus.Warnings, static warning => warning.StartsWith("no selection-eligible holdout", StringComparison.Ordinal));
+            Assert.All(
+                run.FamilyComparison.Where(static comparison => comparison.Split == RealCorpus.Holdout),
+                static comparison =>
+                {
+                    Assert.Equal(0, comparison.ComparedFamilies);
+                    Assert.Null(comparison.MeanReuseRatio);
+                    Assert.Null(comparison.WorstUniqueMissingPayloadRatio);
+                });
+            Assert.Contains("Selection possible: no", PrefreezeRunner.Summarize(run), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void PairOnlyCalibrationIsWarnedButDoesNotBlockAnEligibleHoldout()
+    {
+        string directory = Directory.CreateTempSubdirectory("chunkshift-prefreeze-").FullName;
+
+        try
+        {
+            string manifestPath = WriteFamilies(
+                directory, null, ("game-a", 2, RealCorpus.Calibration), ("game-b", 3, RealCorpus.Holdout));
+
+            PrefreezeRun run = PrefreezeRunner.Execute(SmallPlan(), null, synthetic: false, manifestPath, TextWriter.Null);
+
+            Assert.Equal(0, run.RealCorpus!.EligibleCalibrationFamilies);
+            Assert.Equal(1, run.RealCorpus.EligibleHoldoutFamilies);
+            Assert.True(run.RealCorpus.SelectionPossible);
+            Assert.Contains(run.RealCorpus.Warnings, static warning => warning.StartsWith("no selection-eligible calibration", StringComparison.Ordinal));
+            Assert.All(
+                run.FamilyComparison.Where(static comparison => comparison.Split == RealCorpus.Calibration),
+                static comparison => Assert.Equal(0, comparison.ComparedFamilies));
         }
         finally
         {
@@ -182,6 +345,13 @@ public class PrefreezeRunnerTests
         }
     }
 
+    private static PrefreezeRow Row(string family, string transition, long reusedBytes, long missingBytes) => new(
+        "real", false, family, "game-pak", RealCorpus.Holdout, PrefreezeCandidate.Current, "algorithm", "profile", "fingerprint",
+        65536, 16384, 262144, $"{family}:{transition}", "version-adjacent",
+        100, 100, 1, 100, 1, 0, 100, 100, 100, 100, 0, 0, 1, reusedBytes / 100.0, reusedBytes, reusedBytes / 100.0,
+        null, ResynchronizationStatuses.NotApplicable, 0, 0, ChangedBytesBases.None, missingBytes, 0,
+        new DistributionProjection([], 0, []), "digest");
+
     private static PrefreezePlan SmallPlan() => new(
         1,
         HashSuiteIds.Blake3256V1.Value,
@@ -201,29 +371,60 @@ public class PrefreezeRunnerTests
             new PrefreezeMutation("edit", "boundary-edit", 1, 0, "boundary", 0),
         ]);
 
-    private static string WriteFamily(string directory, int versions, string split, bool corruptDigest)
-    {
-        byte[] content = Generate("random", 256 * 1024);
-        var entries = new List<RealCorpusVersion>();
+    private static string WriteFamily(string directory, int versions, string split, bool corruptDigest) =>
+        WriteFamilies(directory, corruptDigest ? "corrupt-digest" : null, ("game", versions, split));
 
-        for (int version = 0; version < versions; version++)
+    /// <summary>Writes each family under its own folder; <paramref name="defect"/> breaks the first family.</summary>
+    private static string WriteFamilies(string directory, string? defect, params (string Id, int Versions, string Split)[] families)
+    {
+        var written = new List<RealCorpusFamily>();
+
+        foreach ((string id, int versions, string split) in families)
         {
-            if (version > 0)
+            Directory.CreateDirectory(Path.Combine(directory, id));
+            byte[] content = Generate("random", 256 * 1024);
+            var entries = new List<RealCorpusVersion>();
+
+            for (int version = 0; version < versions; version++)
             {
-                content = MutationGenerator.Apply(content, new MutationDefinition("insert", 3000, (ulong)(100 + version))).Target;
+                if (version > 0)
+                {
+                    content = MutationGenerator.Apply(content, new MutationDefinition("insert", 3000, (ulong)(100 + version))).Target;
+                }
+
+                string file = $"{id}/v{version}.bin";
+                File.WriteAllBytes(Path.Combine(directory, file), content);
+                string digest = Convert.ToHexStringLower(SHA256.HashData(content));
+                entries.Add(new RealCorpusVersion($"1.{version}", file, content.Length, digest));
             }
 
-            string file = $"v{version}.bin";
-            File.WriteAllBytes(Path.Combine(directory, file), content);
-            string digest = Convert.ToHexStringLower(SHA256.HashData(content));
-            entries.Add(new RealCorpusVersion($"1.{version}", file, content.Length, corruptDigest ? new string('0', 64) : digest));
+            if (written.Count == 0 && defect is not null)
+            {
+                RealCorpusVersion first = entries[0];
+                entries[0] = defect switch
+                {
+                    "corrupt-digest" => first with { Sha256 = new string('0', 64) },
+                    "uppercase-digest" => first with { Sha256 = first.Sha256.ToUpperInvariant() },
+                    "short-digest" => first with { Sha256 = first.Sha256[..63] },
+                    "duplicate-version" => first with { Version = entries[1].Version },
+                    "empty-version" => first with { Version = " " },
+                    "empty-path" => first with { Path = "" },
+                    _ => first,
+                };
+            }
+
+            written.Add(new RealCorpusFamily(
+                defect == "empty-id" && written.Count == 0 ? "" : id,
+                "game-pak",
+                defect == "no-split" && written.Count == 0 ? "" : split,
+                "generated by test",
+                "test-only",
+                "2026-09-25",
+                [.. entries]));
         }
 
-        var manifest = new RealCorpusManifest(
-            1,
-            [new RealCorpusFamily("game", "game-pak", split, "generated by test", "test-only", "2026-09-25", [.. entries])]);
         string path = Path.Combine(directory, "real-corpus.json");
-        File.WriteAllText(path, JsonSerializer.Serialize(manifest, Json));
+        File.WriteAllText(path, JsonSerializer.Serialize(new RealCorpusManifest(1, [.. written]), Json));
         return path;
     }
 

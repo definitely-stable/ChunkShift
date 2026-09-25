@@ -208,6 +208,6 @@ Order:
 
 ## Immediate work order
 
-1. run [#8](https://github.com/definitely-stable/ChunkShift/issues/8) (real version histories → calibration/holdout → 64/128/256 KiB actual means plus the optional coarse lane → `min/target/max`, stable ProfileId, default) and [#17](https://github.com/definitely-stable/ChunkShift/issues/17) in parallel;
+1. run [#8](https://github.com/definitely-stable/ChunkShift/issues/8) (real version histories → calibration/holdout → 64/128/256 KiB actual means plus the optional coarse lane → `min/target/max`, stable ProfileId, default) under the pre-registered [CDC-0.1-BAKEOFF-PROTOCOL](docs/benchmarks/CDC-0.1-BAKEOFF-PROTOCOL.md), accepted before any real result is read, and [#17](https://github.com/definitely-stable/ChunkShift/issues/17) in parallel;
 2. decide [#69](https://github.com/definitely-stable/ChunkShift/issues/69) (preview strategy, CLI packaging) and close [#9](https://github.com/definitely-stable/ChunkShift/issues/9) for Core 0.1.0; the first NuGet publication (preview or stable) additionally waits on [#24](https://github.com/definitely-stable/ChunkShift/issues/24), which blocks nothing else;
 3. only then start [#7](https://github.com/definitely-stable/ChunkShift/issues/7) Patching ([#66](https://github.com/definitely-stable/ChunkShift/issues/66) writes the CSP candidate spec first).

@@ -101,6 +101,8 @@ internal static class PrefreezeRunner
             RunReal(plan, manifest, baseDirectory, targets, hashSuite, rows, divergence, log);
         }
 
+        PrefreezeFamilyAggregate[] families = PrefreezeAggregation.ByFamily(rows, realSummary);
+
         return new PrefreezeRun(
             SchemaVersion,
             DateTimeOffset.UtcNow,
@@ -115,7 +117,9 @@ internal static class PrefreezeRunner
             plan,
             realSummary,
             [.. divergence],
-            [.. rows]);
+            [.. rows],
+            families,
+            PrefreezeAggregation.AcrossFamilies(families));
     }
 
     private static void RunSyntheticLane(
@@ -344,7 +348,7 @@ internal static class PrefreezeRunner
 
         if (run.RealCorpus is { } real)
         {
-            text.AppendLine(Invariant($"Real corpus: {real.Families} families ({real.CalibrationFamilies} calibration, {real.HoldoutFamilies} holdout)."));
+            text.AppendLine(Invariant($"Real corpus: {real.Families} families ({real.CalibrationFamilies} calibration, {real.HoldoutFamilies} holdout; selection-eligible {real.EligibleCalibrationFamilies} calibration, {real.EligibleHoldoutFamilies} holdout). Selection possible: {(real.SelectionPossible ? "yes" : "no")}."));
             foreach (string warning in real.Warnings)
             {
                 text.AppendLine("- warning: " + warning);
@@ -395,6 +399,35 @@ internal static class PrefreezeRunner
         }
 
         text.AppendLine();
+        text.AppendLine("## Family-level results");
+        text.AppendLine();
+        text.AppendLine("One row per family: its transitions are aggregated first, so every family has equal weight below. Missing bytes are a chunk-level lower bound, not a patch size.");
+        text.AppendLine();
+        text.AppendLine("| lane | family | split | history | target | candidate | scope | n | actual mean | chunks/GiB | reuse | missing bytes | missing/target | survival | resync p50 / p95 / p99 / max | forced-max | manifest/GiB |");
+        text.AppendLine("|---|---|---|---|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
+        foreach (PrefreezeFamilyAggregate f in run.Families)
+        {
+            DistributionSummary? r = f.ResynchronizationDistance;
+            string resync = r is null ? "n/a" : $"{Bytes(r.P50)} / {Bytes(r.P95)} / {Bytes(r.P99)} / {Bytes(r.Max)}";
+            text.AppendLine(Invariant(
+                $"| {f.Lane} | {f.FamilyId} | {f.Split} | {f.History} | {Size(f.NominalTarget)} | {f.Candidate} | {f.Scope} | {f.Transitions} | {f.ActualMeanBytes / 1024:F1} KiB | {f.ChunksPerGiB:F0} | {f.ReuseRatio:P2} | {f.UniqueMissingPayloadBytes / 1024.0:F1} KiB | {f.UniqueMissingPayloadRatio:P2} | {f.BoundarySurvival:P2} | {resync} | {f.ForcedMaximumRate:P2} | {f.ManifestBytesPerSourceGiB / 1024:F1} KiB |"));
+        }
+
+        text.AppendLine();
+        text.AppendLine("## Across families (equal weight per family)");
+        text.AppendLine();
+        text.AppendLine("Real groups compare selection-eligible families only (full- and short-history); pair-only families appear above but never here. `n/a` means no eligible family.");
+        text.AppendLine();
+        text.AppendLine("| lane | split | target | candidate | scope | families | basis | compared | mean actual | reuse mean / worst | missing/target mean / worst | survival mean | forced-max worst |");
+        text.AppendLine("|---|---|---:|---|---|---:|---|---:|---:|---:|---:|---:|---:|");
+        foreach (PrefreezeFamilyComparison c in run.FamilyComparison)
+        {
+            string mean = c.MeanActualMeanBytes is { } bytes ? Invariant($"{bytes / 1024:F1} KiB") : "n/a";
+            text.AppendLine(Invariant(
+                $"| {c.Lane} | {c.Split} | {Size(c.NominalTarget)} | {c.Candidate} | {c.Scope} | {c.Families} | {c.Basis} | {c.ComparedFamilies} | {mean} | {Percent(c.MeanReuseRatio)} / {Percent(c.WorstReuseRatio)} | {Percent(c.MeanUniqueMissingPayloadRatio)} / {Percent(c.WorstUniqueMissingPayloadRatio)} | {Percent(c.MeanBoundarySurvival)} | {Percent(c.WorstForcedMaximumRate)} |"));
+        }
+
+        text.AppendLine();
         text.AppendLine("## Distribution projection (E4; projection, not a Repository measurement)");
         text.AppendLine();
         text.AppendLine("| lane | split | target | candidate | chunks / 64 MiB pack | missing chunks | ranges gap 0 / 64K / 1M | downloaded vs missing, gap 1M |");
@@ -420,6 +453,8 @@ internal static class PrefreezeRunner
     private static string Size(int bytes) => bytes >= 1024 * 1024
         ? Invariant($"{bytes / (1024 * 1024)} MiB")
         : Invariant($"{bytes / 1024} KiB");
+
+    private static string Percent(double? ratio) => ratio is null ? "n/a" : Invariant($"{ratio.Value:P2}");
 
     private static string Bytes(long? bytes) => bytes is null ? "n/a" : Invariant($"{bytes.Value / 1024.0:F1} KiB");
 

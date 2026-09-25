@@ -39,6 +39,11 @@ internal static class RealCorpus
             throw new InvalidOperationException("Real-corpus manifest lists no families.");
         }
 
+        if (manifest.Families.Any(static family => string.IsNullOrWhiteSpace(family.Id)))
+        {
+            throw new InvalidOperationException("Every real-corpus family needs a non-empty id.");
+        }
+
         if (manifest.Families.DistinctBy(static family => family.Id).Count() != manifest.Families.Length)
         {
             throw new InvalidOperationException("Real-corpus family ids must be unique.");
@@ -66,8 +71,27 @@ internal static class RealCorpus
                 throw new InvalidOperationException($"Family '{family.Id}' needs at least two versions.");
             }
 
+            // Version labels form the transition and evidence ids, so they must
+            // be unambiguous; digests must be canonical before any comparison.
+            if (family.Versions.Any(static version => string.IsNullOrWhiteSpace(version.Version)) ||
+                family.Versions.DistinctBy(static version => version.Version).Count() != family.Versions.Length)
+            {
+                throw new InvalidOperationException($"Family '{family.Id}' needs non-empty, unique version labels.");
+            }
+
             foreach (RealCorpusVersion version in family.Versions)
             {
+                if (string.IsNullOrWhiteSpace(version.Path))
+                {
+                    throw new InvalidOperationException($"Family '{family.Id}' version '{version.Version}' has no path.");
+                }
+
+                if (!IsCanonicalSha256(version.Sha256))
+                {
+                    throw new InvalidOperationException(
+                        $"Family '{family.Id}' version '{version.Version}': SHA-256 must be 64 lowercase hex characters.");
+                }
+
                 string path = Resolve(baseDirectory, version.Path);
                 var info = new FileInfo(path);
 
@@ -80,7 +104,7 @@ internal static class RealCorpus
                 using FileStream stream = info.OpenRead();
                 string actual = Convert.ToHexStringLower(SHA256.HashData(stream));
 
-                if (!string.Equals(actual, version.Sha256, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(actual, version.Sha256, StringComparison.Ordinal))
                 {
                     throw new InvalidOperationException(
                         $"Family '{family.Id}' version '{version.Version}': SHA-256 {actual} does not match the manifest.");
@@ -89,11 +113,26 @@ internal static class RealCorpus
         }
 
         int holdout = manifest.Families.Count(static family => family.Split == Holdout);
+        int eligibleCalibration = manifest.Families.Count(static family => family.Split == Calibration && IsSelectionEligible(family));
+        int eligibleHoldout = manifest.Families.Count(static family => family.Split == Holdout && IsSelectionEligible(family));
         var warnings = new List<string>();
 
         if (holdout == 0)
         {
             warnings.Add("no holdout family: these results can calibrate candidates but cannot select the stable profile");
+        }
+        else if (eligibleHoldout == 0)
+        {
+            warnings.Add("no selection-eligible holdout family (all holdout families are pair-only): the stable profile cannot be selected from this run");
+        }
+
+        if (holdout == manifest.Families.Length)
+        {
+            warnings.Add("no calibration family: calibrate candidates on a separate family before reading the holdout");
+        }
+        else if (eligibleCalibration == 0)
+        {
+            warnings.Add("no selection-eligible calibration family (all calibration families are pair-only)");
         }
 
         string[] pairOnly = manifest.Families.Where(static family => family.Versions.Length == 2).Select(static family => family.Id).ToArray();
@@ -111,6 +150,9 @@ internal static class RealCorpus
             manifest.Families.Length,
             manifest.Families.Length - holdout,
             holdout,
+            eligibleCalibration,
+            eligibleHoldout,
+            eligibleHoldout > 0,
             pairOnly,
             shortHistory,
             [.. warnings]);
@@ -127,6 +169,12 @@ internal static class RealCorpus
             }
         }
     }
+
+    /// <summary>A pair-only family can support or contradict, never select (protocol §4.3).</summary>
+    internal static bool IsSelectionEligible(RealCorpusFamily family) => family.Versions.Length > 2;
+
+    private static bool IsCanonicalSha256(string? value) =>
+        value is { Length: 64 } && value.All(static c => c is (>= '0' and <= '9') or (>= 'a' and <= 'f'));
 
     internal static string Resolve(string baseDirectory, string path) =>
         Path.IsPathRooted(path) ? path : Path.GetFullPath(Path.Combine(baseDirectory, path));
