@@ -5,7 +5,7 @@ Last reviewed: 2026-09-24
 
 Authority:
 
-- architecture/persisted contracts: [RFC-0001](docs/architecture/RFC-0001-target-architecture-2026.md), [RFC-0002](docs/architecture/RFC-0002-embedded-sdk-aspnet-core.md), [RFC-0003](docs/architecture/RFC-0003-core-first-release.md);
+- architecture/persisted contracts: [RFC-0001](docs/architecture/RFC-0001-target-architecture-2026.md), [RFC-0002](docs/architecture/RFC-0002-embedded-sdk-aspnet-core.md), [RFC-0003](docs/architecture/RFC-0003-core-first-release.md), [RFC-0004](docs/architecture/RFC-0004-core-0.1-deferred-product-concerns.md);
 - executable milestone acceptance: [PLAN.md](PLAN.md);
 - live completion tracking: [#1](https://github.com/definitely-stable/ChunkShift/issues/1);
 - package/tag policy: [docs/RELEASES.md](docs/RELEASES.md);

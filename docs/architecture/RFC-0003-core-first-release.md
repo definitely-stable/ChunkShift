@@ -52,6 +52,8 @@ The following move to the Patching stage:
 
 This is a product/package boundary decision, not a rejection of those capabilities.
 
+Progress reporting for one-shot operations, compression, authenticity and anti-rollback are also outside Core 0.1.0. [RFC-0004](RFC-0004-core-0.1-deferred-product-concerns.md) records why each can be added later without breaking Core and which layer owns it.
+
 ## 4. Release sequence
 
 The program order is:

@@ -11,6 +11,7 @@ Normative architecture:
 - [RFC-0001 — Target Architecture](docs/architecture/RFC-0001-target-architecture-2026.md)
 - [RFC-0002 — Embedded Scanner / ASP.NET Boundary](docs/architecture/RFC-0002-embedded-sdk-aspnet-core.md)
 - [RFC-0003 — Core-first Public Release](docs/architecture/RFC-0003-core-first-release.md)
+- [RFC-0004 — Product concerns deliberately outside Core 0.1.0](docs/architecture/RFC-0004-core-0.1-deferred-product-concerns.md)
 
 This file owns **milestone deliverables, tests, benchmarks and exit criteria**. Detailed implementation acceptance belongs in the linked GitHub issue.
 
