@@ -1,6 +1,6 @@
 # CDC pre-freeze decision note (#99) — 2026-09
 
-Status: evidence and recommendation for [#8](https://github.com/definitely-stable/ChunkShift/issues/8); **not complete** until the real-corpus and CI cross-architecture parts in [§10](#10-exit-criteria-status) are done
+Status: evidence and recommendation for [#8](https://github.com/definitely-stable/ChunkShift/issues/8); **not complete** until the real-corpus part in [§10](#10-exit-criteria-status) are done
 Issue: [#99](https://github.com/definitely-stable/ChunkShift/issues/99)
 Baseline: `main` at `9c6e172` (#98 local-state/split-loop scan and #101 single-buffer kernel are merged); persisted semantics unchanged
 Local environment for the numbers below: one x64 VM (Intel Xeon @ 2.80 GHz, 4 vCPU), Ubuntu 24.04, .NET 10.0.12 runtime. Single-machine numbers are sanity checks, not release evidence. The CI jobs added here produce the x64/arm64 evidence.
@@ -10,7 +10,7 @@ Local environment for the numbers below: one x64 VM (Intel Xeon @ 2.80 GHz, 4 vC
 1. **Keep `fastcdc.gear.chunkshift.v1` semantics (zero Gear state at `Minimum`, prefix `[0, Minimum)` unhashed) as the stable semantic base.** Do not adopt the warmed-prefix variant.
 2. The difference between the two semantics is limited to the first **47** tested positions after `Minimum` for every release-candidate preset (§2). On the synthetic plan, the two produce identical chunk sequences in 1,229 of 1,254 (corpus, target, mutation) cells. The 25 remaining cells come from one shifted boundary, and their reuse, missing-byte, resync and survival metrics are identical (§3).
 3. The SIMD/parallel "64-byte locality" argument **partly applies** to the current profile. After a 47-position transient per chunk, every tested position is a pure function of a 48-byte window. A two-pass candidate/reducer design that replays only this transient with scalar code matches the scalar oracle bit for bit (tested). Keeping the current semantics therefore adds a 47-byte scalar replay per chunk to a future SIMD backend (about 0.06% of bytes at a 64 KiB target), which is not a reason to change semantics.
-4. **SIMD stays post-freeze.** It is a same-profile backend and never needs a new ProfileId. The Amdahl ceiling is material on the BLAKE3 path (boundary detection is about 50% of streaming time locally) and small on SHA-256 (about 16%) (§4). The work is handed to #14 with the gates in §7.
+4. **SIMD stays post-freeze.** It is a same-profile backend and never needs a new ProfileId. The Amdahl ceiling is material on both CI architectures: boundary detection is 52–55% (BLAKE3) and 35% (SHA-256) of streaming time on x64, and 27% (BLAKE3) and 38–39% (SHA-256) on arm64 (§4). The work is handed to #14 with the gates in §7, which these numbers meet.
 5. **fastcdc-rs `v2016` is the matching external oracle; `v2020` is not.** fastcdc-rs 5.0.0's two-byte `v2020` loop never tests the last position of an odd-length final window. We found one input where `v2020` differs from `v2016`, from the ChunkShift scalar reference and from the Python reference (§5). This does not change ChunkShift semantics. It does rule out "two-byte rolling" as a same-profile optimization unless the odd EOF window is handled exactly.
 6. The default size, `min/target/max` and the stable-profile count are **not** decided here. They need the real multi-version corpus with a holdout (§9). Nominal targets measure about 1.1–1.45× their power-of-two value on high-entropy synthetic data and up to 4× on degenerate data (§6). #8 must compare **actual** means.
 
@@ -76,6 +76,18 @@ The one differing boundary (`low-entropy-runs-8m`, 128 KiB) is a warmed-candidat
 
 - **PR #98 is accepted as the baseline.** It is merged (`9e7fd3a`). The dedicated `boundary-scan-f08` x64/arm64 rerun on its code (workflow_dispatch run 36048105886, recorded in [BOUNDARY-SCAN-F08-EVIDENCE-2026-09-24.md](BOUNDARY-SCAN-F08-EVIDENCE-2026-09-24.md#follow-up-a1-f01--a1-f03-applied)) measured `Scan` at 0.418/0.378 ns/B on x64 and 0.342/0.344 ns/B on arm64 (64/256 KiB), with ScalarLocals/ChainFloor at 1.49–1.64 (x64) and 1.23 (arm64). The golden vectors, CSM identities and JIT/NativeAOT package-smoke identities did not change.
 - `boundary-scan-f08` previously ran only on `perf/f08*` branches, which is why #98's own PR skipped it. It now also runs on `issue-99` branches, and the new `cdc-prefreeze` job runs `amdahl` on x64 and arm64.
+- **#99 head rerun** (PR #103, benchmark-lab run 36087064749, merge commit `c958cc6` of `99e6a3d` into `9c6e172`, i.e. after #98 and #101). Harness medians, ns/B, 64/256 KiB: `Scan` 0.426/0.386 on x64 and 0.342/0.342 on arm64; ScalarLocals/ChainFloor (F07 gate) 1.50–1.51/1.64 on x64 and 1.23/1.24 on arm64. This reproduces run 36048105886 within a few percent. x64 BDN rounds are excluded again by the agreement rule. The arm64 counters give 6.24 instructions/B for `Scan`, the same as ScalarLocals. A1-F07 therefore stays unjustified.
+
+CI `amdahl` from the same run (`cdc-prefreeze`, GitHub-hosted `ubuntu-24.04` / `ubuntu-24.04-arm`, .NET 10.0.12; 3 rounds, median), ns per input byte:
+
+| arch | target | streaming+BLAKE3 | boundary | BLAKE3 | residual | **boundary share (BLAKE3)** | streaming+SHA-256 | SHA-256 | **boundary share (SHA-256)** |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| x64 | 64 KiB | 0.629 | 0.327 | 0.279 | 0.023 | **51.9%** (≤ 2.08×) | 0.931 | 0.558 | **35.1%** (≤ 1.54×) |
+| x64 | 256 KiB | 0.598 | 0.327 | 0.233 | 0.038 | **54.6%** (≤ 2.20×) | 0.924 | 0.553 | **35.3%** (≤ 1.55×) |
+| arm64 | 64 KiB | 1.265 | 0.343 | 0.847 | 0.075 | **27.1%** (≤ 1.37×) | 0.888 | 0.470 | **38.7%** (≤ 1.63×) |
+| arm64 | 256 KiB | 1.255 | 0.341 | 0.825 | 0.089 | **27.2%** (≤ 1.37×) | 0.894 | 0.464 | **38.2%** (≤ 1.62×) |
+
+On both CI architectures, SHA-256 is hardware-accelerated. The boundary scan is therefore a larger share of the SHA-256 path there than on the local VM below, whose SHA-256 ran at 2.5 ns/B. On arm64, BLAKE3 costs 0.83 ns/B against 0.23–0.28 on x64, so the boundary share of the BLAKE3 path is lower. On every row, eliminating further copies can gain at most the 4–7% residual.
 
 Local `amdahl` (3 rounds, alternating order, ≥ 64 warmup calls, median; 16 MiB random data; production `ChunkBoundaryState`/`ChunkingKernel` at `9c6e172`), ns per input byte:
 
@@ -89,7 +101,7 @@ Local `amdahl` (3 rounds, alternating order, ≥ 64 warmup calls, median; 16 MiB
 | 64 KiB | 3.166 | 0.521 | 2.527 | 0.117 | **16.5%** | 1.20× |
 | 256 KiB | 3.138 | 0.511 | 2.511 | 0.116 | **16.3%** | 1.19× |
 
-"Even infinitely fast boundary detection can improve the full scan by at most" about **50% of wall time on the BLAKE3 path and about 16% on the SHA-256 path** on this machine. After #101 the copy/buffering residual is about 10% of the BLAKE3 path, so eliminating further copies has a smaller ceiling than boundary work does.
+"Even infinitely fast boundary detection can improve the full scan by at most": **52–55% of wall time (x64) and 27% (arm64) on the BLAKE3 path, and 35% (x64) and 38–39% (arm64) on the SHA-256 path** on the CI runners. On the local VM, without SHA extensions, the figures are about 50% for BLAKE3 and 16% for SHA-256. After #101 the copy/buffering residual is about 10% of the BLAKE3 path, so eliminating further copies has a smaller ceiling than boundary work does.
 
 Caveats:
 
@@ -151,7 +163,7 @@ Findings:
 | bounds-check/codegen review on x64/arm64 | same profile | F08 disassembly job exists; no change proposed |
 | two-byte rolling (F07/v2020 style) | same profile **only with exact odd-EOF handling** | F08 gate still > 1.15 on CI runners, so not justified yet; §5 adds the correctness trap |
 | multiple independent Gear heads / ILP | same profile | via the two-pass design below; not prototyped |
-| two-pass SIMD candidate finder + scalar reducer | same profile, **with a 47-position transient replay** | oracle and tests in `GearCutters.ChunkTwoPass`. Gate: CI `amdahl` shows boundary ≥ 25% of the canonical path on both architectures, and the complete streaming path, not the candidate scan alone, must improve. Note that a speculative pass-1 over all bytes also evaluates the 22% prefix bytes the scalar loop skips. |
+| two-pass SIMD candidate finder + scalar reducer | same profile, **with a 47-position transient replay** | oracle and tests in `GearCutters.ChunkTwoPass`. Gate: CI `amdahl` shows boundary ≥ 25% of the canonical path on both architectures (met in run 36087064749: 27–55%), and the complete streaming path, not the candidate scan alone, must improve. Note that a speculative pass-1 over all bytes also evaluates the 22% prefix bytes the scalar loop skips. |
 | pipeline parallelism (ParaSync-style) | same profile | post-freeze; ordering, bounded memory and no public worker/SIMD knobs |
 | warmed-prefix Gear | **new profile** | rejected for 0.1.0 (§3); stays as a lab candidate |
 | threshold predicate, regression chunking, Google/Stadia Gear | **new profile** | #14, lab-only comparator first |
@@ -202,13 +214,13 @@ The families to obtain are listed in #99 C: game PAK/IoStore, Unity bundles, .NE
 | #99 exit criterion | status |
 |---|---|
 | PR #98 accepted or rejected with measured reasons | **accepted** (§4) |
-| dedicated x64 + arm64 post-#98 boundary evidence | **done** for #98's code (run 36048105886). The job now also runs on `issue-99` branches for the #99 head. |
+| dedicated x64 + arm64 post-#98 boundary evidence | **done**: run 36048105886 (#98's code) and run 36087064749 (#99 head, after #101), §4 |
 | current vs warmed compared at close actual means | **done on synthetic data** (identical means, §3); **open** on real holdout |
 | exact statement of where Xet's 64-byte proof applies | **done** (§2): W = 48, 47-position transient, reducer replay tested. Xet's own spec was not re-fetched in this environment (egress blocked); the Xet column uses #99's description. |
 | real multi-version corpus with holdout discipline | **tooling done** (§9); **corpus open**, owned by #8 |
 | quality evaluated separately from throughput | **done** (`prefreeze` has no timing; `amdahl` has no quality) |
 | low-entropy/pathological behaviour explicit | **done** for synthetic cases (§2, §3, §6) |
-| maximum benefit of further boundary optimization quantified | **done locally** (§4); **CI x64/arm64** via `cdc-prefreeze` |
+| maximum benefit of further boundary optimization quantified | **done** on CI x64 and arm64 (§4). Chunk sequences from both lanes are identical across architectures (`cdc-prefreeze-compare`). |
 | same-profile vs new-profile optimizations distinguished | **done** (§7) |
 | first stable profile independent of CSP/Repository | **yes**: nothing here depends on #7/#10/#13 |
 | #8 has enough evidence to freeze without a semantic/performance blind spot | **semantics: yes** (current). **Size/min/max: no**; this waits on the real corpus. |
