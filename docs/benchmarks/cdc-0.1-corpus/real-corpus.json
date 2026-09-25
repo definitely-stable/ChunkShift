@@ -1,0 +1,293 @@
+{
+  "schemaVersion": 1,
+  "families": [
+    {
+      "id": "game-mindustry-assets",
+      "category": "game/pak-like assets",
+      "split": "calibration",
+      "provenance": "Mindustry by Anuken (Java game on the Arc engine, Anuken's libGDX fork). Payload is the release asset 'assets.jar' downloaded unmodified from the official GitHub Releases of Anuken/Mindustry (https://github.com/Anuken/Mindustry/releases/download/<tag>/assets.jar). Six consecutive public releases 'v8 Build 160' to '160.5' (tags v160, v160.1, v160.2, v160.3, v160.4, v160.5; none marked pre-release). The jar is the game's standalone asset pack: a ZIP with about 5.7k entries, every entry individually DEFLATE-compressed (no stored entries), entry order identical across the six versions, all entry timestamps fixed at 1980-02-01. Content by compressed bytes: PNG sprites and packed texture atlases (already compressed, then deflated again), .msav maps, .woff fonts, .properties locale bundles. No upstream checksum is published; bytes are the TLS download from GitHub. Game/PAK-like because it is a real per-asset-compressed game asset container.",
+      "license": "GPL-3.0 (Mindustry repository LICENSE; the bundled assets ship under the repository licence)",
+      "retrievedUtc": "2026-09-25",
+      "versions": [
+        {
+          "version": "v160",
+          "path": "payloads/game-mindustry-assets/v160-assets.jar",
+          "sizeBytes": 35605427,
+          "sha256": "7763cdd98875b5c24b4eb553f470cb76f9bdb1ccc9b2ece6560d7430cfe287d8"
+        },
+        {
+          "version": "v160.1",
+          "path": "payloads/game-mindustry-assets/v160.1-assets.jar",
+          "sizeBytes": 35603070,
+          "sha256": "e650c3f69743258148f790c8fc43f5760a0ea7b0f98269b4b990218a75369c24"
+        },
+        {
+          "version": "v160.2",
+          "path": "payloads/game-mindustry-assets/v160.2-assets.jar",
+          "sizeBytes": 35603166,
+          "sha256": "797e8de7f59284ab3ea3ba125194335dc2e5924a6ad02ab2bbcffff4ff54f13d"
+        },
+        {
+          "version": "v160.3",
+          "path": "payloads/game-mindustry-assets/v160.3-assets.jar",
+          "sizeBytes": 35603597,
+          "sha256": "bb17bfd550d51236e534dd4e0cb4015ca6d6c356c3f8b8174141d0352e71815f"
+        },
+        {
+          "version": "v160.4",
+          "path": "payloads/game-mindustry-assets/v160.4-assets.jar",
+          "sizeBytes": 35610336,
+          "sha256": "802e946b7bd48181409f848ad7001cad4b34453ca4cd02d16c7a4e5beeb443a4"
+        },
+        {
+          "version": "v160.5",
+          "path": "payloads/game-mindustry-assets/v160.5-assets.jar",
+          "sizeBytes": 35610136,
+          "sha256": "e816419e3ed3ec99adbcf5f3aea187639729b4a894748b15fa87e78d5c290469"
+        }
+      ]
+    },
+    {
+      "id": "game-openrct2-linux",
+      "category": "game/pak-like assets",
+      "split": "holdout",
+      "provenance": "OpenRCT2 (open-source C++ re-implementation of RollerCoaster Tycoon 2, OpenRCT2 team; engine and producer independent of Mindustry). Source asset is the official GitHub Releases file OpenRCT2-<tag>-Linux-noble-x86_64.tar.gz for six consecutive public releases v0.5.0 to v0.5.5; each download matched the SHA-256 in the release's own OpenRCT2-<tag>-sha256sums.txt. Payload is that tarball with only the outer gzip layer removed (gzip -dc; the tar bytes are otherwise exactly as produced upstream). The tar is an uncompressed container of the full game build: engine binaries (openrct2, libopenrct2.so) plus the data/ tree with g2.dat sprites, tracks.dat, .parkobj objects and .parkap asset packs (ZIP-based, internally compressed), .parkseq title sequences, languages and docs. Producer layout: tar member order is NOT stable between releases (only ~6% of common members keep their relative order in adjacent versions), member set changes by 0 to 17 entries per release. Game/PAK-like because it is a real shipped game-data container with mixed compressed and uncompressed members.",
+      "license": "GPL-3.0 (OpenRCT2 doc/licence.txt); bundled third-party components under their own licences as listed in doc/readme.txt",
+      "retrievedUtc": "2026-09-25",
+      "versions": [
+        {
+          "version": "v0.5.0",
+          "path": "payloads/game-openrct2-linux/v0.5.0-noble-x86_64.tar",
+          "sizeBytes": 118097920,
+          "sha256": "95aa41885662f5f6f59c833f539f3f444914144eb6fe92851d887d38f417f364"
+        },
+        {
+          "version": "v0.5.1",
+          "path": "payloads/game-openrct2-linux/v0.5.1-noble-x86_64.tar",
+          "sizeBytes": 118282240,
+          "sha256": "3b98da17b76a27746e7c45d56a150a535bc898ca6e518946bb05b84ad5a33e30"
+        },
+        {
+          "version": "v0.5.2",
+          "path": "payloads/game-openrct2-linux/v0.5.2-noble-x86_64.tar",
+          "sizeBytes": 118272000,
+          "sha256": "289b687fe43cbc221d9dfadfe2e5c4896ef98e746312d6743cbf7bdcfb0720a1"
+        },
+        {
+          "version": "v0.5.3",
+          "path": "payloads/game-openrct2-linux/v0.5.3-noble-x86_64.tar",
+          "sizeBytes": 118906880,
+          "sha256": "e7152044eb58d182a2f4efd32ef0ca03a2838900752b96d6172ca49ee8dbeb61"
+        },
+        {
+          "version": "v0.5.4",
+          "path": "payloads/game-openrct2-linux/v0.5.4-noble-x86_64.tar",
+          "sizeBytes": 118988800,
+          "sha256": "89927a75551b8b14fcf6f3d1666bf9e9413cc1df4b376cd628e95069653629e1"
+        },
+        {
+          "version": "v0.5.5",
+          "path": "payloads/game-openrct2-linux/v0.5.5-noble-x86_64.tar",
+          "sizeBytes": 119203840,
+          "sha256": "61471f4ee62e0de34f1bf4a60322c33b38318df7382a1eb035eaf23c9a112eae"
+        }
+      ]
+    },
+    {
+      "id": "dotnet-powershell-linux",
+      "category": "executable/app bundles",
+      "split": "holdout",
+      "provenance": "PowerShell by Microsoft (PowerShell/PowerShell). Source asset is the official GitHub Releases file powershell-<version>-linux-x64.tar.gz for six consecutive servicing releases of the 7.4 LTS line, v7.4.15 to v7.4.20 (all stable, none pre-release); each download matched the SHA-256 printed in its release notes. Payload is that tarball with only the outer gzip layer removed (gzip -dc). Content: a self-contained .NET 8 application build (about 670 members, ~185 MB): managed IL assemblies (System.Management.Automation.dll, Roslyn, framework assemblies), native runtime libraries (libcoreclr.so and others), XML docs and modules; members stored uncompressed in the tar. Producer layout: tar member order partly changes between releases (~54% of common members keep their relative order in adjacent versions). Application-build family because consecutive servicing builds of one shipped .NET application are compared.",
+      "license": "MIT (PowerShell LICENSE.txt); bundled .NET runtime under MIT",
+      "retrievedUtc": "2026-09-25",
+      "versions": [
+        {
+          "version": "v7.4.15",
+          "path": "payloads/dotnet-powershell-linux/v7.4.15-linux-x64.tar",
+          "sizeBytes": 185507840,
+          "sha256": "6946fa19d51b552db136a5634e6955773eb82deece1379c727ea9eae962a6d99"
+        },
+        {
+          "version": "v7.4.16",
+          "path": "payloads/dotnet-powershell-linux/v7.4.16-linux-x64.tar",
+          "sizeBytes": 185600000,
+          "sha256": "615a811587a55ddc1b30fb3c0fb435fef4dfafed7496cbec64c6cb76f35aa748"
+        },
+        {
+          "version": "v7.4.17",
+          "path": "payloads/dotnet-powershell-linux/v7.4.17-linux-x64.tar",
+          "sizeBytes": 185610240,
+          "sha256": "2096991f1cff9b606963358d8ce5987a080763a826b7b166f7d037d4e18aa8fb"
+        },
+        {
+          "version": "v7.4.18",
+          "path": "payloads/dotnet-powershell-linux/v7.4.18-linux-x64.tar",
+          "sizeBytes": 185630720,
+          "sha256": "59ee1afee420a9c661424a828bd8c913b7ff7927385ed2fe679f92d529c6e558"
+        },
+        {
+          "version": "v7.4.19",
+          "path": "payloads/dotnet-powershell-linux/v7.4.19-linux-x64.tar",
+          "sizeBytes": 185671680,
+          "sha256": "e44ce0e4dc5f7a6f94cd4d69244dc60b1e7a61009c25e4cbc5a063467b5e50bb"
+        },
+        {
+          "version": "v7.4.20",
+          "path": "payloads/dotnet-powershell-linux/v7.4.20-linux-x64.tar",
+          "sizeBytes": 185671680,
+          "sha256": "06aecdbd70559fbcc30ab13da2b3c46843980f8c41705c7f85ae58f3addf2767"
+        }
+      ]
+    },
+    {
+      "id": "installer-notepadpp-x64",
+      "category": "installers/archives",
+      "split": "calibration",
+      "provenance": "Notepad++ by Don Ho (notepad-plus-plus/notepad-plus-plus). Payload is the release asset npp.<version>.Installer.x64.exe downloaded unmodified from the official GitHub Releases, for seven consecutive public releases v8.9.6, v8.9.6.1, v8.9.6.2, v8.9.6.4, v8.9.7, v8.9.8, v8.9.8.1 (no 8.9.6.3 release exists); each download matched the SHA-256 in the release's npp.<version>.checksums.sha256. Producer format: Authenticode-signed NSIS installer whose payload is a solid LZMA stream, so almost all bytes are compressed. Packaging pipeline change inside the history: installers up to 8.9.6.4 are built with NSIS 3.11, from 8.9.7 on with NSIS 3.12. Installer/archive family because it is a real shipped installer history.",
+      "license": "GPL-3.0 (Notepad++ LICENSE/COPYING)",
+      "retrievedUtc": "2026-09-25",
+      "versions": [
+        {
+          "version": "v8.9.6",
+          "path": "payloads/installer-notepadpp-x64/v8.9.6-installer-x64.exe",
+          "sizeBytes": 6895920,
+          "sha256": "2ff794611c96ebbeb116ecd1ca4b97183435287bf7c24eef96c4fe2b11e5b8a0"
+        },
+        {
+          "version": "v8.9.6.1",
+          "path": "payloads/installer-notepadpp-x64/v8.9.6.1-installer-x64.exe",
+          "sizeBytes": 6899648,
+          "sha256": "d8414ee7a38dd3a88c1d7479d115f7e2dc142970f995cb6d34e9c6f104b245c7"
+        },
+        {
+          "version": "v8.9.6.2",
+          "path": "payloads/installer-notepadpp-x64/v8.9.6.2-installer-x64.exe",
+          "sizeBytes": 6898288,
+          "sha256": "7c243203265ce8fdac76c839bf744ae35dcf620760eb97c2ea279af498560e45"
+        },
+        {
+          "version": "v8.9.6.4",
+          "path": "payloads/installer-notepadpp-x64/v8.9.6.4-installer-x64.exe",
+          "sizeBytes": 6899264,
+          "sha256": "cb902f8a9628324dbe5233b5202e716ea469720c9a1ac968007df2288e4ed2ea"
+        },
+        {
+          "version": "v8.9.7",
+          "path": "payloads/installer-notepadpp-x64/v8.9.7-installer-x64.exe",
+          "sizeBytes": 6933184,
+          "sha256": "1884e093bae261c4942210334e1f2eae71354913e4ded3cc1a4a18c5320741ec"
+        },
+        {
+          "version": "v8.9.8",
+          "path": "payloads/installer-notepadpp-x64/v8.9.8-installer-x64.exe",
+          "sizeBytes": 6953384,
+          "sha256": "7b2a949bf460fb37a3888c9048698f43222a185a48323023df1c51e78a3ca1c2"
+        },
+        {
+          "version": "v8.9.8.1",
+          "path": "payloads/installer-notepadpp-x64/v8.9.8.1-installer-x64.exe",
+          "sizeBytes": 6963432,
+          "sha256": "26f3bcced788fadbac4e7e577b430ea2ce6060cf3bcad993ef4612ecd7d743da"
+        }
+      ]
+    },
+    {
+      "id": "structured-icu4c-data",
+      "category": "DB/VM/data files",
+      "split": "holdout",
+      "provenance": "ICU4C common data package (Unicode ICU project) as published on npmjs.org in package 'icu4c-data' (author Unicode's ICU-TC; the package used by Node.js full-icu). Source asset is the registry tarball icu4c-data-0.<major>.2.tgz for seven consecutive ICU major releases 61 to 67 (npm versions 0.61.2 ... 0.67.2; the .2 builds carry the little-endian file); each tarball matched the npm registry sha512 integrity. Payload is the single file package/icudt<major>l.dat extracted from that tarball, byte-for-byte. Format: ICU common-data archive, an uncompressed structured binary with a table of contents over many data items (CLDR locale resource bundles, collation, break-iteration, converter tables). Every major release regenerates the data from a new CLDR/Unicode version, so adjacent versions are real but broad structured changes. Structured-binary data family; it is not a database or VM image.",
+      "license": "Unicode/ICU licence (COPYRIGHT AND PERMISSION NOTICE, ICU 58 and later; permissive, MIT-style)",
+      "retrievedUtc": "2026-09-25",
+      "versions": [
+        {
+          "version": "icu61",
+          "path": "payloads/structured-icu4c-data/icu61-icudt61l.dat",
+          "sizeBytes": 26888544,
+          "sha256": "d3b818cd726aa499aa9b0ded05963c98372daa10e3e2a55f5ea8d8015ff484d2"
+        },
+        {
+          "version": "icu62",
+          "path": "payloads/structured-icu4c-data/icu62-icudt62l.dat",
+          "sizeBytes": 26837136,
+          "sha256": "1c2360607bb47b29340c092f37aaec105ceefe61b01dbab766a927d4df248cf7"
+        },
+        {
+          "version": "icu63",
+          "path": "payloads/structured-icu4c-data/icu63-icudt63l.dat",
+          "sizeBytes": 27179840,
+          "sha256": "5c66884882f354c81688af2c1f6fa3062de0fa20cbff9723682aa6802ccb7c4f"
+        },
+        {
+          "version": "icu64",
+          "path": "payloads/structured-icu4c-data/icu64-icudt64l.dat",
+          "sizeBytes": 27531792,
+          "sha256": "d4c64edc0c50ef31e220c1b96a9df860613914f8549d3bd754e39ba4b2ee8a0a"
+        },
+        {
+          "version": "icu65",
+          "path": "payloads/structured-icu4c-data/icu65-icudt65l.dat",
+          "sizeBytes": 27977584,
+          "sha256": "2c0d1420a6db64654e0d0fde4c07f27d04f8533af982b4922f1c75bf2a17b32d"
+        },
+        {
+          "version": "icu66",
+          "path": "payloads/structured-icu4c-data/icu66-icudt66l.dat",
+          "sizeBytes": 28035376,
+          "sha256": "31fe99b36163346ddd11aa0a71d2b3eae5cb3809e4e38907a45ebcf85bfd9dd6"
+        },
+        {
+          "version": "icu67",
+          "path": "payloads/structured-icu4c-data/icu67-icudt67l.dat",
+          "sizeBytes": 28395840,
+          "sha256": "af885b67d3c99e6fa7d7eefbd20c3e22d23f894466549a97810dd5a278cd0957"
+        }
+      ]
+    },
+    {
+      "id": "negative-dotnet-runtime-deb",
+      "category": "compressed/random-like",
+      "split": "calibration",
+      "provenance": "Microsoft .NET runtime Linux package dotnet-runtime-10.0 (Microsoft.NETCore.App 10.0.x, maintainer .NET Team) from the official Microsoft package repository https://packages.microsoft.com/debian/12/prod/ (pool/main/d/dotnet-runtime-10.0/). Payload is the .deb downloaded unmodified for six consecutive servicing releases 10.0.7, 10.0.8, 10.0.9, 10.0.10-1, 10.0.11-1, 10.0.12-1; each matched the SHA-256 in the repository Packages index. Format: ar archive (debian-binary, control.tar.gz, data.tar.gz, _gpgorigin signature) whose ~82 MB of runtime files are in one whole-archive gzip stream, so the payload is almost entirely compressed. Package revision naming gains a '-1' suffix from 10.0.10; the member layout (4 ar members, 200 files) is unchanged. Negative control: whole-archive compression is expected to destroy cross-version similarity. Independent of the PowerShell family (.NET 8 there, .NET 10 here, and this payload is compressed).",
+      "license": "MIT (.NET runtime LICENSE.txt, .NET Foundation and Contributors)",
+      "retrievedUtc": "2026-09-25",
+      "versions": [
+        {
+          "version": "v10.0.7",
+          "path": "payloads/negative-dotnet-runtime-deb/v10.0.7-amd64.deb",
+          "sizeBytes": 36501560,
+          "sha256": "4aaa1a7392d363ceddfbba2509a5d27d6e4820b12ab311db7c106c7701ae665c"
+        },
+        {
+          "version": "v10.0.8",
+          "path": "payloads/negative-dotnet-runtime-deb/v10.0.8-amd64.deb",
+          "sizeBytes": 36440426,
+          "sha256": "aa7e5fd3f9b263c8fe1a8b9726bda2755a6b423d4ba44160612f58f5a3c85ce4"
+        },
+        {
+          "version": "v10.0.9",
+          "path": "payloads/negative-dotnet-runtime-deb/v10.0.9-amd64.deb",
+          "sizeBytes": 36418452,
+          "sha256": "1e5467396171db2f602942d80fd7d7586c2bea9cd073e0bb65637f4e6aa04e5f"
+        },
+        {
+          "version": "v10.0.10-1",
+          "path": "payloads/negative-dotnet-runtime-deb/v10.0.10-1-amd64.deb",
+          "sizeBytes": 36464452,
+          "sha256": "5a78f0b3edd7fae1cfd1ff0fa914cace0fca8f750578349c813cfccf3295f2e4"
+        },
+        {
+          "version": "v10.0.11-1",
+          "path": "payloads/negative-dotnet-runtime-deb/v10.0.11-1-amd64.deb",
+          "sizeBytes": 36459962,
+          "sha256": "2fe21a581d608e1370367b0daf52136dc379febe4662cbf4e1599edb85822580"
+        },
+        {
+          "version": "v10.0.12-1",
+          "path": "payloads/negative-dotnet-runtime-deb/v10.0.12-1-amd64.deb",
+          "sizeBytes": 36439070,
+          "sha256": "773145d99daddd1416d74eeed7214b16ee3fa079daf5792ac5d1e7d21a750d99"
+        }
+      ]
+    }
+  ]
+}
