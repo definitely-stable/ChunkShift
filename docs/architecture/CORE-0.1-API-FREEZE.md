@@ -1,6 +1,6 @@
 # Core 0.1.0 public API freeze audit (#6)
 
-Status: API audit complete. #6 closes after the same-commit evidence run of [§6](#6-same-commit-evidence-run-required-to-close-6).  
+Status: **frozen as the Core 0.1.0 API candidate.** The audit and the same-commit evidence run of [§6](#6-same-commit-evidence-run-required-to-close-6) are complete, and #6 is closed.  
 Issue: [#6](https://github.com/definitely-stable/ChunkShift/issues/6)  
 Audited surface: `src/ChunkShift/PublicAPI.Unshipped.txt` at `main` `22252b2`, 124 entries; `PublicAPI.Shipped.txt` is empty  
 Inputs: [#20](https://github.com/definitely-stable/ChunkShift/issues/20) scanner shape, [#63](https://github.com/definitely-stable/ChunkShift/issues/63) surface decisions (PRs #95, #96), [#64](https://github.com/definitely-stable/ChunkShift/issues/64) profile/verification contract (PR #97), [RFC-0004](RFC-0004-core-0.1-deferred-product-concerns.md) (#65)
@@ -85,13 +85,15 @@ Not added in 0.1.0, because no consumer needs them yet and each can be added lat
 
 The #98, #100, #101 and #103 changes happened after the last complete release-level run. Their own PRs report unchanged vectors, but #6 closes only on one run of all existing gates **on a single commit** that contains this audit. No new framework is needed.
 
-- [ ] `dotnet restore` / `build -c Release` / `test -c Release` (CI `build-test`, ubuntu + windows)
-- [ ] PublicAPI analyzer clean against `PublicAPI.Unshipped.txt` (part of the Release build)
-- [ ] package validation + JIT package-consumer smoke (CI `package-smoke`)
-- [ ] NativeAOT package smoke x64 and arm64 (heavy validation `native`)
-- [ ] large source under a memory limit (heavy validation)
-- [ ] independent CSM vector decoder (CI: `tools/csm-fixtures/generate.py --verify`; `CsmIndependentVectorTests`)
-- [ ] reader fuzzing (heavy validation)
-- [ ] x64/arm64 determinism digests (heavy validation `determinism`)
+Run on `0c76237`, the PR #104 merge ref. Its tree is identical to `main` `d287fab`, where the audit landed. CI run [36095743794](https://github.com/definitely-stable/ChunkShift/actions/runs/36095743794), heavy validation run [36095743763](https://github.com/definitely-stable/ChunkShift/actions/runs/36095743763):
 
-Identities that must be byte-identical to the committed golden values: the ordered `ChunkId` sequences, `ManifestId`, `ProfileFingerprint`, the CSM v1 vectors, and the JIT/NativeAOT smoke identities. Record the run IDs in #6 when closing it.
+- [x] `dotnet restore` / `build -c Release` / `test -c Release`: CI `build-test` on ubuntu-24.04 and windows-2025; heavy `native` 491/491 on net8.0 and net10.0 per architecture, 0 warnings
+- [x] PublicAPI analyzer clean against `PublicAPI.Unshipped.txt` (Release build, 0 warnings)
+- [x] package validation + JIT package-consumer smoke (CI `package-smoke`)
+- [x] NativeAOT package smoke x64 and arm64 (heavy `native`): trimmed AOT identities `diff`-equal to JIT on both architectures
+- [x] large source under a memory limit: 4 GiB under a 128 MiB cgroup, peak RSS 14.7 MB (arm64) / 15.8 MB (x64)
+- [x] independent CSM vector decoder: `generate.py --verify`, 58 vectors OK; FastCDC Python reference and fastcdc-rs `v2016` 48/48
+- [x] reader fuzzing: 13,254 cases on arm64, 0 mismatches against the independent decoder; the same step passed on x64
+- [x] x64/arm64 determinism: `cross-arch-determinism` matches 33 experiments; package-smoke and large-source identities are equal on both architectures
+
+Identities that must be byte-identical to the committed golden values: the ordered `ChunkId` sequences, `ManifestId`, `ProfileFingerprint`, the CSM v1 vectors, and the JIT/NativeAOT smoke identities. All matched the committed golden values.
