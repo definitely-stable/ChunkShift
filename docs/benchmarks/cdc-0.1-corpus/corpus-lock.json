@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "manifestSha256": "fe497c1717bda7da1681fae7dd4fe216a855690f50cef859a7a40dbddd2e2b49",
+  "experimentPlanSha256": "62cb1aa2745a150d29f1e0f9cae1824f58914111e062fcb4bd507d8ffc958b34",
+  "protocolBaseline": "80058a1177306817ed06c95143a3c54bf16229bd",
+  "eligibleCalibrationFamilies": 3,
+  "eligibleHoldoutFamilies": 3,
+  "selectionPossible": true
+}
