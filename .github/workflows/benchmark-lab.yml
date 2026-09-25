@@ -625,7 +625,6 @@ jobs:
     timeout-minutes: 240
     env:
       OUT: artifacts/benchmarks/cdc-real-prefreeze-${{ matrix.arch }}
-      CORPUS_ROOT: ${{ runner.temp }}/chunkshift-cdc-real-corpus
 
     steps:
       - name: Checkout
@@ -650,7 +649,7 @@ jobs:
           python3 benchmarks/scripts/materialize_cdc_real_corpus.py \
             --manifest docs/benchmarks/cdc-0.1-corpus/real-corpus.json \
             --source-checksums docs/benchmarks/cdc-0.1-corpus/source-assets.sha256 \
-            --output "$CORPUS_ROOT" \
+            --output "$RUNNER_TEMP/chunkshift-cdc-real-corpus" \
             | tee "$OUT/materialize.log"
 
       - name: Revalidate frozen lock before measurement
@@ -659,7 +658,7 @@ jobs:
           set -euo pipefail
           dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
           dotnet "$dll" prefreeze validate-real \
-            --real "$CORPUS_ROOT/real-corpus.json" \
+            --real "$RUNNER_TEMP/chunkshift-cdc-real-corpus/real-corpus.json" \
             --plan benchmarks/experiments/prefreeze.v1.json \
             --lock-output "$OUT/corpus-lock.json" \
             > "$OUT/validation.json"
@@ -684,7 +683,7 @@ jobs:
             timeout 10800 dotnet "$dll" prefreeze \
               --plan benchmarks/experiments/prefreeze.v1.json \
               --lane "$lane" \
-              --real "$CORPUS_ROOT/real-corpus.json" \
+              --real "$RUNNER_TEMP/chunkshift-cdc-real-corpus/real-corpus.json" \
               --no-synthetic \
               --output "$OUT/prefreeze-real-$lane.json" \
               --markdown "$OUT/prefreeze-real-$lane.md"
