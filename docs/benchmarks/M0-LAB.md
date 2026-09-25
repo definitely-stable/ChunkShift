@@ -237,6 +237,27 @@ Before CSM/index implementations exist:
 
 M1/M4 replace those proxies with actual encoded artifact sizes.
 
+## Pre-freeze modes (#99)
+
+Two modes support the Gear-semantics and profile decision in [CDC-PREFREEZE-DECISION-2026-09.md](CDC-PREFREEZE-DECISION-2026-09.md):
+
+```bash
+# Quality scorecard: current candidate, lab-only warmed-prefix candidate, fixed control.
+dotnet run --project benchmarks/ChunkShift.Benchmarks -c Release -- prefreeze \
+  --plan benchmarks/experiments/prefreeze.v1.json \
+  --output artifacts/benchmarks/prefreeze.json \
+  --markdown artifacts/benchmarks/prefreeze.md \
+  [--lane fine|coarse] [--real <local-real-corpus.json> [--no-synthetic]]
+
+# Streaming-path decomposition and Amdahl bound for boundary detection.
+dotnet run --project benchmarks/ChunkShift.Benchmarks -c Release -- amdahl [--target <bytes>]...
+```
+
+- `prefreeze` measures no time. It reports actual means, forced/near-maximum rates, reuse, resync, survival, Change Amplification, unique missing bytes and a pack/Range projection, plus a per-input comparison of where the current and warmed-prefix candidates cut. The plan file lists every explored candidate, target, corpus and mutation. The fine lane is 64/128/256 KiB; the coarse lane (512 KiB/1/2 MiB) is exploratory.
+- The warmed-prefix candidate is lab-only (`lab.fastcdc.gear.warmed-prefix.v0.*` ProfileIds with their own fingerprint) and is never a production backend.
+- `--real` reads a local manifest of multi-version payloads (provenance, license, retrieval date, size, SHA-256, mandatory `calibration`/`holdout` split); the format is in the decision note §9. Payloads never enter Git.
+- `amdahl` times the production boundary scan, the chunk hash, a read floor and the full streaming path over the same 16 MiB data in one process, and prints the boundary share of the streaming time, the most any boundary optimization can gain there.
+
 ## Performance policy
 
 Threshold policy remains governed by [../PERFORMANCE.md](../PERFORMANCE.md).
@@ -248,3 +269,5 @@ M0 establishes variance/noise first. Do not add a universal “5% regression” 
 `.github/workflows/benchmark-lab.yml` compiles/tests the lab and runs the deterministic experiment matrix when benchmark infrastructure changes.
 
 The scheduled heavy-validation matrix runs the same lab on Linux x64 and Linux ARM64, then a dedicated `cross-arch-determinism` job compares algorithm/profile identity plus source/target and ordered chunk-sequence evidence digests. The workflow fails on semantic differences. Before any evidence is compared, both results must record the same source revision (`environment.gitCommit`, from `GITHUB_SHA`); a missing, mixed or different revision fails closed. `compare --allow-unversioned` accepts two results that both lack a revision for local, non-release comparisons only, and prints a warning; CI never passes it. Timing, allocation and other environment values are intentionally not compared.
+
+On workflow_dispatch and on pull requests from `issue-99` branches, `cdc-prefreeze` runs `amdahl` and both `prefreeze` lanes on Linux x64 and ARM64, and `cdc-prefreeze-compare` fails if any chunk-sequence digest differs between the two architectures.

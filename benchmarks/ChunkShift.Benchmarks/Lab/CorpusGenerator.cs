@@ -20,6 +20,10 @@ public static class CorpusGenerator
             "executable-app-like" => GenerateExecutable(entry.SizeBytes, entry.Seed),
             "db-vm-data-like" => GenerateDbVm(entry.SizeBytes, entry.Seed),
             "compressed-like" => GenerateCompressed(entry.SizeBytes, entry.Seed),
+            "single-byte" => GenerateSingleByte(entry.SizeBytes, entry.Seed),
+            "short-pattern" => GenerateShortPattern(entry.SizeBytes, entry.Seed),
+            "alternating-entropy" => GenerateAlternatingEntropy(entry.SizeBytes, entry.Seed),
+            "low-entropy-runs" => GenerateLowEntropyRuns(entry.SizeBytes, entry.Seed),
             _ => throw new InvalidOperationException($"Unknown corpus generator '{entry.Generator}'."),
         };
     }
@@ -171,5 +175,79 @@ public static class CorpusGenerator
         }
 
         return output.ToArray();
+    }
+
+    // One non-zero byte value repeated: like all-zero, but with a Gear entry
+    // other than GEAR[0].
+    private static byte[] GenerateSingleByte(int size, ulong seed)
+    {
+        var bytes = new byte[size];
+        bytes.AsSpan().Fill((byte)(1 + new DeterministicPrng(seed).NextInt32(255)));
+        return bytes;
+    }
+
+    // A 7-byte period: shorter than any Gear predicate window.
+    private static byte[] GenerateShortPattern(int size, ulong seed)
+    {
+        var bytes = new byte[size];
+        Span<byte> pattern = stackalloc byte[7];
+        new DeterministicPrng(seed).Fill(pattern);
+
+        for (int i = 0; i < bytes.Length; i++)
+        {
+            bytes[i] = pattern[i % pattern.Length];
+        }
+
+        return bytes;
+    }
+
+    // 192 KiB random blocks alternating with 192 KiB blocks over a 4-symbol alphabet.
+    private static byte[] GenerateAlternatingEntropy(int size, ulong seed)
+    {
+        const int blockSize = 192 * 1024;
+        var bytes = new byte[size];
+        var random = new DeterministicPrng(seed);
+
+        for (int offset = 0, block = 0; offset < bytes.Length; offset += blockSize, block++)
+        {
+            Span<byte> span = bytes.AsSpan(offset, Math.Min(blockSize, bytes.Length - offset));
+
+            if (block % 2 == 0)
+            {
+                random.Fill(span);
+            }
+            else
+            {
+                for (int i = 0; i < span.Length; i++)
+                {
+                    span[i] = (byte)random.NextInt32(4);
+                }
+            }
+        }
+
+        return bytes;
+    }
+
+    // Random data with a zero run of 64 KiB to 1 MiB starting in every 2 MiB
+    // region: long low-entropy runs inside high-entropy data.
+    private static byte[] GenerateLowEntropyRuns(int size, ulong seed)
+    {
+        const int regionSize = 2 * 1024 * 1024;
+        var bytes = new byte[size];
+        var random = new DeterministicPrng(seed);
+        random.Fill(bytes);
+
+        for (int region = 0; region < bytes.Length; region += regionSize)
+        {
+            int start = region + random.NextInt32(regionSize / 2);
+            int length = 64 * 1024 + random.NextInt32(960 * 1024);
+
+            if (start < bytes.Length)
+            {
+                bytes.AsSpan(start, Math.Min(length, bytes.Length - start)).Clear();
+            }
+        }
+
+        return bytes;
     }
 }

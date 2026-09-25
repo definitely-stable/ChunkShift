@@ -315,7 +315,8 @@ jobs:
   # the job reports timings only, never counter values or derived cycles.
   boundary-scan-f08:
     name: boundary-scan-f08 (${{ matrix.arch }})
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'perf/f08'))
+    # Also on #99 branches: the pre-freeze decision needs post-#98 x64/arm64 F08 evidence.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'perf/f08') || contains(github.head_ref, 'issue-99')))
     needs: smoke
     strategy:
       fail-fast: false
@@ -487,3 +488,108 @@ jobs:
           path: ${{ env.OUT }}
           if-no-files-found: error
           retention-days: 30
+
+
+  # #99: pre-freeze CDC evidence. amdahl decomposes the canonical streaming
+  # path; prefreeze scores the current Gear candidate against the lab-only
+  # warmed-prefix candidate and the fixed control. Quality results are
+  # deterministic and compared across architectures below.
+  cdc-prefreeze:
+    name: cdc-prefreeze (${{ matrix.arch }})
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && contains(github.head_ref, 'issue-99'))
+    needs: smoke
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      OUT: artifacts/benchmarks/cdc-prefreeze-${{ matrix.arch }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+
+      - name: Build
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Amdahl decomposition of the streaming path
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT"
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          timeout 1200 dotnet "$dll" amdahl --rounds 3 | tee "$OUT/amdahl.txt"
+          {
+            echo "### amdahl (${{ matrix.arch }})"
+            echo '```text'
+            grep -E '^(#|summary)' "$OUT/amdahl.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pre-freeze semantic scorecard
+        shell: bash
+        run: |
+          set -euo pipefail
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          for lane in fine coarse
+          do
+            dotnet "$dll" prefreeze \
+              --plan benchmarks/experiments/prefreeze.v1.json \
+              --lane "$lane" \
+              --output "$OUT/prefreeze-$lane.json" \
+              --markdown "$OUT/prefreeze-$lane.md"
+          done
+
+      - name: Upload pre-freeze evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cdc-prefreeze-${{ matrix.arch }}
+          path: ${{ env.OUT }}
+          if-no-files-found: error
+          retention-days: 30
+
+  cdc-prefreeze-compare:
+    name: cdc-prefreeze-compare
+    needs: cdc-prefreeze
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Download pre-freeze evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: cdc-prefreeze-*
+          path: evidence
+
+      - name: Compare chunk sequences across architectures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          for lane in ("fine", "coarse"):
+              x64 = json.load(open(f"evidence/cdc-prefreeze-x64/prefreeze-{lane}.json"))
+              arm = json.load(open(f"evidence/cdc-prefreeze-arm64/prefreeze-{lane}.json"))
+              key = lambda r: (r["corpusId"], r["nominalTarget"], r["candidate"], r["mutationId"])
+              left = {key(r): r["targetChunkSequenceDigest"] for r in x64["rows"]}
+              right = {key(r): r["targetChunkSequenceDigest"] for r in arm["rows"]}
+              assert left == right, f"{lane}: x64 and arm64 chunk sequences differ"
+              assert [d["currentChunkSequenceDigest"] for d in x64["divergence"]] == [d["currentChunkSequenceDigest"] for d in arm["divergence"]]
+              assert [d["warmedChunkSequenceDigest"] for d in x64["divergence"]] == [d["warmedChunkSequenceDigest"] for d in arm["divergence"]]
+              print(f"{lane}: {len(left)} rows identical on x64 and arm64")
+          PY

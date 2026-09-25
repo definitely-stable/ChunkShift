@@ -1,0 +1,350 @@
+{
+  "schemaVersion": 1,
+  "hashSuite": "chunkshift.blake3-256.v1",
+  "candidates": [
+    "current",
+    "warmed-prefix",
+    "fixed"
+  ],
+  "lanes": [
+    {
+      "name": "fine",
+      "exploratory": false,
+      "targets": [
+        65536,
+        131072,
+        262144
+      ],
+      "corpus": [
+        {
+          "id": "game-pak-8m",
+          "category": "game/pak-like assets",
+          "generator": "game-pak-like",
+          "sizeBytes": 8388608,
+          "seed": 1001,
+          "provenance": "synthetic deterministic proxy",
+          "generatorVersion": 1
+        },
+        {
+          "id": "executable-app-8m",
+          "category": "executable/app bundles",
+          "generator": "executable-app-like",
+          "sizeBytes": 8388608,
+          "seed": 1002,
+          "provenance": "synthetic deterministic proxy",
+          "generatorVersion": 1
+        },
+        {
+          "id": "installer-archive-8m",
+          "category": "installers/archives",
+          "generator": "compressed-like",
+          "sizeBytes": 8388608,
+          "seed": 1003,
+          "provenance": "synthetic deterministic proxy",
+          "generatorVersion": 1
+        },
+        {
+          "id": "db-vm-8m",
+          "category": "DB/VM/data files",
+          "generator": "db-vm-data-like",
+          "sizeBytes": 8388608,
+          "seed": 1004,
+          "provenance": "synthetic deterministic proxy",
+          "generatorVersion": 1
+        },
+        {
+          "id": "random-8m",
+          "category": "random",
+          "generator": "random",
+          "sizeBytes": 8388608,
+          "seed": 1005,
+          "provenance": "synthetic deterministic pathological",
+          "generatorVersion": 1
+        },
+        {
+          "id": "zero-8m",
+          "category": "zero",
+          "generator": "zero",
+          "sizeBytes": 8388608,
+          "seed": 1006,
+          "provenance": "synthetic deterministic pathological",
+          "generatorVersion": 1
+        },
+        {
+          "id": "repeated-8m",
+          "category": "repeated",
+          "generator": "repeated",
+          "sizeBytes": 8388608,
+          "seed": 1007,
+          "provenance": "synthetic deterministic pathological",
+          "generatorVersion": 1
+        },
+        {
+          "id": "low-entropy-8m",
+          "category": "low entropy",
+          "generator": "low-entropy",
+          "sizeBytes": 8388608,
+          "seed": 1008,
+          "provenance": "synthetic deterministic pathological",
+          "generatorVersion": 1
+        },
+        {
+          "id": "random-like-8m",
+          "category": "compressed/random-like",
+          "generator": "random-like",
+          "sizeBytes": 8388608,
+          "seed": 1009,
+          "provenance": "synthetic deterministic proxy",
+          "generatorVersion": 1
+        },
+        {
+          "id": "single-byte-8m",
+          "category": "single repeated byte",
+          "generator": "single-byte",
+          "sizeBytes": 8388608,
+          "seed": 99101,
+          "provenance": "deterministic synthetic pathological proxy for #99",
+          "generatorVersion": 1
+        },
+        {
+          "id": "short-pattern-8m",
+          "category": "short repeated pattern",
+          "generator": "short-pattern",
+          "sizeBytes": 8388608,
+          "seed": 99102,
+          "provenance": "deterministic synthetic pathological proxy for #99",
+          "generatorVersion": 1
+        },
+        {
+          "id": "alternating-entropy-8m",
+          "category": "alternating low/high entropy",
+          "generator": "alternating-entropy",
+          "sizeBytes": 8388608,
+          "seed": 99103,
+          "provenance": "deterministic synthetic pathological proxy for #99",
+          "generatorVersion": 1
+        },
+        {
+          "id": "low-entropy-runs-8m",
+          "category": "long low-entropy runs in high-entropy data",
+          "generator": "low-entropy-runs",
+          "sizeBytes": 8388608,
+          "seed": 99104,
+          "provenance": "deterministic synthetic pathological proxy for #99",
+          "generatorVersion": 1
+        }
+      ]
+    },
+    {
+      "name": "coarse",
+      "exploratory": true,
+      "targets": [
+        524288,
+        1048576,
+        2097152
+      ],
+      "corpus": [
+        {
+          "id": "game-pak-64m",
+          "category": "game/pak-like assets",
+          "generator": "game-pak-like",
+          "sizeBytes": 67108864,
+          "seed": 99201,
+          "provenance": "deterministic synthetic proxy for the #99 coarse exploratory lane",
+          "generatorVersion": 1
+        },
+        {
+          "id": "db-vm-64m",
+          "category": "DB/VM/data files",
+          "generator": "db-vm-data-like",
+          "sizeBytes": 67108864,
+          "seed": 99202,
+          "provenance": "deterministic synthetic proxy for the #99 coarse exploratory lane",
+          "generatorVersion": 1
+        },
+        {
+          "id": "random-64m",
+          "category": "random",
+          "generator": "random",
+          "sizeBytes": 67108864,
+          "seed": 99203,
+          "provenance": "deterministic synthetic proxy for the #99 coarse exploratory lane",
+          "generatorVersion": 1
+        },
+        {
+          "id": "low-entropy-runs-64m",
+          "category": "long low-entropy runs in high-entropy data",
+          "generator": "low-entropy-runs",
+          "sizeBytes": 67108864,
+          "seed": 99204,
+          "provenance": "deterministic synthetic proxy for the #99 coarse exploratory lane",
+          "generatorVersion": 1
+        }
+      ]
+    }
+  ],
+  "mutations": [
+    {
+      "id": "insert-4k-a",
+      "kind": "insert",
+      "sizeBytes": 4096,
+      "seed": 99001
+    },
+    {
+      "id": "insert-4k-b",
+      "kind": "insert",
+      "sizeBytes": 4096,
+      "seed": 99002
+    },
+    {
+      "id": "insert-4k-c",
+      "kind": "insert",
+      "sizeBytes": 4096,
+      "seed": 99003
+    },
+    {
+      "id": "delete-4k-a",
+      "kind": "delete",
+      "sizeBytes": 4096,
+      "seed": 99004
+    },
+    {
+      "id": "delete-4k-b",
+      "kind": "delete",
+      "sizeBytes": 4096,
+      "seed": 99005
+    },
+    {
+      "id": "delete-4k-c",
+      "kind": "delete",
+      "sizeBytes": 4096,
+      "seed": 99006
+    },
+    {
+      "id": "overwrite-4k-a",
+      "kind": "overwrite",
+      "sizeBytes": 4096,
+      "seed": 99007
+    },
+    {
+      "id": "overwrite-4k-b",
+      "kind": "overwrite",
+      "sizeBytes": 4096,
+      "seed": 99008
+    },
+    {
+      "id": "overwrite-4k-c",
+      "kind": "overwrite",
+      "sizeBytes": 4096,
+      "seed": 99009
+    },
+    {
+      "id": "prepend-4k",
+      "kind": "prepend",
+      "sizeBytes": 4096,
+      "seed": 99010
+    },
+    {
+      "id": "append-4k",
+      "kind": "append",
+      "sizeBytes": 4096,
+      "seed": 99011
+    },
+    {
+      "id": "move-64k-a",
+      "kind": "move",
+      "sizeBytes": 65536,
+      "seed": 99012
+    },
+    {
+      "id": "move-64k-b",
+      "kind": "move",
+      "sizeBytes": 65536,
+      "seed": 99013
+    },
+    {
+      "id": "reorder-64k-a",
+      "kind": "reorder",
+      "sizeBytes": 65536,
+      "seed": 99014
+    },
+    {
+      "id": "reorder-64k-b",
+      "kind": "reorder",
+      "sizeBytes": 65536,
+      "seed": 99015
+    },
+    {
+      "id": "localized-rewrite-256k-a",
+      "kind": "localized-rewrite",
+      "sizeBytes": 262144,
+      "seed": 99016
+    },
+    {
+      "id": "localized-rewrite-256k-b",
+      "kind": "localized-rewrite",
+      "sizeBytes": 262144,
+      "seed": 99017
+    },
+    {
+      "id": "random-rewrite-64k-a",
+      "kind": "random-rewrite",
+      "sizeBytes": 65536,
+      "seed": 99018
+    },
+    {
+      "id": "random-rewrite-64k-b",
+      "kind": "random-rewrite",
+      "sizeBytes": 65536,
+      "seed": 99019
+    },
+    {
+      "id": "edit-before-boundary",
+      "kind": "boundary-edit",
+      "sizeBytes": 1,
+      "seed": 0,
+      "anchor": "boundary",
+      "relativeOffset": -1
+    },
+    {
+      "id": "edit-at-boundary",
+      "kind": "boundary-edit",
+      "sizeBytes": 1,
+      "seed": 0,
+      "anchor": "boundary",
+      "relativeOffset": 0
+    },
+    {
+      "id": "edit-after-boundary",
+      "kind": "boundary-edit",
+      "sizeBytes": 1,
+      "seed": 0,
+      "anchor": "boundary",
+      "relativeOffset": 1
+    },
+    {
+      "id": "edit-last-unhashed-prefix-byte",
+      "kind": "boundary-edit",
+      "sizeBytes": 1,
+      "seed": 0,
+      "anchor": "minimum",
+      "relativeOffset": -1
+    },
+    {
+      "id": "edit-inside-transient",
+      "kind": "boundary-edit",
+      "sizeBytes": 1,
+      "seed": 0,
+      "anchor": "minimum",
+      "relativeOffset": 23
+    },
+    {
+      "id": "edit-after-transient",
+      "kind": "boundary-edit",
+      "sizeBytes": 1,
+      "seed": 0,
+      "anchor": "minimum",
+      "relativeOffset": 100
+    }
+  ]
+}

@@ -249,3 +249,5 @@ At least one vector set should be cross-checked against an independent FastCDC i
 fastcdc-rs 5.0.0 documents the v2020 implementation as using Gear hash, sub-minimum skipping, normalized chunking and a two-byte rolling optimization while preserving cut points relative to the scalar algorithm.
 
 ChunkShift intentionally freezes the scalar semantics above and treats such two-byte processing as a replaceable optimization. This avoids binding the persisted profile to implementation-specific loop structure.
+
+The fastcdc-rs 5.0.0 `v2020` two-byte loop does **not** test the last position of an odd-length final window, so it can differ from `v2016` and from §4 at EOF: for `16384 × 0x00 ‖ 02 FF 41` with the 64 KiB preset, §4 and `v2016` give `[(0,16386),(16386,1)]` while `v2020` gives `[(0,16387)]`. `v2016` is therefore the matching external oracle, and a two-byte backend is acceptable under §7 only if it tests that position. This clarifies a reference note; the semantics above are unchanged. Evidence: [CDC-PREFREEZE-DECISION-2026-09.md](../benchmarks/CDC-PREFREEZE-DECISION-2026-09.md) §5 (#99).
