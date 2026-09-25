@@ -97,6 +97,9 @@ The target is ≥ 5 consecutive versions for the primary game family. Only real 
 
 - The split is assigned **per family**, never per version of a family.
 - It is written into the manifest **before** the first profile comparison is run on any real data, and the manifest is committed to the #8 decision record (without payloads) with its SHA-256 before results are read.
+- The corpus is checked and locked before the first run, without chunking anything:
+  `prefreeze validate-real --real <real-corpus.json> --plan benchmarks/experiments/prefreeze.v1.json --lock-output <corpus-lock.json>`.
+  The lock records the SHA-256 of the exact manifest and plan bytes, this protocol's baseline commit and the eligible family counts; it holds no paths or results.
 - Each priority category that has two or more families puts at least one in each split; for example `game-family-A → calibration`, `game-family-B → holdout`.
 - After results have been viewed, the split cannot change. A family that turns out to be broken (wrong bytes, licensing problem) is **removed** with a written reason; it is not moved to the other split.
 - Having a family in each split is not enough; each split needs **selection-eligible** evidence. The runner reports `eligibleCalibrationFamilies`, `eligibleHoldoutFamilies` and `selectionPossible`.

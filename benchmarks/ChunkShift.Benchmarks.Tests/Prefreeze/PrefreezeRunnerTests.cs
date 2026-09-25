@@ -352,7 +352,7 @@ public class PrefreezeRunnerTests
         null, ResynchronizationStatuses.NotApplicable, 0, 0, ChangedBytesBases.None, missingBytes, 0,
         new DistributionProjection([], 0, []), "digest");
 
-    private static PrefreezePlan SmallPlan() => new(
+    internal static PrefreezePlan SmallPlan() => new(
         1,
         HashSuiteIds.Blake3256V1.Value,
         PrefreezeCandidate.Names,
@@ -375,7 +375,7 @@ public class PrefreezeRunnerTests
         WriteFamilies(directory, corruptDigest ? "corrupt-digest" : null, ("game", versions, split));
 
     /// <summary>Writes each family under its own folder; <paramref name="defect"/> breaks the first family.</summary>
-    private static string WriteFamilies(string directory, string? defect, params (string Id, int Versions, string Split)[] families)
+    internal static string WriteFamilies(string directory, string? defect, params (string Id, int Versions, string Split)[] families)
     {
         var written = new List<RealCorpusFamily>();
 
@@ -428,7 +428,7 @@ public class PrefreezeRunnerTests
         return path;
     }
 
-    private static string RepositoryRoot()
+    internal static string RepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "ChunkShift.slnx")))

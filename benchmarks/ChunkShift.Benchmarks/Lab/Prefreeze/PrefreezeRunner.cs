@@ -15,6 +15,7 @@ namespace ChunkShift.Benchmarks.Lab.Prefreeze;
 /// <code>
 /// prefreeze --plan &lt;plan.json&gt; --output &lt;result.json&gt; [--markdown &lt;summary.md&gt;]
 ///           [--lane &lt;name&gt;] [--real &lt;real-corpus.json&gt;] [--no-synthetic]
+/// prefreeze validate-real --real &lt;real-corpus.json&gt; [--plan &lt;plan.json&gt;] [--lock-output &lt;lock.json&gt;]
 /// </code>
 /// </summary>
 internal static class PrefreezeRunner
@@ -29,6 +30,11 @@ internal static class PrefreezeRunner
 
     public static int Run(string[] args)
     {
+        if (args.Length > 0 && args[0] == CorpusLock.Mode)
+        {
+            return CorpusLock.Run(args[1..], Console.Out);
+        }
+
         string? planPath = Argument(args, "--plan");
         string? outputPath = Argument(args, "--output");
 
@@ -311,7 +317,7 @@ internal static class PrefreezeRunner
         return new MutationResult(target, (int)position, (int)position + 1, 1, ChangedBytesBases.Differing);
     }
 
-    private static void ValidatePlan(PrefreezePlan plan)
+    internal static void ValidatePlan(PrefreezePlan plan)
     {
         if (plan.SchemaVersion != 1)
         {
