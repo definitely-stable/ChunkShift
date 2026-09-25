@@ -101,6 +101,8 @@ internal static class PrefreezeRunner
             RunReal(plan, manifest, baseDirectory, targets, hashSuite, rows, divergence, log);
         }
 
+        PrefreezeFamilyAggregate[] families = PrefreezeAggregation.ByFamily(rows, realSummary);
+
         return new PrefreezeRun(
             SchemaVersion,
             DateTimeOffset.UtcNow,
@@ -115,7 +117,9 @@ internal static class PrefreezeRunner
             plan,
             realSummary,
             [.. divergence],
-            [.. rows]);
+            [.. rows],
+            families,
+            PrefreezeAggregation.AcrossFamilies(families));
     }
 
     private static void RunSyntheticLane(
@@ -392,6 +396,32 @@ internal static class PrefreezeRunner
 
             text.AppendLine(Invariant(
                 $"| {group.Key.Lane} | {group.Key.Split} | {Size(group.Key.NominalTarget)} | {group.Key.Candidate} | {group.Key.MutationKind} | {members.Length} | {members.Average(static row => row.ActualMeanBytes) / 1024:F1} KiB | {members.Average(static row => row.ReuseRatio):P2} | {members.Average(static row => row.ChangeAmplification):F2} | {coverage} | {Bytes(resync?.P50)} | {Bytes(resync?.P95)} | {members.Average(static row => row.BoundarySurvival):P2} |"));
+        }
+
+        text.AppendLine();
+        text.AppendLine("## Family-level results");
+        text.AppendLine();
+        text.AppendLine("One row per family: its transitions are aggregated first, so every family has equal weight below. Missing bytes are a chunk-level lower bound, not a patch size.");
+        text.AppendLine();
+        text.AppendLine("| lane | family | split | history | target | candidate | scope | n | actual mean | chunks/GiB | reuse | missing bytes | missing/target | survival | resync p50 / p95 / p99 / max | forced-max | manifest/GiB |");
+        text.AppendLine("|---|---|---|---|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
+        foreach (PrefreezeFamilyAggregate f in run.Families)
+        {
+            DistributionSummary? r = f.ResynchronizationDistance;
+            string resync = r is null ? "n/a" : $"{Bytes(r.P50)} / {Bytes(r.P95)} / {Bytes(r.P99)} / {Bytes(r.Max)}";
+            text.AppendLine(Invariant(
+                $"| {f.Lane} | {f.FamilyId} | {f.Split} | {f.History} | {Size(f.NominalTarget)} | {f.Candidate} | {f.Scope} | {f.Transitions} | {f.ActualMeanBytes / 1024:F1} KiB | {f.ChunksPerGiB:F0} | {f.ReuseRatio:P2} | {f.UniqueMissingPayloadBytes / 1024.0:F1} KiB | {f.UniqueMissingPayloadRatio:P2} | {f.BoundarySurvival:P2} | {resync} | {f.ForcedMaximumRate:P2} | {f.ManifestBytesPerSourceGiB / 1024:F1} KiB |"));
+        }
+
+        text.AppendLine();
+        text.AppendLine("## Across families (equal weight per family)");
+        text.AppendLine();
+        text.AppendLine("| lane | split | target | candidate | scope | families | selection-eligible | mean actual | reuse mean / worst | missing/target mean / worst | survival mean | forced-max worst |");
+        text.AppendLine("|---|---|---:|---|---|---:|---:|---:|---:|---:|---:|---:|");
+        foreach (PrefreezeFamilyComparison c in run.FamilyComparison)
+        {
+            text.AppendLine(Invariant(
+                $"| {c.Lane} | {c.Split} | {Size(c.NominalTarget)} | {c.Candidate} | {c.Scope} | {c.Families} | {c.SelectionEligibleFamilies} | {c.MeanActualMeanBytes / 1024:F1} KiB | {c.MeanReuseRatio:P2} / {c.WorstReuseRatio:P2} | {c.MeanUniqueMissingPayloadRatio:P2} / {c.WorstUniqueMissingPayloadRatio:P2} | {c.MeanBoundarySurvival:P2} | {c.WorstForcedMaximumRate:P2} |"));
         }
 
         text.AppendLine();

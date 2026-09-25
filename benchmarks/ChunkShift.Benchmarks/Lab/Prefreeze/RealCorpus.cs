@@ -96,6 +96,11 @@ internal static class RealCorpus
             warnings.Add("no holdout family: these results can calibrate candidates but cannot select the stable profile");
         }
 
+        if (holdout == manifest.Families.Length)
+        {
+            warnings.Add("no calibration family: calibrate candidates on a separate family before reading the holdout");
+        }
+
         string[] pairOnly = manifest.Families.Where(static family => family.Versions.Length == 2).Select(static family => family.Id).ToArray();
         string[] shortHistory = manifest.Families
             .Where(static family => family.Versions.Length is > 2 and < PreferredVersions)

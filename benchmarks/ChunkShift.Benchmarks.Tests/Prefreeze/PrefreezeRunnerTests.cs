@@ -124,6 +124,67 @@ public class PrefreezeRunnerTests
             Assert.All(
                 run.Rows.Where(static row => row.MutationKind == "version-adjacent" && row.Candidate != PrefreezeCandidate.Fixed),
                 static row => Assert.True(row.ReuseRatio > 0.5));
+
+            // One family-level result per (candidate, scope); raw rows stay.
+            Assert.Equal(3 * 2, run.Families.Length);
+            Assert.All(run.Families, static family => Assert.Equal(PrefreezeAggregation.ShortHistory, family.History));
+            Assert.Equal(
+                [3, 3, 3],
+                run.Families.Where(static family => family.Scope == PrefreezeAggregation.Adjacent).Select(static family => family.Transitions));
+            Assert.Equal(
+                [3, 3, 3],
+                run.Families.Where(static family => family.Scope == PrefreezeAggregation.Skipped).Select(static family => family.Transitions));
+            Assert.All(run.FamilyComparison, static comparison => Assert.Equal(1, comparison.Families));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void FamiliesHaveEqualWeightWhateverTheirTransitionCount()
+    {
+        // Family "long" has three transitions with reuse 0; family "short" has
+        // one with reuse 1. Pooling the rows would give 0.25; per family, 0.5.
+        PrefreezeRow[] rows =
+        [
+            Row("long", "1->2", reusedBytes: 0, missingBytes: 100),
+            Row("long", "2->3", reusedBytes: 0, missingBytes: 100),
+            Row("long", "3->4", reusedBytes: 0, missingBytes: 100),
+            Row("short", "1->2", reusedBytes: 100, missingBytes: 0),
+        ];
+        var real = new RealCorpusSummary(2, 0, 2, ["short"], [], []);
+
+        PrefreezeFamilyAggregate[] families = PrefreezeAggregation.ByFamily(rows, real);
+        PrefreezeFamilyComparison comparison = Assert.Single(PrefreezeAggregation.AcrossFamilies(families));
+
+        Assert.Equal(PrefreezeAggregation.PairOnly, families.Single(static family => family.FamilyId == "short").History);
+        Assert.Equal(PrefreezeAggregation.FullHistory, families.Single(static family => family.FamilyId == "long").History);
+        Assert.Equal(300, families.Single(static family => family.FamilyId == "long").UniqueMissingPayloadBytes);
+        Assert.Equal(2, comparison.Families);
+        Assert.Equal(1, comparison.SelectionEligibleFamilies);
+        Assert.Equal(0.5, comparison.MeanReuseRatio, 12);
+        Assert.Equal(0, comparison.WorstReuseRatio, 12);
+        Assert.Equal(0.5, comparison.MeanUniqueMissingPayloadRatio, 12);
+        Assert.Equal(1, comparison.WorstUniqueMissingPayloadRatio, 12);
+    }
+
+    [Fact]
+    public void HoldoutOnlyPairIsLabelledAsUnableToCalibrateOrSelect()
+    {
+        string directory = Directory.CreateTempSubdirectory("chunkshift-prefreeze-").FullName;
+
+        try
+        {
+            string manifestPath = WriteFamily(directory, versions: 2, split: RealCorpus.Holdout, corruptDigest: false);
+
+            PrefreezeRun run = PrefreezeRunner.Execute(SmallPlan(), null, synthetic: false, manifestPath, TextWriter.Null);
+
+            Assert.Equal(["game"], run.RealCorpus!.PairOnlyFamilies);
+            Assert.Contains(run.RealCorpus.Warnings, static warning => warning.StartsWith("no calibration", StringComparison.Ordinal));
+            Assert.Contains(run.RealCorpus.Warnings, static warning => warning.StartsWith("pair-only", StringComparison.Ordinal));
+            Assert.All(run.FamilyComparison, static comparison => Assert.Equal(0, comparison.SelectionEligibleFamilies));
         }
         finally
         {
@@ -181,6 +242,13 @@ public class PrefreezeRunnerTests
             }
         }
     }
+
+    private static PrefreezeRow Row(string family, string transition, long reusedBytes, long missingBytes) => new(
+        "real", false, family, "game-pak", RealCorpus.Holdout, PrefreezeCandidate.Current, "algorithm", "profile", "fingerprint",
+        65536, 16384, 262144, $"{family}:{transition}", "version-adjacent",
+        100, 100, 1, 100, 1, 0, 100, 100, 100, 100, 0, 0, 1, reusedBytes / 100.0, reusedBytes, reusedBytes / 100.0,
+        null, ResynchronizationStatuses.NotApplicable, 0, 0, ChangedBytesBases.None, missingBytes, 0,
+        new DistributionProjection([], 0, []), "digest");
 
     private static PrefreezePlan SmallPlan() => new(
         1,

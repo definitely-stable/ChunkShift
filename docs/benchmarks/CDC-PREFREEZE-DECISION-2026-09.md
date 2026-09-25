@@ -207,6 +207,8 @@ Findings:
 - Every candidate and target of the selected lanes is recorded in the plan file, so a candidate cannot silently disappear from the results.
 - L7 layout variants (stable vs reordered assets, per-asset vs whole-pack compression, aligned vs unaligned) are expressed as separate families with a shared category and `provenance` describing the producer policy. #8 must keep "bad chunker response", "bad producer layout" and "compression destroying similarity" apart.
 
+The #8 run follows [CDC-0.1-BAKEOFF-PROTOCOL.md](CDC-0.1-BAKEOFF-PROTOCOL.md), which fixes the corpus, split, transition, family-level aggregation, metric and repeatability rules before any real result is read.
+
 The families to obtain are listed in #99 C: game PAK/IoStore, Unity bundles, .NET app builds, installers/ZIP, DB/VM, container/tar/zstd, compressed media, plus a random negative control.
 
 ## 10. Exit-criteria status

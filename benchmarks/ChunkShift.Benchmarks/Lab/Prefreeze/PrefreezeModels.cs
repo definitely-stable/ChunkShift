@@ -45,7 +45,9 @@ public sealed record PrefreezeRun(
     PrefreezePlan Plan,
     RealCorpusSummary? RealCorpus,
     SemanticDivergence[] Divergence,
-    PrefreezeRow[] Rows);
+    PrefreezeRow[] Rows,
+    PrefreezeFamilyAggregate[] Families,
+    PrefreezeFamilyComparison[] FamilyComparison);
 
 /// <summary>
 /// Where the current and warmed-prefix candidates cut differently on one
@@ -107,6 +109,63 @@ public sealed record PrefreezeRow(
     double ManifestBytesPerSourceGiB,
     DistributionProjection Distribution,
     string TargetChunkSequenceDigest);
+
+/// <summary>
+/// All transitions of one family for one (lane, target, candidate, scope),
+/// aggregated into a single family-level result (#8 protocol §6). Byte ratios
+/// are byte-weighted within the family; per-transition rates are averaged.
+/// </summary>
+/// <param name="Scope"><c>adjacent</c> (vN → vN+1, the primary product signal),
+/// <c>skipped</c> (vN → vN+2/+3, stress evidence) or <c>synthetic</c> (mutations).</param>
+/// <param name="History"><c>full-history</c>, <c>short-history</c>, <c>pair-only</c>
+/// or <c>synthetic</c>. A pair-only family cannot select the stable profile alone.</param>
+/// <param name="UniqueMissingPayloadRatio">Unique missing payload bytes over
+/// target bytes. A chunk-level transfer lower bound, not a patch size.</param>
+public sealed record PrefreezeFamilyAggregate(
+    string Lane,
+    bool Exploratory,
+    string FamilyId,
+    string Category,
+    string Split,
+    string History,
+    string Candidate,
+    string ProfileId,
+    int NominalTarget,
+    int Minimum,
+    int Maximum,
+    string Scope,
+    int Transitions,
+    long TargetBytes,
+    double ActualMeanBytes,
+    double ChunksPerGiB,
+    double ReuseRatio,
+    long UniqueMissingPayloadBytes,
+    double UniqueMissingPayloadRatio,
+    double BoundarySurvival,
+    int ResynchronizationApplicable,
+    DistributionSummary? ResynchronizationDistance,
+    double ForcedMaximumRate,
+    double ManifestBytesPerSourceGiB);
+
+/// <summary>
+/// Family-level results compared across families of one split with equal
+/// weight per family: the mean, and the worst family for reuse and missing bytes.
+/// </summary>
+public sealed record PrefreezeFamilyComparison(
+    string Lane,
+    string Split,
+    string Candidate,
+    int NominalTarget,
+    string Scope,
+    int Families,
+    int SelectionEligibleFamilies,
+    double MeanActualMeanBytes,
+    double MeanReuseRatio,
+    double WorstReuseRatio,
+    double MeanUniqueMissingPayloadRatio,
+    double WorstUniqueMissingPayloadRatio,
+    double MeanBoundarySurvival,
+    double WorstForcedMaximumRate);
 
 /// <summary>
 /// #99 E4: a projection of later pack/Range behaviour, not a Repository
