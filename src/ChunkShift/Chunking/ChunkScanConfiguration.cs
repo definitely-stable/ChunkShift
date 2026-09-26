@@ -4,21 +4,21 @@ namespace ChunkShift.Chunking;
 
 internal static class ChunkScanConfiguration
 {
-    // Pre-release only. Issue #8 owns the stable default profile selection.
-    // Nested static holders avoid computing unused candidate fingerprints during
-    // the first default scan while still keeping steady-state resolution allocation-free.
+    // Core 0.1.0 registers exactly one stable chunking profile. Nested static
+    // initialization computes its fingerprint once while keeping steady-state
+    // explicit/default resolution allocation-free.
 
     internal static ChunkingKernelProfile ResolveProfile(ChunkingProfileId? requested) =>
         ResolveProfileRegistration(requested).KernelProfile;
 
     // Chunking needs the exact semantics, so an unknown profile cannot run and
-    // is NotSupported. A null request selects the pre-release default.
+    // is NotSupported. A null request selects the stable Core default.
     internal static ProfileRegistration ResolveProfileRegistration(
         ChunkingProfileId? requested)
     {
         if (requested is null)
         {
-            return Candidate64K.Value;
+            return Stable64K.Value;
         }
 
         if (TryResolveProfileRegistration(requested, out ProfileRegistration registration))
@@ -36,21 +36,9 @@ internal static class ChunkScanConfiguration
         ChunkingProfileId profileId,
         out ProfileRegistration registration)
     {
-        if (profileId == Candidate64K.Value.Id)
+        if (profileId == Stable64K.Value.Id)
         {
-            registration = Candidate64K.Value;
-            return true;
-        }
-
-        if (profileId == Candidate128K.Value.Id)
-        {
-            registration = Candidate128K.Value;
-            return true;
-        }
-
-        if (profileId == Candidate256K.Value.Id)
-        {
-            registration = Candidate256K.Value;
+            registration = Stable64K.Value;
             return true;
         }
 
@@ -80,22 +68,12 @@ internal static class ChunkScanConfiguration
         throw new NotSupportedException($"Unsupported HashSuiteId '{requested}'.");
     }
 
-    private static class Candidate64K
+    private static class Stable64K
     {
         internal static readonly ProfileRegistration Value =
-            ProfileRegistration.CreateM1Candidate(64 * 1024);
-    }
-
-    private static class Candidate128K
-    {
-        internal static readonly ProfileRegistration Value =
-            ProfileRegistration.CreateM1Candidate(128 * 1024);
-    }
-
-    private static class Candidate256K
-    {
-        internal static readonly ProfileRegistration Value =
-            ProfileRegistration.CreateM1Candidate(256 * 1024);
+            ProfileRegistration.Create(
+                FastCdcProfile.Stable64KProfileId,
+                FastCdcProfile.CreateStable64K());
     }
 
     internal readonly struct ProfileRegistration
@@ -116,16 +94,16 @@ internal static class ChunkScanConfiguration
 
         internal ChunkingKernelProfile KernelProfile { get; }
 
-        internal static ProfileRegistration CreateM1Candidate(int target)
+        internal static ProfileRegistration Create(
+            ChunkingProfileId id,
+            FastCdcProfile profile)
         {
-            FastCdcProfile profile = FastCdcProfile.CreateM1Candidate(target);
-
             // The fingerprint is computed once during type initialization.
             // Profile resolution is on every explicit scan and must remain
             // allocation-free.
             ProfileFingerprint fingerprint = profile.ComputeFingerprint();
             return new ProfileRegistration(
-                profile.CandidateProfileId,
+                id,
                 fingerprint,
                 ChunkingKernelProfile.FastCdcGear(profile));
         }
