@@ -1,3 +1,7 @@
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Options;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
@@ -11,6 +15,38 @@ using System.Text.Json;
 using ChunkShift;
 
 namespace ChunkShift.AspNetCoreHostValidation;
+
+internal sealed class ValidationAuthHandler
+    : AuthenticationHandler<AuthenticationSchemeOptions>
+{
+    internal const string Scheme = "host-validation";
+
+    public ValidationAuthHandler(
+        IOptionsMonitor<AuthenticationSchemeOptions> options,
+        ILoggerFactory logger,
+        UrlEncoder encoder)
+        : base(options, logger, encoder)
+    {
+    }
+
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        if (!Request.Headers.TryGetValue("X-Host-Validation-Token", out var values) ||
+            values.Count != 1 ||
+            !string.Equals(values[0], "allow", StringComparison.Ordinal))
+        {
+            return Task.FromResult(AuthenticateResult.NoResult());
+        }
+
+        var identity = new ClaimsIdentity(
+            new[] { new Claim(ClaimTypes.NameIdentifier, "host-validation") },
+            Scheme);
+        var principal = new ClaimsPrincipal(identity);
+        return Task.FromResult(
+            AuthenticateResult.Success(
+                new AuthenticationTicket(principal, Scheme)));
+    }
+}
 
 internal static class ValidationJson
 {
