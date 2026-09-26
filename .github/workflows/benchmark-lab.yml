@@ -76,6 +76,7 @@ jobs:
           set -euo pipefail
           python3 benchmarks/scripts/run_cdc_runtime_guardrail.py self-test
           python3 benchmarks/scripts/run_cdc_runtime_guardrail.py validate \
+            --corpus benchmarks/corpus/cdc-0.1-runtime.v1.json \
             --experiments benchmarks/experiments/cdc-0.1-runtime.v1.json
 
       - name: Verify independent Python FastCDC vector
@@ -105,7 +106,7 @@ jobs:
           set -euo pipefail
           dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
             lab \
-            --corpus benchmarks/corpus/corpus.v1.json \
+            --corpus benchmarks/corpus/cdc-0.1-runtime.v1.json \
             --experiments benchmarks/experiments/experiments.v2.json \
             --output artifacts/benchmarks/lab-smoke.json
 
