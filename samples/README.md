@@ -35,3 +35,19 @@ The ASP.NET Core sample raises the request-body limit only for its two
 endpoints, to `ChunkShift:MaxRequestBodyBytes` (default 1 GiB); the host-wide
 Kestrel limit is unchanged. Chunks go to `ChunkShift:ChunkStore` (default
 `chunk-store/` under the content root).
+
+## ASP.NET Core host validation
+
+The sample intentionally stays small. The release-sensitive real-Kestrel proof,
+including disconnect/cancellation, short reads, decompression limits, slow clients,
+and immutable CSM Range/ETag handling, lives in
+[`tests/ChunkShift.AspNetCoreHostValidation`](../tests/ChunkShift.AspNetCoreHostValidation/)
+and is summarized in
+[`ASPNET-CORE-HOST-VALIDATION-2026-09.md`](../docs/validation/ASPNET-CORE-HOST-VALIDATION-2026-09.md).
+
+For an immutable CSM representation, the validation uses the physical
+`ManifestInfo.FileDigest` as the strong HTTP ETag and exposes logical
+`ManifestId` separately. Range processing is enabled only for a fresh seekable
+artifact stream; logical identity is not substituted for physical representation
+identity.
+
