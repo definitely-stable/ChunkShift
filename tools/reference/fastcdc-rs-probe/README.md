@@ -44,9 +44,9 @@ From the repository root:
 
 ```bash
 python3 tools/reference/fastcdc_reference.py --verify
-cargo run --locked --release --manifest-path tools/reference/fastcdc-rs-probe/Cargo.toml
+(cd tools/reference/fastcdc-rs-probe && cargo run --locked --release)
 ```
 
-`--locked` is mandatory in CI so the tested crate cannot drift away from `Cargo.lock`.
+`--locked` is mandatory in CI so the tested crate cannot drift away from `Cargo.lock`. The Rust command runs with the probe directory as its working directory so `rustup` also honors the colocated `rust-toolchain.toml` (`1.98.1`).
 
 See [CDC-PREFREEZE-DECISION-2026-09.md](../../../docs/benchmarks/CDC-PREFREEZE-DECISION-2026-09.md#5-fastcdc-lineage-and-the-fastcdc-rs-oracle-l1) and #99.
