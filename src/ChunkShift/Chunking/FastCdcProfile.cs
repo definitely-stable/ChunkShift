@@ -9,6 +9,10 @@ namespace ChunkShift.Chunking;
 internal readonly struct FastCdcProfile
 {
     internal const string AlgorithmId = "fastcdc.gear.chunkshift.v1";
+    internal const string StableV1ProfileId = "fastcdc.gear.chunkshift.v1.64k";
+    internal const int StableV1Minimum = 16 * 1024;
+    internal const int StableV1Target = 64 * 1024;
+    internal const int StableV1Maximum = 256 * 1024;
     internal const int MaximumAllowed = 16 * 1024 * 1024;
 
     internal int Minimum { get; }
@@ -29,6 +33,9 @@ internal readonly struct FastCdcProfile
         RelaxedMask = relaxed;
     }
 
+    internal static FastCdcProfile CreateStableV1() =>
+        new(StableV1Minimum, StableV1Target, StableV1Maximum);
+
     internal static FastCdcProfile CreateM1Candidate(int target)
     {
         checked
@@ -37,9 +44,8 @@ internal readonly struct FastCdcProfile
         }
     }
 
-    // A short semantic label; the ProfileFingerprint recorded next to it in CORE
-    // is the authoritative digest and is never embedded in the label (#64).
-    // Non-final: #8 chooses the stable profile names.
+    // Candidate IDs remain lab evidence identifiers. They are not registered by
+    // the production scanner after #8 freezes the single Core 0.1.0 profile.
     internal ChunkingProfileId CandidateProfileId =>
         new($"fastcdc.gear.candidate.v1.m{Minimum}.t{Target}.x{Maximum}");
 
