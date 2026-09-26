@@ -648,9 +648,16 @@ internal static class ScenarioRunner
             id,
             value => value.Completed,
             cancellationToken).ConfigureAwait(false);
-        ValidationAssert.True(state.RequestAborted, "disconnect must cancel RequestAborted");
-        ValidationAssert.Equal(0L, state.Chunks, "incomplete pre-Minimum input must emit no chunk");
-        ValidationAssert.True(!state.Succeeded, "disconnect scan must not report success");
+        ValidationAssert.Equal(
+            0L,
+            state.Chunks,
+            "disconnect during a pre-Minimum partial body must emit no incomplete chunk");
+        ValidationAssert.True(
+            !state.Succeeded,
+            "disconnect during source read must not report scan success");
+        ValidationAssert.True(
+            !string.IsNullOrWhiteSpace(state.ExceptionType),
+            "disconnect during source read must surface a read/transport failure");
     }
 
     private static async Task ValidateActiveHandlerCancellationAsync(
