@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    #17 real-Kestrel validation consumer. It deliberately consumes the locally
+    packed ChunkShift package and is not part of the production solution/API.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <ChunkShiftPackageVersion Condition="'$(ChunkShiftPackageVersion)' == ''">0.0.0-local</ChunkShiftPackageVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ChunkShift" Version="$(ChunkShiftPackageVersion)" />
+  </ItemGroup>
+
+</Project>
