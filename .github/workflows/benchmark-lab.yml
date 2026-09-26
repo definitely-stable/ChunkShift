@@ -78,7 +78,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo run --locked --release --manifest-path tools/reference/fastcdc-rs-probe/Cargo.toml
+          cd tools/reference/fastcdc-rs-probe
+          cargo run --locked --release
 
       - name: Verify frozen real-corpus materialization recipe
         shell: bash
