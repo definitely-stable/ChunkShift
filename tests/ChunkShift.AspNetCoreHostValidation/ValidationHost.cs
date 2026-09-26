@@ -20,11 +20,19 @@ internal static class ValidationHost
             options.Limits.MaxRequestBodySize = settings.MaxRequestBodyBytes;
         });
         builder.Services.AddRequestDecompression();
+        builder.Services
+            .AddAuthentication(ValidationAuthHandler.Scheme)
+            .AddScheme<AuthenticationSchemeOptions, ValidationAuthHandler>(
+                ValidationAuthHandler.Scheme,
+                _ => { });
+        builder.Services.AddAuthorization();
 
         WebApplication app = builder.Build();
         var state = new ValidationState();
 
         app.UseRequestDecompression();
+        app.UseAuthentication();
+        app.UseAuthorization();
 
         app.MapGet("/health", () => Results.Text("ok"));
 
@@ -43,6 +51,21 @@ internal static class ValidationHost
 
             return Results.Json(evidence, ValidationJson.Options);
         });
+
+        app.MapPost("/scan/authorized", async (HttpContext context) =>
+        {
+            ApplyRequestLimit(context, ResolveLimit(context, settings.MaxRequestBodyBytes));
+
+            ScanEvidence evidence = await ScanAsync(
+                context,
+                state: null,
+                adapter: "body",
+                shortRead: "none",
+                gateMode: GateMode.None).ConfigureAwait(false);
+
+            return Results.Json(evidence, ValidationJson.Options);
+        })
+        .RequireAuthorization();
 
         app.MapPost("/scan/observe/{id}", async (HttpContext context, string id) =>
         {
