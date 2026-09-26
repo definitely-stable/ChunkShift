@@ -105,7 +105,10 @@ jobs:
       - name: Verify external fastcdc-rs 5.0.0 vector
         if: matrix.rid == 'linux-x64'
         shell: bash
-        run: cargo run --locked --manifest-path tools/reference/fastcdc-rs-probe/Cargo.toml --release
+        run: |
+          set -euo pipefail
+          cd tools/reference/fastcdc-rs-probe
+          cargo run --locked --release
 
       - name: Pack
         run: dotnet pack src/ChunkShift/ChunkShift.csproj -c Release --no-build --no-restore -o artifacts/packages -p:PackageVersion=${PACKAGE_VERSION}

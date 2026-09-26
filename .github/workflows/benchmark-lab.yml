@@ -12,6 +12,7 @@ on:
       - "src/ChunkShift/Primitives/Hash256.cs"
       - "docs/architecture/PROFILE-FINGERPRINT-V1.md"
       - "tools/reference/fastcdc_reference.py"
+      - "tools/reference/fastcdc-rs-probe/**"
       - "Directory.Packages.props"
       - ".github/workflows/benchmark-lab.yml"
       - ".github/workflows/heavy-validation.yml"
@@ -24,6 +25,7 @@ on:
       - "src/ChunkShift/Chunking/**"
       - "src/ChunkShift/Primitives/Hash256.cs"
       - "tools/reference/fastcdc_reference.py"
+      - "tools/reference/fastcdc-rs-probe/**"
       - "Directory.Packages.props"
       - ".github/workflows/benchmark-lab.yml"
       - ".github/workflows/heavy-validation.yml"
@@ -68,9 +70,16 @@ jobs:
       - name: Validate benchmark evidence scripts
         run: python3 -m py_compile benchmarks/scripts/summarize_scanner_phase2.py benchmarks/scripts/summarize_scanner_freeze.py benchmarks/scripts/summarize_boundary_scan_f08.py
 
-      - name: Verify independent FastCDC vector
+      - name: Verify independent Python FastCDC vector
         shell: bash
         run: python3 tools/reference/fastcdc_reference.py --verify
+
+      - name: Verify pinned fastcdc-rs v2016/v2020 oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd tools/reference/fastcdc-rs-probe
+          cargo run --locked --release
 
       - name: Verify frozen real-corpus materialization recipe
         shell: bash
