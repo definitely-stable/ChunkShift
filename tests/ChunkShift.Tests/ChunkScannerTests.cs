@@ -275,14 +275,10 @@ public class ChunkScannerTests
         Assert.Equal(0, calls);
     }
 
-    [Theory]
-    [InlineData(64 * 1024)]
-    [InlineData(128 * 1024)]
-    [InlineData(256 * 1024)]
-    public void ExplicitProfileResolution_HasNoPerCallAllocationGrowth(int targetSize)
+    [Fact]
+    public void ExplicitStableProfileResolution_HasNoPerCallAllocationGrowth()
     {
-        ChunkingProfileId id =
-            FastCdcProfile.CreateM1Candidate(targetSize).CandidateProfileId;
+        ChunkingProfileId id = FastCdcProfile.Stable64KProfileId;
 
         _ = ChunkScanConfiguration.ResolveProfile(id);
 
@@ -471,7 +467,7 @@ public class ChunkScannerTests
     public async Task BorrowedContent_IsReusedAfterCallbackCompletes()
     {
         byte[] input = CreateXorShiftBytes(2 * 1024 * 1024, 0xB0A0D123u);
-        FastCdcProfile fastCdc = FastCdcProfile.CreateM1Candidate(64 * 1024);
+        FastCdcProfile fastCdc = FastCdcProfile.CreateStable64K();
         ReadOnlyMemory<byte> retained = default;
         byte[]? firstSnapshot = null;
         long firstEnd = 0;
@@ -496,7 +492,7 @@ public class ChunkScannerTests
                 calls++;
                 return ValueTask.CompletedTask;
             },
-            new ChunkScanOptions { ProfileId = fastCdc.CandidateProfileId });
+            new ChunkScanOptions { ProfileId = FastCdcProfile.Stable64KProfileId });
 
         // The kernel keeps one bounded buffer, so the first chunk's memory is
         // overwritten once the scan has moved about one buffer further; a copy
@@ -513,8 +509,7 @@ public class ChunkScannerTests
         long covered = 0;
         int callbacks = 0;
 
-        ChunkingProfileId profileId =
-            FastCdcProfile.CreateM1Candidate(64 * 1024).CandidateProfileId;
+        ChunkingProfileId profileId = FastCdcProfile.Stable64KProfileId;
 
         await ChunkScanner.ScanAsync(
             source,

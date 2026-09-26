@@ -5,16 +5,12 @@ namespace ChunkShift.Benchmarks.Tests;
 
 public class ScannerApiFreezePrototypeTests
 {
-    [Theory]
-    [InlineData(64 * 1024)]
-    [InlineData(128 * 1024)]
-    [InlineData(256 * 1024)]
-    public async Task TaskPrototypeMatchesPublicValueTaskForAllCandidateProfiles(
-        int targetSize)
+    [Fact]
+    public async Task TaskPrototypeMatchesPublicValueTaskForStableProfile()
     {
         byte[] input = CreateBytes((4 * 1024 * 1024) + 257, 0xF2EE20A2u);
         ChunkScanOptions options =
-            ScannerApiFreezeTestFacade.CreateOptions(targetSize);
+            ScannerApiFreezeTestFacade.CreateOptions();
 
         ScannerObservedChunk[] valueTaskChunks =
             await CollectValueTaskAsync(input, options);
@@ -32,7 +28,7 @@ public class ScannerApiFreezePrototypeTests
     {
         byte[] input = CreateBytes((4 * 1024 * 1024) + 17, 0x5A0F20A2u);
         ChunkScanOptions options =
-            ScannerApiFreezeTestFacade.CreateOptions(128 * 1024);
+            ScannerApiFreezeTestFacade.CreateOptions();
 
         int[] pattern = [512, 4096, 32768, 65536, 1024, 16384];
 

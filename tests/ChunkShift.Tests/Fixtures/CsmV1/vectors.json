@@ -94,7 +94,7 @@
         "outcome": "integrity"
       },
       "hasBidx": false,
-      "physicalLength": 515
+      "physicalLength": 498
     },
     "multiblock-sha256-bidx.csm": {
       "cblkCount": 2,

@@ -1,10 +1,10 @@
-# FastCDC Gear ChunkShift v1 candidate
+# FastCDC Gear ChunkShift v1
 
-Status: Candidate semantic contract for #4; not public-frozen until #8/#9  
-Date: 2026-09-22  
+Status: Frozen chunk-boundary semantics; Core 0.1.0 stable profile selected by #8  
+Date: 2026-09-22 · profile freeze: 2026-09-26  
 Algorithm id: `fastcdc.gear.chunkshift.v1`
 
-This specification defines the **scalar reference semantics** for ChunkShift's FastCDC candidate. Optimized implementations may differ internally but MUST emit the same chunk boundaries for the same input and profile.
+This specification defines the **scalar reference semantics** for ChunkShift's FastCDC v1 algorithm. Optimized implementations may differ internally but MUST emit the same chunk boundaries for the same input and profile.
 
 Reference material used during design:
 
@@ -16,7 +16,7 @@ External implementations are references, not runtime dependencies.
 
 ## 1. Profile parameters
 
-Every candidate profile explicitly contains:
+Every FastCDC v1 profile explicitly contains:
 
 ```text
 algorithm = "fastcdc.gear.chunkshift.v1"
@@ -40,9 +40,19 @@ Validation:
 - `target` MUST be a power of two;
 - `maximum <= 16,777,216` for this candidate generation.
 
-The public/stable 0.1.0 profile values are selected by #8. Implementing a parameter set in #4 does not make it the default.
+Issue #8 selected exactly one stable Core 0.1.0 profile:
 
-For M1 measurement only, #4 defines three **non-stable calibration presets**:
+| identity | value |
+| --- | --- |
+| ProfileId | `fastcdc.gear.chunkshift.v1.64k` |
+| minimum | 16 KiB |
+| target | 64 KiB |
+| maximum | 256 KiB |
+| ProfileFingerprint | `054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0` |
+
+The stable profile uses the scalar semantics in this document unchanged. The nominal 64 KiB target is a parameter name, not an expected mean chunk size; the frozen real-corpus holdout measured an actual mean of approximately 80.69 KiB. Actual mean is evidence, not persisted semantics.
+
+For M1/#8 measurement only, #4 defined three **non-stable calibration presets**:
 
 | target | minimum | maximum |
 | ---: | ---: | ---: |
@@ -50,9 +60,9 @@ For M1 measurement only, #4 defines three **non-stable calibration presets**:
 | 128 KiB | 32 KiB | 512 KiB |
 | 256 KiB | 64 KiB | 1 MiB |
 
-They use `minimum = target / 4` and `maximum = target * 4`. These values exist to run comparable lab evidence; #8 may select different release-profile values.
+They use `minimum = target / 4` and `maximum = target * 4`. These values remain available to the benchmark harness so the pre-freeze evidence stays reproducible; they do not create additional production registrations.
 
-These non-stable candidates are identified as `fastcdc.gear.candidate.v1.m<minimum>.t<target>.x<maximum>`, so changing a bound produces a different candidate identifier rather than colliding on target size alone. The identifier does not embed the `ProfileFingerprint`; CSM records the fingerprint in its own CORE field, and a reader that registers the identifier checks it (PROFILE-FINGERPRINT-V1, #64).
+These non-stable candidates are identified as `fastcdc.gear.candidate.v1.m<minimum>.t<target>.x<maximum>`, so changing a bound produces a different measurement identifier rather than colliding on target size alone. Core does not register those candidate IDs after the #8 freeze. The identifier does not embed the `ProfileFingerprint`; CSM records the fingerprint in its own CORE field, and a reader that registers the identifier checks it (PROFILE-FINGERPRINT-V1, #64).
 
 ## 2. GEAR table
 
@@ -111,7 +121,7 @@ mask_l  = MASKS[bits - 1]
 
 No floating-point logarithm participates in persisted semantics.
 
-For the release-candidate targets:
+For the measured primary targets:
 
 | target | strict mask | relaxed mask |
 | ---: | ---: | ---: |
@@ -213,7 +223,7 @@ A FastCDC profile semantic object MUST bind at least:
 - maximum forced-cut rule;
 - EOF/final remainder behavior.
 
-Changing any of these requires a different ProfileFingerprint and, after publication, an explicit compatibility decision/ProfileId as applicable.
+Changing any of these requires a different ProfileFingerprint and a new semantic identity decision/ProfileId. This repository will not publish the NuGet package; the frozen identity must be preserved when the project is migrated to the publication repository.
 
 ## 10. Required independent vectors before #4 closes
 

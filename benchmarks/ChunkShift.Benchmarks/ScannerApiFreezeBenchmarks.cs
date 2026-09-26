@@ -114,19 +114,16 @@ public class ScannerApiFreezeProfileBenchmarks
     private TaskChunkScanHandler _taskHandler = null!;
     private readonly ScannerFreezeCounter _counter = new();
 
-    [Params(64 * 1024, 128 * 1024, 256 * 1024)]
-    public int TargetSize { get; set; }
-
     [GlobalSetup]
     public void Setup()
     {
         _data = CreateXorShiftBytes(16 * 1024 * 1024, 0xF2EE_20A2u);
 
-        FastCdcProfile profile = FastCdcProfile.CreateM1Candidate(TargetSize);
+        FastCdcProfile profile = FastCdcProfile.CreateStable64K();
         _profile = ChunkingKernelProfile.FastCdcGear(profile);
         _options = new ChunkScanOptions
         {
-            ProfileId = profile.CandidateProfileId,
+            ProfileId = FastCdcProfile.Stable64KProfileId,
             HashSuite = HashSuiteIds.Blake3256V1,
         };
 
@@ -263,11 +260,11 @@ public class ScannerApiFreezeCorpusBenchmarks
     {
         _data = CorpusGenerator.Generate(CreateCorpusEntry(CorpusKind));
 
-        FastCdcProfile profile = FastCdcProfile.CreateM1Candidate(128 * 1024);
+        FastCdcProfile profile = FastCdcProfile.CreateStable64K();
         _profile = ChunkingKernelProfile.FastCdcGear(profile);
         _options = new ChunkScanOptions
         {
-            ProfileId = profile.CandidateProfileId,
+            ProfileId = FastCdcProfile.Stable64KProfileId,
             HashSuite = HashSuiteIds.Blake3256V1,
         };
 
@@ -420,11 +417,11 @@ public class ScannerApiFreezeShortReadBenchmarks
         var random = new DeterministicPrng(0x5A0F_20A2_2026UL);
         random.Fill(_data);
 
-        FastCdcProfile profile = FastCdcProfile.CreateM1Candidate(128 * 1024);
+        FastCdcProfile profile = FastCdcProfile.CreateStable64K();
         _profile = ChunkingKernelProfile.FastCdcGear(profile);
         _options = new ChunkScanOptions
         {
-            ProfileId = profile.CandidateProfileId,
+            ProfileId = FastCdcProfile.Stable64KProfileId,
             HashSuite = HashSuiteIds.Blake3256V1,
         };
 
@@ -537,11 +534,11 @@ public class ScannerApiFreezeAsyncBenchmarks
         var random = new DeterministicPrng(0xA5A9_F2EE_2026UL);
         random.Fill(_data);
 
-        FastCdcProfile profile = FastCdcProfile.CreateM1Candidate(128 * 1024);
+        FastCdcProfile profile = FastCdcProfile.CreateStable64K();
         _profile = ChunkingKernelProfile.FastCdcGear(profile);
         _options = new ChunkScanOptions
         {
-            ProfileId = profile.CandidateProfileId,
+            ProfileId = FastCdcProfile.Stable64KProfileId,
             HashSuite = HashSuiteIds.Blake3256V1,
         };
 
@@ -657,11 +654,11 @@ public class ScannerApiFreezeFileBenchmarks : IDisposable
             $"chunkshift-freeze-{Guid.NewGuid():N}.bin");
         File.WriteAllBytes(_filePath, data);
 
-        FastCdcProfile profile = FastCdcProfile.CreateM1Candidate(128 * 1024);
+        FastCdcProfile profile = FastCdcProfile.CreateStable64K();
         _profile = ChunkingKernelProfile.FastCdcGear(profile);
         _options = new ChunkScanOptions
         {
-            ProfileId = profile.CandidateProfileId,
+            ProfileId = FastCdcProfile.Stable64KProfileId,
             HashSuite = HashSuiteIds.Blake3256V1,
         };
 

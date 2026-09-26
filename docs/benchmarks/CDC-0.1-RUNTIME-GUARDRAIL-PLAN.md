@@ -175,3 +175,17 @@ This work does not:
 - start #14 experimental CDC work.
 
 Only after this runtime guardrail is reviewed can the separate #8 freeze change candidate registration into the final Core 0.1.0 stable profile.
+
+## 10. Execution result
+
+The pre-registered execution completed in PR #112, workflow `36226259217`.
+
+- x64 runtime artifact: `10900937668`, digest `sha256:775dcfc39f7c91f7690fc37e2393281d9c153c117e183409df851043fd3b1fcb`;
+- arm64 runtime artifact: `10900649483`, digest `sha256:c2fdfc120486132097b0a0223f8c4f51c87e095826bd6ba0dcdfcba837d26c73`;
+- cross-architecture verdict: `10900694280`, digest `sha256:0bcd1b541152a880900b814fd4c1c247507579a3f46e81d5c71ef2299df19da`;
+- all ten scheduled batches completed on both architectures;
+- the cross-architecture gate compared 60 process results;
+- no runtime veto was observed for the 64 KiB deterministic quality leader.
+
+The final interpretation and stable identity are recorded in [CDC-0.1-PROFILE-DECISION-2026-09.md](CDC-0.1-PROFILE-DECISION-2026-09.md). This result section records the execution after the fact; it does not alter the pre-registered rules above.
+

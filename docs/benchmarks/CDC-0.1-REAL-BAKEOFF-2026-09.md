@@ -153,3 +153,10 @@ The deterministic data establishes:
 5. warmed-prefix fails its pre-registered reopen gate and stays lab-only.
 
 It does **not** yet select the stable ProfileId/default. Protocol §8.2 still requires 10 process-isolated runtime measurements with balanced order, individual samples retained, and median/dispersion reported. Runtime is a guardrail, not permission to override a material quality regression without the written justification required by §9.
+
+## 9. Finalization
+
+This document remains the historical deterministic-quality record and its pre-runtime wording above is intentionally preserved.
+
+PR #112 subsequently completed the pre-registered runtime guardrail without a runtime veto. The stable profile/identity selection is recorded separately in [CDC-0.1-PROFILE-DECISION-2026-09.md](CDC-0.1-PROFILE-DECISION-2026-09.md). Historical candidate identifiers and measurement results in this document are not rewritten to the later stable ProfileId.
+

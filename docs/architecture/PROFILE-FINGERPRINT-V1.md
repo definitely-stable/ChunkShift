@@ -1,9 +1,9 @@
-# Profile Fingerprint Candidate V1
+# Profile Fingerprint V1
 
-Status: M0 normative candidate; public compatibility freeze remains M3  
-Last reviewed: 2026-09-24
+Status: Normative semantic-fingerprint contract; Core 0.1.0 profile binding frozen by #8  
+Last reviewed: 2026-09-26
 
-This document defines the M0 semantic fingerprint contract used by issue #2.
+This document defines the semantic fingerprint contract used by ChunkShift Core.
 
 It exists to prevent authoring-file representation from becoming chunking-profile identity.
 
@@ -40,7 +40,7 @@ Rules:
 - A stable `ChunkingProfileId` never changes semantics. Different semantics need a different identifier (RFC-0001 §15), and the fingerprint is what proves which semantics a manifest actually used.
 - An implementation that registers a `ChunkingProfileId` knows its fingerprint. When a manifest pairs a registered identifier with a different fingerprint, verification reports a profile-semantics mismatch; an identifier the implementation does not register can still be verified manifest-only, but content cannot be chunked with it (CSM-V1-CANDIDATE §14).
 
-The final identifiers of the 0.1.0 stable profiles are chosen by [#8](https://github.com/definitely-stable/ChunkShift/issues/8). Until then the candidates are named `fastcdc.gear.candidate.v1.m<minimum>.t<target>.x<maximum>`.
+Issue [#8](https://github.com/definitely-stable/ChunkShift/issues/8) selected exactly one Core 0.1.0 stable profile: `fastcdc.gear.chunkshift.v1.64k`. Its frozen fingerprint is `054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0`. The pre-freeze identifiers `fastcdc.gear.candidate.v1.m<minimum>.t<target>.x<maximum>` remain measurement identities only and are not production registrations.
 
 ## Canonical semantic encoding
 
@@ -100,4 +100,4 @@ The all-zero 256-bit value is valid.
 
 ## Compatibility note
 
-This encoding is normative for M0 tests and implementation work. M3 remains the compatibility gate that decides what is published as the `0.1.0` contract. A later change to the semantic encoding after publication would require an explicit compatibility/version decision rather than silently reinterpreting an existing fingerprint.
+This encoding is normative for tests, persisted profile fingerprints and migration into the eventual publication repository. The #8 freeze does not publish a package from this repository. A later change to this encoding or to the semantics bound by an existing stable ProfileId requires an explicit compatibility/version decision rather than silently reinterpreting an existing fingerprint.

@@ -11,6 +11,11 @@ internal readonly struct FastCdcProfile
     internal const string AlgorithmId = "fastcdc.gear.chunkshift.v1";
     internal const int MaximumAllowed = 16 * 1024 * 1024;
 
+    // Core 0.1.0 stable identity selected by #8. The short label is persisted
+    // separately from the authoritative ProfileFingerprint (#64).
+    internal static readonly ChunkingProfileId Stable64KProfileId =
+        new("fastcdc.gear.chunkshift.v1.64k");
+
     internal int Minimum { get; }
     internal int Target { get; }
     internal int Maximum { get; }
@@ -29,6 +34,14 @@ internal readonly struct FastCdcProfile
         RelaxedMask = relaxed;
     }
 
+    // The production Core 0.1.0 profile uses explicit values rather than deriving
+    // min/max from a measurement helper. These three numbers are part of the
+    // frozen profile contract.
+    internal static FastCdcProfile CreateStable64K() =>
+        new(16 * 1024, 64 * 1024, 256 * 1024);
+
+    // Historical/pre-freeze measurement factory. Benchmark evidence for #8 uses
+    // these candidates; they are not production ProfileId registrations.
     internal static FastCdcProfile CreateM1Candidate(int target)
     {
         checked
@@ -37,9 +50,8 @@ internal readonly struct FastCdcProfile
         }
     }
 
-    // A short semantic label; the ProfileFingerprint recorded next to it in CORE
-    // is the authoritative digest and is never embedded in the label (#64).
-    // Non-final: #8 chooses the stable profile names.
+    // Historical/pre-freeze measurement identity. The ProfileFingerprint recorded
+    // next to a ProfileId in CORE is the authoritative semantic digest (#64).
     internal ChunkingProfileId CandidateProfileId =>
         new($"fastcdc.gear.candidate.v1.m{Minimum}.t{Target}.x{Maximum}");
 
