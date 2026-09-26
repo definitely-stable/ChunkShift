@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Security.Cryptography;
 using ChunkShift;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Net.Http.Headers;
 
