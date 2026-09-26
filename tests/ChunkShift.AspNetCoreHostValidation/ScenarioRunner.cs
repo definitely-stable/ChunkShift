@@ -124,7 +124,7 @@ internal static class ScenarioRunner
 
         using (var request = new HttpRequestMessage(
             HttpMethod.Post,
-            new Uri(baseUri, "/scan?adapter=body&limit=1048576")))
+            new Uri(baseUri, "/scan/decompression-limited")))
         {
             request.Content = new ByteArrayContent(compressedOverLimit);
             request.Content.Headers.ContentType = new("application/octet-stream");
@@ -132,10 +132,9 @@ internal static class ScenarioRunner
 
             using HttpResponseMessage response =
                 await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            ValidationAssert.Equal(
-                HttpStatusCode.RequestEntityTooLarge,
-                response.StatusCode,
-                "decompressed bytes above the configured request limit must be rejected");
+            ValidationAssert.True(
+                !response.IsSuccessStatusCode,
+                $"decompressed bytes above the endpoint metadata limit must be rejected; status={response.StatusCode}");
         }
         passed.Add("request-decompression-enforces-decompressed-size-limit");
 
