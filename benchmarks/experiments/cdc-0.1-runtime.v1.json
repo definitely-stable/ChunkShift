@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "experiments": [
     {
-      "id": "runtime-game-pak-64k",
-      "corpusId": "game-pak-8m",
+      "id": "runtime-game-pak-64m-64k",
+      "corpusId": "runtime-game-pak-64m",
       "algorithm": "fastcdc.gear.chunkshift.v1",
       "profileId": "fastcdc.gear.candidate.v1.m16384.t65536.x262144",
       "profileFingerprint": "054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0",
@@ -12,8 +12,8 @@
       "mutation": null
     },
     {
-      "id": "runtime-db-vm-64k",
-      "corpusId": "db-vm-8m",
+      "id": "runtime-db-vm-64m-64k",
+      "corpusId": "runtime-db-vm-64m",
       "algorithm": "fastcdc.gear.chunkshift.v1",
       "profileId": "fastcdc.gear.candidate.v1.m16384.t65536.x262144",
       "profileFingerprint": "054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0",
@@ -22,8 +22,8 @@
       "mutation": null
     },
     {
-      "id": "runtime-game-pak-128k",
-      "corpusId": "game-pak-8m",
+      "id": "runtime-game-pak-64m-128k",
+      "corpusId": "runtime-game-pak-64m",
       "algorithm": "fastcdc.gear.chunkshift.v1",
       "profileId": "fastcdc.gear.candidate.v1.m32768.t131072.x524288",
       "profileFingerprint": "74d375951d3cd4d165fdad5866c6de0b7a9231c794f16444930ac5acdd65b3da",
@@ -32,8 +32,8 @@
       "mutation": null
     },
     {
-      "id": "runtime-db-vm-128k",
-      "corpusId": "db-vm-8m",
+      "id": "runtime-db-vm-64m-128k",
+      "corpusId": "runtime-db-vm-64m",
       "algorithm": "fastcdc.gear.chunkshift.v1",
       "profileId": "fastcdc.gear.candidate.v1.m32768.t131072.x524288",
       "profileFingerprint": "74d375951d3cd4d165fdad5866c6de0b7a9231c794f16444930ac5acdd65b3da",
@@ -42,8 +42,8 @@
       "mutation": null
     },
     {
-      "id": "runtime-game-pak-256k",
-      "corpusId": "game-pak-8m",
+      "id": "runtime-game-pak-64m-256k",
+      "corpusId": "runtime-game-pak-64m",
       "algorithm": "fastcdc.gear.chunkshift.v1",
       "profileId": "fastcdc.gear.candidate.v1.m65536.t262144.x1048576",
       "profileFingerprint": "d8fc289d93f8f8b6308498891831638743cce8dde789417f25cf5f3d8f7fbae4",
@@ -52,8 +52,8 @@
       "mutation": null
     },
     {
-      "id": "runtime-db-vm-256k",
-      "corpusId": "db-vm-8m",
+      "id": "runtime-db-vm-64m-256k",
+      "corpusId": "runtime-db-vm-64m",
       "algorithm": "fastcdc.gear.chunkshift.v1",
       "profileId": "fastcdc.gear.candidate.v1.m65536.t262144.x1048576",
       "profileFingerprint": "d8fc289d93f8f8b6308498891831638743cce8dde789417f25cf5f3d8f7fbae4",
