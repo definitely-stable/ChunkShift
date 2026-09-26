@@ -317,7 +317,7 @@ internal static class ValidationHost
         using var sequence = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var process = Process.GetCurrentProcess();
         TimeSpan cpuBefore = process.TotalProcessorTime;
-        long allocatedBefore = GC.GetTotalAllocatedBytes(precise: false);
+        long allocatedBefore = GC.GetTotalAllocatedBytes(precise: true);
         var stopwatch = Stopwatch.StartNew();
 
         long chunks = 0;
@@ -392,7 +392,7 @@ internal static class ValidationHost
                 Convert.ToHexString(sequence.GetHashAndReset()).ToLowerInvariant(),
                 stopwatch.Elapsed.TotalSeconds,
                 (process.TotalProcessorTime - cpuBefore).TotalSeconds,
-                GC.GetTotalAllocatedBytes(precise: false) - allocatedBefore,
+                GC.GetTotalAllocatedBytes(precise: true) - allocatedBefore,
                 Math.Max(firstChunkMilliseconds, 0),
                 process.WorkingSet64,
                 process.PeakWorkingSet64);
