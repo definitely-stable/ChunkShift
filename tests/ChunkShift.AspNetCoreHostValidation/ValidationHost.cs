@@ -359,6 +359,11 @@ internal static class ValidationHost
                                 catch (OperationCanceledException)
                                 {
                                     state.MarkHandlerCanceled();
+                                    if (context.RequestAborted.IsCancellationRequested)
+                                    {
+                                        state.MarkAborted();
+                                    }
+
                                     throw;
                                 }
                             }
@@ -394,6 +399,11 @@ internal static class ValidationHost
         }
         catch (Exception exception)
         {
+            if (context.RequestAborted.IsCancellationRequested)
+            {
+                state?.MarkAborted();
+            }
+
             state?.MarkException(exception);
             throw;
         }
