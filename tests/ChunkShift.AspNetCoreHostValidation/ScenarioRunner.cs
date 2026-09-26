@@ -39,6 +39,39 @@ internal static class ScenarioRunner
         ValidationAssert.True(direct.Chunks > 0, "direct scan must emit chunks");
         passed.Add("request-body-direct-scan");
 
+        using (HttpResponseMessage unauthorized = await client.PostAsync(
+            new Uri(baseUri, "/scan/authorized"),
+            new ByteArrayContent(payload),
+            cancellationToken).ConfigureAwait(false))
+        {
+            ValidationAssert.Equal(
+                HttpStatusCode.Unauthorized,
+                unauthorized.StatusCode,
+                "normal ASP.NET authorization must run before the ChunkShift endpoint");
+        }
+
+        using (var authorizedRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            new Uri(baseUri, "/scan/authorized")))
+        {
+            authorizedRequest.Headers.TryAddWithoutValidation(
+                "X-Host-Validation-Token",
+                "allow");
+            authorizedRequest.Content = new ByteArrayContent(payload);
+
+            using HttpResponseMessage authorizedResponse =
+                await client.SendAsync(
+                    authorizedRequest,
+                    cancellationToken).ConfigureAwait(false);
+            authorizedResponse.EnsureSuccessStatusCode();
+            ScanEvidence authorizedScan =
+                await ReadJsonAsync<ScanEvidence>(
+                    authorizedResponse,
+                    cancellationToken).ConfigureAwait(false);
+            AssertSameSequence(direct, authorizedScan, "authorized direct scan");
+        }
+        passed.Add("standard-aspnet-authorization-composition");
+
         ScanEvidence oneByte = await PostScanAsync(
             client,
             baseUri,
@@ -82,6 +115,29 @@ internal static class ScenarioRunner
             AssertSameSequence(direct, decompressed, "request decompression");
         }
         passed.Add("request-decompression-byte-identity");
+
+        byte[] compressible = new byte[2 * 1024 * 1024];
+        byte[] compressedOverLimit = CompressGzip(compressible);
+        ValidationAssert.True(
+            compressedOverLimit.Length < 1024 * 1024,
+            "compressed control payload must be smaller than the decompressed limit");
+
+        using (var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            new Uri(baseUri, "/scan?adapter=body&limit=1048576")))
+        {
+            request.Content = new ByteArrayContent(compressedOverLimit);
+            request.Content.Headers.ContentType = new("application/octet-stream");
+            request.Content.Headers.ContentEncoding.Add("gzip");
+
+            using HttpResponseMessage response =
+                await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            ValidationAssert.Equal(
+                HttpStatusCode.RequestEntityTooLarge,
+                response.StatusCode,
+                "decompressed bytes above the configured request limit must be rejected");
+        }
+        passed.Add("request-decompression-enforces-decompressed-size-limit");
 
         const long requestLimit = 1024 * 1024;
         using (HttpResponseMessage response = await client.PostAsync(
