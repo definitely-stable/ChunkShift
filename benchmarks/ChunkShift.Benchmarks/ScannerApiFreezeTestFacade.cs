@@ -5,14 +5,10 @@ namespace ChunkShift.Benchmarks;
 
 internal static class ScannerApiFreezeTestFacade
 {
-    internal static ChunkScanOptions CreateOptions(int targetSize)
-    {
-        FastCdcProfile profile = FastCdcProfile.CreateM1Candidate(targetSize);
-
-        return new ChunkScanOptions
+    internal static ChunkScanOptions CreateOptions() =>
+        new()
         {
-            ProfileId = profile.CandidateProfileId,
+            ProfileId = FastCdcProfile.Stable64KProfileId,
             HashSuite = HashSuiteIds.Blake3256V1,
         };
-    }
 }
