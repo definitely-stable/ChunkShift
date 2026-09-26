@@ -24,7 +24,7 @@ MANIFEST_SCHEMA_VERSION = 2
 ALGORITHM = "fastcdc.gear.chunkshift.v1"
 HASH_SUITE = "chunkshift.blake3-256.v1"
 
-WORKLOADS = ("game-pak-8m", "db-vm-8m")
+WORKLOADS = ("runtime-game-pak-64m", "runtime-db-vm-64m")
 TARGETS = (65536, 131072, 262144)
 
 PROFILE_BY_TARGET = {
@@ -43,12 +43,12 @@ PROFILE_BY_TARGET = {
 }
 
 ID_BY_KEY = {
-    (65536, "game-pak-8m"): "runtime-game-pak-64k",
-    (65536, "db-vm-8m"): "runtime-db-vm-64k",
-    (131072, "game-pak-8m"): "runtime-game-pak-128k",
-    (131072, "db-vm-8m"): "runtime-db-vm-128k",
-    (262144, "game-pak-8m"): "runtime-game-pak-256k",
-    (262144, "db-vm-8m"): "runtime-db-vm-256k",
+    (65536, "runtime-game-pak-64m"): "runtime-game-pak-64m-64k",
+    (65536, "runtime-db-vm-64m"): "runtime-db-vm-64m-64k",
+    (131072, "runtime-game-pak-64m"): "runtime-game-pak-64m-128k",
+    (131072, "runtime-db-vm-64m"): "runtime-db-vm-64m-128k",
+    (262144, "runtime-game-pak-64m"): "runtime-game-pak-64m-256k",
+    (262144, "runtime-db-vm-64m"): "runtime-db-vm-64m-256k",
 }
 
 # Ten runs cannot put each of three candidates in each of three positions an
@@ -91,6 +91,52 @@ def schedule_sha256() -> str:
 def kib(target: int) -> int:
     return target // 1024
 
+
+CORPUS_EXPECTED = {
+    "runtime-game-pak-64m": ("game/pak-like assets", "game-pak-like", 67108864, 1001, 1),
+    "runtime-db-vm-64m": ("DB/VM/data files", "db-vm-data-like", 67108864, 1004, 1),
+}
+
+
+def validate_corpus(path: Path) -> dict[str, Any]:
+    corpus = load_json(path)
+    if corpus.get("schemaVersion") != 1:
+        raise ValueError(f"{path}: expected corpus schemaVersion 1")
+
+    entries = corpus.get("entries")
+    if not isinstance(entries, list) or len(entries) != 2:
+        raise ValueError(f"{path}: expected exactly 2 runtime corpus entries")
+
+    seen: set[str] = set()
+    for entry in entries:
+        corpus_id = entry.get("id")
+        if corpus_id not in CORPUS_EXPECTED:
+            raise ValueError(f"{path}: unexpected runtime corpus id {corpus_id!r}")
+        if corpus_id in seen:
+            raise ValueError(f"{path}: duplicate runtime corpus id {corpus_id}")
+        seen.add(corpus_id)
+
+        expected_category, expected_generator, expected_size, expected_seed, expected_version = CORPUS_EXPECTED[corpus_id]
+        exact = {
+            "category": expected_category,
+            "generator": expected_generator,
+            "sizeBytes": expected_size,
+            "seed": expected_seed,
+            "generatorVersion": expected_version,
+        }
+        for field, expected in exact.items():
+            if entry.get(field) != expected:
+                raise ValueError(
+                    f"{corpus_id}: {field}={entry.get(field)!r}, expected {expected!r}"
+                )
+        provenance = entry.get("provenance")
+        if not isinstance(provenance, str) or not provenance.strip():
+            raise ValueError(f"{corpus_id}: provenance must be recorded")
+
+    if seen != set(CORPUS_EXPECTED):
+        raise ValueError(f"{path}: runtime corpus is incomplete")
+
+    return corpus
 
 def validate_schedule() -> dict[int, list[int]]:
     if len(SCHEDULE) != 10:
@@ -318,6 +364,7 @@ def load_raw_runs(output_dir: Path, commit: str) -> list[dict[str, Any]]:
 
 def summarize(
     output_dir: Path,
+    corpus_manifest: Path,
     experiment_manifest: Path,
     arch: str,
     commit: str,
@@ -396,6 +443,7 @@ def summarize(
         "arch": arch,
         "commit": commit,
         "labSchemaVersion": LAB_SCHEMA_VERSION,
+        "corpusManifestSha256": sha256_file(corpus_manifest),
         "experimentManifestSha256": sha256_file(experiment_manifest),
         "scheduleSha256": schedule_sha256(),
         "runs": len(runs),
@@ -426,7 +474,8 @@ def write_markdown(path: Path, summary: dict[str, Any]) -> None:
         "",
         f"- commit: `{summary['commit']}`",
         f"- runs: **{summary['runs']}** process-isolated batches",
-        f"- manifest SHA-256: `{summary['experimentManifestSha256']}`",
+        f"- corpus manifest SHA-256: `{summary['corpusManifestSha256']}`",
+        f"- experiment manifest SHA-256: `{summary['experimentManifestSha256']}`",
         f"- schedule SHA-256: `{summary['scheduleSha256']}`",
         "- runtime is a veto/guardrail, not a profile-selection score",
         "",
@@ -513,6 +562,7 @@ def run_guardrail(args: argparse.Namespace) -> None:
     if not dll.is_file():
         raise ValueError(f"benchmark DLL does not exist: {dll}")
 
+    validate_corpus(corpus)
     base = validate_manifest(experiment_manifest)
     validate_schedule()
 
@@ -530,6 +580,8 @@ def run_guardrail(args: argparse.Namespace) -> None:
         "schemaVersion": 1,
         "commit": args.commit,
         "arch": args.arch,
+        "corpusManifest": str(corpus),
+        "corpusManifestSha256": sha256_file(corpus),
         "experimentManifest": str(experiment_manifest),
         "experimentManifestSha256": sha256_file(experiment_manifest),
         "schedule": [[kib(target) for target in order] for order in SCHEDULE],
@@ -586,7 +638,7 @@ def run_guardrail(args: argparse.Namespace) -> None:
         run = load_json(run_output)
         validate_lab_run(run, order, args.commit)
 
-    summary = summarize(output_dir, experiment_manifest, args.arch, args.commit)
+    summary = summarize(output_dir, corpus, experiment_manifest, args.arch, args.commit)
     print((output_dir / "runtime-summary.md").read_text(encoding="utf-8"))
     print(f"summary rows: {len(summary['rows'])}", flush=True)
 
@@ -599,7 +651,7 @@ def compare_architectures(args: argparse.Namespace) -> None:
     x64_summary = load_json(x64_dir / "runtime-summary.json")
     arm_summary = load_json(arm64_dir / "runtime-summary.json")
 
-    for field in ("commit", "experimentManifestSha256", "scheduleSha256", "runs"):
+    for field in ("commit", "corpusManifestSha256", "experimentManifestSha256", "scheduleSha256", "runs"):
         if x64_summary.get(field) != arm_summary.get(field):
             raise ValueError(f"cross-architecture {field} differs")
 
@@ -671,6 +723,7 @@ def main() -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     validate_parser = subparsers.add_parser("validate")
+    validate_parser.add_argument("--corpus", required=True)
     validate_parser.add_argument("--experiments", required=True)
 
     run_parser = subparsers.add_parser("run")
@@ -694,9 +747,12 @@ def main() -> int:
 
     try:
         if args.command == "validate":
+            corpus = Path(args.corpus).resolve()
             manifest = Path(args.experiments).resolve()
+            validate_corpus(corpus)
             validate_manifest(manifest)
             counts = validate_schedule()
+            print(f"corpus SHA-256: {sha256_file(corpus)}")
             print(f"manifest SHA-256: {sha256_file(manifest)}")
             print(f"schedule SHA-256: {schedule_sha256()}")
             print("position counts: " + json.dumps({str(kib(k)): v for k, v in counts.items()}, sort_keys=True))
