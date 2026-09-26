@@ -438,9 +438,8 @@ internal static class ValidationAssert
     }
 
     internal static void Equal<T>(T expected, T actual, string message)
-        where T : IEquatable<T>
     {
-        if (!expected.Equals(actual))
+        if (!EqualityComparer<T>.Default.Equals(expected, actual))
         {
             throw new InvalidOperationException(
                 $"{message}: expected={expected}, actual={actual}");
