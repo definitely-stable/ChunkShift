@@ -29,12 +29,14 @@ Not included: warmed-prefix, Google/Stadia, fixed-size, coarse 512 KiB–2 MiB, 
 
 ## 2. Workloads
 
-The runtime guardrail uses two existing deterministic 8 MiB corpus entries:
+The runtime guardrail uses two dedicated 64 MiB synthetic entries built from the **same existing deterministic generators and seeds** as the earlier 8 MiB smoke workloads:
 
-- `game-pak-8m`: normal game/application-like structured content;
-- `db-vm-8m`: the contrasting structured-binary regime that previously showed frequent forced-maximum cuts.
+- `runtime-game-pak-64m`: `game-pak-like`, seed 1001;
+- `runtime-db-vm-64m`: `db-vm-data-like`, seed 1004.
 
-No new corpus is introduced after observing the real-corpus quality result. Runtime does not reuse the private/large real-version corpus because §8.2 measures execution cost, not reuse quality.
+Only the input length is increased. This is deliberate: at 8 MiB, a streaming sample can complete in only a few tens of milliseconds, making `Process.TotalProcessorTime` comparatively coarse. A 64 MiB source means each identity measurement scans 128 MiB (source + target), reducing timing/CPU quantization without introducing a new corpus model after the quality result was observed.
+
+Runtime does not reuse the private/large real-version corpus because §8.2 measures execution cost, not reuse quality. The exact runtime corpus is frozen in `benchmarks/corpus/cdc-0.1-runtime.v1.json`.
 
 The exact experiment set is frozen in `benchmarks/experiments/cdc-0.1-runtime.v1.json`: 3 targets × 2 workloads = 6 experiments, identity input only.
 
@@ -81,7 +83,7 @@ Position counts:
 | 128 KiB | 3 | 3 | 4 |
 | 256 KiB | 4 | 3 | 3 |
 
-Within each candidate group, `game-pak-8m` runs before `db-vm-8m`. Since `lab --isolate` starts a fresh child for every experiment, candidate-group ordering is only controlling host-time/order drift, not sharing JIT/runtime state between candidates.
+Within each candidate group, `runtime-game-pak-64m` runs before `runtime-db-vm-64m`. Since `lab --isolate` starts a fresh child for every experiment, candidate-group ordering is only controlling host-time/order drift, not sharing JIT/runtime state between candidates.
 
 The schedule is hard-coded and hashed by `run_cdc_runtime_guardrail.py`; CI records its SHA-256.
 
