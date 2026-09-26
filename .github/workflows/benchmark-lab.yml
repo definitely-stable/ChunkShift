@@ -106,7 +106,7 @@ jobs:
           set -euo pipefail
           dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
             lab \
-            --corpus benchmarks/corpus/cdc-0.1-runtime.v1.json \
+            --corpus benchmarks/corpus/corpus.v1.json \
             --experiments benchmarks/experiments/experiments.v2.json \
             --output artifacts/benchmarks/lab-smoke.json
 
@@ -833,7 +833,7 @@ jobs:
           mkdir -p "$OUT"
           timeout 6600 python3 benchmarks/scripts/run_cdc_runtime_guardrail.py run \
             --dll "$dll" \
-            --corpus benchmarks/corpus/corpus.v1.json \
+            --corpus benchmarks/corpus/cdc-0.1-runtime.v1.json \
             --experiments benchmarks/experiments/cdc-0.1-runtime.v1.json \
             --output-dir "$OUT" \
             --commit "${{ github.event.pull_request.head.sha || github.sha }}" \
