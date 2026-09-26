@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "id": "runtime-game-pak-64m",
+      "category": "game/pak-like assets",
+      "generator": "game-pak-like",
+      "sizeBytes": 67108864,
+      "seed": 1001,
+      "provenance": "synthetic deterministic runtime guardrail; same generator/seed family as game-pak-8m, scaled to 64 MiB to reduce timing/CPU quantization",
+      "generatorVersion": 1
+    },
+    {
+      "id": "runtime-db-vm-64m",
+      "category": "DB/VM/data files",
+      "generator": "db-vm-data-like",
+      "sizeBytes": 67108864,
+      "seed": 1004,
+      "provenance": "synthetic deterministic runtime guardrail; same generator/seed family as db-vm-8m, scaled to 64 MiB to reduce timing/CPU quantization",
+      "generatorVersion": 1
+    }
+  ]
+}

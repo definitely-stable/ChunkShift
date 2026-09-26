@@ -68,7 +68,16 @@ jobs:
         run: dotnet test benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-build --no-restore
 
       - name: Validate benchmark evidence scripts
-        run: python3 -m py_compile benchmarks/scripts/summarize_scanner_phase2.py benchmarks/scripts/summarize_scanner_freeze.py benchmarks/scripts/summarize_boundary_scan_f08.py
+        run: python3 -m py_compile benchmarks/scripts/summarize_scanner_phase2.py benchmarks/scripts/summarize_scanner_freeze.py benchmarks/scripts/summarize_boundary_scan_f08.py benchmarks/scripts/run_cdc_runtime_guardrail.py
+
+      - name: 'Validate #8 runtime guardrail plan'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/run_cdc_runtime_guardrail.py self-test
+          python3 benchmarks/scripts/run_cdc_runtime_guardrail.py validate \
+            --corpus benchmarks/corpus/cdc-0.1-runtime.v1.json \
+            --experiments benchmarks/experiments/cdc-0.1-runtime.v1.json
 
       - name: Verify independent Python FastCDC vector
         shell: bash
@@ -780,3 +789,101 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  # #8: final runtime veto/guardrail after deterministic real-corpus quality
+  # evidence. This does not select a profile and does not run experimental CDC
+  # candidates. Ten process-isolated batches use the pre-registered schedule in
+  # CDC-0.1-RUNTIME-GUARDRAIL-PLAN.md.
+  cdc-runtime-guardrail:
+    name: cdc-runtime-guardrail (${{ matrix.arch }})
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'perf/8-runtime-guardrail'))
+    needs: smoke
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    env:
+      OUT: artifacts/benchmarks/cdc-runtime-guardrail-${{ matrix.arch }}
+
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+
+      - name: Build
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Run ten process-isolated runtime batches
+        shell: bash
+        run: |
+          set -euo pipefail
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          mkdir -p "$OUT"
+          timeout 6600 python3 benchmarks/scripts/run_cdc_runtime_guardrail.py run \
+            --dll "$dll" \
+            --corpus benchmarks/corpus/cdc-0.1-runtime.v1.json \
+            --experiments benchmarks/experiments/cdc-0.1-runtime.v1.json \
+            --output-dir "$OUT" \
+            --commit "${{ github.event.pull_request.head.sha || github.sha }}" \
+            --arch "${{ matrix.arch }}"
+          cat "$OUT/runtime-summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload runtime guardrail evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cdc-runtime-guardrail-${{ matrix.arch }}
+          path: ${{ env.OUT }}
+          if-no-files-found: error
+          retention-days: 30
+
+  cdc-runtime-guardrail-compare:
+    name: cdc-runtime-guardrail-compare
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'perf/8-runtime-guardrail'))
+    needs: cdc-runtime-guardrail
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Download runtime guardrail evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: cdc-runtime-guardrail-*
+          path: evidence
+
+      - name: Verify cross-architecture provenance and deterministic output
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/run_cdc_runtime_guardrail.py compare \
+            --x64-dir evidence/cdc-runtime-guardrail-x64 \
+            --arm64-dir evidence/cdc-runtime-guardrail-arm64 \
+            --output runtime-cross-arch.md
+          cat runtime-cross-arch.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload cross-architecture runtime verdict
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cdc-runtime-guardrail-cross-arch
+          path: runtime-cross-arch.md
+          if-no-files-found: error
+          retention-days: 30
