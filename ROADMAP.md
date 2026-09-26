@@ -75,13 +75,14 @@ Completed lab infrastructure stage: [#67](https://github.com/definitely-stable/C
 
 Completed release-evidence stage: [#68](https://github.com/definitely-stable/ChunkShift/issues/68) — independent Python CSM decoder and committed conformance vectors (PR #73), deterministic mutational reader fuzzing with differential decoding (PR #74), cancellation on every manifest API (PR #71), coverage artifact (PR #75) and a 4 GiB source under a 128 MiB memory limit on x64/ARM64 NativeAOT (PR #76). Release hygiene (PRs #79, #91), console and ASP.NET Core package-consumer samples (PR #89) and a README quickstart (PR #90) also landed.
 
-**Where `main` is now:** Core is implemented — deterministic chunking, bounded raw scanner, CSM create/read/verify and the CLI that exercises them — and nothing is published yet. The current phase is **freezing** the public API, the default profile and the compatibility baseline, not adding Core features:
+**Where `main` is now:** Core is implemented and its transferable source contract is frozen/evidence-backed — deterministic chunking, bounded raw scanner, CSM create/read/verify, the CLI, the stable FastCDC profile and the real-Kestrel host proof. Nothing is published from this repository. Public-package cleanup/baselines move to a separate migration/publication repository:
 
 - [#6](https://github.com/definitely-stable/ChunkShift/issues/6) API/NativeAOT freeze. The API surface decisions of [#63](https://github.com/definitely-stable/ChunkShift/issues/63) are done (PRs #95, #96). [#65](https://github.com/definitely-stable/ChunkShift/issues/65) is decided by [RFC-0004](docs/architecture/RFC-0004-core-0.1-deferred-product-concerns.md) (no progress/compression/signature/anti-rollback surface in Core 0.1.0). The API audit and its same-commit evidence run are recorded in [CORE-0.1-API-FREEZE.md](docs/architecture/CORE-0.1-API-FREEZE.md). #6 is **closed**: the current surface is the frozen Core 0.1.0 API candidate;
-- [#8](https://github.com/definitely-stable/ChunkShift/issues/8) profile selection on real multi-version corpora. The ProfileId rule and verification contract of [#64](https://github.com/definitely-stable/ChunkShift/issues/64) are done (PR #97). [#99](https://github.com/definitely-stable/ChunkShift/issues/99) settled the Gear semantics and handed #8 the real-corpus protocol ([CDC-PREFREEZE-DECISION §11](docs/benchmarks/CDC-PREFREEZE-DECISION-2026-09.md#11-ownership-99-vs-8)). #8 is now a data-driven selection of `min/target/max`, the stable ProfileId and the default, not architecture research;
-- [#17](https://github.com/definitely-stable/ChunkShift/issues/17) real-Kestrel host proof;
-- [#9](https://github.com/definitely-stable/ChunkShift/issues/9) compatibility baseline, with release-mechanics decisions in [#69](https://github.com/definitely-stable/ChunkShift/issues/69) (preview strategy, CLI packaging, post-release API/package baseline);
-- [#24](https://github.com/definitely-stable/ChunkShift/issues/24) GitHub-side enforcement (squash-only `main`, tag protection, immutable releases). It does not block #6, #8 or #17, but it **must be complete before the first NuGet publication**, preview or stable (docs/RELEASES.md §10 step 4).
+- [#8](https://github.com/definitely-stable/ChunkShift/issues/8) is **closed**: PR #113 froze `fastcdc.gear.chunkshift.v1.64k` and its persisted semantic identity after the real-corpus/runtime evidence;
+- [#17](https://github.com/definitely-stable/ChunkShift/issues/17) is **closed**: PR #114 proved the direct `HttpRequest.Body`/Kestrel host path and recorded the Body-vs-BodyReader decision;
+- [#9](https://github.com/definitely-stable/ChunkShift/issues/9) is no longer a local implementation gate: it is the handoff record for recreating the public Core 0.1.0 compatibility/publication baseline in the future migration/publication repository;
+- [#69](https://github.com/definitely-stable/ChunkShift/issues/69) contains publication-only owner decisions that migrate with #9 rather than blocking local engineering;
+- [#24](https://github.com/definitely-stable/ChunkShift/issues/24) may continue to harden normal branch governance here; its publication-specific tag/immutable-release requirements belong to the future publication repository.
 
 ## Critical path
 
@@ -115,14 +116,17 @@ Completed release-evidence stage: [#68](https://github.com/definitely-stable/Chu
                          +------------+------------+
                                       |
                                       v
-                            #9 Core 0.1.0 gate  <-- #69 release decisions
-                                      |
-                                      +------> first NuGet publication
-                                      |          (also requires #24:
-                                      |           repository/tag/immutable-
-                                      |           release enforcement)
-                                      v
-                           #7 Patching/CSP loop
+                         frozen Core source contract
+                               /                 \
+                              v                   v
+                    #7 Patching/CSP        migration/publication repo
+                           loop                    |
+                                                   v
+                                          recreated #9 public
+                                          0.1.0 baseline
+                                                   |
+                                                   v
+                                          first NuGet publication
                                       |
                          +------------+------------+
                          |                         |
@@ -152,36 +156,34 @@ Completed release-evidence stage: [#68](https://github.com/definitely-stable/Chu
 | Core streaming/manifest | [#5](https://github.com/definitely-stable/ChunkShift/issues/5), [#16](https://github.com/definitely-stable/ChunkShift/issues/16) | CSM create/read/verify + bounded raw scanner | complete |
 | Core API evidence | [#20](https://github.com/definitely-stable/ChunkShift/issues/20), [#6](https://github.com/definitely-stable/ChunkShift/issues/6) | smallest evidence-selected public Core candidate | #20, [#63](https://github.com/definitely-stable/ChunkShift/issues/63), [#64](https://github.com/definitely-stable/ChunkShift/issues/64) and [#65](https://github.com/definitely-stable/ChunkShift/issues/65) complete; [#6](https://github.com/definitely-stable/ChunkShift/issues/6) closed (candidate frozen; Shipped baseline set in the release PR) |
 | Evidence infrastructure | [#67](https://github.com/definitely-stable/ChunkShift/issues/67), [#68](https://github.com/definitely-stable/ChunkShift/issues/68) | streaming-lane lab; fuzz, independent decoder, cancellation, coverage, >RAM | complete |
-| Core release evidence | [#8](https://github.com/definitely-stable/ChunkShift/issues/8), [#17](https://github.com/definitely-stable/ChunkShift/issues/17), [#9](https://github.com/definitely-stable/ChunkShift/issues/9), [#69](https://github.com/definitely-stable/ChunkShift/issues/69) | **ChunkShift Core 0.1.0** | profile/API/CSM vectors, real consumers, host proof |
-| Publication governance | [#24](https://github.com/definitely-stable/ChunkShift/issues/24) | server-side enforcement of the documented `main`/tag/release rules | required before the first NuGet publication; does not block #6/#8/#17 |
+| Core source-contract evidence | [#8](https://github.com/definitely-stable/ChunkShift/issues/8), [#17](https://github.com/definitely-stable/ChunkShift/issues/17) | transferable Core source contract | complete: stable profile/identity, vectors, real consumers and host proof |
+| Publication handoff | [#9](https://github.com/definitely-stable/ChunkShift/issues/9), [#69](https://github.com/definitely-stable/ChunkShift/issues/69) | recreate/finalize public Core 0.1.0 baseline in the migration/publication repository | moved out of this repository |
+| Repository governance | [#24](https://github.com/definitely-stable/ChunkShift/issues/24) | server-side enforcement of normal `main` policy here; publication-specific tag/release enforcement moves with the publication repo | independent of local Patching |
 | Patching | [#7](https://github.com/definitely-stable/ChunkShift/issues/7) | compare/diff, CSP create/apply, exact reconstruction | verified output + product benchmark evidence |
 | Repository | [#10](https://github.com/definitely-stable/ChunkShift/issues/10)-[#13](https://github.com/definitely-stable/ChunkShift/issues/13) | packs → index/catalog → lifecycle → remote | storage-specific crash/scale gates |
 | Optional host package | [#18](https://github.com/definitely-stable/ChunkShift/issues/18) | package only if repeated host behavior justifies it | no package by default |
 | Research | [#14](https://github.com/definitely-stable/ChunkShift/issues/14) | future CDC/index/filter candidates | promotion only through normal evidence gates |
 
-## Core 0.1.0 gate
+## Publication handoff
 
-Issue [#9](https://github.com/definitely-stable/ChunkShift/issues/9) may close only when Core itself is release-ready. It does **not** wait for CSP or Patching.
+Issue [#9](https://github.com/definitely-stable/ChunkShift/issues/9) is closed in this repository as moved/not-planned. It records what must be transferred into the future migration/publication repository rather than blocking engineering here.
 
-Required evidence includes:
+The handoff includes:
 
-- frozen 0.1.0 ProfileId/default HashSuite behavior;
+- the frozen 0.1.0 ProfileId/ProfileFingerprint and HashSuite behavior;
+- the reviewed Core API candidate;
 - deterministic x64/ARM64 vectors;
-- short-read/read-segmentation invariance;
-- CSM create/read/verify corruption and resource-bound coverage;
-- selected scanner semantics from [#20](https://github.com/definitely-stable/ChunkShift/issues/20);
-- packaged NativeAOT/trim execution of the real scanner/manifest path;
-- a source larger than available working memory processed without full materialization;
-- clean-package console and ASP.NET consumer examples;
-- independent verification of CSM/compatibility vectors.
+- short-read/read-segmentation and scanner ownership/cancellation semantics;
+- CSM corruption/resource-bound/fuzz coverage and independent fixtures/verifiers;
+- JIT/NativeAOT clean-consumer evidence;
+- >RAM streaming evidence;
+- console and real-Kestrel ASP.NET consumer evidence.
 
-The fuzz, >RAM, independent-verification, packaged NativeAOT and sample evidence already exists on `main` for the current candidate ([#68](https://github.com/definitely-stable/ChunkShift/issues/68), PRs #61, #89); it is re-run against the frozen baseline rather than built anew.
-
-The exact contract lives in PLAN/[#9](https://github.com/definitely-stable/ChunkShift/issues/9); this section only defines the release gate.
+The publication repository then owns cleanup of the migrated tree, the first actually shipped API/package baseline, package metadata/versioning, release documentation, tags/releases and NuGet publication.
 
 ## Patching gate
 
-Patching starts after the Core 0.1.0 baseline.
+Patching starts after the frozen Core **source contract** (#6/#8/#17), not after publication of Core 0.1.0 from the future repository.
 
 It owns:
 
@@ -208,6 +210,6 @@ Order:
 
 ## Immediate work order
 
-1. run [#8](https://github.com/definitely-stable/ChunkShift/issues/8) (real version histories → calibration/holdout → 64/128/256 KiB actual means plus the optional coarse lane → `min/target/max`, stable ProfileId, default) under the pre-registered [CDC-0.1-BAKEOFF-PROTOCOL](docs/benchmarks/CDC-0.1-BAKEOFF-PROTOCOL.md), accepted before any real result is read, and [#17](https://github.com/definitely-stable/ChunkShift/issues/17) in parallel;
-2. decide [#69](https://github.com/definitely-stable/ChunkShift/issues/69) (preview strategy, CLI packaging) and close [#9](https://github.com/definitely-stable/ChunkShift/issues/9) for Core 0.1.0; the first NuGet publication (preview or stable) additionally waits on [#24](https://github.com/definitely-stable/ChunkShift/issues/24), which blocks nothing else;
-3. only then start [#7](https://github.com/definitely-stable/ChunkShift/issues/7) Patching ([#66](https://github.com/definitely-stable/ChunkShift/issues/66) writes the CSP candidate spec first).
+1. #8 and #17 are complete; preserve their frozen profile/host evidence as migration inputs rather than reopening them during repository cleanup.
+2. continue local product engineering with [#7](https://github.com/definitely-stable/ChunkShift/issues/7) Patching; [#66](https://github.com/definitely-stable/ChunkShift/issues/66) writes the CSP candidate spec first.
+3. independently prepare the future migration/publication repository and recreate #9/#69 there when publication work actually starts. Publication-specific governance/tag/NuGet work does not block #7 here.
