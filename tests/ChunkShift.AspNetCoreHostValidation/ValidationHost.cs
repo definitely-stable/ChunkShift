@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using ChunkShift;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 
 namespace ChunkShift.AspNetCoreHostValidation;
@@ -52,6 +53,19 @@ internal static class ValidationHost
 
             return Results.Json(evidence, ValidationJson.Options);
         });
+
+        app.MapPost("/scan/decompression-limited", async (HttpContext context) =>
+        {
+            ScanEvidence evidence = await ScanAsync(
+                context,
+                state: null,
+                adapter: "body",
+                shortRead: "none",
+                gateMode: GateMode.None).ConfigureAwait(false);
+
+            return Results.Json(evidence, ValidationJson.Options);
+        })
+        .WithMetadata(new RequestSizeLimitAttribute(1024 * 1024));
 
         app.MapPost("/scan/authorized", async (HttpContext context) =>
         {
