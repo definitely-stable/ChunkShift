@@ -85,15 +85,11 @@ U64_MAX = (1 << 64) - 1
 # semantics (#64). This is a fact about the build under test, like its supported
 # HashSuites, not part of the CSM format: manifest-only verification accepts an
 # unknown ProfileId and reports ProfileSemantics for a known one whose recorded
-# fingerprint differs. The fingerprints are pinned by the .NET tests
-# (FastCdcKernelTests.CandidateProfileIdentity_IsDeterministic).
+# fingerprint differs. #8 freezes exactly one production profile; pre-freeze
+# candidate IDs remain measurement identities only.
 REGISTERED_PROFILES = {
-    b"fastcdc.gear.candidate.v1.m16384.t65536.x262144": bytes.fromhex(
+    b"fastcdc.gear.chunkshift.v1.64k": bytes.fromhex(
         "054e6ced561558147f9c35dc66c64142fd4562d21132f0dc51e00544c04200a0"),
-    b"fastcdc.gear.candidate.v1.m32768.t131072.x524288": bytes.fromhex(
-        "74d375951d3cd4d165fdad5866c6de0b7a9231c794f16444930ac5acdd65b3da"),
-    b"fastcdc.gear.candidate.v1.m65536.t262144.x1048576": bytes.fromhex(
-        "d8fc289d93f8f8b6308498891831638743cce8dde789417f25cf5f3d8f7fbae4"),
 }
 
 # Public .NET API range (ChunkInfo.Length is Int32; lengths and offsets are Int64).
