@@ -111,11 +111,11 @@ Caveats:
 
 ## 5. FastCDC lineage and the fastcdc-rs oracle (L1)
 
-- **Pin:** `fastcdc = "=5.0.0"` in `tools/reference/fastcdc-rs-probe/Cargo.toml`. `Cargo.lock` fixes the crates.io checksum, and the toolchain is 1.98.1. Crates.io publishes no VCS commit for the package, so the lockfile checksum is the pin of record.
+- **Executable artifact pin:** `fastcdc = "=5.0.0"` in `tools/reference/fastcdc-rs-probe/Cargo.toml`; `Cargo.lock` pins the crates.io artifact checksum to `0431c3132902a1bed6fe77dcfa5d03844e083f263b81288246a2d43dd7d4b2ad`, and `rust-toolchain.toml` pins Rust `1.98.1`. **Upstream source provenance:** the canonical `nlfiedler/fastcdc-rs` tag [`5.0.0`](https://github.com/nlfiedler/fastcdc-rs/releases/tag/5.0.0) resolves to commit [`eeb3cbe8ed4eeef020aa346707bbdb29abd814ad`](https://github.com/nlfiedler/fastcdc-rs/commit/eeb3cbe8ed4eeef020aa346707bbdb29abd814ad) (`chore: prepare for 5.0 release`, 2026-08-22). The crates.io checksum remains the executable pin of the artifact we actually run; the tag/commit is the independently recorded source-provenance pin.
 - **Fixtures** (identical byte-for-byte in `fastcdc_reference.py` and the probe): xorshift 1 MiB and 1 MiB − 1; zero; a 7-byte pattern; a 2-bit alphabet; alternating 64 KiB random/zero; an odd-EOF transient case; and `minimum/target/maximum ± 1` lengths. Each runs at 64/128/256 KiB presets, 48 digests in all.
-- **Result:** fastcdc-rs `v2016` reproduces the independent Python ChunkShift reference on all 48 (FNV-1a over `(offset, length)`). `v2020` equals `v2016` on every even-length fixture and differs on one odd final window. For `16384 × 0x00 ‖ 02 FF 41`, ChunkShift and `v2016` return `[(0,16386),(16386,1)]`; `v2020` returns `[(0,16387)]`. The cause is that the two-byte loop runs to `remaining / 2` and never tests position `remaining − 1` when `remaining` is odd. The probe asserts this divergence, so a fastcdc-rs upgrade that changes it is noticed.
+- **Result:** fastcdc-rs `v2016` reproduces the independent Python ChunkShift reference on all 48 (FNV-1a over `(offset, length)`). `v2020` equals `v2016` on every even-length fixture and differs on one odd final window. For `16384 × 0x00 ‖ 02 FF 41`, ChunkShift and `v2016` return `[(0,16386),(16386,1)]`; `v2020` returns `[(0,16387)]`. The cause is that the two-byte loop runs to `remaining / 2` and never tests position `remaining − 1` when `remaining` is odd. This is now corroborated by the upstream 5.0.0 release notes: they explicitly state that a trailing odd byte is folded into the returned hash but is **not tested as its own boundary candidate**. The probe asserts the resulting cut-point divergence, so a fastcdc-rs upgrade that changes it is noticed.
 - **Consequences:**
-  - The claim "v2020 produces the same cut points as v2016" is true only for even final windows. FASTCDC-V1-CANDIDATE §11 now says so.
+  - The generic documentation claim that `v2020` produces the same cut points as `v2016` is **over-broad at odd EOF**. The canonical 5.0.0 release notes document the underlying exception (the final odd byte is hashed but not boundary-tested), and our pinned counterexample demonstrates the cut-point consequence. This disagreement is preserved rather than silently reconciled. FASTCDC-V1-CANDIDATE §11 records the exact ChunkShift rule.
   - A two-byte rolling backend (F2) is a same-profile optimization **only** if it tests the last odd position exactly as the scalar reference does. The new `FastCdc_OddFinalWindowTestsItsLastPosition` test pins this for the production streaming kernel at 1-, 2- and 64 KiB read segmentations.
   - Xet/Google warmed Gear is a **different semantic branch**, not "FastCDC 2020", and compatibility is never inferred from an algorithm name.
 
@@ -252,7 +252,7 @@ Rules that carry over into #8:
 Tier A (primary: paper, specification or canonical source):
 
 - FastCDC ATC '16 and TPDS 2020 papers.
-- fastcdc-rs 5.0.0 source (`v2016/mod.rs`, `v2020/mod.rs`), read from the crates.io package pinned by `Cargo.lock` on 2026-09-25.
+- fastcdc-rs 5.0.0 canonical source: upstream tag `5.0.0` → commit `eeb3cbe8ed4eeef020aa346707bbdb29abd814ad`; executable crates.io artifact checksum `0431c3132902a1bed6fe77dcfa5d03844e083f263b81288246a2d43dd7d4b2ad`; Rust toolchain `1.98.1`. The upstream 5.0.0 release notes are also primary evidence for the odd-tail behavior.
 - USENIX papers (VectorCDC FAST '25, ParaSync FAST '26, Regression Chunking ATC '12, Finesse FAST '19), the ICDE '21 Odess paper, ACM TOS Argus, eprint 2025/558, arXiv 2504.02095 / 2505.21194 / 2509.11121 / 2409.06066.
 
 Tier B (maintained implementation or vendor documentation):
