@@ -1,0 +1,188 @@
+name: ASP.NET Core host validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "samples/**"
+      - "tests/ChunkShift.AspNetCoreHostValidation/**"
+      - "docs/validation/**"
+      - "docs/architecture/RFC-0002-embedded-sdk-aspnet-core.md"
+      - ".github/workflows/host-validation.yml"
+      - "global.json"
+      - "Directory.Build.props"
+      - "Directory.Packages.props"
+  schedule:
+    - cron: "41 4 * * 2"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: host-validation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+
+jobs:
+  host-fast:
+    name: real-kestrel-functional-and-adapter-evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PACKAGE_VERSION: 0.0.0-host.${{ github.run_number }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Build local Core package
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore src/ChunkShift/ChunkShift.csproj
+          dotnet build src/ChunkShift/ChunkShift.csproj -c Release --no-restore
+          dotnet pack src/ChunkShift/ChunkShift.csproj -c Release --no-build --no-restore \
+            -o artifacts/packages -p:PackageVersion="${PACKAGE_VERSION}"
+
+      - name: Build clean-package host validator
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build tests/ChunkShift.AspNetCoreHostValidation/ChunkShift.AspNetCoreHostValidation.csproj \
+            -c Release \
+            -p:ChunkShiftPackageVersion="${PACKAGE_VERSION}" \
+            -p:RestoreAdditionalProjectSources="${GITHUB_WORKSPACE}/artifacts/packages"
+
+      - name: Assert Core has no ASP.NET host dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -n -E 'Microsoft\.AspNetCore|HttpContext|IServiceCollection|PipeReader|PipeWriter' \
+            src/ChunkShift --include='*.cs'
+          then
+            echo "ASP.NET/Pipelines host surface leaked into ChunkShift Core." >&2
+            exit 1
+          fi
+
+      - name: Run real-Kestrel functional matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="${GITHUB_WORKSPACE}/artifacts/host-validation"
+          mkdir -p "$out/artifacts"
+
+          port="$(python3 - <<'PY'
+          import socket
+          s = socket.socket()
+          s.bind(("127.0.0.1", 0))
+          print(s.getsockname()[1])
+          s.close()
+          PY
+          )"
+          base="http://127.0.0.1:${port}/"
+          dll="tests/ChunkShift.AspNetCoreHostValidation/bin/Release/net10.0/ChunkShift.AspNetCoreHostValidation.dll"
+
+          dotnet "$dll" serve \
+            --url "http://127.0.0.1:${port}" \
+            --artifacts "$out/artifacts" \
+            --max-body 2147483648 \
+            > "$out/server.log" 2>&1 &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true; wait "$server" 2>/dev/null || true; cat "$out/server.log"' EXIT
+
+          ready=false
+          for _ in $(seq 60)
+          do
+            if curl -sf "${base}health" >/dev/null; then ready=true; break; fi
+            sleep 1
+          done
+          test "$ready" = true
+
+          dotnet "$dll" fast \
+            --base "$base" \
+            --output "$out/host-fast.json"
+
+          dotnet "$dll" measure \
+            --base "$base" \
+            --output "$out/body-vs-bodyreader.json" \
+            --bytes 67108864 \
+            --runs 10
+
+          cat "$out/host-fast.json"
+          cat "$out/body-vs-bodyreader.json"
+
+      - name: Upload fast host evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: aspnet-host-fast
+          path: artifacts/host-validation/
+          if-no-files-found: error
+          retention-days: 30
+
+  host-large:
+    name: real-kestrel-larger-than-ram
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'test/17-'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PACKAGE_VERSION: 0.0.0-host-large.${{ github.run_number }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Build local Core package and validator
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore src/ChunkShift/ChunkShift.csproj
+          dotnet build src/ChunkShift/ChunkShift.csproj -c Release --no-restore
+          dotnet pack src/ChunkShift/ChunkShift.csproj -c Release --no-build --no-restore \
+            -o artifacts/packages -p:PackageVersion="${PACKAGE_VERSION}"
+          dotnet build tests/ChunkShift.AspNetCoreHostValidation/ChunkShift.AspNetCoreHostValidation.csproj \
+            -c Release \
+            -p:ChunkShiftPackageVersion="${PACKAGE_VERSION}" \
+            -p:RestoreAdditionalProjectSources="${GITHUB_WORKSPACE}/artifacts/packages"
+
+      - name: Run 1 GiB real-Kestrel path under 128 MiB
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/host-validation-large
+          dll="${GITHUB_WORKSPACE}/tests/ChunkShift.AspNetCoreHostValidation/bin/Release/net10.0/ChunkShift.AspNetCoreHostValidation.dll"
+
+          sudo systemd-run --scope --quiet \
+            -p MemoryMax=128M -p MemorySwapMax=0 \
+            --uid="$(id -u)" --gid="$(id -g)" \
+            dotnet "$dll" large-selfhost \
+              --bytes 1073741824 \
+              --output "${GITHUB_WORKSPACE}/artifacts/host-validation-large/host-large.json" \
+            | tee artifacts/host-validation-large/large.log
+
+          cat artifacts/host-validation-large/host-large.json
+
+      - name: Upload larger-than-RAM host evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: aspnet-host-large
+          path: artifacts/host-validation-large/
+          if-no-files-found: error
+          retention-days: 30
