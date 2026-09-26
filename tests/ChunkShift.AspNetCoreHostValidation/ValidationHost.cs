@@ -22,9 +22,9 @@ internal static class ValidationHost
         });
         builder.Services.AddRequestDecompression();
         builder.Services
-            .AddAuthentication(ValidationAuthHandler.Scheme)
+            .AddAuthentication(ValidationAuthHandler.SchemeName)
             .AddScheme<AuthenticationSchemeOptions, ValidationAuthHandler>(
-                ValidationAuthHandler.Scheme,
+                ValidationAuthHandler.SchemeName,
                 _ => { });
         builder.Services.AddAuthorization();
 
