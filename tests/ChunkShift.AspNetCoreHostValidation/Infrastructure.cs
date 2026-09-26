@@ -19,7 +19,7 @@ namespace ChunkShift.AspNetCoreHostValidation;
 internal sealed class ValidationAuthHandler
     : AuthenticationHandler<AuthenticationSchemeOptions>
 {
-    internal const string Scheme = "host-validation";
+    internal const string SchemeName = "host-validation";
 
     public ValidationAuthHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
@@ -40,11 +40,11 @@ internal sealed class ValidationAuthHandler
 
         var identity = new ClaimsIdentity(
             new[] { new Claim(ClaimTypes.NameIdentifier, "host-validation") },
-            Scheme);
+            SchemeName);
         var principal = new ClaimsPrincipal(identity);
         return Task.FromResult(
             AuthenticateResult.Success(
-                new AuthenticationTicket(principal, Scheme)));
+                new AuthenticationTicket(principal, SchemeName)));
     }
 }
 
