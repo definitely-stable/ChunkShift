@@ -70,7 +70,7 @@ jobs:
       - name: Validate benchmark evidence scripts
         run: python3 -m py_compile benchmarks/scripts/summarize_scanner_phase2.py benchmarks/scripts/summarize_scanner_freeze.py benchmarks/scripts/summarize_boundary_scan_f08.py benchmarks/scripts/run_cdc_runtime_guardrail.py
 
-      - name: Validate #8 runtime guardrail plan
+      - name: 'Validate #8 runtime guardrail plan'
         shell: bash
         run: |
           set -euo pipefail
