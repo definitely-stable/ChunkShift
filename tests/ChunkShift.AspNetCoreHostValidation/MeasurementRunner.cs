@@ -12,10 +12,7 @@ internal static class MeasurementRunner
         int runs,
         CancellationToken cancellationToken)
     {
-        if (runs < 2)
-        {
-            throw new ArgumentOutOfRangeException(nameof(runs));
-        }
+        ArgumentOutOfRangeException.ThrowIfLessThan(runs, 2);
 
         using var client = new HttpClient
         {
