@@ -4,7 +4,7 @@ using System.Diagnostics;
 namespace ChunkShift.Primitives;
 
 /// <summary>
-/// Identifies a specific chunking profile (e.g., "fastcdc.gear.candidate1.64k", "fixed.v1.64k").
+/// Identifies a specific chunking profile (e.g., "fastcdc.gear.chunkshift.v1.64k", "fixed.v1.64k").
 /// </summary>
 /// <remarks>
 /// Instances are immutable and always hold a value that satisfies the ChunkShift
