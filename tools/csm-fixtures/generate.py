@@ -610,7 +610,7 @@ def fixtures() -> dict[str, Vector]:
         # is the recorded one.
         "integrity-profile-semantics-known-id-wrong-fingerprint.csm": variant(
             integrity("ProfileSemantics"),
-            profile_id=b"fastcdc.gear.candidate.v1.m16384.t65536.x262144"),
+            profile_id=b"fastcdc.gear.chunkshift.v1.64k"),
 
         # Well-formed CSM whose chunk Length does not fit the Int32
         # ChunkInfo.Length of the .NET API (section 13 implementation boundary).
