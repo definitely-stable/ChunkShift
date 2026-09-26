@@ -286,36 +286,42 @@ Before Core release validate:
 
 CSP/Patching delivery is deferred.
 
-### [#9](https://github.com/definitely-stable/ChunkShift/issues/9) — Core 0.1.0 release gate
+### [#9](https://github.com/definitely-stable/ChunkShift/issues/9) — publication baseline handoff (moved)
 
-Dependencies: [#5](https://github.com/definitely-stable/ChunkShift/issues/5), [#6](https://github.com/definitely-stable/ChunkShift/issues/6), [#8](https://github.com/definitely-stable/ChunkShift/issues/8), [#17](https://github.com/definitely-stable/ChunkShift/issues/17), [#20](https://github.com/definitely-stable/ChunkShift/issues/20).
+The public Core 0.1.0 release/package baseline is no longer executed in this engineering repository. Issue #9 is retained only as the handoff record and is closed here as moved/not-planned; the actual publication gate must be recreated in the future migration/publication repository.
 
-Must close (owner decisions feeding this gate: [#65](https://github.com/definitely-stable/ChunkShift/issues/65), decided by RFC-0004; the ProfileId rule and verification matrix of [#64](https://github.com/definitely-stable/ChunkShift/issues/64) are settled in PROFILE-FINGERPRINT-V1 and CSM-V1-CANDIDATE §14):
+The source contract that must transfer unchanged is already evidence-backed on `main`:
 
-- Core public API;
-- CSM v1;
-- ProfileId/default profile;
-- HashSuite IDs/default;
-- ProfileFingerprint semantics;
-- scanner ownership/lifetime/cancellation;
-- deterministic x64/ARM64 vectors;
-- JIT/NativeAOT package-consumer evidence;
-- >RAM streaming evidence;
+- the reviewed Core public API candidate from #6;
+- CSM v1 semantics, fixtures and independent verifier/fuzz evidence;
+- stable HashSuite IDs/domains/default behavior;
+- the stable FastCDC ProfileId/ProfileFingerprint/semantics frozen by #8;
+- scanner ownership, borrowed-memory, cancellation and short-read semantics;
+- deterministic x64/ARM64 chunk-sequence evidence;
+- JIT/NativeAOT clean-consumer evidence;
+- bounded >RAM streaming evidence;
 - corruption/resource-bound/fuzz evidence;
-- independent compatibility-vector verification;
-- console and ASP.NET clean-package examples.
+- console/ASP.NET clean-package consumer examples;
+- the real-Kestrel host decision/evidence from #17.
 
-Already on `main` for the current candidate: JIT/NativeAOT package-consumer evidence (PR #61), >RAM streaming (PR #76), reader fuzzing (PR #74), independent vector verification (PR #73), coverage artifact (PR #75), console and ASP.NET Core package-consumer samples (PR #89). What remains is the freeze itself — API (#6), profile (#8), ASP.NET host proof (#17) — and re-running this evidence against the frozen baseline.
+The publication repository owns, after migration and cleanup:
 
-Release mechanics that are still open decisions are tracked in [#69](https://github.com/definitely-stable/ChunkShift/issues/69): preview strategy, CLI packaging, and the package-validation/PublicAPI baseline after the first published version.
+- final public-package/API review after repository cleanup;
+- moving the first actually published surface from `PublicAPI.Unshipped.txt` to the publication baseline;
+- package IDs/metadata/versioning and any post-publication `PackageValidationBaselineVersion`;
+- release/support/changelog wording for the published repository;
+- release tags, GitHub Release assets and NuGet publication;
+- publication-only decisions currently tracked by #69.
 
-CSP is **not** part of this gate.
+This repository does **not** publish NuGet as part of #9. Local `dotnet pack`, package-consumer and NativeAOT runs remain engineering validation only.
 
-Publishing the 0.1.0 package, or any earlier preview, additionally requires [#24](https://github.com/definitely-stable/ChunkShift/issues/24): squash-only `main`, release-tag protection and immutable releases enforced on GitHub (docs/RELEASES.md §10 step 4). #24 does not block #6, #8 or #17.
+The repository/tag enforcement work in #24 may still be useful for this repository's normal branch governance, but publication-specific tag/immutable-release requirements move with the future publication repository.
+
+CSP/Patching is **not** part of the publication handoff gate and local engineering work does not wait for the future package publication.
 
 ## 12. Patching — [#7](https://github.com/definitely-stable/ChunkShift/issues/7)
 
-Starts after [#9](https://github.com/definitely-stable/ChunkShift/issues/9).
+Starts after the frozen Core source contract/evidence is available on `main` (#6, #8 and #17), not after the future NuGet publication gate in the migration repository.
 
 Deliverables:
 
