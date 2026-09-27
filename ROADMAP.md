@@ -217,6 +217,8 @@ Order is evidence-driven rather than feature-count driven:
 
 Core 0.1.1 does **not** mean a new chunking algorithm. RepMaxCDC/other CDC candidates stay research-only under #14/#136 and require a distinct future profile identity if promoted.
 
+Research execution/results are discoverable from the common [experiment index](docs/research/EXPERIMENT-INDEX.md); the logging/retention contract is [docs/research/README.md](docs/research/README.md).
+
 ## Repository sequence
 
 Repository work follows the useful local Patching loop. It must not become a prerequisite for Core or Patching correctness.

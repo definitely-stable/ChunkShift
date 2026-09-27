@@ -1,0 +1,51 @@
+name: Research / experiment
+description: Propose or track an evidence-gated engineering experiment
+title: "[Research] "
+body:
+  - type: input
+    id: parent
+    attributes:
+      label: Owning / parent issue
+      description: Link the roadmap or program issue that owns this experiment, e.g. #152.
+    validations:
+      required: true
+  - type: input
+    id: experiment
+    attributes:
+      label: ExperimentId
+      description: Claim or reference an ID from docs/research/EXPERIMENT-INDEX.md.
+    validations:
+      required: true
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Hypothesis
+      description: State one falsifiable engineering question.
+    validations:
+      required: true
+  - type: textarea
+    id: baseline
+    attributes:
+      label: Baseline and candidate
+      description: Define the exact baseline and candidate implementations/configurations.
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: Frozen decision rule
+      description: Define ADOPT / DEFER / REJECT criteria before collecting final evidence.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence plan
+      description: Corpora/workloads, metrics, repetitions, platforms, JIT/AOT and semantic-equivalence checks.
+    validations:
+      required: true
+  - type: textarea
+    id: links
+    attributes:
+      label: Related issues / prior evidence
+      description: Link dependencies, sibling experiments and superseded evidence.

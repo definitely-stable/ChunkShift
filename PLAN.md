@@ -358,6 +358,8 @@ New CDC semantics such as RepMaxCDC stay under [#14](https://github.com/definite
 
 A Core optimization is releasable only after 0.1.0 package/API validation, byte-identical CSM/golden evidence, x64/ARM64 semantic parity and the relevant JIT/NativeAOT checks. Release-worthy changes are ported separately to the publication repository; this engineering repository does not publish 0.1.1.
 
+Execution and results are indexed through [docs/research/README.md](docs/research/README.md) and [docs/research/EXPERIMENT-INDEX.md](docs/research/EXPERIMENT-INDEX.md); decision-bearing experiments must retain ExperimentId/RunId/EvidenceId linkage.
+
 ## 13. Later tracks
 
 Repository remains downstream of the useful local Patching loop, but its implementation gates are now explicit enough to prevent an early pack/index format from hardening the wrong assumptions.
