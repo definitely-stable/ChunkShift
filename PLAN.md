@@ -317,6 +317,7 @@ Deliverables:
 - base chunk locator;
 - declarative CSP;
 - CSP candidate specification: [CSP-V1-CANDIDATE.md](docs/architecture/CSP-V1-CANDIDATE.md) (shape decided 2026-09-27: raw and zstd-against-base-chunk payload entries; layout freezes with its fixtures);
+- implementation decisions and their evidence: [PATCHING-DECISIONS.md](docs/architecture/PATCHING-DECISIONS.md);
 - patch creation/application;
 - exact reconstruction;
 - final target verification;
