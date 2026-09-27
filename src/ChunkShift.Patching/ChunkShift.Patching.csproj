@@ -21,6 +21,7 @@
     <InternalsVisibleTo Include="ChunkShift.Benchmarks" />
     <ProjectReference Include="..\ChunkShift\ChunkShift.csproj" />
     <PackageReference Include="Blake3" />
+    <PackageReference Include="ZstdSharp.Port" />
     <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers"
                       PrivateAssets="all"
                       IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
