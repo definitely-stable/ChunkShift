@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ChunkShift\ChunkShift.csproj" />
+    <ProjectReference Include="..\ChunkShift.Patching\ChunkShift.Patching.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
