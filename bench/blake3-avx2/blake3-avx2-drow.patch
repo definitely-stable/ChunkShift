@@ -1,5 +1,5 @@
 diff --git a/src/Blake3/Blake3ManagedCore.Avx2.cs b/src/Blake3/Blake3ManagedCore.Avx2.cs
-index 95c1a0c..604ef46 100644
+index 95c1a0c..78c86fd 100644
 --- a/src/Blake3/Blake3ManagedCore.Avx2.cs
 +++ b/src/Blake3/Blake3ManagedCore.Avx2.cs
 @@ -24,8 +24,10 @@ internal static partial class Blake3ManagedCore
@@ -63,7 +63,7 @@ index 95c1a0c..604ef46 100644
          StoreTransposed8(ref chainingValue, childChainingValues, parentCount);
          return true;
      }
-@@ -294,6 +319,136 @@ internal static partial class Blake3ManagedCore
+@@ -294,6 +319,138 @@ internal static partial class Blake3ManagedCore
          b = RotateRight7(b ^ c);
      }
  
@@ -185,9 +185,11 @@ index 95c1a0c..604ef46 100644
 +        int messageX,
 +        int messageY)
 +    {
-+        // d refers to memory here: read it once as an operand and store it once.
++        // d refers to memory here: read it once as an operand and store it once. Rotating by 16 with
++        // word shuffles needs no mask register, which avoids spills with the .NET 8 and 9 JITs.
 +        a = a + b + Unsafe.Add(ref message, messageX);
-+        var dValue = RotateRight16(d ^ a);
++        var dValue = d ^ a;
++        dValue = Avx2.ShuffleHigh(Avx2.ShuffleLow(dValue.AsUInt16(), 0xB1), 0xB1).AsUInt32();
 +        c += dValue;
 +        b = RotateRight12(b ^ c);
 +        a = a + b + Unsafe.Add(ref message, messageY);
