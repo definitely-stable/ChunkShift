@@ -239,10 +239,10 @@ Repository physical identity deliberately separates two concepts:
 
 ```text
 PackId
-    opaque immutable repository object/location identity
+    opaque 256-bit immutable repository object/location identity
 
 PackDigest
-    strong digest of the exact serialized physical pack bytes
+    strong 256-bit digest of the exact serialized physical pack bytes
 ```
 
 `PackId` may be allocated before pack finalization so local/remote writers can target a stable object key while streaming. `PackDigest` is known only after the physical byte stream is finalized and is the strong physical-integrity identity. Neither changes `ChunkId`, and neither is part of `ChunkObjectKey`.
