@@ -193,10 +193,27 @@ Repository work follows the useful local Patching loop. It must not become a pre
 
 Order:
 
-1. [#10](https://github.com/definitely-stable/ChunkShift/issues/10) immutable self-indexed packs;
-2. [#11](https://github.com/definitely-stable/ChunkShift/issues/11) rebuildable global index/catalog/crash-safe publication;
-3. [#12](https://github.com/definitely-stable/ChunkShift/issues/12) reachability GC/repack/reader-safe retirement;
-4. [#13](https://github.com/definitely-stable/ChunkShift/issues/13) HTTP Range and S3/R2 backends.
+1. [#10](https://github.com/definitely-stable/ChunkShift/issues/10) immutable self-indexed packs:
+   - [#133](https://github.com/definitely-stable/ChunkShift/issues/133) logical identity/ingest;
+   - [#138](https://github.com/definitely-stable/ChunkShift/issues/138) physical compression evidence;
+   - [#144](https://github.com/definitely-stable/ChunkShift/issues/144) Pack v1 format/rebuild;
+   - [#146](https://github.com/definitely-stable/ChunkShift/issues/146) locality/multi-location evidence.
+2. [#11](https://github.com/definitely-stable/ChunkShift/issues/11) rebuildable global index/catalog/crash-safe publication:
+   - [#145](https://github.com/definitely-stable/ChunkShift/issues/145) SoA GlobalIndex v1 + 1B scale;
+   - [#139](https://github.com/definitely-stable/ChunkShift/issues/139) immutable verification/trust semantics.
+3. [#12](https://github.com/definitely-stable/ChunkShift/issues/12) reachability GC/repack/reader-safe retirement:
+   - [#147](https://github.com/definitely-stable/ChunkShift/issues/147) external-memory GC/generation retirement/repack.
+4. [#13](https://github.com/definitely-stable/ChunkShift/issues/13) HTTP Range and S3/R2 backends:
+   - [#134](https://github.com/definitely-stable/ChunkShift/issues/134) logical range planner;
+   - [#148](https://github.com/definitely-stable/ChunkShift/issues/148) multi-source reconstruction + PackFetchPlan execution.
+
+Cross-cutting Repository rules:
+
+- `PackId` and `PackDigest` are separate physical concepts;
+- global indexes are immutable bounded segments using compact PackOrdinal/PackTable representation;
+- alternate physical locations are sparse policy, never a change to logical ChunkId;
+- GC/repack publishes replacements before retirement and uses bounded external-memory reachability;
+- remote reconstruction uses batch metadata lookup and transport-neutral range plans rather than per-chunk HEAD/GET.
 
 ## Immediate work order
 
