@@ -331,6 +331,33 @@ Evidence:
 - compare against full target delivery and xdelta3 on identical file pairs;
 - publish Patching only when its own compatibility fixtures are ready.
 
+### Parallel Core 0.1.1 maintenance track — [#152](https://github.com/definitely-stable/ChunkShift/issues/152)
+
+Core 0.1.0 is a published compatibility baseline. The next Core patch train is an evidence-gated maintenance/performance track and **does not block #7 Patching**.
+
+Default rule:
+
+```text
+same shipped API behavior
+same CSM v1 bytes/semantics
+same fastcdc.gear.chunkshift.v1.64k semantics
+same HashSuite IDs/digests
+same ChunkId/ManifestId/FileDigest
+better implementation/hardening only when evidence justifies it
+```
+
+Workstreams:
+
+- [#127](https://github.com/definitely-stable/ChunkShift/issues/127) — managed vs native BLAKE3 backend, with end-to-end + NativeAOT/RID gate;
+- [#137](https://github.com/definitely-stable/ChunkShift/issues/137) — scanner property/differential fuzzing;
+- [#153](https://github.com/definitely-stable/ChunkShift/issues/153) — frozen-profile FastCDC/scanner backend, I/O topology and pooled raw-buffer hygiene;
+- [#154](https://github.com/definitely-stable/ChunkShift/issues/154) — CSM reader/writer ManifestId batching, decode/LOH/batch/CRC evidence;
+- [#135](https://github.com/definitely-stable/ChunkShift/issues/135) — optional secondary scanner API research; **not** a 0.1.1 gate and “ship none” is valid.
+
+New CDC semantics such as RepMaxCDC stay under [#14](https://github.com/definitely-stable/ChunkShift/issues/14)/[#136](https://github.com/definitely-stable/ChunkShift/issues/136) with a new candidate identity. They do not mutate the shipped FastCDC profile.
+
+A Core optimization is releasable only after 0.1.0 package/API validation, byte-identical CSM/golden evidence, x64/ARM64 semantic parity and the relevant JIT/NativeAOT checks. Release-worthy changes are ported separately to the publication repository; this engineering repository does not publish 0.1.1.
+
 ## 13. Later tracks
 
 Repository remains downstream of the useful local Patching loop, but its implementation gates are now explicit enough to prevent an early pack/index format from hardening the wrong assumptions.
