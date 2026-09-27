@@ -213,6 +213,100 @@
       "area": "repository-research",
       "status": "PLANNED",
       "question": "one-hop locality-bounded delta storage"
+    },
+    {
+      "id": "REPO-INDEX-001",
+      "issues": [
+        145
+      ],
+      "area": "repository-index",
+      "status": "PLANNED",
+      "question": "MPHF/PtrHash exact-key accelerator"
+    },
+    {
+      "id": "REPO-INDEX-002",
+      "issues": [
+        145
+      ],
+      "area": "repository-index",
+      "status": "PLANNED",
+      "question": "intra-segment partitioned index"
+    },
+    {
+      "id": "REPO-INDEX-003",
+      "issues": [
+        145,
+        144
+      ],
+      "area": "repository-index",
+      "status": "PLANNED",
+      "question": "direct location vs PackOrdinal+FrameOrdinal"
+    },
+    {
+      "id": "REPO-INDEX-004",
+      "issues": [
+        145
+      ],
+      "area": "repository-index",
+      "status": "PLANNED",
+      "question": "L0 membership filter bake-off"
+    },
+    {
+      "id": "REPO-PACK-001",
+      "issues": [
+        144,
+        145
+      ],
+      "area": "repository-pack",
+      "status": "PLANNED",
+      "question": "FrameDirectory and compressed monotone offsets"
+    },
+    {
+      "id": "REPO-COMP-001",
+      "issues": [
+        138,
+        144
+      ],
+      "area": "repository-compression",
+      "status": "PLANNED",
+      "question": "bounded seekable compression groups"
+    },
+    {
+      "id": "REPO-COMP-002",
+      "issues": [
+        138
+      ],
+      "area": "repository-compression",
+      "status": "PLANNED",
+      "question": "dictionary aging/version holdout"
+    },
+    {
+      "id": "REPO-REMOTE-001",
+      "issues": [
+        148
+      ],
+      "area": "repository-execution",
+      "status": "PLANNED",
+      "question": "vectored RandomAccess"
+    },
+    {
+      "id": "REPO-REMOTE-002",
+      "issues": [
+        148,
+        139
+      ],
+      "area": "repository-verification",
+      "status": "PLANNED",
+      "question": "Bao/BLAKE3 authenticated partial ranges"
+    },
+    {
+      "id": "REPO-REMOTE-003",
+      "issues": [
+        148
+      ],
+      "area": "repository-reconstruction",
+      "status": "PLANNED",
+      "question": "reflink/sparse local reconstruction"
     }
   ]
 }
