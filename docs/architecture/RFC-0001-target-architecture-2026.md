@@ -4,7 +4,7 @@ Status: Accepted
 
 > **RFC-0003 supersession note:** [RFC-0003](RFC-0003-core-first-release.md) owns first-public-release sequencing. Where this RFC couples the first public release to Patching/CSP/compare-diff, RFC-0003 takes precedence. The architecture and persisted-model decisions here remain authoritative.
 Target: ChunkShift 1.0 core and patching; repository architecture preview  
-Last updated: 2026-09-22
+Last updated: 2026-09-27
 
 ## 1. Purpose
 
@@ -103,10 +103,16 @@ Those workloads may be used for benchmarks or adapters without becoming core pro
 | materialized manifest as core model | remove | REJECT |
 | sparse manifest index | optional BIDX | ACCEPT |
 | self-indexed immutable packs | repository physical primitive | ACCEPT |
+| pack physical identity | separate opaque `PackId` from strong `PackDigest` | ACCEPT |
+| pack HashSuite scope | one HashSuite per pack; repository key remains HashSuiteId + ChunkId | ACCEPT |
 | one remote object per small chunk | do not use | REJECT |
 | fixed universal pack size | backend policy, not format | REJECT |
+| global index records | SoA + compact PackOrdinal/PackTable; do not repeat full PackId per chunk | ACCEPT |
+| physical chunk locations | exact lookup may return sparse alternate locations; placement policy is measured | ACCEPT / EXPERIMENT |
 | generic LSM + WAL as repository truth | do not use | REJECT |
-| LSM-like immutable index compaction | use | ACCEPT |
+| LSM-like immutable index compaction | bounded segments + range-partitioned stable levels | ACCEPT |
+| repository GC mark | external-memory sorted/partitioned reachability | ACCEPT |
+| reconstruction planning | logical slices -> batch locate -> PackFetchPlan -> verified assembly | ACCEPT |
 | Protobuf MIDX | do not use | REJECT |
 | SQLite/RocksDB as repository truth | do not use | REJECT |
 | public IChunker/IHasher/IRepository zoo | do not freeze | REJECT |
@@ -225,8 +231,21 @@ Persistent identity types are semantically distinct even when they share a 256-b
 - optional `ContentId`;
 - `ManifestId`;
 - `ProfileFingerprint`;
-- `PackId` / physical pack digest;
+- `PackId`;
+- `PackDigest`;
 - future `RootId` / `CatalogGenerationId`.
+
+Repository physical identity deliberately separates two concepts:
+
+```text
+PackId
+    opaque immutable repository object/location identity
+
+PackDigest
+    strong digest of the exact serialized physical pack bytes
+```
+
+`PackId` may be allocated before pack finalization so local/remote writers can target a stable object key while streaming. `PackDigest` is known only after the physical byte stream is finalized and is the strong physical-integrity identity. Neither changes `ChunkId`, and neither is part of `ChunkObjectKey`.
 
 ### 5.1 ChunkId
 
@@ -573,88 +592,161 @@ PackFooter
 FixedTrailer
 ```
 
-Chunk frames are independently decodable/compressed. Whole-pack streaming compression is not used.
+Pack v1 is immutable and self-indexed. Chunk frames are independently decodable; whole-pack streaming compression is not used.
 
-PackIndex is hash-sorted and sufficient to rebuild global location indexes.
+Each pack is homogeneous by HashSuite. The repository-global logical key remains:
 
-Payload order remains ingest order to preserve locality for sequential reconstruction.
+```text
+ChunkObjectKey = HashSuiteId + ChunkId
+```
+
+The pack stores the HashSuite once and does not repeat it in every frame/index key.
+
+Physical identity is split:
+
+```text
+PackId      -> opaque immutable object/location identity
+PackDigest  -> strong digest of exact serialized pack bytes
+```
+
+Payload order is independent from lookup order. Payload normally preserves ingest/reconstruction locality, while PackIndex is hash-sorted and sufficient to rebuild global location indexes.
+
+Pack v1 should support a cheap checksum over exact encoded frame bytes when #144/#138 show that it materially improves corruption detection and copy-through repack. Such a checksum never replaces logical ChunkId verification.
+
+A fixed trailer locates the cold tail/index sections with bounded local or remote tail I/O. Exact fields, widths and checksums are frozen by #144, not by this RFC.
 
 ### 12.3 Pack size
 
-Pack size is policy, not format.
+Pack target size is policy, not format.
 
-Benchmarks must cover local and remote ranges rather than inheriting another project's default.
+The implementation also enforces hard resource ceilings for physical pack bytes, chunk count and PackIndex bytes so pathological tiny chunks cannot make finalization unbounded.
+
+Benchmarks cover local and remote ranges rather than inheriting another project's default; #144 measures at least a representative 16/32/64/128 MiB target-size matrix.
 
 ### 12.4 Global index
 
-The exact global index consists of immutable sorted index segments.
+The exact global index consists of immutable bounded sorted index segments.
 
-Each segment uses a compact PackTable so a full PackId is not repeated in every entry.
+A segment does not repeat a full PackId in every chunk entry. It uses a compact PackTable and PackOrdinal, and starts from a Structure-of-Arrays layout so key lookup does not pull unrelated location metadata through cache.
+
+Conceptually:
+
+```text
+sorted ChunkId keys
+PackOrdinal[]
+Offset[]
+RawLength[]
+StoredLength[]
+Encoding/flags[]
+PackTable[]
+[sparse alternate locations]
+```
+
+Fixed-width fields are the baseline. Narrow 24-bit/split tables or other packing require benchmark evidence.
 
 Logical topology:
 
 ```text
 L0 immutable deltas
   -> metadata-only compaction
-  -> range-partitioned L1+
+  -> range-partitioned non-overlapping L1+
 ```
 
-This is LSM-like compaction, not a generic mutable LSM database.
+This is LSM-like compaction, not a generic mutable LSM database. Healthy large immutable segments are reused across generations rather than repeatedly rewritten into one repository-wide monolith.
+
+Point lookup and sorted BatchLocate are both first-class internal requirements. Large reconstruction must not degenerate into one independent metadata lookup per chunk.
+
+The logical lookup may return more than one active physical location. The common entry pays for one location; sparse alternate locations are represented separately. Alternate placement is policy measured by #146 and is not part of ChunkId semantics.
 
 ### 12.5 Filters
 
 Static approximate membership filters are allowed only where they reduce reads of overlapping immutable runs.
 
-A repository-wide giant filter is not part of the design.
+A repository-wide giant filter is not part of the design. A filter can only answer definitely-absent/maybe-present; an exact lookup remains authoritative.
 
-### 12.6 Commit publication
+### 12.6 Catalog generations and commit publication
+
+Repository-visible metadata state is immutable.
 
 Publication order:
 
 1. build and seal packs;
 2. persist packs;
-3. persist immutable index deltas;
-4. persist manifests/root;
-5. persist transaction metadata if needed;
-6. publish immutable generation/root;
-7. compare-and-swap the named ref last.
+3. persist immutable index segments;
+4. persist manifests/root and any immutable transaction metadata;
+5. persist an immutable CatalogGeneration that references the complete new view;
+6. compare-and-swap the small named ref last.
 
-A published ref must never point to non-durable objects.
+A published ref must never point to non-durable/incomplete objects.
 
-### 12.7 Concurrent writers
+Catalog generations and healthy index segments are never edited in place. A writer that loses a ref CAS reloads the winning generation, rebases its immutable additions and publishes another generation.
+
+### 12.7 Concurrent writers and physical multiplicity
 
 There is no distributed per-ChunkId lock.
 
-Two writers may temporarily write duplicate copies of the same chunk. Index compaction can choose preferred locations; GC can later reclaim duplicates.
+Concurrent writers may temporarily write duplicate physical copies of the same logical chunk. A race is not by itself a reason to retain multiple copies; normal convergence may reclaim the redundant location later.
 
-This trades bounded temporary space for scalable concurrent writes.
+Separately, #146 may deliberately retain/create sparse alternate physical locations when measured locality/request amplification justifies the extra bytes.
 
-### 12.8 Read views
+Thus:
+
+```text
+one ChunkObjectKey
+    -> one logical object
+    -> one or more active physical locations
+```
+
+The global index/catalog owns which locations are active.
+
+### 12.8 Read views and reconstruction planning
 
 Readers capture an immutable ReadView:
 
 ```text
-Root + CatalogGeneration + bounded delta set
+Root + CatalogGeneration + bounded delta/segment set
 ```
 
 Compaction and GC must not invalidate the reader's view.
 
-### 12.9 GC
+Repository reconstruction is staged:
+
+```text
+logical range
+ -> ChunkSlice[]
+ -> unique ChunkObjectKeys
+ -> BatchLocate
+ -> candidate source/location selection
+ -> PackFetchPlan[]
+ -> bounded local/remote execution
+ -> exact verification
+ -> ordered/random-access assembly
+```
+
+Logical planning, physical location choice and HTTP/S3 execution are separate concerns. Coalescing, concurrency and retry thresholds are runtime/backend policy, not format constants.
+
+### 12.9 GC and repack
 
 GC uses reachability, not refcount decrements as the sole truth.
 
-At large scale marking is external-memory and hash-partitioned.
+At large scale marking is external-memory: stream reachable ChunkObjectKeys into bounded sorted/hash-partitioned runs, merge/unique them, then merge-join the resulting live set with sorted global indexes. Do not require a repository-sized in-memory HashSet.
 
 Pack lifecycle:
 
 ```text
 ACTIVE
  -> RETIRED(generation)
- -> DELETE_ELIGIBLE(after safety/grace)
+ -> DELETE_ELIGIBLE(after reader/writer safety + grace)
  -> DELETED
 ```
 
-Replacement packs and indexes must be durable and published before old packs become deletable.
+Replacement packs/indexes/generation are durable and published before old packs become deletable.
+
+Metadata/index compaction never rewrites payload packs. Payload repack is a separate maintenance operation and may copy exact encoded frames through without decode/recompress only when Pack v1 physical checksums, encoding/dictionary dependencies and #139 trust semantics prove that safe.
+
+A crash may leak old/new objects, but must never delete the last valid published physical representation of reachable logical content.
+
+Normal GC derives reachability/candidates from repository generations/catalogs. Directory/bucket LIST is repair/reconciliation, not normal correctness.
 
 ## 13. Security model
 
@@ -702,9 +794,11 @@ Measure:
 - CDC GB/s, cycles/byte, branch/cache behaviour;
 - BLAKE3/SHA-256 throughput;
 - CSM encode/decode;
-- index lookup;
-- pack lookup;
-- compression.
+- index point and batch lookup;
+- pack lookup/tail-open;
+- compression;
+- locality/location-selection heuristics;
+- external-memory mark/merge primitives.
 
 ### 14.2 End-to-end benchmarks
 
@@ -728,7 +822,10 @@ Metrics include:
 - patch bytes;
 - GET/range count;
 - downloaded bytes;
+- packs/ranges per reconstruction and chunks per physical range;
+- downloaded/logical byte ratio and coalescing waste;
 - read/write/compaction amplification;
+- persisted index bytes/entry and BatchLocate cost;
 - random lookup p50/p95/p99.
 
 ### 14.3 CDC quality metrics
