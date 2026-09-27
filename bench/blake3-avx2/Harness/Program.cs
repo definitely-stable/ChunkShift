@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.Arm;
@@ -6,6 +7,8 @@ using System.Runtime.Intrinsics.X86;
 using Blake3;
 
 // Usage: Harness <variant> <mode> | Harness isa
+CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
 // Prints one "RESULT variant mode kind sizeBytes medianGBps minGBps maxGBps" line per measurement.
 string isa = $"arch={RuntimeInformation.ProcessArchitecture} os={RuntimeInformation.OSDescription.Replace(' ', '_')} " +
              $"avx2={Avx2.IsSupported} avx512f={Avx512F.IsSupported} avx512vl={Avx512F.VL.IsSupported} " +

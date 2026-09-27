@@ -21,6 +21,9 @@ build() { # variant project
 build base "$work/base/src/Blake3/Blake3.csproj"
 build patched "$work/patched/src/Blake3/Blake3.csproj"
 build native "$work/base/src/Blake3.Native/Blake3.Native.csproj"
+# A project reference does not list the native asset in deps.json; place it next to the app.
+rid="$(dotnet --info | sed -n 's/^[[:space:]]*RID:[[:space:]]*//p' | head -1)"
+cp "$work/base/src/Blake3.Native/runtimes/$rid/native/"* "$work/out-native/"
 
 echo "::group::upstream tests on the patched source"
 dotnet test "$work/patched/src/Blake3.Tests/Blake3.Tests.csproj" -c Release -nologo 2>&1 | tail -5
