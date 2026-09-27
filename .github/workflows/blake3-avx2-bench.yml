@@ -1,6 +1,6 @@
 name: Blake3 AVX2 bench (temporary)
 
-# Temporary measurement branch: compares upstream Blake3 3.0.2 with a local
+# Temporary measurement branch: compares upstream Blake3 master (PR base) with a local
 # AVX2 register-pressure patch on GitHub-hosted runners. Runs only on pushes to
 # this branch; the branch is deleted after the measurement.
 on:
@@ -40,7 +40,10 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
 
       - name: CPU
         id: cpu

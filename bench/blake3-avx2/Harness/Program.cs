@@ -6,7 +6,7 @@ using System.Runtime.Intrinsics.Arm;
 using System.Runtime.Intrinsics.X86;
 using Blake3;
 
-// Usage: Harness <variant> <mode> | Harness isa
+// Usage: Harness <variant> <mode> [short] | Harness isa
 CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
 // Prints one "RESULT variant mode kind sizeBytes medianGBps minGBps maxGBps" line per measurement.
@@ -15,6 +15,7 @@ string isa = $"arch={RuntimeInformation.ProcessArchitecture} os={RuntimeInformat
              $"advsimd={AdvSimd.Arm64.IsSupported} vector={Vector<uint>.Count} cores={Environment.ProcessorCount}";
 if (args[0] == "isa") { Console.WriteLine(isa); return 0; }
 string variant = args[0], mode = args[1];
+bool shortRun = args.Length > 2 && args[2] == "short";
 Console.WriteLine($"ISA {variant} {mode} {isa}");
 
 (int Length, string Hex)[] vectors =
@@ -61,16 +62,27 @@ foreach (var (length, hex) in vectors)
 {
     var input = new byte[length];
     for (int i = 0; i < length; i++) input[i] = (byte)(i % 251);
-    string got = Convert.ToHexStringLower(Hasher.Hash(input).AsSpan());
+    string got = Convert.ToHexString(Hasher.Hash(input).AsSpan()).ToLowerInvariant();
     using var inc = Hasher.New();
     for (int o = 0; o < length; o += 1000) inc.Update(input.AsSpan(o, Math.Min(1000, length - o)));
-    if (got != hex || Convert.ToHexStringLower(inc.Finalize().AsSpan()) != hex)
+    if (got != hex || Convert.ToHexString(inc.Finalize().AsSpan()).ToLowerInvariant() != hex)
     {
         Console.WriteLine($"MISMATCH {variant} length={length}");
         return 1;
     }
 }
 Console.WriteLine($"VECTORS {variant} {mode} ok {vectors.Length}");
+
+if (mode.StartsWith("disasm", StringComparison.Ordinal))
+{
+    // Runs the 8-way kernels long enough to reach Tier-1 under DOTNET_JitDisasm.
+    var disasmData = new byte[65536];
+    ulong disasmSink = 0;
+    var disasmClock = Stopwatch.StartNew();
+    while (disasmClock.ElapsedMilliseconds < 3000) disasmSink += Hasher.Hash(disasmData).AsSpan()[0];
+    Console.WriteLine($"DISASMRUN {variant} {mode} {disasmSink % 2}");
+    return 0;
+}
 
 Thread.CurrentThread.Priority = ThreadPriority.Highest;
 ulong sink = 0;
@@ -93,11 +105,11 @@ void Measure(string kind, int size, Func<byte[], ulong> op)
     Console.WriteLine($"RESULT {variant} {mode} {kind} {size} {rates[4]:F4} {rates[0]:F4} {rates[8]:F4}");
 }
 
-foreach (int size in new[] { 1024, 4096, 16384, 65536, 262144, 1048576, 16777216 })
+foreach (int size in shortRun ? new[] { 16384, 65536, 1048576 } : new[] { 1024, 4096, 16384, 65536, 262144, 1048576, 16777216 })
 {
     Measure("oneshot", size, static d => Hasher.Hash(d).AsSpan()[0]);
 }
-foreach (int size in new[] { 16384, 65536, 1048576 })
+foreach (int size in shortRun ? new[] { 65536 } : new[] { 16384, 65536, 1048576 })
 {
     Measure("incremental", size, static d =>
     {
