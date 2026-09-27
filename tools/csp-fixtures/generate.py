@@ -90,6 +90,64 @@ def manifest(chunks: list[bytes], layout=None) -> tuple[bytes, dict]:
 BASE_A = [content(f"base-a-{i}", n) for i, n in enumerate((700, 900, 1200, 500, 800, 1000))]
 NEW = [content(f"new-{i}", n) for i, n in enumerate((600, 750, 333, 1024, 64, 2000))]
 
+# --- Encoding 1 (zstd, section 5.2) ----------------------------------------------------
+#
+# Compressed frames are pinned as hex, made once by libzstd 1.5.7 (CPython
+# 3.14 compression.zstd, level 19, raw-content dictionary), so generation does
+# not depend on the zstd version at hand; any RFC 8878 decoder must reproduce
+# the chunk. Every other frame is assembled here from RFC 8878 fields with a
+# single Raw_Block, which needs no compressor.
+
+TEXT = (b"ChunkShift declarative patch payload, " * 40)[:900]
+EDITED_A1 = BASE_A[1][:300] + b"CHUNKSHIFT" + BASE_A[1][310:]
+SPLICED_A0_A3 = BASE_A[0][100:400] + BASE_A[2][0:500] + BASE_A[3][50:250]
+MAGIC_CHUNK = bytes.fromhex("37a430ec") + content("magic", 596)   # starts with the zstd dictionary magic
+
+FRAME_TEXT = bytes.fromhex(
+    "28b52ffd6084027d010064024368756e6b5368696674206465636c61726174697665207061746368207061796c"
+    "6f61642c200100de9a2af504")
+FRAME_TEXT_CHECKSUM = bytes.fromhex(
+    "28b52ffd6484027d010064024368756e6b5368696674206465636c61726174697665207061746368207061796c"
+    "6f61642c200100de9a2af504915a6ee9")
+FRAME_EDITED_A1 = bytes.fromhex("28b52ffd608402ad000050ee48554e4b534849465402004b40752987557105")   # dict: A1
+FRAME_SPLICED = bytes.fromhex("28b52ffd60e802950000104eef0300c4723225f1d367155006a9c22b")          # dict: A0..A3
+
+ZSTD_MAGIC = bytes.fromhex("28b52ffd")
+
+
+RLE_CHUNK = b"A" * 750          # a target chunk an RLE frame encodes in a few bytes
+
+
+def rle_frame(value: int, count: int, *, single_segment: bool = True, content_size: int | None = -1,
+              window_descriptor: int = 0, dictionary_id: int | None = None, block_type: int = 1) -> bytes:
+    """One zstd frame with one RLE_Block (RFC 8878 section 3.1.1): ``count`` copies of ``value``.
+
+    content_size=-1 declares ``count``; None omits Frame_Content_Size.
+    """
+    declared = count if content_size == -1 else content_size
+    if declared is None:
+        fcs_flag, fcs = 0, b""
+    elif single_segment and declared < 256:
+        fcs_flag, fcs = 0, bytes([declared])
+    elif 256 <= declared < 65792:
+        fcs_flag, fcs = 1, struct.pack("<H", declared - 256)
+    else:
+        fcs_flag, fcs = 2, struct.pack("<I", declared)
+    dict_flag, dict_field = (0, b"") if dictionary_id is None else (1, bytes([dictionary_id]))
+    descriptor = (fcs_flag << 6) | (0x20 if single_segment else 0) | dict_flag
+    head = ZSTD_MAGIC + bytes([descriptor])
+    if not single_segment:
+        head += bytes([window_descriptor])
+    block_header = (count << 3) | (block_type << 1) | 1          # Last_Block
+    return head + dict_field + fcs + block_header.to_bytes(3, "little") + bytes([value])
+
+
+def rle(**knobs) -> bytes:
+    return rle_frame(ord("A"), len(RLE_CHUNK), **knobs)
+
+
+SKIPPABLE = struct.pack("<II", 0x184D2A50, 3) + b"abc"
+
 
 @dataclass
 class Base:
@@ -112,6 +170,9 @@ BASES = {
         BASE_A[:3] + [bytes([BASE_A[3][0] ^ 1]) + BASE_A[3][1:]] + BASE_A[4:])),
     "base-a-bad-manifest": Base(BASE_A, csmgen.Layout(trailer_digest_xor=True)),
     "base-a-blake3": Base(BASE_A, csmgen.Layout(hash_suite_id=b"chunkshift.blake3-256.v1")),
+    "base-magic": Base(BASE_A[:2] + [MAGIC_CHUNK]),
+    "base-a-corrupt-dictionary": Base(BASE_A, content_override=b"".join(
+        BASE_A[:1] + [bytes([BASE_A[1][0] ^ 1]) + BASE_A[1][1:]] + BASE_A[2:])),
 }
 
 
@@ -555,6 +616,60 @@ def fixtures() -> dict[str, Vector]:
     v["zstd-five-dictionary-chunks.csp"] = Vector(
         mixed(entries=[Entry(N[0]), Entry(N[1], encoding=1, dictionary=A[:5]), Entry(N[2])]), malformed(27),
         "structure", "base-a")
+
+    # Encoding 1: valid frames.
+    z = 1
+    v["zstd-no-dictionary.csp"] = Vector(
+        Patch([TEXT], entries=[Entry(TEXT, z, stored=FRAME_TEXT)]), valid([TEXT], False), "apply")
+    v["zstd-content-checksum.csp"] = Vector(
+        Patch([TEXT], entries=[Entry(TEXT, z, stored=FRAME_TEXT_CHECKSUM)]), valid([TEXT], False), "apply")
+    one = [A[0], EDITED_A1, A[2]]
+    v["zstd-one-dictionary-chunk.csp"] = Vector(
+        Patch(one, base="base-a", entries=[Entry(EDITED_A1, z, [A[1]], FRAME_EDITED_A1)]),
+        valid(one, True), "apply", "base-a")
+    v["zstd-four-dictionary-chunks.csp"] = Vector(
+        Patch([SPLICED_A0_A3], base="base-a", entries=[Entry(SPLICED_A0_A3, z, A[:4], FRAME_SPLICED)]),
+        valid([SPLICED_A0_A3], True), "apply", "base-a")
+    v["zstd-rle-with-dictionary.csp"] = Vector(
+        Patch([RLE_CHUNK], base="base-a", entries=[Entry(RLE_CHUNK, z, [A[1]], rle())]),
+        valid([RLE_CHUNK], True), "apply", "base-a")
+    v["zstd-window-descriptor.csp"] = Vector(
+        Patch([RLE_CHUNK], entries=[Entry(RLE_CHUNK, z, stored=rle(single_segment=False,
+                                                                  window_descriptor=10 << 3))]),
+        valid([RLE_CHUNK], False), "apply")
+
+    # Encoding 1: rule 28 (dictionary chunks).
+    v["zstd-dictionary-not-in-base.csp"] = Vector(
+        Patch([RLE_CHUNK], base="base-a", entries=[Entry(RLE_CHUNK, z, [N[5]], rle())]),
+        dep("DictionaryChunk"), "apply", "base-a")
+    v["zstd-dictionary-magic.csp"] = Vector(
+        Patch([RLE_CHUNK], base="base-magic", entries=[Entry(RLE_CHUNK, z, [MAGIC_CHUNK], rle())]),
+        dep("DictionaryChunk"), "apply", "base-magic")
+    v["zstd-dictionary-chunk-corrupt.csp"] = Vector(
+        Patch(one, base="base-a", entries=[Entry(EDITED_A1, z, [A[1]], FRAME_EDITED_A1)]),
+        dep("DictionaryChunk"), "apply", "base-a-corrupt-dictionary")
+
+    # Encoding 1: rules 29 and 30 (frame envelope).
+    def frame_vector(stored: bytes, expect: dict) -> Vector:
+        return Vector(Patch([RLE_CHUNK], entries=[Entry(RLE_CHUNK, z, stored=stored)]), expect, "apply")
+
+    v["zstd-no-content-size.csp"] = frame_vector(
+        rle(single_segment=False, content_size=None, window_descriptor=0), malformed(30))
+    v["zstd-wrong-content-size.csp"] = frame_vector(rle(content_size=len(RLE_CHUNK) - 1), malformed(30))
+    v["zstd-dictionary-id.csp"] = frame_vector(rle(dictionary_id=7), malformed(30))
+    v["zstd-window-over-1mib.csp"] = frame_vector(
+        rle(single_segment=False, window_descriptor=11 << 3), malformed(30))
+    v["zstd-second-frame.csp"] = frame_vector(rle() + rle_frame(ord("A"), 1), malformed(29))
+    v["zstd-leading-skippable-frame.csp"] = frame_vector(SKIPPABLE + rle(), malformed(29))
+    v["zstd-trailing-skippable-frame.csp"] = frame_vector(rle() + SKIPPABLE, malformed(29))
+    v["zstd-trailing-bytes.csp"] = frame_vector(rle() + b"\x00\x01", malformed(29))
+    v["zstd-reserved-block-type.csp"] = frame_vector(rle(block_type=3), malformed(29))
+    v["zstd-truncated-frame.csp"] = frame_vector(rle()[:-1], malformed(29))
+    v["zstd-not-a-frame.csp"] = frame_vector(bytes(16), malformed(29))
+    checksum_broken = FRAME_TEXT_CHECKSUM[:-1] + bytes([FRAME_TEXT_CHECKSUM[-1] ^ 1])
+    v["zstd-bad-content-checksum.csp"] = Vector(
+        Patch([TEXT], entries=[Entry(TEXT, z, stored=checksum_broken)]), malformed(30), "apply")
+    v["zstd-decodes-other-bytes.csp"] = frame_vector(rle_frame(ord("B"), len(RLE_CHUNK)), dep("PayloadChunk"))
 
     v.update(truncations())
     return v

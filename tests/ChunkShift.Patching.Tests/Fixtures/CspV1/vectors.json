@@ -16,9 +16,17 @@
       "content": "base-a-corrupt-content.bin",
       "manifest": "base-a-corrupt-content.csm"
     },
+    "base-a-corrupt-dictionary": {
+      "content": "base-a-corrupt-dictionary.bin",
+      "manifest": "base-a-corrupt-dictionary.csm"
+    },
     "base-b": {
       "content": "base-b.bin",
       "manifest": "base-b.csm"
+    },
+    "base-magic": {
+      "content": "base-magic.bin",
+      "manifest": "base-magic.csm"
     }
   },
   "format": "CSP v1 candidate",
@@ -816,6 +824,68 @@
       },
       "stage": "apply"
     },
+    "zstd-bad-content-checksum.csp": {
+      "expect": {
+        "rule": 30,
+        "verdict": "malformed"
+      },
+      "stage": "apply"
+    },
+    "zstd-content-checksum.csp": {
+      "expect": {
+        "dependsOnBase": false,
+        "outputLength": 900,
+        "outputSha256": "967dcabb78ed6db5d8911bb78c322b35be9293c96d5d5981fa540c4adde19b0c",
+        "verdict": "valid"
+      },
+      "stage": "apply"
+    },
+    "zstd-decodes-other-bytes.csp": {
+      "expect": {
+        "failures": [
+          "PayloadChunk"
+        ],
+        "verdict": "verification"
+      },
+      "stage": "apply"
+    },
+    "zstd-dictionary-chunk-corrupt.csp": {
+      "base": "base-a-corrupt-dictionary",
+      "expect": {
+        "failures": [
+          "DictionaryChunk"
+        ],
+        "verdict": "verification"
+      },
+      "stage": "apply"
+    },
+    "zstd-dictionary-id.csp": {
+      "expect": {
+        "rule": 30,
+        "verdict": "malformed"
+      },
+      "stage": "apply"
+    },
+    "zstd-dictionary-magic.csp": {
+      "base": "base-magic",
+      "expect": {
+        "failures": [
+          "DictionaryChunk"
+        ],
+        "verdict": "verification"
+      },
+      "stage": "apply"
+    },
+    "zstd-dictionary-not-in-base.csp": {
+      "base": "base-a",
+      "expect": {
+        "failures": [
+          "DictionaryChunk"
+        ],
+        "verdict": "verification"
+      },
+      "stage": "apply"
+    },
     "zstd-five-dictionary-chunks.csp": {
       "base": "base-a",
       "expect": {
@@ -823,6 +893,124 @@
         "verdict": "malformed"
       },
       "stage": "structure"
+    },
+    "zstd-four-dictionary-chunks.csp": {
+      "base": "base-a",
+      "expect": {
+        "dependsOnBase": true,
+        "outputLength": 1000,
+        "outputSha256": "a3731406b33290695fa10163f366300054daeffae1ebbbea146e18b681d15bb5",
+        "verdict": "valid"
+      },
+      "stage": "apply"
+    },
+    "zstd-leading-skippable-frame.csp": {
+      "expect": {
+        "rule": 29,
+        "verdict": "malformed"
+      },
+      "stage": "apply"
+    },
+    "zstd-no-content-size.csp": {
+      "expect": {
+        "rule": 30,
+        "verdict": "malformed"
+      },
+      "stage": "apply"
+    },
+    "zstd-no-dictionary.csp": {
+      "expect": {
+        "dependsOnBase": false,
+        "outputLength": 900,
+        "outputSha256": "967dcabb78ed6db5d8911bb78c322b35be9293c96d5d5981fa540c4adde19b0c",
+        "verdict": "valid"
+      },
+      "stage": "apply"
+    },
+    "zstd-not-a-frame.csp": {
+      "expect": {
+        "rule": 29,
+        "verdict": "malformed"
+      },
+      "stage": "apply"
+    },
+    "zstd-one-dictionary-chunk.csp": {
+      "base": "base-a",
+      "expect": {
+        "dependsOnBase": true,
+        "outputLength": 2800,
+        "outputSha256": "63bd36a875fa7f80e980cc4b080257a70e474165bc8dd2851a5770a5d76d6317",
+        "verdict": "valid"
+      },
+      "stage": "apply"
+    },
+    "zstd-reserved-block-type.csp": {
+      "expect": {
+        "rule": 29,
+        "verdict": "malformed"
+      },
+      "stage": "apply"
+    },
+    "zstd-rle-with-dictionary.csp": {
+      "base": "base-a",
+      "expect": {
+        "dependsOnBase": true,
+        "outputLength": 750,
+        "outputSha256": "3fb24cdca8c342eba2ee770dba5425bde83d7f84d0422a8f51f7807ddb4af638",
+        "verdict": "valid"
+      },
+      "stage": "apply"
+    },
+    "zstd-second-frame.csp": {
+      "expect": {
+        "rule": 29,
+        "verdict": "malformed"
+      },
+      "stage": "apply"
+    },
+    "zstd-trailing-bytes.csp": {
+      "expect": {
+        "rule": 29,
+        "verdict": "malformed"
+      },
+      "stage": "apply"
+    },
+    "zstd-trailing-skippable-frame.csp": {
+      "expect": {
+        "rule": 29,
+        "verdict": "malformed"
+      },
+      "stage": "apply"
+    },
+    "zstd-truncated-frame.csp": {
+      "expect": {
+        "rule": 29,
+        "verdict": "malformed"
+      },
+      "stage": "apply"
+    },
+    "zstd-window-descriptor.csp": {
+      "expect": {
+        "dependsOnBase": false,
+        "outputLength": 750,
+        "outputSha256": "3fb24cdca8c342eba2ee770dba5425bde83d7f84d0422a8f51f7807ddb4af638",
+        "verdict": "valid"
+      },
+      "stage": "apply"
+    },
+    "zstd-window-over-1mib.csp": {
+      "expect": {
+        "rule": 30,
+        "verdict": "malformed"
+      },
+      "stage": "apply"
+    },
+    "zstd-wrong-content-size.csp": {
+      "expect": {
+        "rule": 30,
+        "verdict": "malformed"
+      },
+      "stage": "apply"
     }
   }
 }
