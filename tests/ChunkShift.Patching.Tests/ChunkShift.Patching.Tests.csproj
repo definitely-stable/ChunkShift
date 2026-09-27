@@ -22,4 +22,8 @@
     <ProjectReference Include="..\..\src\ChunkShift.Patching\ChunkShift.Patching.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Fixtures\CspV1\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
