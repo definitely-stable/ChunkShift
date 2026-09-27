@@ -333,12 +333,54 @@ Evidence:
 
 ## 13. Later tracks
 
-Keep these concise until the preceding evidence exists:
+Repository remains downstream of the useful local Patching loop, but its implementation gates are now explicit enough to prevent an early pack/index format from hardening the wrong assumptions.
 
-- [#10](https://github.com/definitely-stable/ChunkShift/issues/10) — immutable self-indexed Repository packs; starts after useful Patching evidence;
-- [#11](https://github.com/definitely-stable/ChunkShift/issues/11) — global index/catalog/crash/concurrency;
-- [#12](https://github.com/definitely-stable/ChunkShift/issues/12) — reachability GC/repack/lifecycle;
-- [#13](https://github.com/definitely-stable/ChunkShift/issues/13) — HTTP Range and S3/R2;
+### M5 — Repository foundation
+
+Parent: [#10](https://github.com/definitely-stable/ChunkShift/issues/10)
+
+Key gates:
+
+- [#133](https://github.com/definitely-stable/ChunkShift/issues/133) — logical `ChunkObjectKey` + crash-safe ingest;
+- [#138](https://github.com/definitely-stable/ChunkShift/issues/138) — post-dedup physical compression evidence;
+- [#144](https://github.com/definitely-stable/ChunkShift/issues/144) — Pack v1: separate PackId/PackDigest, self-index, fixed tail, bounded writer/rebuild;
+- [#146](https://github.com/definitely-stable/ChunkShift/issues/146) — locality/multi-location evidence before physical layout assumptions freeze.
+
+Exit: immutable Pack v1 is independently readable, hostile-input hardened and sufficient to rebuild derived location data.
+
+### M5 — Global index/catalog
+
+Parent: [#11](https://github.com/definitely-stable/ChunkShift/issues/11)
+
+Key gates:
+
+- [#145](https://github.com/definitely-stable/ChunkShift/issues/145) — SoA GlobalIndex v1, PackOrdinal interning, immutable bounded segments and 1B-scale evidence;
+- [#139](https://github.com/definitely-stable/ChunkShift/issues/139) — exact immutable physical verification-cache/trust semantics;
+- [#146](https://github.com/definitely-stable/ChunkShift/issues/146) — sparse alternate physical locations where measured useful.
+
+Exit: exact point + BatchLocate lookup, immutable CatalogGeneration/ref-CAS publication, concurrent-writer recovery and pack-derived rebuild.
+
+### M6 — lifecycle
+
+Parent: [#12](https://github.com/definitely-stable/ChunkShift/issues/12)
+
+Gate: [#147](https://github.com/definitely-stable/ChunkShift/issues/147) — external-memory reachability, generation retirement, reader/writer safety and copy-through repack.
+
+Exit: injected crashes leak at worst; no reachable logical chunk loses its last valid published location.
+
+### M7 — remote distribution
+
+Parent: [#13](https://github.com/definitely-stable/ChunkShift/issues/13)
+
+Key gates:
+
+- [#134](https://github.com/definitely-stable/ChunkShift/issues/134) — logical byte range -> ChunkSlice;
+- [#148](https://github.com/definitely-stable/ChunkShift/issues/148) — multi-source reconstruction, BatchLocate, location selection, PackFetchPlan, bounded execution/retries.
+
+Exit: HTTP static/CDN, S3-compatible and R2 restore/distribution complete with bounded request amplification and exact verification; no special ChunkShift server protocol.
+
+Other later tracks:
+
 - [#18](https://github.com/definitely-stable/ChunkShift/issues/18) — optional ASP.NET package only if repeated integration behavior justifies one;
 - [#14](https://github.com/definitely-stable/ChunkShift/issues/14) — research CDC/index/filter candidates; no promotion without normal evidence gates.
 
