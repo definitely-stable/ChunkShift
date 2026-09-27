@@ -2,6 +2,13 @@ name: Performance regression
 description: Report a measured throughput, allocation, latency or amplification regression
 title: "[Perf] "
 body:
+  - type: input
+    id: experiment
+    attributes:
+      label: ExperimentId / EvidenceId (if this came from planned research)
+      description: Link the stable ID from docs/research/EXPERIMENT-INDEX.md and the result record when available.
+    validations:
+      required: false
   - type: textarea
     id: summary
     attributes:
