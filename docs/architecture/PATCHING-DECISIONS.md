@@ -181,6 +181,7 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 
 - **Decision:** `tools/csp-fixtures` (`generate.py`, `decode.py`) uses only the Python 3.14 standard library, including `compression.zstd`. CI first probes that `import compression.zstd` works and fails otherwise; there is no pip fallback, which would make the oracle depend on another package. It is written from CSP-V1-CANDIDATE alone, by a different author than the C# implementation, and lands right after the container (P2), so later pull requests are checked against it.
 - **Evidence:** *measurement* (2026-09-27, CPython 3.14.3, libzstd 1.5.7): `compression.zstd.decompress()` decodes two concatenated frames into one result and silently skips a trailing skippable frame, so the oracle parses the frame envelope itself and decodes with `ZstdDecompressor`, which stops at the end of one frame and exposes the rest as `unused_data`; raw-content dictionaries work through `ZstdDict(..., is_raw=True)`.
+- **Result (P2):** `tools/csp-fixtures` (`generate.py`, `decode.py`) and 94 committed vectors in `tests/ChunkShift.Patching.Tests/Fixtures/CspV1`, checked in CI and heavy validation. The embedded and base manifests are read by the independent CSM decoder of `tools/csm-fixtures`, which now also returns the parsed records.
 - **Status:** confirmed.
 
 ### D19. Verdict taxonomy
@@ -192,3 +193,26 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 
 - **Decision:** a packed `ChunkShift.Patching` package, restored only from a local package source into a clean consumer, published with NativeAOT and run through a real create/apply round trip with raw, zstd and dictionary entries; any trim or AOT warning fails the lane. JIT on CI, JIT and NativeAOT on x64 and ARM64 in heavy validation (P8), with an earlier probe in P3.
 - **Status:** confirmed as the gate; results land with P3 and P8.
+
+### D21. Check order and specification clarifications
+
+- **Question:** which verdict an input gets when it breaks more than one rule, and how the independent decoder resolved places where CSP-V1-CANDIDATE is ambiguous. Both implementations must agree, or differential tests disagree for reasons that are not defects.
+- **Decision — order (section 6):**
+  1. structure: TRAILER, then PREAMBLE, then the section walk; inside `PAYL` and `PIDX` the CRC is checked before any field is interpreted; an unimplemented encoding is reported when its entry is parsed;
+  2. the embedded CSM and the patch `FileDigest`, accumulated, then abort if either failed;
+  3. payload entries against the target: a misplaced `FirstTargetIndex` is malformed; then duplicates, entries not in the target and stored lengths are accumulated;
+  4. base binding: HashSuite, then base-manifest integrity, then `ManifestId`;
+  5. target records in order, stopping at the first failure;
+  6. the total length.
+- **Decision — clarifications (proposed for the specification at the freeze, P12):**
+  1. CRC before interpretation: a corrupted field inside a CRC-covered section reports the CRC (rule 9), never a field rule or an unsupported encoding.
+  2. `StoredLength = 0` is malformed (rule 8): §4.6 requires `> 0`, but §7 names no rule.
+  3. Rule 20's "BASE is present and no base is supplied" applies to base-dependent patches; a self-contained patch carrying `BASE` applies without a base (§3.3).
+  4. A duplicate entry, or one whose `ChunkId` is not in the target, is a verification failure (rule 17) although its `FirstTargetIndex` necessarily breaks rule 12 too; rule 12's first-occurrence check applies to the first entry of each target `ChunkId`.
+  5. The base HashSuite is compared before the base manifest's integrity: chunk IDs of different suites are not comparable (§3.4).
+  6. A base manifest whose only failure is `ProfileSemantics` is accepted (§3.4, decision (g)).
+  7. A known required section is accepted whatever its REQUIRED flag, as Core's CSM reader does: the flag governs unknown section types only.
+  8. A TRAILER with the wrong magic, major or size is rule 5; an artifact shorter than PREAMBLE plus TRAILER is rule 7.
+  9. Rule 23 (total length) cannot fail on its own, because the embedded CSM's `LogicalTotals` already bind the record lengths; the check stays, without a vector.
+- **Evidence:** *oracle* — each vector breaks exactly one rule and decode.py reaches the expected verdict for all 94; *test* — a vector set with a wrong expected rule or output digest fails `--verify`.
+- **Status:** confirmed for the decoder. The C# reader reproduces the structure-stage verdicts in P1 and the apply-stage verdicts in P6.

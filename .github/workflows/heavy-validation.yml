@@ -20,6 +20,7 @@ on:
       - "*.slnx"
       - "docs/benchmarks/**"
       - "docs/architecture/CSM-*.md"
+      - "docs/architecture/CSP-*.md"
       - "docs/architecture/PROFILE-FINGERPRINT-V1.md"
       - "docs/architecture/FASTCDC-*.md"
       - "docs/architecture/FASTCDC-*.txt"
@@ -85,6 +86,18 @@ jobs:
       - name: Verify CSM vectors with the independent generator and decoder
         shell: bash
         run: python3 tools/csm-fixtures/generate.py --verify tests/ChunkShift.Tests/Fixtures/CsmV1
+
+      - name: Set up Python 3.14 for the CSP decoder
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Verify CSP vectors with the independent generator and decoder
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -c "import sys; from compression import zstd; print(sys.version, zstd.zstd_version_info)"
+          python tools/csp-fixtures/generate.py --verify tests/ChunkShift.Patching.Tests/Fixtures/CspV1
 
       - name: Extended CSM reader fuzz with differential decoder check
         shell: bash

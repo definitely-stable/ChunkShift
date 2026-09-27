@@ -96,6 +96,22 @@ jobs:
         if: matrix.os == 'ubuntu-24.04'
         run: python3 tools/csm-fixtures/generate.py --verify tests/ChunkShift.Tests/Fixtures/CsmV1
 
+      - name: Set up Python 3.14 for the CSP decoder
+        if: matrix.os == 'ubuntu-24.04'
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Verify CSP vectors with the independent decoder
+        if: matrix.os == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The decoder needs the standard-library zstd module. Fail here rather
+          # than fall back to a third-party package (PATCHING-DECISIONS D18).
+          python -c "import sys; from compression import zstd; print(sys.version, zstd.zstd_version_info)"
+          python tools/csp-fixtures/generate.py --verify tests/ChunkShift.Patching.Tests/Fixtures/CspV1
+
       - name: CLI CSM round-trip
         if: matrix.os == 'ubuntu-24.04'
         shell: bash
