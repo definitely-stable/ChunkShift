@@ -126,6 +126,8 @@ Performance claims require reproducible evidence from the project benchmark harn
 
 A public-format or profile change requires compatibility/golden-vector updates.
 
+A `Blake3` package update in `Directory.Packages.props` is a compatibility-sensitive dependency change rather than routine maintenance: it must reproduce every persisted BLAKE3/`ChunkId`/`ManifestId` conformance vector before merge, and no implementation swap changes a `HashSuiteId`. CI runs on every pull request into `main`, and heavy validation's `paths:` filter includes `Directory.Packages.props`, so a `Blake3` bump (including a Dependabot PR) runs the BLAKE3 hashing vectors, the CSM golden/independent vectors, the x64/ARM64 determinism comparison and the JIT/NativeAOT package consumers; a digest mismatch fails those lanes, and vectors are never regenerated to make an update pass (see [AGENTS.md](AGENTS.md), "Change discipline"). `Blake3` deliberately has no upper version bound: an incompatible update must be caught by these checks rather than pre-empted by a range.
+
 See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) before making or reviewing a hot-path performance claim. See [docs/SUPPORT.md](docs/SUPPORT.md) before changing the tested/supported platform surface.
 
 ## Commit signing and contributor paperwork
