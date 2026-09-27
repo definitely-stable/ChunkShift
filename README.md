@@ -1,24 +1,24 @@
 # ChunkShift
 
-ChunkShift is a pre-release .NET project for **content-aware binary chunking, manifests and binary updates**.
+This is the **engineering repository** of ChunkShift, a .NET project for **content-aware binary chunking, manifests and binary updates**. Architecture RFCs, the benchmark lab, evidence records and the development of the next stages happen here.
 
-The first public product is a small embeddable Core that maps a byte stream into stable content chunks and creates, reads and verifies binary manifests without requiring Patching, a ChunkShift server or a repository. Exact delta reconstruction is the following Patching stage.
+The product lives in the publication repository, **[MrFr3di/ChunkShift](https://github.com/MrFr3di/ChunkShift)**: the `ChunkShift` NuGet package, releases, tags, the changelog and user-facing documentation. Questions, bug reports and security reports about the published package belong there.
 
-> **Project status:** the Core is implemented on `main` — deterministic chunking with BLAKE3-256/SHA-256, the bounded raw scanner, CSM create/read/verify and a CLI over them, with golden and independently decoded conformance vectors, fuzzing, x64/ARM64 determinism, packaged NativeAOT and larger-than-memory streaming evidence. Nothing is published yet. The public API candidate is frozen ([#6](https://github.com/definitely-stable/ChunkShift/issues/6), [audit](docs/architecture/CORE-0.1-API-FREEZE.md)). The current phase is freezing the default chunking profile ([#8](https://github.com/definitely-stable/ChunkShift/issues/8)) and the CSM/compatibility baseline ([#9](https://github.com/definitely-stable/ChunkShift/issues/9)); until those gates close, the API, the default ProfileId and the CSM format are candidates and may still change. Patching (CSP) has not started. See [ROADMAP.md](ROADMAP.md#current-state).
+> **Project status:** ChunkShift Core `0.1.0` is published on [NuGet.org](https://www.nuget.org/packages/ChunkShift) (2026-09-27) from the publication repository — deterministic chunking with BLAKE3-256/SHA-256, the bounded raw scanner and CSM create/read/verify, with the frozen API ([#6](https://github.com/definitely-stable/ChunkShift/issues/6)), default profile `fastcdc.gear.chunkshift.v1.64k` ([#8](https://github.com/definitely-stable/ChunkShift/issues/8)) and CSM v1 format. `main` here tracks that shipped surface as its compatibility baseline. The active engineering stage is Patching (CSP, [#7](https://github.com/definitely-stable/ChunkShift/issues/7)). See [ROADMAP.md](ROADMAP.md#current-state).
 
 ## Target usage layers
 
 ```text
-ChunkShift                                   implemented; API/profile/CSM freeze in progress
+ChunkShift                                   0.1.0 published from the publication repository
   standalone embedded/local SDK
   deterministic chunking + raw chunk stream
   CSM create/read/verify
 
-ChunkShift.Patching                          not started (after Core 0.1.0)
+ChunkShift.Patching                          next engineering stage (#7)
   compare/diff + reuse analysis
   create/apply exact CSP binary updates
 
-ChunkShift.Cli                               create/inspect/verify; not packaged yet
+ChunkShift.Cli                               create/inspect/verify; engineering tool, not published
   engineering and end-user workflows
 
 Future / preview:
@@ -31,7 +31,13 @@ The core package is intended to be useful by itself in desktop applications, lau
 
 ## Quickstart
 
-ChunkShift is not published to NuGet.org yet; until the first `0.1.Z` release, pack it into a local feed (see [Building from source](#building-from-source)) and register that feed, so later restores (a fresh clone, CI) find it too:
+Install the published package:
+
+```text
+dotnet add package ChunkShift
+```
+
+To try unreleased changes from this repository's `main`, pack it into a local feed (see [Building from source](#building-from-source)) and register that feed, so later restores (a fresh clone, CI) find it too:
 
 ```text
 dotnet pack src/ChunkShift/ChunkShift.csproj -c Release -o <feed> -p:PackageVersion=0.0.0-local.1
@@ -88,7 +94,7 @@ The current architecture sources of truth are:
 - [ROADMAP.md](ROADMAP.md) — program sequence, release gates and current critical path
 - [PLAN.md](PLAN.md) — milestone deliverables, tests, benchmarks and exit criteria
 
-The raw chunk-stream API shape is evidence-selected: issue [#20](https://github.com/definitely-stable/ChunkShift/issues/20) compared push/pull, contiguous/segmented payload and Task/ValueTask alternatives and froze the callback with borrowed `ReadOnlyMemory<byte>` ([phase-2 evidence](docs/benchmarks/SCANNER-API-PHASE2-EVIDENCE-2026-09-23.md)). Issue [#6](https://github.com/definitely-stable/ChunkShift/issues/6) froze the complete minimal Core public API and NativeAOT contract as the Core `0.1.0` candidate ([audit](docs/architecture/CORE-0.1-API-FREEZE.md)); the Shipped baseline is set at the first publication. Compare/diff is not part of Core `0.1.0`; it belongs to `ChunkShift.Patching`.
+The raw chunk-stream API shape is evidence-selected: issue [#20](https://github.com/definitely-stable/ChunkShift/issues/20) compared push/pull, contiguous/segmented payload and Task/ValueTask alternatives and froze the callback with borrowed `ReadOnlyMemory<byte>` ([phase-2 evidence](docs/benchmarks/SCANNER-API-PHASE2-EVIDENCE-2026-09-23.md)). Issue [#6](https://github.com/definitely-stable/ChunkShift/issues/6) froze the complete minimal Core public API and NativeAOT contract as the Core `0.1.0` candidate ([audit](docs/architecture/CORE-0.1-API-FREEZE.md)); that surface shipped unchanged in `0.1.0` and is the `PublicAPI.Shipped.txt` baseline here. Compare/diff is not part of Core `0.1.0`; it belongs to `ChunkShift.Patching`.
 
 ## Product boundaries
 
@@ -142,9 +148,9 @@ MIT
 - [Roadmap](ROADMAP.md) — program sequence and evidence gates.
 - [Implementation plan](PLAN.md) — milestone deliverables and acceptance criteria.
 - [Contributing](CONTRIBUTING.md) — branch, pull-request and commit workflow.
-- [Release policy](docs/RELEASES.md) — SemVer, the `0.1.Z` release train, tags and release procedure.
-- [Changelog](CHANGELOG.md) — human-facing notable changes by release.
-- [Support matrix](docs/SUPPORT.md) — tested runtimes, operating systems, architectures and NativeAOT expectations.
+- [Release policy](docs/RELEASES.md) — SemVer, the `0.1.Z` release train and compatibility rules; releases are cut in the [publication repository](https://github.com/MrFr3di/ChunkShift).
+- [Changelog](https://github.com/MrFr3di/ChunkShift/blob/main/CHANGELOG.md) — human-facing notable changes by release, kept in the publication repository.
+- [Validation matrix](docs/SUPPORT.md) — tested runtimes, operating systems, architectures and NativeAOT expectations.
 - [Security policy](SECURITY.md) — private vulnerability reporting and security boundaries.
 - [Agent contract](AGENTS.md) — short repository rules for coding agents.
 

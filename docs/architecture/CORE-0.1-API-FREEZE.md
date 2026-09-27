@@ -1,6 +1,6 @@
 # Core 0.1.0 public API freeze audit (#6)
 
-Status: **frozen as the Core 0.1.0 API candidate.** The audit and the same-commit evidence run of [§6](#6-same-commit-evidence-run-required-to-close-6) are complete, and #6 is closed.  
+Status: **frozen as the Core 0.1.0 API candidate.** The audit and the same-commit evidence run of [§6](#6-same-commit-evidence-run-required-to-close-6) are complete, and #6 is closed. This surface shipped unchanged as ChunkShift 0.1.0 from [MrFr3di/ChunkShift](https://github.com/MrFr3di/ChunkShift) and is now `PublicAPI.Shipped.txt`.  
 Issue: [#6](https://github.com/definitely-stable/ChunkShift/issues/6)  
 Audited surface: `src/ChunkShift/PublicAPI.Unshipped.txt` at `main` `22252b2`, 124 entries; `PublicAPI.Shipped.txt` is empty  
 Inputs: [#20](https://github.com/definitely-stable/ChunkShift/issues/20) scanner shape, [#63](https://github.com/definitely-stable/ChunkShift/issues/63) surface decisions (PRs #95, #96), [#64](https://github.com/definitely-stable/ChunkShift/issues/64) profile/verification contract (PR #97), [RFC-0004](RFC-0004-core-0.1-deferred-product-concerns.md) (#65)

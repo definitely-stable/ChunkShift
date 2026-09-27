@@ -1,5 +1,7 @@
 # Contributing to ChunkShift
 
+This is the engineering repository of ChunkShift: RFCs, the benchmark lab, evidence records and the development of the next stages. The published `ChunkShift` package, its releases and user-facing documentation live in the publication repository, [MrFr3di/ChunkShift](https://github.com/MrFr3di/ChunkShift). Questions and bug reports about the published package belong there.
+
 This repository uses a review-first, squash-merge workflow designed to keep `main` readable without making contribution unnecessarily difficult.
 
 ## Before starting
@@ -9,7 +11,7 @@ This repository uses a review-first, squash-merge workflow designed to keep `mai
 3. For public API, persisted-format, identity, profile, security-boundary or compatibility changes, link the governing issue/RFC before implementation.
 4. Draft pull requests are welcome for early architectural or API feedback.
 
-A contributor is not required to edit `CHANGELOG.md` for every PR. The maintainer curates the changelog at release time to avoid merge conflicts and user-facing noise.
+The user-facing changelog is curated in the publication repository at release time; engineering PRs do not edit it.
 
 ## Branches
 
@@ -128,11 +130,23 @@ See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) before making or reviewing a hot-
 
 ## Commit signing and contributor paperwork
 
-ChunkShift does not require signed contributor commits or a DCO sign-off by default. The release pipeline, protected `main`, immutable release tags and release attestations are the preferred supply-chain controls. This avoids unnecessary setup friction for first-time contributors.
+ChunkShift does not require signed contributor commits or a DCO sign-off by default. Protected `main` here, and the release pipeline, immutable release tags and release attestations of the publication repository, are the preferred supply-chain controls. This avoids unnecessary setup friction for first-time contributors.
 
 ## Releases and tags
 
-Contributors do not create release tags from feature branches. Release/version/tag rules are defined in [docs/RELEASES.md](docs/RELEASES.md).
+This repository does not publish packages, create release tags or cut GitHub Releases. Versions are released from the [publication repository](https://github.com/MrFr3di/ChunkShift). Versioning and compatibility rules that constrain engineering work are defined in [docs/RELEASES.md](docs/RELEASES.md).
+
+## Porting to the publication repository
+
+Code flows one way: engineering → publication. A change reaches users only after it is ported:
+
+1. land and validate the change here first, with its evidence;
+2. re-apply it in a clone of the publication repository on its own branch and open the pull request **inside** that repository. Never open a pull request from this repository, a fork or a branch of it into the publication repository, and never push this repository's branches or history there;
+3. write the port in the publication repository's own voice. Its files, commit messages, trailers, PR bodies and issues must not reference this repository, its URL, its issues/PRs or its benchmark/validation records;
+4. keep persisted-format, profile, hash and public API semantics byte-for-byte identical; conformance vectors must not be regenerated to make a port pass;
+5. show semantic equivalence: the package-smoke evidence (chunk-ID sequences, `ManifestId`, `FileDigest` per HashSuite, BIDX/no-BIDX) of a package packed from each repository must be identical.
+
+What ports: `src/ChunkShift`, its tests, samples, normative format/profile specifications and conformance vectors/tooling. What stays here: the benchmark lab, `docs/benchmarks/`, `docs/validation/`, RFCs, `PLAN.md`, `ROADMAP.md`, host-validation harnesses and the CLI, unless a publication decision says otherwise.
 
 ## References
 

@@ -14,6 +14,16 @@ When instructions conflict, use this order:
 
 Read the RFC/spec for the subsystem you change before editing it.
 
+## Repository roles
+
+- This repository is the engineering upstream: RFCs, the benchmark lab, evidence records, Core evolution and the next stages (Patching, Repository).
+- The publication repository, [MrFr3di/ChunkShift](https://github.com/MrFr3di/ChunkShift), owns the `ChunkShift` NuGet package, versions, tags, GitHub Releases, the changelog and user-facing documentation. ChunkShift `0.1.0` was published from there.
+- Do not publish packages, create release tags or cut releases from this repository. Local `dotnet pack`, package-consumer and NativeAOT runs are engineering validation only.
+- `src/ChunkShift/PublicAPI.Shipped.txt` and `PackageValidationBaselineVersion` track the published `0.1.0` surface. Changing a shipped symbol is a breaking change under `docs/RELEASES.md` §8, even though nothing is released from here.
+- Code flows one way: engineering → publication. Port a change by re-applying it in a separate PR opened inside the publication repository, written in that repository's own voice.
+- Never open a pull request from this repository (or a fork/branch of it) into the publication repository, and never push this repository's branches or history there.
+- Publication-repository content (files, commit messages, trailers, PR bodies, issues) must not reference this repository, its issues/PRs, its benchmark/validation records or its URL.
+
 ## Architecture boundaries
 
 - `ChunkShift` Core must remain usable without ASP.NET Core, DI, Repository or transport-specific types.
@@ -56,6 +66,6 @@ If it affects NativeAOT, binary formats, deterministic chunking, security parser
 
 ## PR/history rules
 
-Follow `CONTRIBUTING.md` and `docs/RELEASES.md`.
+Follow `CONTRIBUTING.md` and `docs/RELEASES.md`. Porting to the publication repository follows `CONTRIBUTING.md` § "Porting to the publication repository".
 
 The final PR title/squash commit uses Conventional Commits. Intermediate branch commits may be WIP/fixup commits because normal PRs are squash-merged.

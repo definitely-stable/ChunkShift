@@ -1,7 +1,9 @@
 # Support and validation matrix
 
-Status: Active pre-0.1.0 policy  
-Last reviewed: 2026-09-22
+Status: Active engineering validation matrix  
+Last reviewed: 2026-09-27
+
+This is the validation matrix of the engineering repository. The support policy for the published `ChunkShift` package is maintained in the publication repository ([MrFr3di/ChunkShift](https://github.com/MrFr3di/ChunkShift/blob/main/docs/SUPPORT.md)); changes validated here must not promise more than it does.
 
 This document distinguishes **package target compatibility**, **continuously tested environments**, and **architecture validation targets**.
 
@@ -15,7 +17,7 @@ This document distinguishes **package target compatibility**, **continuously tes
 | Linux x64 | CI-tested | normal PR lane |
 | Linux ARM64 | scheduled validation | deterministic/AOT evidence lane |
 | Windows ARM64 | architecture target | add continuous validation when product usage warrants it |
-| macOS | best effort before 0.1.0 | no compatibility promise until CI evidence exists |
+| macOS | best effort | no compatibility promise until CI evidence exists |
 
 Compatibility with a TFM is not the same as vendor support for the runtime. Microsoft lists .NET 8 support ending on **2026-11-10** and .NET 10 LTS support continuing through 2028. Runtime lifecycle source: https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core
 
@@ -35,7 +37,7 @@ ARM64 being a scheduled rather than per-PR lane does not weaken this compatibili
 
 ## Pre-1.0 support policy
 
-ChunkShift follows the `0.1.Z` release train described in `docs/RELEASES.md`.
+Published versions follow the `0.1.Z` release train described in `docs/RELEASES.md`; `0.1.0` is the first published version.
 
 Before `1.0.0`:
 

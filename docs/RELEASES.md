@@ -1,15 +1,15 @@
 # ChunkShift release and versioning policy
 
 Status: Active  
-Last reviewed: 2026-09-22
+Last reviewed: 2026-09-27
 
-This document is normative for package versions, Git tags, GitHub releases and the human-facing changelog.
+This document is normative for versioning and compatibility rules that constrain engineering work in this repository. Packages, Git tags, GitHub Releases and the changelog are produced by the publication repository, [MrFr3di/ChunkShift](https://github.com/MrFr3di/ChunkShift); `0.1.0` was published from there on 2026-09-27.
 
 ## 1. Versioning model
 
 ChunkShift follows Semantic Versioning 2.0.0.
 
-The project is currently in SemVer major-zero initial development. The first public release is:
+The project is currently in SemVer major-zero initial development. The first public release, published on 2026-09-27, is:
 
 ```text
 0.1.0
@@ -82,75 +82,17 @@ CI artifacts from ordinary commits should not create permanent Git tags merely t
 
 ## 5. Git tags
 
-A published version has exactly one version-specific tag:
-
-```text
-v0.1.0
-v0.1.1
-v0.1.2
-```
-
-Pre-release tags mirror the package version:
-
-```text
-v0.1.3-rc.1
-```
-
-Rules:
-
-- tags are created from reviewed commits on `main` or by the release workflow;
-- a release tag MUST identify the exact source used to produce the published artifacts;
-- version tags are immutable: never move, force-update or reuse a published tag;
-- do not maintain floating `v0` or `v0.1` aliases;
-- do not tag ordinary feature/fix PRs;
-- tag names use the lowercase `v` prefix followed by the exact SemVer package version.
-
-GitHub release immutability should be enabled so published release tags and assets cannot be changed after publication.
+Release tags (`v0.1.Z`, immutable, one per published version, no floating aliases) exist only in the [publication repository](https://github.com/MrFr3di/ChunkShift). This repository does not create version tags.
 
 ## 6. Changelog and release notes
 
-`CHANGELOG.md` is for users, not a raw Git log.
-
-It follows the Keep a Changelog structure:
-
-- `Added`;
-- `Changed`;
-- `Deprecated`;
-- `Removed`;
-- `Fixed`;
-- `Security`.
-
-The maintainer curates the changelog at release time from merged PRs and their labels/titles. Contributors normally do not edit the changelog in every PR.
-
-Every public release gets:
-
-1. a `CHANGELOG.md` section with an ISO date;
-2. GitHub release notes;
-3. explicit `Breaking`/migration notes when applicable.
-
-GitHub-generated release notes may be used as input because they enumerate merged PRs and contributors, but the final user-facing notes remain curated.
+The user-facing `CHANGELOG.md` and GitHub release notes are curated in the publication repository at release time. Engineering PRs here do not edit a changelog; their Conventional-Commit titles and PR bodies (including `Breaking` notes) are the input for that curation when the change is ported.
 
 ## 7. Release procedure
 
-For a normal `0.1.Z` release:
+Releases are prepared, validated and published in the publication repository, following its `docs/RELEASES.md`. A change becomes releasable only after it has been ported there (see `CONTRIBUTING.md`, "Porting to the publication repository"). Nothing in this repository sets a release version, creates a tag or publishes a package.
 
-1. choose the next unused PATCH version and set `VersionPrefix` in `src/ChunkShift/ChunkShift.csproj` to it in a reviewed PR; in the same PR, move the `PublicAPI.Unshipped.txt` entries of every package being published into its `PublicAPI.Shipped.txt` (see §8.1);
-2. ensure all intended PRs are merged to `main`;
-3. pass required build/test/AOT/compatibility/security gates;
-4. inspect package metadata and produced artifacts;
-5. update `CHANGELOG.md` and release notes;
-6. create a draft GitHub Release for `v0.1.Z`;
-7. attach/produce all intended artifacts;
-8. publish packages by dispatching the release workflow from `main` with that version and `publish_nuget`; the workflow refuses a version whose `X.Y.Z` differs from `VersionPrefix`, that is already on NuGet.org or whose tag already exists, and after a successful publish creates `v0.1.Z` on the exact commit it built;
-9. publish the GitHub Release as immutable;
-10. verify the released packages/artifacts can be consumed from a clean environment.
-
-If a release is wrong after publication, publish a new version. Never mutate the old version.
-
-Recovering a partially completed release workflow run:
-
-- **package published, symbols failed:** re-push the `.snupkg` from the run's `chunkshift-<version>` artifact with `dotnet nuget push <file>.snupkg --skip-duplicate`. The workflow pushes symbols separately for this reason. Re-running the workflow is refused, because the package version is already published.
-- **package published, `tag-release` failed:** create the tag by hand on the exact commit the run built (the run's `GITHUB_SHA`), for example `gh api repos/<owner>/<repo>/git/refs -f ref=refs/tags/v<version> -f sha=<run SHA>`. Never tag a different commit.
+If a release is wrong after publication, a new version is published. A published version is never mutated.
 
 ## 8. Breaking changes before 1.0.0
 
@@ -171,7 +113,7 @@ Each package tracks its public surface with the PublicAPI analyzer:
 
 - `PublicAPI.Shipped.txt` holds the symbols of the last published version. For `ChunkShift` it is the surface of the published `0.1.0` package.
 - `PublicAPI.Unshipped.txt` holds public symbols added since then that have not yet been in a published version. They may change freely through reviewed PRs until they ship.
-- Entries move from Unshipped to Shipped only in the release PR that sets `VersionPrefix` for a published version, never in ordinary feature PRs, so `Shipped.txt` always describes something consumers could install.
+- Entries move from Unshipped to Shipped only in the publication repository's release PR for the version that ships them, and are mirrored here right after that version is published, never in ordinary feature PRs, so `Shipped.txt` always describes something consumers could install.
 - Removing or changing a Shipped entry is a breaking change under this section: it needs `!`/`BREAKING CHANGE:`, a migration note and a changelog entry.
 
 `dotnet pack` also checks binary compatibility against the published `ChunkShift` `0.1.0` package (`PackageValidationBaselineVersion`), so packing restores that version from NuGet.org.
@@ -188,19 +130,7 @@ After `1.0.0`, normal SemVer meaning applies conventionally:
 
 ## 10. Release automation
 
-The repository contains `.github/workflows/release.yml` as the controlled package validation/publishing entry point.
-
-Before enabling NuGet publication for the first time:
-
-1. create/configure the GitHub `release` environment;
-2. configure a nuget.org Trusted Publishing policy for this repository and workflow file `release.yml`;
-3. set `NUGET_USER` to the nuget.org profile name used by that policy;
-4. enable the repository/tag/immutable-release protections tracked by the governance issue [#24](https://github.com/definitely-stable/ChunkShift/issues/24); this is a hard gate for the first publication, preview or stable;
-5. run the workflow with publication disabled and inspect the exact `.nupkg`/`.snupkg` artifacts first.
-
-The workflow exchanges GitHub OIDC identity for a short-lived nuget.org API key only when publication is explicitly requested. Do not add a long-lived NuGet API key secret as the normal release path.
-
-Normal CI artifacts are not releases and must not create permanent tags.
+This repository has no release workflow. NuGet Trusted Publishing, the `release` environment, tag rulesets and immutable releases are configured on the publication repository. Normal CI artifacts here are engineering validation, not releases, and must not create tags.
 
 ## 11. References
 

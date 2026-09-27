@@ -223,7 +223,7 @@ A FastCDC profile semantic object MUST bind at least:
 - maximum forced-cut rule;
 - EOF/final remainder behavior.
 
-Changing any of these requires a different ProfileFingerprint and a new semantic identity decision/ProfileId. This repository will not publish the NuGet package; the frozen identity must be preserved when the project is migrated to the publication repository.
+Changing any of these requires a different ProfileFingerprint and a new semantic identity decision/ProfileId. This repository does not publish the NuGet package; the frozen identity shipped unchanged in ChunkShift 0.1.0 from the publication repository ([MrFr3di/ChunkShift](https://github.com/MrFr3di/ChunkShift)) and must be preserved by every later port.
 
 ## 10. Required independent vectors before #4 closes
 

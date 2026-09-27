@@ -6,9 +6,12 @@ ChunkShift processes binary content and will eventually expose CSM, CSP, pack an
 
 Do **not** open a public issue for a suspected vulnerability that could enable exploitation, data corruption, denial of service, authenticity bypass or unsafe parser behavior.
 
-Prefer GitHub private vulnerability reporting for this repository:
+Where to report:
 
-https://github.com/definitely-stable/ChunkShift/security/advisories/new
+- **The published `ChunkShift` package** (any released version, or Core code that has shipped): report privately in the publication repository at https://github.com/MrFr3di/ChunkShift/security/advisories/new.
+- **Unreleased code in this engineering repository** (Patching, the CLI, the benchmark lab, host harnesses, or Core changes on `main` that have not been released): report privately here at https://github.com/definitely-stable/ChunkShift/security/advisories/new.
+
+If unsure, use the publication repository.
 
 Include:
 
@@ -22,9 +25,9 @@ If private vulnerability reporting is temporarily unavailable, contact a reposit
 
 ## Supported versions
 
-Before the first public `0.1.0` release, security fixes target `main`.
+Published versions follow the security policy of the publication repository: during the pre-1.0 `0.1.Z` train, fixes ship in the next patch release rather than being backported, and users are asked to upgrade to the latest release.
 
-After public releases begin, the currently documented support policy in `docs/SUPPORT.md` applies. During the `0.1.Z` train, maintainers may require upgrading to the latest patch release rather than backporting fixes to every earlier pre-1.0 package.
+In this repository, security fixes target `main` and reach users when they are ported to the publication repository and released there.
 
 ## Security boundaries
 

@@ -1,10 +1,11 @@
 # ChunkShift implementation plan
 
 Status: Active  
-Last reviewed: 2026-09-24
+Last reviewed: 2026-09-27
 
 Program order: [ROADMAP.md](ROADMAP.md)  
-Release policy: [docs/RELEASES.md](docs/RELEASES.md)
+Release policy: [docs/RELEASES.md](docs/RELEASES.md)  
+Publication repository: [MrFr3di/ChunkShift](https://github.com/MrFr3di/ChunkShift) (packages, releases, changelog)
 
 Normative architecture:
 
@@ -17,7 +18,7 @@ This file owns **milestone deliverables, tests, benchmarks and exit criteria**. 
 
 ## 1. Package boundary
 
-First public release:
+First public release, published on 2026-09-27 from the publication repository:
 
 ```text
 ChunkShift 0.1.0
@@ -286,42 +287,29 @@ Before Core release validate:
 
 CSP/Patching delivery is deferred.
 
-### [#9](https://github.com/definitely-stable/ChunkShift/issues/9) — publication baseline handoff (moved)
+### [#9](https://github.com/definitely-stable/ChunkShift/issues/9) — publication baseline handoff (complete)
 
-The public Core 0.1.0 release/package baseline is no longer executed in this engineering repository. Issue #9 is retained only as the handoff record and is closed here as moved/not-planned; the actual publication gate must be recreated in the future migration/publication repository.
+The Core source contract frozen on `main` by #6, #8 and #17 was ported to the publication repository, [MrFr3di/ChunkShift](https://github.com/MrFr3di/ChunkShift), and released there as ChunkShift `0.1.0` on 2026-09-27. Issue #9 is closed here as moved; the release gate itself ran in the publication repository.
 
-The source contract that must transfer unchanged is already evidence-backed on `main`:
+What shipped unchanged from this repository's source contract:
 
-- the reviewed Core public API candidate from #6;
+- the reviewed Core public API from #6 (124 PublicAPI entries);
 - CSM v1 semantics, fixtures and independent verifier/fuzz evidence;
 - stable HashSuite IDs/domains/default behavior;
 - the stable FastCDC ProfileId/ProfileFingerprint/semantics frozen by #8;
-- scanner ownership, borrowed-memory, cancellation and short-read semantics;
-- deterministic x64/ARM64 chunk-sequence evidence;
-- JIT/NativeAOT clean-consumer evidence;
-- bounded >RAM streaming evidence;
-- corruption/resource-bound/fuzz evidence;
-- console/ASP.NET clean-package consumer examples;
-- the real-Kestrel host decision/evidence from #17.
+- scanner ownership, borrowed-memory, cancellation and short-read semantics.
 
-The publication repository owns, after migration and cleanup:
+The port was checked for semantic equivalence: packages built from this repository and from the publication repository produce identical package-smoke evidence (chunk-ID sequences, `ManifestId`, `FileDigest` for both HashSuites, BIDX/no-BIDX).
 
-- final public-package/API review after repository cleanup;
-- moving the first actually published surface from `PublicAPI.Unshipped.txt` to the publication baseline;
-- package IDs/metadata/versioning and any post-publication `PackageValidationBaselineVersion`;
-- release/support/changelog wording for the published repository;
-- release tags, GitHub Release assets and NuGet publication;
-- publication-only decisions currently tracked by #69.
+The publication-only decisions of #69 were taken in the publication repository: `0.1.0` was published directly without a preview, the CLI is not published, and package validation uses `0.1.0` as its baseline. This repository mirrors that baseline (`PublicAPI.Shipped.txt`, `PackageValidationBaselineVersion=0.1.0`) so later Core changes are checked against the shipped surface before they are ported.
 
-This repository does **not** publish NuGet as part of #9. Local `dotnet pack`, package-consumer and NativeAOT runs remain engineering validation only.
+This repository does not publish NuGet packages, create release tags or cut releases. Local `dotnet pack`, package-consumer and NativeAOT runs remain engineering validation only. Porting rules are in [CONTRIBUTING.md](CONTRIBUTING.md#porting-to-the-publication-repository).
 
-The repository/tag enforcement work in #24 may still be useful for this repository's normal branch governance, but publication-specific tag/immutable-release requirements move with the future publication repository.
-
-CSP/Patching is **not** part of the publication handoff gate and local engineering work does not wait for the future package publication.
+CSP/Patching was not part of the publication gate.
 
 ## 12. Patching — [#7](https://github.com/definitely-stable/ChunkShift/issues/7)
 
-Starts after the frozen Core source contract/evidence is available on `main` (#6, #8 and #17), not after the future NuGet publication gate in the migration repository.
+Started from the frozen Core source contract/evidence on `main` (#6, #8 and #17). Patching is developed here and ported to the publication repository only when its own evidence and compatibility fixtures are ready.
 
 Deliverables:
 

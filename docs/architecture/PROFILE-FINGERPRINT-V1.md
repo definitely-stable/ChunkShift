@@ -100,4 +100,4 @@ The all-zero 256-bit value is valid.
 
 ## Compatibility note
 
-This encoding is normative for tests, persisted profile fingerprints and migration into the eventual publication repository. The #8 freeze does not publish a package from this repository. A later change to this encoding or to the semantics bound by an existing stable ProfileId requires an explicit compatibility/version decision rather than silently reinterpreting an existing fingerprint.
+This encoding is normative for tests, persisted profile fingerprints and every port into the publication repository ([MrFr3di/ChunkShift](https://github.com/MrFr3di/ChunkShift)), which shipped it in ChunkShift 0.1.0. No package is published from this repository. A later change to this encoding or to the semantics bound by an existing stable ProfileId requires an explicit compatibility/version decision rather than silently reinterpreting an existing fingerprint.
