@@ -1,6 +1,6 @@
 # CSM v1 candidate binary specification
 
-Status: Candidate for M1/[#5](https://github.com/definitely-stable/ChunkShift/issues/5); not public-frozen until [#9](https://github.com/definitely-stable/ChunkShift/issues/9)  
+Status: Frozen as CSM v1; shipped in ChunkShift 0.1.0 from the publication repository ([MrFr3di/ChunkShift](https://github.com/MrFr3di/ChunkShift)). Originally the M1/[#5](https://github.com/definitely-stable/ChunkShift/issues/5) candidate  
 Date: 2026-09-22  
 Authority: RFC-0001 section 8 + RFC-0003 release scope
 

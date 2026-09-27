@@ -1,15 +1,10 @@
 # Changelog
 
-All notable user-facing changes to ChunkShift will be documented in this file.
+This is the engineering repository of ChunkShift; it does not publish versions.
 
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). ChunkShift uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with the pre-1.0 patch-train policy defined in [docs/RELEASES.md](docs/RELEASES.md).
+The user-facing changelog and release notes of the published `ChunkShift` package are kept in the publication repository:
 
-## [Unreleased]
+- [CHANGELOG.md](https://github.com/MrFr3di/ChunkShift/blob/main/CHANGELOG.md)
+- [GitHub Releases](https://github.com/MrFr3di/ChunkShift/releases)
 
-The first public release target is `0.1.0`.
-
-### Added
-
-- Initial project architecture, roadmap and implementation plan.
-
-[Unreleased]: https://github.com/definitely-stable/ChunkShift/commits/main
+Versioning and compatibility rules are described in [docs/RELEASES.md](docs/RELEASES.md).
