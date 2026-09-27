@@ -124,11 +124,15 @@ jobs:
           cargo run --locked --release
 
       - name: Pack
-        run: dotnet pack src/ChunkShift/ChunkShift.csproj -c Release --no-build --no-restore -o artifacts/packages -p:PackageVersion=${PACKAGE_VERSION}
+        run: |
+          dotnet pack src/ChunkShift/ChunkShift.csproj -c Release --no-build --no-restore -o artifacts/packages -p:PackageVersion=${PACKAGE_VERSION}
+          dotnet pack src/ChunkShift.Patching/ChunkShift.Patching.csproj -c Release --no-build --no-restore -o artifacts/packages -p:PackageVersion=${PACKAGE_VERSION}
 
       - name: Check package runtime dependencies
         shell: bash
-        run: python3 tools/package/check_dependencies.py "artifacts/packages/ChunkShift.${PACKAGE_VERSION}.nupkg"
+        run: |
+          python3 tools/package/check_dependencies.py "artifacts/packages/ChunkShift.${PACKAGE_VERSION}.nupkg"
+          python3 tools/package/check_dependencies.py "artifacts/packages/ChunkShift.Patching.${PACKAGE_VERSION}.nupkg"
 
       - name: Package smoke (JIT)
         shell: bash

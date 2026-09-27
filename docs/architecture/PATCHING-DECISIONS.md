@@ -72,6 +72,7 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 - **Decision:** (a), as the implementation dependency of `ChunkShift.Patching` only. The CSP format depends on RFC 8878 and CSP §5.2, not on this package (D6).
 - **Reopen if:** a frame this backend writes is rejected by libzstd or differs in meaning; the packed-package NativeAOT consumer (P8) reports a trim/AOT warning; a security advisory; or the .NET 11 evaluation of D6 passes.
 - **Result:** all 9,192 probe frames (levels 3, 9 and 19, with and without a base-chunk dictionary, JIT and NativeAOT) are byte-identical to libzstd 1.5.7's, each implementation decodes the other's frames, the frames meet the §5.2 header rules, and the NativeAOT publish reports no trim or AOT warning.
+- **Result (P3b):** `ZstdSharp.Port` 0.8.8 is referenced by `ChunkShift.Patching` only (central version in `Directory.Packages.props`). `tools/package/check_dependencies.py` now holds one contract per package; CI and heavy validation pack Patching and require exactly `Blake3`, `ZstdSharp.Port` and `ChunkShift` (at the packed version) for `net10.0`, while Core still requires exactly `Blake3`. The encoder reproduces the pinned libzstd 1.5.7 frame of the P0 probe byte for byte (a non-normative regression test, D7).
 - **Status:** confirmed. The packed-package NativeAOT gate (D20) still applies.
 
 ### D6. Codec semantics and later backends
@@ -91,8 +92,9 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 
 - **Question:** how a dictionary is handed to the codec.
 - **Evidence:** *spec* — §5.2 requires raw content and forbids a dictionary starting with `37 A4 30 EC`; with that rule, zstd's automatic content-type detection and an explicit raw-content load decode identically. *measurement* — ZstdSharp's content-detecting `LoadDictionary` produced frames identical to libzstd with an explicit raw-content dictionary on all 766 probe entries (evidence note, finding 3).
-- **Decision:** reject a magic-prefixed dictionary before loading, and load it as raw content (explicitly where the backend exposes that).
-- **Status:** provisional until P3 fixes the exact call.
+- **Decision:** `CspDictionary.IsUsable` (at most 1 MiB, no zstd dictionary magic) guards both `CspPayloadEncoder` and `CspPayloadDecoder` immediately before ZstdSharp's `LoadDictionary`. ZstdSharp's managed API has no content-type parameter; its raw-content call exists only in the low-level API, which would need unsafe code in Patching. With the guard, content-type detection only ever sees raw content, which §5.2 makes equivalent.
+- **Evidence:** *measurement* — P0 probe (identical frames); *test* — the encoding-1 vectors, including a dictionary that starts with the magic, and a decoder reused across dictionary and no-dictionary entries.
+- **Status:** confirmed.
 
 ## 4. Public API
 
