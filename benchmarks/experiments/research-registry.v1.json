@@ -1,0 +1,218 @@
+{
+  "schema": "chunkshift.experiment-registry.v1",
+  "updated": "2026-09-28",
+  "status_values": [
+    "PLANNED",
+    "RUNNING",
+    "EVIDENCE_READY",
+    "ADOPT",
+    "DEFER",
+    "REJECT",
+    "SUPERSEDED"
+  ],
+  "experiments": [
+    {
+      "id": "CORE011-HASH-001",
+      "issues": [
+        127,
+        152
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": "BLAKE3 backend matrix and package/runtime cost"
+    },
+    {
+      "id": "CORE011-SCAN-001",
+      "issues": [
+        153,
+        152
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": ".NET 10 scanner/Amdahl baseline"
+    },
+    {
+      "id": "CORE011-SCAN-002",
+      "issues": [
+        153,
+        137
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": "same-profile SIMD/word-parallel FastCDC"
+    },
+    {
+      "id": "CORE011-SCAN-003",
+      "issues": [
+        153
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": "read-size and buffer topology"
+    },
+    {
+      "id": "CORE011-SCAN-004",
+      "issues": [
+        153
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": "bounded one-read-ahead overlap"
+    },
+    {
+      "id": "CORE011-SCAN-005",
+      "issues": [
+        153
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": "pooled raw-content buffer hygiene"
+    },
+    {
+      "id": "CORE011-SCAN-006",
+      "issues": [
+        153,
+        127
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": "bounded cross-chunk hash parallelism"
+    },
+    {
+      "id": "CORE011-CSM-001",
+      "issues": [
+        154
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": "CSM component/Amdahl baseline"
+    },
+    {
+      "id": "CORE011-CSM-002",
+      "issues": [
+        154
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": "ManifestId batching"
+    },
+    {
+      "id": "CORE011-CSM-003",
+      "issues": [
+        154
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": "CBLK decode-once trade-off"
+    },
+    {
+      "id": "CORE011-CSM-004",
+      "issues": [
+        154
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": "CSM LOH/pooling trade-off"
+    },
+    {
+      "id": "CORE011-CSM-005",
+      "issues": [
+        154
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": "reader batching"
+    },
+    {
+      "id": "CORE011-CSM-006",
+      "issues": [
+        154
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": "CRC32C Amdahl/backend gate"
+    },
+    {
+      "id": "CORE011-FUZZ-001",
+      "issues": [
+        137,
+        153
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": "scanner property/differential fuzz oracle"
+    },
+    {
+      "id": "CORE011-FUZZ-002",
+      "issues": [
+        137
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": "periodic and low-entropy adversarial matrix"
+    },
+    {
+      "id": "CDC-FUTURE-001",
+      "issues": [
+        136,
+        14
+      ],
+      "area": "future-cdc",
+      "status": "PLANNED",
+      "question": "RepMaxCDC"
+    },
+    {
+      "id": "CDC-FUTURE-002",
+      "issues": [
+        136,
+        14
+      ],
+      "area": "future-cdc",
+      "status": "PLANNED",
+      "question": "SeqCDC/vectorized SeqCDC"
+    },
+    {
+      "id": "CDC-FUTURE-003",
+      "issues": [
+        136,
+        14
+      ],
+      "area": "future-cdc",
+      "status": "PLANNED",
+      "question": "Chonkers"
+    },
+    {
+      "id": "CDC-FUTURE-004",
+      "issues": [
+        136,
+        14
+      ],
+      "area": "future-cdc",
+      "status": "PLANNED",
+      "question": "BoundaryTraceV1/cdc-bench interop"
+    },
+    {
+      "id": "PATCH-INCR-001",
+      "issues": [
+        150,
+        153
+      ],
+      "area": "patching-research",
+      "status": "PLANNED",
+      "question": "exact dirty-range incremental rechunk"
+    },
+    {
+      "id": "REPO-DELTA-001",
+      "issues": [
+        151,
+        138,
+        146,
+        147,
+        148
+      ],
+      "area": "repository-research",
+      "status": "PLANNED",
+      "question": "one-hop locality-bounded delta storage"
+    }
+  ]
+}
