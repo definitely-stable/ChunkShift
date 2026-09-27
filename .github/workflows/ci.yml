@@ -285,7 +285,9 @@ jobs:
         run: dotnet restore ChunkShift.slnx
 
       - name: Build package projects
-        run: dotnet build src/ChunkShift.Patching/ChunkShift.Patching.csproj -c Release --no-restore
+        run: |
+          dotnet build src/ChunkShift/ChunkShift.csproj -c Release --no-restore
+          dotnet build src/ChunkShift.Patching/ChunkShift.Patching.csproj -c Release --no-restore
 
       - name: Pack
         run: |
