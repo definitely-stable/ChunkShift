@@ -47,6 +47,11 @@ internal static class Program
             return PrefreezeRunner.Run(args[1..]);
         }
 
+        if (string.Equals(mode, "chunks", StringComparison.OrdinalIgnoreCase))
+        {
+            return ChunkDumpHarness.Run(args[1..]);
+        }
+
         PrintUsage();
         return 2;
     }
@@ -61,5 +66,6 @@ internal static class Program
         Console.WriteLine("  amdahl [--target <bytes>]... [--rounds 3] [--seconds 2] [--warmup-seconds 2]");
         Console.WriteLine("  prefreeze --plan <plan.json> --output <result.json> [--markdown <summary.md>] [--lane <name>] [--real <real-corpus.json>] [--no-synthetic]");
         Console.WriteLine("  prefreeze validate-real --real <real-corpus.json> [--plan <plan.json>] [--lock-output <corpus-lock.json>]");
+        Console.WriteLine("  chunks --list <list.tsv>");
     }
 }
