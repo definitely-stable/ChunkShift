@@ -169,12 +169,12 @@ Persisted-format or identity changes remain subject to the relevant RFC compatib
 
 Each package tracks its public surface with the PublicAPI analyzer:
 
-- `PublicAPI.Unshipped.txt` holds every public symbol that has not yet been in a published version. Before the first publication, the whole candidate surface lives here and may change freely through reviewed PRs.
-- `PublicAPI.Shipped.txt` holds the symbols of the last published version. It stays empty until the first publication (preview or normal).
-- Entries move from Unshipped to Shipped only in the release PR that sets `VersionPrefix` for a published version (§7 step 1), never in ordinary feature PRs, so `Shipped.txt` always describes something consumers could install.
-- After that, removing or changing a Shipped entry is a breaking change under this section: it needs `!`/`BREAKING CHANGE:`, a migration note and a changelog entry.
+- `PublicAPI.Shipped.txt` holds the symbols of the last published version. For `ChunkShift` it is the surface of the published `0.1.0` package.
+- `PublicAPI.Unshipped.txt` holds public symbols added since then that have not yet been in a published version. They may change freely through reviewed PRs until they ship.
+- Entries move from Unshipped to Shipped only in the release PR that sets `VersionPrefix` for a published version, never in ordinary feature PRs, so `Shipped.txt` always describes something consumers could install.
+- Removing or changing a Shipped entry is a breaking change under this section: it needs `!`/`BREAKING CHANGE:`, a migration note and a changelog entry.
 
-Binary compatibility checking against the previous published package (`PackageValidationBaselineVersion`) starts once a published version exists; see #69.
+`dotnet pack` also checks binary compatibility against the published `ChunkShift` `0.1.0` package (`PackageValidationBaselineVersion`), so packing restores that version from NuGet.org.
 
 ## 9. Decision to release 1.0.0
 

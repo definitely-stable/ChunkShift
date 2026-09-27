@@ -4,11 +4,12 @@
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <IsAotCompatible>true</IsAotCompatible>
     <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageValidationBaselineVersion>0.1.0</PackageValidationBaselineVersion>
     <PackageId>ChunkShift</PackageId>
     <VersionPrefix>0.1.0</VersionPrefix>
     <Description>Content-aware binary chunking, manifests, verification and exact update primitives for .NET.</Description>
     <Authors>ChunkShift contributors</Authors>
-    <PackageProjectUrl>https://github.com/definitely-stable/ChunkShift</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/MrFr3di/ChunkShift</PackageProjectUrl>
     <RepositoryUrl>https://github.com/definitely-stable/ChunkShift</RepositoryUrl>
     <PackageTags>chunking;binary-delta;content-addressing;patching;fastcdc</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
