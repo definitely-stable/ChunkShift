@@ -30,6 +30,7 @@ Read the RFC/spec for the subsystem you change before editing it.
 - Do not introduce `IChunker`, `IChunkHasher`, `IRepository` or similar public strategy abstractions without a demonstrated substitution need and an accepted architecture decision.
 - Persisted identities remain 256-bit unless an accepted RFC changes that contract.
 - CSM/CSP/profile/hash semantics must not change as a side effect of optimization.
+- A change to the BLAKE3 implementation or its package version (`Blake3` in `Directory.Packages.props`) is compatibility-sensitive, even as a dependency-only update: before merge it must reproduce every persisted BLAKE3/`ChunkId`/`ManifestId` conformance vector, and swapping the implementation never changes a `HashSuiteId`.
 - Repository truth is immutable content/metadata; rebuildable indexes are not authoritative data.
 - Do not add unbounded buffering to a streaming path.
 
