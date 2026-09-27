@@ -1,7 +1,7 @@
 # Performance evidence policy
 
 Status: Active policy; numeric thresholds pending M0 calibration  
-Last reviewed: 2026-09-22
+Last reviewed: 2026-09-28
 
 ChunkShift treats performance as an architecture constraint, but benchmark noise must not turn normal development into false-red CI.
 
@@ -51,3 +51,40 @@ CI benchmark output should be retained as workflow artifacts or summarized evide
 An optimized backend must produce the same persisted semantics as its reference implementation.
 
 If an optimization requires updating a golden vector, ProfileId, HashSuite identity or persisted-format fixture, treat it as a compatibility change and route it through the corresponding RFC/issue. Do not classify it as a pure performance change.
+
+
+## Research / experiment logging
+
+Performance and research work that can influence an architectural or release decision uses the registry in [docs/research/README.md](research/README.md).
+
+The minimum linkage is:
+
+```text
+Issue
+  <-> ExperimentId
+  <-> RunId(s)
+  <-> EvidenceId
+  <-> implementation PR
+```
+
+### Before final measurement
+
+- claim a stable `ExperimentId` in [docs/research/EXPERIMENT-INDEX.md](research/EXPERIMENT-INDEX.md);
+- write the hypothesis and decision rule before collecting the final decision dataset;
+- make the experiment definition/fingerprint reproducible.
+
+### Every retained run
+
+Record a `RunId`, exact commit, runtime/toolchain, platform, workload/corpus identity, launch protocol and raw-result location.
+
+Do not compare runs that differ in experiment definition/commit/corpus semantics without making that difference explicit.
+
+### Decision-bearing evidence
+
+A result that changes code, architecture, dependencies or release direction must get a durable Markdown result under `docs/research/results/` using the standard template.
+
+The summary must link the raw run IDs and contain the final `ADOPT / DEFER / REJECT` decision. An expiring CI artifact alone is not a durable decision record.
+
+When reasonably small, preserve the actual per-sample decision dataset in machine-readable form. For large raw data, preserve a manifest with digest/provenance/reproduction details and a durable artifact/location reference where available.
+
+Rejected candidates remain indexed so the project does not repeatedly rediscover the same losing experiment without new evidence.
