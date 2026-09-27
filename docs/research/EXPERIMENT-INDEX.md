@@ -27,6 +27,16 @@ This table is the human-readable research index. Machine-readable experiment def
 | CDC-FUTURE-003 | Future CDC | #136, #14 | Chonkers strict-bound/edit-locality evidence | PLANNED | — |
 | CDC-FUTURE-004 | Future CDC | #136, #14 | BoundaryTraceV1 + cdc-bench interoperability | PLANNED | — |
 | PATCH-INCR-001 | Patching research | #150, #153 | Exact dirty-range incremental rechunk/full-manifest equivalence | PLANNED | — |
+| REPO-INDEX-001 | Repository index | #145 | MPHF/PtrHash exact-key accelerator bake-off | PLANNED | — |
+| REPO-INDEX-002 | Repository index | #145 | Intra-segment partitioned index | PLANNED | — |
+| REPO-INDEX-003 | Repository index/pack | #145, #144 | Direct location vs PackOrdinal+FrameOrdinal indirection | PLANNED | — |
+| REPO-INDEX-004 | Repository index | #145 | NoFilter/Bloom/Binary Fuse/Ribbon L0 bake-off | PLANNED | — |
+| REPO-PACK-001 | Repository pack | #144, #145 | FrameDirectory and compressed monotone offsets | PLANNED | — |
+| REPO-COMP-001 | Repository compression | #138, #144 | Seekable/bounded logical-chunk compression groups | PLANNED | — |
+| REPO-COMP-002 | Repository compression | #138 | Dictionary aging / version holdout | PLANNED | — |
+| REPO-REMOTE-001 | Repository execution | #148 | .NET vectored RandomAccess local execution | PLANNED | — |
+| REPO-REMOTE-002 | Repository verification | #148, #139 | Bao/BLAKE3 authenticated partial ranges | PLANNED | — |
+| REPO-REMOTE-003 | Repository reconstruction | #148 | Reflink/sparse local reconstruction | PLANNED | — |
 | REPO-DELTA-001 | Repository research | #151, #138, #146, #147, #148 | Locality-bounded one-hop delta storage | PLANNED | — |
 
 ## Index update rule
