@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsAotCompatible>true</IsAotCompatible>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageId>ChunkShift.Patching</PackageId>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <Description>Declarative CSP patches over ChunkShift manifests: reuse planning, patch creation and verified reconstruction.</Description>
+    <Authors>ChunkShift contributors</Authors>
+    <PackageProjectUrl>https://github.com/MrFr3di/ChunkShift</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/definitely-stable/ChunkShift</RepositoryUrl>
+    <PackageTags>chunking;binary-delta;patching;content-addressing</PackageTags>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ChunkShift.Patching.Tests" />
+    <InternalsVisibleTo Include="ChunkShift.Benchmarks" />
+    <ProjectReference Include="..\ChunkShift\ChunkShift.csproj" />
+    <PackageReference Include="Blake3" />
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers"
+                      PrivateAssets="all"
+                      IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+  </ItemGroup>
+
+</Project>

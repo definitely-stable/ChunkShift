@@ -52,12 +52,13 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 - **Decision:** (a). The hasher does exactly two things for the two registered suites: bytes to `Hash256` in one call, and incremental bytes to `Hash256`. It never computes `ManifestId`; Patching takes every manifest identity from Core's verified `ManifestReader` result.
 - **Test evidence:** P1 cross-checks the hasher against Core: chunk IDs of `ChunkScanner` output and CSM `FileDigest` values for both suites, plus Core's BLAKE3 boundary vectors.
 - **Reopen if:** a second package (Repository, #10) needs the same primitive; then a public Core API is justified by two consumers.
-- **Status:** confirmed as a choice; the cross-check lands with P1.
+- **Result (P1):** `PatchHashing` reproduces Core's chunk IDs of `ChunkScanner` output and CSM `FileDigest` values for both suites, and Core's official BLAKE3 vectors.
+- **Status:** confirmed.
 
 ### D4. CRC-32C
 
 - **Decision:** an internal copy of Core's 40-line CRC-32C over `System.Numerics.BitOperations.Crc32C`, checked against the CSM known vector `check("123456789") = 0xE3069283` (CSP-V1-CANDIDATE §2). Same reasoning as D3.
-- **Status:** confirmed as a choice; the vector test lands with P1.
+- **Status:** confirmed (P1 tests the known vector).
 
 ## 3. zstd backend
 
@@ -172,8 +173,9 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 ### D17. `PAYL` block size
 
 - **Decision:** a block closes at 4096 entries (format maximum) or when its buffered payload reaches a byte bound, so a forward-only destination never needs more than one bounded block in memory.
-- **Evidence still to add:** P1 fixes the bound; P10 records the writer's peak memory.
-- **Status:** provisional until P1/P10.
+- **Result (P1):** the bound is 4 MiB (`CspWriter.DefaultPayloadBlockBytes`); an entry larger than the bound is written as a block of its own straight from the caller's buffer. A test checks that no single destination write exceeds one block.
+- **Evidence still to add:** P10 records the writer's peak memory.
+- **Status:** provisional until P10.
 
 ## 6. Verification and independence
 
@@ -216,4 +218,5 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
   8. A TRAILER with the wrong magic, major or size is rule 5; an artifact shorter than PREAMBLE plus TRAILER is rule 7.
   9. Rule 23 (total length) cannot fail on its own, because the embedded CSM's `LogicalTotals` already bind the record lengths; the check stays, without a vector.
 - **Evidence:** *oracle* — each vector breaks exactly one rule and decode.py reaches the expected verdict for all 94; *test* — a vector set with a wrong expected rule or output digest fails `--verify`.
-- **Status:** confirmed for the decoder. The C# reader reproduces the structure-stage verdicts in P1 and the apply-stage verdicts in P6.
+- **Result (P1):** the C# reader reaches the decoder's verdict on all 76 structure-stage vectors (with the same failure kinds for the verification ones) and accepts all 40 apply-stage vectors; every prefix and every single-byte flip of a small patch opens or throws only a documented exception type. Patches written by `CspWriter` from real manifests (base-dependent in one and four `PAYL` blocks, and self-contained) are applied by the independent decoder to the exact target bytes.
+- **Status:** confirmed for the decoder, the writer and the reader; the apply-stage verdicts are checked with P6.
