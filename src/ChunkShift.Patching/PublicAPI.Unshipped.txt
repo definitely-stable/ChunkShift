@@ -1,1 +1,13 @@
 #nullable enable
+ChunkShift.Patching.ChunkPatch
+static ChunkShift.Patching.ChunkPatch.PlanAsync(System.IO.Stream! baseManifest, System.IO.Stream! targetManifest, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<ChunkShift.Patching.PatchPlan!>!
+ChunkShift.Patching.PatchPlan
+ChunkShift.Patching.PatchPlan.Base.get -> ChunkShift.ManifestVerificationResult!
+ChunkShift.Patching.PatchPlan.IsValid.get -> bool
+ChunkShift.Patching.PatchPlan.MissingBytes.get -> long
+ChunkShift.Patching.PatchPlan.MissingChunks.get -> long
+ChunkShift.Patching.PatchPlan.ReusedBytes.get -> long
+ChunkShift.Patching.PatchPlan.ReusedChunks.get -> long
+ChunkShift.Patching.PatchPlan.Target.get -> ChunkShift.ManifestVerificationResult!
+ChunkShift.Patching.PatchPlan.UniqueMissingBytes.get -> long
+ChunkShift.Patching.PatchPlan.UniqueMissingChunks.get -> long

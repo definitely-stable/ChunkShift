@@ -1,4 +1,5 @@
 using System.Globalization;
+using ChunkShift.Patching;
 using ChunkShift.Primitives;
 
 namespace ChunkShift.Cli;
@@ -257,10 +258,18 @@ internal static class CliApp
                 "plan requires --base <base.csm> and --target <target.csm>.");
         }
 
-        ReusePlan plan = await ReusePlan.ComputeAsync(
-            Path.GetFullPath(basePath),
-            Path.GetFullPath(targetPath),
-            cancellationToken).ConfigureAwait(false);
+        PatchPlan plan;
+
+        await using (FileStream baseManifest =
+            OpenRead(Path.GetFullPath(basePath)))
+        await using (FileStream targetManifest =
+            OpenRead(Path.GetFullPath(targetPath)))
+        {
+            plan = await ChunkPatch.PlanAsync(
+                baseManifest,
+                targetManifest,
+                cancellationToken).ConfigureAwait(false);
+        }
 
         if (!plan.IsValid)
         {
@@ -268,12 +277,13 @@ internal static class CliApp
             return 1;
         }
 
-        if (!plan.SameHashSuite)
+        if (plan.Base.Manifest.HashSuite !=
+            plan.Target.Manifest.HashSuite)
         {
             Console.Error.WriteLine(
                 $"error: base and target manifests use different hash suites " +
-                $"('{plan.BaseResult.Manifest.HashSuite}' vs " +
-                $"'{plan.TargetResult.Manifest.HashSuite}'); " +
+                $"('{plan.Base.Manifest.HashSuite}' vs " +
+                $"'{plan.Target.Manifest.HashSuite}'); " +
                 "chunk ids are not comparable.");
             return 1;
         }
@@ -404,27 +414,27 @@ internal static class CliApp
             $"failures={result.Failures}");
     }
 
-    private static void PrintReuseFailures(ReusePlan plan)
+    private static void PrintReuseFailures(PatchPlan plan)
     {
         Console.WriteLine("valid=false");
 
-        if (!plan.BaseResult.IsValid)
+        if (!plan.Base.IsValid)
         {
             Console.WriteLine(
-                $"base-failures={plan.BaseResult.Failures}");
+                $"base-failures={plan.Base.Failures}");
         }
 
-        if (!plan.TargetResult.IsValid)
+        if (!plan.Target.IsValid)
         {
             Console.WriteLine(
-                $"target-failures={plan.TargetResult.Failures}");
+                $"target-failures={plan.Target.Failures}");
         }
     }
 
-    private static void PrintReuseReport(ReusePlan plan)
+    private static void PrintReuseReport(PatchPlan plan)
     {
-        ManifestInfo baseManifest = plan.BaseResult.Manifest;
-        ManifestInfo targetManifest = plan.TargetResult.Manifest;
+        ManifestInfo baseManifest = plan.Base.Manifest;
+        ManifestInfo targetManifest = plan.Target.Manifest;
         bool sameProfile =
             baseManifest.ProfileFingerprint ==
             targetManifest.ProfileFingerprint;
