@@ -17,3 +17,8 @@
 *.zip  binary
 *.nupkg binary
 *.snupkg binary
+
+# Format vectors and their content are exact bytes.
+*.csm  binary
+*.csp  binary
+*.bin  binary

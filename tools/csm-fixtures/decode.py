@@ -166,18 +166,23 @@ def _read_header(cursor: Cursor) -> tuple[int, bytes, int, int]:
     return offset, kind, flags, payload_length
 
 
-def decode(data: bytes) -> dict[str, object]:
-    """Return the verdict for one complete CSM representation."""
+def decode(data: bytes, records: list[tuple[bytes, int]] | None = None) -> dict[str, object]:
+    """Return the verdict for one complete CSM representation.
+
+    When ``records`` is a list, the ordered (ChunkId, Length) records are
+    appended to it as they are parsed (used by tools/csp-fixtures/decode.py to
+    read the manifest a CSP patch embeds).
+    """
 
     try:
-        return _decode(data)
+        return _decode(data, records)
     except Reject as error:
         return {"outcome": "reject", "failures": [], "reason": str(error)}
     except Unsupported as error:
         return {"outcome": "unsupported", "failures": [], "reason": str(error)}
 
 
-def _decode(data: bytes) -> dict[str, object]:
+def _decode(data: bytes, records: list[tuple[bytes, int]] | None = None) -> dict[str, object]:
     cursor = Cursor(data)
     failures: set[str] = set()
 
@@ -296,6 +301,8 @@ def _decode(data: bytes) -> dict[str, object]:
             identity.update(chunk_id)
             identity.update(struct.pack("<I", length))
             block_length += length
+            if records is not None:
+                records.append((chunk_id, length))
 
         blocks.append((observed_length, section_offset))
         observed_count += count
@@ -431,6 +438,8 @@ def _decode(data: bytes) -> dict[str, object]:
     return {
         "outcome": "integrity" if failures else "valid",
         "failures": sorted(failures),
+        "hashSuite": suite,
+        "profileId": profile_raw.decode("ascii"),
         "manifestId": stored_manifest_id.hex(),
         "computedManifestId": computed_manifest_id.hex(),
         "fileDigest": stored_file_digest.hex(),
