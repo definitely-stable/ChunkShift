@@ -28,6 +28,9 @@ internal static class CliApp
                 "inspect" => await RunInspectAsync(
                     args[1..],
                     cancellationToken).ConfigureAwait(false),
+                "plan" => await RunPlanAsync(
+                    args[1..],
+                    cancellationToken).ConfigureAwait(false),
                 "verify" => await RunVerifyAsync(
                     args[1..],
                     cancellationToken).ConfigureAwait(false),
@@ -201,6 +204,84 @@ internal static class CliApp
         return result.IsValid ? 0 : 1;
     }
 
+    private static async Task<int> RunPlanAsync(
+        string[] args,
+        CancellationToken cancellationToken)
+    {
+        string? basePath = null;
+        string? targetPath = null;
+
+        for (int index = 0; index < args.Length; index++)
+        {
+            switch (args[index])
+            {
+                case "--base":
+                    if (basePath is not null)
+                    {
+                        return UsageError(
+                            "plan: --base may be given only once.");
+                    }
+
+                    if (index + 1 == args.Length)
+                    {
+                        return UsageError(
+                            "plan: --base requires <base.csm>.");
+                    }
+
+                    basePath = args[++index];
+                    break;
+                case "--target":
+                    if (targetPath is not null)
+                    {
+                        return UsageError(
+                            "plan: --target may be given only once.");
+                    }
+
+                    if (index + 1 == args.Length)
+                    {
+                        return UsageError(
+                            "plan: --target requires <target.csm>.");
+                    }
+
+                    targetPath = args[++index];
+                    break;
+                default:
+                    return UsageError(
+                        $"Unknown plan option '{args[index]}'.");
+            }
+        }
+
+        if (basePath is null || targetPath is null)
+        {
+            return UsageError(
+                "plan requires --base <base.csm> and --target <target.csm>.");
+        }
+
+        ReusePlan plan = await ReusePlan.ComputeAsync(
+            Path.GetFullPath(basePath),
+            Path.GetFullPath(targetPath),
+            cancellationToken).ConfigureAwait(false);
+
+        if (!plan.IsValid)
+        {
+            PrintReuseFailures(plan);
+            return 1;
+        }
+
+        if (!plan.SameHashSuite)
+        {
+            Console.Error.WriteLine(
+                $"error: base and target manifests use different hash suites " +
+                $"('{plan.BaseResult.Manifest.HashSuite}' vs " +
+                $"'{plan.TargetResult.Manifest.HashSuite}'); " +
+                "chunk ids are not comparable.");
+            return 1;
+        }
+
+        PrintReuseReport(plan);
+        return 0;
+    }
+
     private static async Task<int> RunVerifyAsync(
         string[] args,
         CancellationToken cancellationToken)
@@ -276,7 +357,7 @@ internal static class CliApp
         }
     }
 
-    private static FileStream OpenRead(string path) =>
+    internal static FileStream OpenRead(string path) =>
         new(
             path,
             new FileStreamOptions
@@ -323,6 +404,62 @@ internal static class CliApp
             $"failures={result.Failures}");
     }
 
+    private static void PrintReuseFailures(ReusePlan plan)
+    {
+        Console.WriteLine("valid=false");
+
+        if (!plan.BaseResult.IsValid)
+        {
+            Console.WriteLine(
+                $"base-failures={plan.BaseResult.Failures}");
+        }
+
+        if (!plan.TargetResult.IsValid)
+        {
+            Console.WriteLine(
+                $"target-failures={plan.TargetResult.Failures}");
+        }
+    }
+
+    private static void PrintReuseReport(ReusePlan plan)
+    {
+        ManifestInfo baseManifest = plan.BaseResult.Manifest;
+        ManifestInfo targetManifest = plan.TargetResult.Manifest;
+        bool sameProfile =
+            baseManifest.ProfileFingerprint ==
+            targetManifest.ProfileFingerprint;
+
+        Console.WriteLine("valid=true");
+        Console.WriteLine(
+            $"hash-suite={baseManifest.HashSuite}");
+        Console.WriteLine(
+            $"same-profile={sameProfile.ToString().ToLowerInvariant()}");
+        Console.WriteLine(
+            $"base-manifest-id={baseManifest.ManifestId}");
+        Console.WriteLine(
+            $"target-manifest-id={targetManifest.ManifestId}");
+        Console.WriteLine(
+            $"base-chunks={baseManifest.ChunkCount.ToString(CultureInfo.InvariantCulture)}");
+        Console.WriteLine(
+            $"base-bytes={baseManifest.ContentLength.ToString(CultureInfo.InvariantCulture)}");
+        Console.WriteLine(
+            $"target-chunks={targetManifest.ChunkCount.ToString(CultureInfo.InvariantCulture)}");
+        Console.WriteLine(
+            $"target-bytes={targetManifest.ContentLength.ToString(CultureInfo.InvariantCulture)}");
+        Console.WriteLine(
+            $"reused-chunks={plan.ReusedChunks.ToString(CultureInfo.InvariantCulture)}");
+        Console.WriteLine(
+            $"reused-bytes={plan.ReusedBytes.ToString(CultureInfo.InvariantCulture)}");
+        Console.WriteLine(
+            $"missing-chunks={plan.MissingChunks.ToString(CultureInfo.InvariantCulture)}");
+        Console.WriteLine(
+            $"missing-bytes={plan.MissingBytes.ToString(CultureInfo.InvariantCulture)}");
+        Console.WriteLine(
+            $"unique-missing-chunks={plan.UniqueMissingChunks.ToString(CultureInfo.InvariantCulture)}");
+        Console.WriteLine(
+            $"unique-missing-bytes={plan.UniqueMissingBytes.ToString(CultureInfo.InvariantCulture)}");
+    }
+
     private static void SetHashSuite(
         ref HashSuiteId? current,
         HashSuiteId requested)
@@ -353,7 +490,12 @@ internal static class CliApp
             Usage:
               chunkshift create <content> <manifest> [--bidx] [--sha256|--blake3]
               chunkshift inspect <manifest>
+              chunkshift plan --base <base.csm> --target <target.csm>
               chunkshift verify <manifest> [content]
+
+            plan prints a read-only chunk reuse report for a base and a target
+            manifest. unique-missing-bytes is the lower bound of the payload a
+            chunk-granular patch would carry, before any CSP container overhead.
 
             Exit codes:
               0  success / verification valid

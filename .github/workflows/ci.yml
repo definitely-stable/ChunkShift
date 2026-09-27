@@ -176,6 +176,76 @@ jobs:
             cmp artifacts/cli-smoke/content.bin artifacts/cli-smoke/self.bin
           done
 
+          # plan is a read-only chunk reuse report. The edited input inserts
+          # 4096 deterministic bytes in the middle of content.bin.
+          cp artifacts/cli-smoke/content.bin artifacts/cli-smoke/edited.bin
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("artifacts/cli-smoke/edited.bin")
+          data = path.read_bytes()
+          path.write_bytes(data[:300000] + b"\x5a" * 4096 + data[300000:])
+          PY
+
+          dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
+            create artifacts/cli-smoke/edited.bin artifacts/cli-smoke/edited.csm --bidx --sha256 \
+            > artifacts/cli-smoke/create-edited.txt
+
+          dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
+            plan --base artifacts/cli-smoke/content.csm --target artifacts/cli-smoke/content.csm \
+            > artifacts/cli-smoke/plan-self.txt
+
+          grep -q '^valid=true$' artifacts/cli-smoke/plan-self.txt
+          grep -q '^missing-bytes=0$' artifacts/cli-smoke/plan-self.txt
+          grep -q '^reused-bytes=1048576$' artifacts/cli-smoke/plan-self.txt
+
+          dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
+            plan --base artifacts/cli-smoke/content.csm --target artifacts/cli-smoke/edited.csm \
+            > artifacts/cli-smoke/plan-edited.txt
+
+          grep -q '^valid=true$' artifacts/cli-smoke/plan-edited.txt
+
+          reused_bytes=$(grep '^reused-bytes=' artifacts/cli-smoke/plan-edited.txt | cut -d= -f2)
+          missing_bytes=$(grep '^missing-bytes=' artifacts/cli-smoke/plan-edited.txt | cut -d= -f2)
+          reused_chunks=$(grep '^reused-chunks=' artifacts/cli-smoke/plan-edited.txt | cut -d= -f2)
+          missing_chunks=$(grep '^missing-chunks=' artifacts/cli-smoke/plan-edited.txt | cut -d= -f2)
+          target_bytes=$(grep '^target-bytes=' artifacts/cli-smoke/plan-edited.txt | cut -d= -f2)
+          target_chunks=$(grep '^target-chunks=' artifacts/cli-smoke/plan-edited.txt | cut -d= -f2)
+          unique_missing_bytes=$(grep '^unique-missing-bytes=' artifacts/cli-smoke/plan-edited.txt | cut -d= -f2)
+
+          test "$reused_bytes" -gt 0
+          test "$missing_bytes" -gt 0
+          test "$((reused_bytes + missing_bytes))" -eq "$target_bytes"
+          test "$target_bytes" -eq "$(wc -c < artifacts/cli-smoke/edited.bin)"
+          test "$((reused_chunks + missing_chunks))" -eq "$target_chunks"
+          test "$unique_missing_bytes" -le "$missing_bytes"
+
+          # Chunk ids from different hash suites are not comparable.
+          dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
+            create artifacts/cli-smoke/content.bin artifacts/cli-smoke/content-blake3.csm \
+            > artifacts/cli-smoke/create-blake3.txt
+
+          set +e
+          dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
+            plan --base artifacts/cli-smoke/content.csm --target artifacts/cli-smoke/content-blake3.csm \
+            > artifacts/cli-smoke/plan-suite.txt 2> artifacts/cli-smoke/plan-suite.err
+          status=$?
+          set -e
+
+          test "$status" -eq 1
+          test ! -s artifacts/cli-smoke/plan-suite.txt
+          grep -q 'different hash suites' artifacts/cli-smoke/plan-suite.err
+
+          set +e
+          dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
+            plan --base artifacts/cli-smoke/content.csm \
+            > artifacts/cli-smoke/plan-usage.txt 2>&1
+          status=$?
+          set -e
+
+          test "$status" -eq 2
+          grep -q 'plan requires --base' artifacts/cli-smoke/plan-usage.txt
+
   package-smoke:
     name: package-smoke
     needs: build-test

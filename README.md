@@ -18,7 +18,7 @@ ChunkShift.Patching                          next engineering stage (#7)
   compare/diff + reuse analysis
   create/apply exact CSP binary updates
 
-ChunkShift.Cli                               create/inspect/verify; engineering tool, not published
+ChunkShift.Cli                               create/inspect/verify/plan; engineering tool, not published
   engineering and end-user workflows
 
 Future / preview:
