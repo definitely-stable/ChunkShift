@@ -29,6 +29,9 @@ internal static class CliApp
                 "inspect" => await RunInspectAsync(
                     args[1..],
                     cancellationToken).ConfigureAwait(false),
+                "patch" => await RunPatchAsync(
+                    args[1..],
+                    cancellationToken).ConfigureAwait(false),
                 "plan" => await RunPlanAsync(
                     args[1..],
                     cancellationToken).ConfigureAwait(false),
@@ -330,6 +333,282 @@ internal static class CliApp
         return result.IsValid ? 0 : 1;
     }
 
+    private static async Task<int> RunPatchAsync(
+        string[] args,
+        CancellationToken cancellationToken)
+    {
+        if (args.Length == 0)
+        {
+            return UsageError(
+                "patch requires 'create' or 'apply'.");
+        }
+
+        return args[0] switch
+        {
+            "create" => await RunPatchCreateAsync(
+                args[1..],
+                cancellationToken).ConfigureAwait(false),
+            "apply" => await RunPatchApplyAsync(
+                args[1..],
+                cancellationToken).ConfigureAwait(false),
+            _ => UsageError(
+                $"Unknown patch command '{args[0]}'."),
+        };
+    }
+
+    private static async Task<int> RunPatchCreateAsync(
+        string[] args,
+        CancellationToken cancellationToken)
+    {
+        var options = NewOptions("--base-manifest", "--base", "--target-manifest", "--target", "-o");
+        var positionals = new List<string>();
+
+        if (ParseOptions("patch create", args, options, positionals) is string error)
+        {
+            return UsageError(error);
+        }
+
+        if (positionals.Count != 0)
+        {
+            return UsageError($"Unknown patch create option '{positionals[0]}'.");
+        }
+
+        string? baseManifestPath = options["--base-manifest"];
+        string? basePath = options["--base"];
+        string? targetManifestPath = options["--target-manifest"];
+        string? targetPath = options["--target"];
+        string? outputPath = options["-o"];
+
+        if (targetManifestPath is null || targetPath is null || outputPath is null)
+        {
+            return UsageError(
+                "patch create requires --target-manifest <target.csm>, " +
+                "--target <target> and -o <patch.csp>.");
+        }
+
+        if ((baseManifestPath is null) != (basePath is null))
+        {
+            return UsageError(
+                "patch create: --base-manifest and --base must be given together.");
+        }
+
+        string outputFullPath = Path.GetFullPath(outputPath);
+
+        foreach ((string option, string? input) in new[]
+        {
+            ("--target-manifest", targetManifestPath),
+            ("--target", targetPath),
+            ("--base-manifest", baseManifestPath),
+            ("--base", basePath),
+        })
+        {
+            if (input is not null &&
+                PathsReferToSameFile(outputFullPath, Path.GetFullPath(input)))
+            {
+                return UsageError(
+                    $"patch create: -o must not be the same file as {option}.");
+            }
+        }
+
+        string? directory = Path.GetDirectoryName(outputFullPath);
+        if (string.IsNullOrEmpty(directory))
+        {
+            throw new ArgumentException(
+                "Patch destination must resolve to a directory.",
+                nameof(args));
+        }
+
+        string temporaryPath = Path.Combine(
+            directory,
+            $".{Path.GetFileName(outputFullPath)}.{Guid.NewGuid():N}.tmp");
+
+        try
+        {
+            PatchInfo info;
+
+            await using (FileStream targetManifest = OpenRead(Path.GetFullPath(targetManifestPath)))
+            await using (FileStream targetContent = OpenRead(Path.GetFullPath(targetPath)))
+            await using (FileStream destination = new(
+                temporaryPath,
+                new FileStreamOptions
+                {
+                    Access = FileAccess.Write,
+                    Mode = FileMode.CreateNew,
+                    Share = FileShare.None,
+                    Options = FileOptions.Asynchronous,
+                    BufferSize = IoBufferSize,
+                }))
+            {
+                if (baseManifestPath is not null && basePath is not null)
+                {
+                    await using FileStream baseManifest = OpenRead(Path.GetFullPath(baseManifestPath));
+                    await using FileStream baseContent = OpenRead(Path.GetFullPath(basePath));
+
+                    info = await ChunkPatch.CreateAsync(
+                        baseManifest,
+                        baseContent,
+                        targetManifest,
+                        targetContent,
+                        destination,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    info = await ChunkPatch.CreateAsync(
+                        targetManifest,
+                        targetContent,
+                        destination,
+                        cancellationToken).ConfigureAwait(false);
+                }
+
+                await destination.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            // Report only after the patch is published, so a failed move is
+            // never preceded by a success-looking summary.
+            File.Move(temporaryPath, outputFullPath, overwrite: true);
+
+            PrintPatch(info);
+            return 0;
+        }
+        finally
+        {
+            TryDelete(temporaryPath);
+        }
+    }
+
+    private static async Task<int> RunPatchApplyAsync(
+        string[] args,
+        CancellationToken cancellationToken)
+    {
+        var options = NewOptions("-o", "--base-manifest", "--base");
+        var positionals = new List<string>();
+
+        if (ParseOptions("patch apply", args, options, positionals) is string error)
+        {
+            return UsageError(error);
+        }
+
+        if (positionals.Count > 1)
+        {
+            return UsageError($"Unknown patch apply option '{positionals[1]}'.");
+        }
+
+        string? outputPath = options["-o"];
+        string? baseManifestPath = options["--base-manifest"];
+        string? basePath = options["--base"];
+
+        if (positionals.Count == 0 || outputPath is null)
+        {
+            return UsageError("patch apply requires <patch.csp> and -o <output>.");
+        }
+
+        if ((baseManifestPath is null) != (basePath is null))
+        {
+            return UsageError(
+                "patch apply: --base-manifest and --base must be given together.");
+        }
+
+        string patchFullPath = Path.GetFullPath(positionals[0]);
+        string outputFullPath = Path.GetFullPath(outputPath);
+
+        if (PathsReferToSameFile(outputFullPath, patchFullPath))
+        {
+            return UsageError(
+                "patch apply: -o must not be the same file as <patch.csp>.");
+        }
+
+        PatchApplyResult result;
+
+        await using FileStream patch = OpenRead(patchFullPath);
+
+        if (baseManifestPath is not null && basePath is not null)
+        {
+            await using FileStream baseManifest = OpenRead(Path.GetFullPath(baseManifestPath));
+
+            // An in-place update replaces the base content, so Windows needs
+            // the open base to allow deletion.
+            await using FileStream baseContent = OpenReadShared(Path.GetFullPath(basePath));
+
+            result = await ChunkPatch.ApplyAsync(
+                patch,
+                baseManifest,
+                baseContent,
+                outputFullPath,
+                cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            result = await ChunkPatch.ApplyAsync(
+                patch,
+                outputFullPath,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!result.IsApplied)
+        {
+            Console.WriteLine("applied=false");
+            Console.WriteLine($"failures={result.Failures}");
+            return 1;
+        }
+
+        ManifestInfo target = result.Target
+            ?? throw new InvalidOperationException(
+                "An applied patch result must carry the target manifest.");
+
+        Console.WriteLine("applied=true");
+        Console.WriteLine($"target-manifest-id={target.ManifestId}");
+        Console.WriteLine(
+            $"output-bytes={target.ContentLength.ToString(CultureInfo.InvariantCulture)}");
+        return 0;
+    }
+
+    private static Dictionary<string, string?> NewOptions(params string[] names) =>
+        names.ToDictionary(static name => name, static _ => (string?)null, StringComparer.Ordinal);
+
+    /// <summary>
+    /// Reads "<c>option value</c>" pairs into <paramref name="options"/>, each
+    /// option at most once; an argument that is not a known option and does not
+    /// start with '-' goes to <paramref name="positionals"/>.
+    /// </summary>
+    /// <returns>A usage error message, or <see langword="null"/>.</returns>
+    private static string? ParseOptions(
+        string command,
+        string[] args,
+        Dictionary<string, string?> options,
+        List<string> positionals)
+    {
+        for (int index = 0; index < args.Length; index++)
+        {
+            string argument = args[index];
+
+            if (!options.TryGetValue(argument, out string? value))
+            {
+                if (argument.StartsWith('-'))
+                {
+                    return $"Unknown {command} option '{argument}'.";
+                }
+
+                positionals.Add(argument);
+                continue;
+            }
+
+            if (value is not null)
+            {
+                return $"{command}: {argument} may be given only once.";
+            }
+
+            if (index + 1 == args.Length)
+            {
+                return $"{command}: {argument} requires a value.";
+            }
+
+            options[argument] = args[++index];
+        }
+
+        return null;
+    }
+
     private static bool PathsReferToSameFile(string first, string second)
     {
         // Windows and default macOS volumes are case-insensitive. Hard links are
@@ -381,6 +660,20 @@ internal static class CliApp
                 BufferSize = IoBufferSize,
             });
 
+    private static FileStream OpenReadShared(string path) =>
+        new(
+            path,
+            new FileStreamOptions
+            {
+                Access = FileAccess.Read,
+                Mode = FileMode.Open,
+                Share = FileShare.Read | FileShare.Delete,
+                Options =
+                    FileOptions.Asynchronous
+                    | FileOptions.SequentialScan,
+                BufferSize = IoBufferSize,
+            });
+
     private static void PrintManifest(ManifestInfo info)
     {
         Console.WriteLine(
@@ -412,6 +705,29 @@ internal static class CliApp
             $"valid={result.IsValid.ToString().ToLowerInvariant()}");
         Console.WriteLine(
             $"failures={result.Failures}");
+    }
+
+    private static void PrintPatch(PatchInfo info)
+    {
+        Console.WriteLine(
+            $"target-manifest-id={info.TargetManifestId}");
+
+        if (info.BaseManifestId is { } baseManifestId)
+        {
+            Console.WriteLine(
+                $"base-manifest-id={baseManifestId}");
+        }
+
+        Console.WriteLine(
+            $"hash-suite={info.HashSuite}");
+        Console.WriteLine(
+            $"payload-entries={info.PayloadEntryCount.ToString(CultureInfo.InvariantCulture)}");
+        Console.WriteLine(
+            $"payload-bytes={info.PayloadBytes.ToString(CultureInfo.InvariantCulture)}");
+        Console.WriteLine(
+            $"patch-bytes={info.PhysicalLength.ToString(CultureInfo.InvariantCulture)}");
+        Console.WriteLine(
+            $"file-digest={info.FileDigest.ToHexLower()}");
     }
 
     private static void PrintReuseFailures(PatchPlan plan)
@@ -500,12 +816,22 @@ internal static class CliApp
             Usage:
               chunkshift create <content> <manifest> [--bidx] [--sha256|--blake3]
               chunkshift inspect <manifest>
+              chunkshift patch create --target-manifest <target.csm>
+                                      --target <target> -o <patch.csp>
+                                      [--base-manifest <base.csm> --base <base>]
+              chunkshift patch apply <patch.csp> -o <output>
+                                     [--base-manifest <base.csm> --base <base>]
               chunkshift plan --base <base.csm> --target <target.csm>
               chunkshift verify <manifest> [content]
 
             plan prints a read-only chunk reuse report for a base and a target
             manifest. unique-missing-bytes is the lower bound of the payload a
             chunk-granular patch would carry, before any CSP container overhead.
+
+            patch create writes a CSP patch that reconstructs the target over
+            the base; without --base-manifest and --base the patch is
+            self-contained. patch apply verifies the patch and replaces
+            <output> with the reconstructed target.
 
             Exit codes:
               0  success / verification valid
