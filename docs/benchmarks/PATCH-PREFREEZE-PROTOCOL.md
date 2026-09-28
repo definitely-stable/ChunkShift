@@ -51,7 +51,7 @@ All CSP lanes use the production encoder and applier of the commit under test (`
 
 Recorded per file and lane: stored bytes (for CSP: physical length, embedded-TCSM bytes, payload entries by encoding, stored payload bytes, `PlanAsync` unique-missing bytes); create wall time; apply/decode wall time; for CSP also apply with the re-chunk check off. For files of at least 1 MiB in the `csp` lane, peak working set of create and of apply, each in a process of its own, and the same for an idle process as baseline.
 
-Timing: `csp`, `csp-raw` and the apply measurements run one file at a time, three runs, median. Sweep lanes run files in parallel with the same worker count for every setting, one run; their time is only compared between sweep settings.
+Timing: `csp`, `csp-zstd` and `csp-raw` run one file at a time; create is timed once (the level-19 encoder makes one run of the corpus take tens of minutes), apply and decode are timed three times and the median is kept. Sweep lanes create only, files in parallel with the same worker count for every setting, one run; their time is only compared between sweep settings. External tools are timed the same way as the CSP lanes (encode once, decode three times).
 
 Platforms: Windows 11 x64 (Intel Core i3-12100F, local), GitHub `ubuntu-24.04` (x64) and `ubuntu-24.04-arm` (ARM64). External tool versions are recorded per platform; they only feed informative rows.
 
