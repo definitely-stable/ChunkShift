@@ -154,9 +154,9 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 
 - **Decision:** on by default when the embedded profile is registered (CSP §9.5 SHOULD). It adds no content integrity (every output chunk already matches its `ChunkId`); it checks that the target manifest is what its profile produces.
 - **Result (P6):** `ChunkManifest.VerifyAsync` re-reads the temporary file before publication; a `Content` or `ProfileSemantics` failure is `PatchApplyFailure.ProfileContent`, and a profile this build does not register skips the check (the committed vectors use such a profile). An internal switch turns it off for tests and the lab.
-- **Evidence still to add:** P10 measures apply with and without it (ExperimentId `PATCH-APPLY-001`).
-- **Reopen if:** the cost is material; then a later options type may expose it.
-- **Status:** provisional until P10.
+- **Evidence:** *measurement* — `PATCH-APPLY-001` rule A1 ([PATCH-APPLY-001-EVIDENCE-20260928-001](../research/results/PATCH-APPLY-001-EVIDENCE-20260928-001.md)): over the frozen corpus the check adds 34.9 % (linux-x64), 27.1 % (linux-arm64) and 26.7 % (win-x64) to apply, above the 25 % bound. Verdict DEFER: the check stays on by default, and [#168](https://github.com/definitely-stable/ChunkShift/issues/168) asks the owner whether `ApplyAsync` gets an opt-out.
+- **Reopen if:** the owner decides #168 for an opt-out; then an options type exposes it.
+- **Status:** default confirmed; the opt-out waits for #168.
 
 ## 5. Encoder policy
 
@@ -171,8 +171,10 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 
 - **Starting point:** the study's settings: level 19, up to 2 contiguous base chunks per dictionary, up to 8 candidate runs within 256 KiB of the target offset ([CSP-ENCODING-EVIDENCE-2026-09.md](../benchmarks/CSP-ENCODING-EVIDENCE-2026-09.md), ExperimentId `PATCH-ENC-001`).
 - **Result (P5):** `CspEncoderPolicy.Default` holds these settings. Each distinct missing chunk is stored in the cheapest of raw, zstd without a dictionary and zstd against each candidate, where a dictionary costs 32 bytes per named chunk; ties prefer raw, then zstd without a dictionary, so no stored form exceeds its chunk. The creation tests produce all three forms.
-- **Evidence still to add:** the sweep of level, K, candidate count and radius for patch size against create time moves to P10 (ExperimentId `PATCH-ENC-002`). It needs the frozen multi-product corpus of CSP §10.2 (P11); tuned on the synthetic test scenarios, the policy would fit synthetic data.
-- **Status:** provisional until P10.
+- **Evidence:** *measurement* — `PATCH-ENC-002` ([PATCH-ENC-002-EVIDENCE-20260928-001](../research/results/PATCH-ENC-002-EVIDENCE-20260928-001.md)): on the frozen corpus, level 19 with K = 4, 8 candidates and 256 KiB saves 6.50 % of the calibration bytes against the study's settings at 1.29× their calibration create time, and its holdout bytes are 5.0 % smaller.
+- **Decision:** the default becomes level 19, K = 4, 8 candidates, 256 KiB; `CspEncoderPolicy.Default` changes in the pull request that follows the record.
+- **Reopen if:** a follow-up experiment trades bytes for create time (level 9 with K = 4 and 16 candidates, see the record's limitations).
+- **Status:** confirmed.
 
 ### D16. `BASE` is always written when a base is supplied
 
@@ -185,8 +187,9 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 
 - **Decision:** a block closes at 4096 entries (format maximum) or when its buffered payload reaches a byte bound, so a forward-only destination never needs more than one bounded block in memory.
 - **Result (P1):** the bound is 4 MiB (`CspWriter.DefaultPayloadBlockBytes`); an entry larger than the bound is written as a block of its own straight from the caller's buffer. A test checks that no single destination write exceeds one block.
-- **Evidence still to add:** P10 records the writer's peak memory (ExperimentId `PATCH-APPLY-001`).
-- **Status:** provisional until P10.
+- **Evidence:** *measurement* — `PATCH-APPLY-001` rule A2 ([PATCH-APPLY-001-EVIDENCE-20260928-001](../research/results/PATCH-APPLY-001-EVIDENCE-20260928-001.md)): apply stays within 64 MiB over idle on every platform (worst +39.9 MiB), and so does create on win-x64 (+57.7 MiB). Create exceeds it on linux-x64 (+151.2 MiB) and linux-arm64 (+185.2 MiB). Verdict DEFER. Create of the worst file completes under a 48 MiB GC heap limit, so the peak is garbage collected late, most likely the dictionary and compression buffers `ChooseEntryAsync` allocates per candidate.
+- **Evidence still to add:** reuse those buffers, rerun the memory lane on both Linux lanes under a new EvidenceId of `PATCH-APPLY-001`.
+- **Status:** provisional until that rerun.
 
 ## 6. Verification and independence
 

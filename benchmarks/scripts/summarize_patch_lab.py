@@ -410,7 +410,12 @@ def find_x64_linux(platforms: list[dict]) -> dict | None:
     for platform in platforms:
         architecture = (platform.get("osArchitecture") or "").lower()
         description = (platform.get("osDescription") or "").lower()
-        if architecture in ("x64", "amd64", "x86_64") and "linux" in description:
+        # .NET reports the distribution ("Ubuntu 24.04.5 LTS"), not "Linux",
+        # so the RunId platform suffix of the workflow decides as well.
+        linux = "linux" in description or any(
+            str(run_id).endswith("-linux-x64") for run_id in platform.get("runIds") or []
+        )
+        if architecture in ("x64", "amd64", "x86_64") and linux:
             return platform
     return None
 

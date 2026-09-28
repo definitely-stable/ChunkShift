@@ -27,13 +27,13 @@ HOLDOUT = "hold-family"
 MIB = 1024 * 1024
 
 LINUX_X64 = {
-    "osDescription": "Linux-6.8.0-azure",
+    "osDescription": "Ubuntu 24.04.5 LTS",
     "osArchitecture": "X64",
     "processorCount": 8,
     "gitCommit": COMMIT,
 }
 LINUX_ARM64 = {
-    "osDescription": "Linux-6.8.0-azure",
+    "osDescription": "Ubuntu 24.04.5 LTS",
     "osArchitecture": "Arm64",
     "processorCount": 8,
     "gitCommit": COMMIT,
@@ -200,7 +200,7 @@ def write_references(directory: Path, records: list[dict]) -> None:
         "runId": "PATCH-PREFREEZE-001/RUN-20260928-1-0123456-linux-x64",
         "corpusPairsSha256": PAIRS_SHA256,
         "environment": {
-            "osDescription": "Linux-6.8.0-azure",
+            "osDescription": "Ubuntu 24.04.5 LTS",
             "osArchitecture": "x86_64",
             "processorCount": 8,
             "pythonVersion": "3.14.0",

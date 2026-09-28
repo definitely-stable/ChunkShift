@@ -83,3 +83,9 @@ Aggregates are sums over all changed files of the stated split (whole corpus whe
 ## 4. Records
 
 Each run gets a RunId `<ExperimentId>/RUN-YYYYMMDD-NNN-<commit>-<platform>` and keeps its raw per-file JSON (CI artifact plus a compact committed dataset). Each experiment gets one result record under `docs/research/results/` from `RESULT-TEMPLATE.md`, and the index rows and register entries link it.
+
+Results (2026-09-28, commit `853c89e`):
+
+- `PATCH-PREFREEZE-001`: ADOPT — [PATCH-PREFREEZE-001-EVIDENCE-20260928-001](../research/results/PATCH-PREFREEZE-001-EVIDENCE-20260928-001.md);
+- `PATCH-ENC-002`: ADOPT L19-K4-C8 — [PATCH-ENC-002-EVIDENCE-20260928-001](../research/results/PATCH-ENC-002-EVIDENCE-20260928-001.md);
+- `PATCH-APPLY-001`: DEFER — [PATCH-APPLY-001-EVIDENCE-20260928-001](../research/results/PATCH-APPLY-001-EVIDENCE-20260928-001.md).

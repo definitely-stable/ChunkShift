@@ -1,0 +1,932 @@
+{
+  "corpusLock": {
+    "pairsSha256": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+    "path": "docs/benchmarks/patch-corpus/corpus-lock.json"
+  },
+  "corpusManifest": {
+    "families": {
+      "chunkshift-source": "holdout",
+      "dotnet-aspnetcore-win-x64": "calibration",
+      "dotnet-runtime-linux-arm64": "calibration",
+      "node-linux-x64": "holdout",
+      "node-win-x64": "holdout",
+      "tzdata": "holdout"
+    },
+    "path": "docs/benchmarks/patch-corpus/patch-corpus.json"
+  },
+  "experiments": {
+    "PATCH-APPLY-001": {
+      "platforms": [
+        "platform-x64",
+        "platform-arm64",
+        "platform-win-x64"
+      ],
+      "reason": null,
+      "rules": {
+        "A1": {
+          "maxOverheadFraction": 0.25,
+          "platforms": {
+            "platform-arm64": {
+              "applyNoCheckSeconds": 5.986278899999998,
+              "applySeconds": 7.606076499999994,
+              "maxOverheadFraction": 0.25,
+              "overheadFraction": 0.27058505409762934,
+              "verdict": "DEFER"
+            },
+            "platform-win-x64": {
+              "applyNoCheckSeconds": 8.498051200000006,
+              "applySeconds": 10.76613249999998,
+              "maxOverheadFraction": 0.25,
+              "overheadFraction": 0.26689428512739166,
+              "verdict": "DEFER"
+            },
+            "platform-x64": {
+              "applyNoCheckSeconds": 3.8095222000000044,
+              "applySeconds": 5.1394878000000075,
+              "maxOverheadFraction": 0.25,
+              "overheadFraction": 0.34911611750156,
+              "verdict": "DEFER"
+            }
+          },
+          "verdict": "DEFER"
+        },
+        "A2": {
+          "limitBytes": 67108864,
+          "platforms": {
+            "platform-arm64": {
+              "idleBaselineBytes": 34934784,
+              "limitBytes": 67108864,
+              "records": 75,
+              "verdict": "DEFER",
+              "worst": {
+                "applyPeakBytes": 76783616,
+                "base": "24.19.0",
+                "createPeakBytes": 229138432,
+                "excessBytes": 194203648,
+                "family": "node-linux-x64",
+                "path": "bin/node",
+                "target": "24.20.0"
+              }
+            },
+            "platform-win-x64": {
+              "idleBaselineBytes": 21020672,
+              "limitBytes": 67108864,
+              "records": 75,
+              "verdict": "ADOPT",
+              "worst": {
+                "applyPeakBytes": 49033216,
+                "base": "24.19.0",
+                "createPeakBytes": 81567744,
+                "excessBytes": 60547072,
+                "family": "node-linux-x64",
+                "path": "bin/node",
+                "target": "24.20.0"
+              }
+            },
+            "platform-x64": {
+              "idleBaselineBytes": 35540992,
+              "limitBytes": 67108864,
+              "records": 75,
+              "verdict": "DEFER",
+              "worst": {
+                "applyPeakBytes": 77234176,
+                "base": "24.19.0",
+                "createPeakBytes": 194052096,
+                "excessBytes": 158511104,
+                "family": "node-linux-x64",
+                "path": "bin/node",
+                "target": "24.20.0"
+              }
+            }
+          },
+          "verdict": "DEFER"
+        }
+      },
+      "runIds": [
+        "PATCH-PREFREEZE-001/RUN-20260928-1-853c89e-linux-x64",
+        "PATCH-ENC-002/RUN-20260928-1-853c89e-linux-x64",
+        "PATCH-PREFREEZE-001/RUN-20260928-1-853c89e-linux-arm64",
+        "PATCH-ENC-002/RUN-20260928-1-853c89e-linux-arm64",
+        "PATCH-PREFREEZE-001/RUN-20260928-001-853c89e-win-x64"
+      ],
+      "verdict": "DEFER"
+    },
+    "PATCH-ENC-002": {
+      "adopted": "sweep-L19-K4-C8",
+      "createTimeFactor": 1.5,
+      "createTimeLimitSeconds": 692.394144,
+      "crossPlatformSweepBytes": {
+        "sweep-L19-K1-C16": {
+          "identical": true,
+          "missingOn": [
+            "platform-win-x64"
+          ],
+          "platforms": [
+            "platform-x64",
+            "platform-arm64"
+          ]
+        },
+        "sweep-L19-K1-C8": {
+          "identical": true,
+          "missingOn": [
+            "platform-win-x64"
+          ],
+          "platforms": [
+            "platform-x64",
+            "platform-arm64"
+          ]
+        },
+        "sweep-L19-K2-C16": {
+          "identical": true,
+          "missingOn": [
+            "platform-win-x64"
+          ],
+          "platforms": [
+            "platform-x64",
+            "platform-arm64"
+          ]
+        },
+        "sweep-L19-K2-C8": {
+          "identical": true,
+          "missingOn": [
+            "platform-win-x64"
+          ],
+          "platforms": [
+            "platform-x64",
+            "platform-arm64"
+          ]
+        },
+        "sweep-L19-K4-C16": {
+          "identical": true,
+          "missingOn": [
+            "platform-win-x64"
+          ],
+          "platforms": [
+            "platform-x64",
+            "platform-arm64"
+          ]
+        },
+        "sweep-L19-K4-C8": {
+          "identical": true,
+          "missingOn": [
+            "platform-win-x64"
+          ],
+          "platforms": [
+            "platform-x64",
+            "platform-arm64"
+          ]
+        },
+        "sweep-L9-K1-C16": {
+          "identical": true,
+          "missingOn": [
+            "platform-win-x64"
+          ],
+          "platforms": [
+            "platform-x64",
+            "platform-arm64"
+          ]
+        },
+        "sweep-L9-K1-C8": {
+          "identical": true,
+          "missingOn": [
+            "platform-win-x64"
+          ],
+          "platforms": [
+            "platform-x64",
+            "platform-arm64"
+          ]
+        },
+        "sweep-L9-K2-C16": {
+          "identical": true,
+          "missingOn": [
+            "platform-win-x64"
+          ],
+          "platforms": [
+            "platform-x64",
+            "platform-arm64"
+          ]
+        },
+        "sweep-L9-K2-C8": {
+          "identical": true,
+          "missingOn": [
+            "platform-win-x64"
+          ],
+          "platforms": [
+            "platform-x64",
+            "platform-arm64"
+          ]
+        },
+        "sweep-L9-K4-C16": {
+          "identical": true,
+          "missingOn": [
+            "platform-win-x64"
+          ],
+          "platforms": [
+            "platform-x64",
+            "platform-arm64"
+          ]
+        },
+        "sweep-L9-K4-C8": {
+          "identical": true,
+          "missingOn": [
+            "platform-win-x64"
+          ],
+          "platforms": [
+            "platform-x64",
+            "platform-arm64"
+          ]
+        }
+      },
+      "defaultLane": "sweep-L19-K2-C8",
+      "eligible": [
+        "sweep-L9-K1-C8",
+        "sweep-L9-K1-C16",
+        "sweep-L9-K2-C8",
+        "sweep-L9-K2-C16",
+        "sweep-L9-K4-C8",
+        "sweep-L9-K4-C16",
+        "sweep-L19-K1-C8",
+        "sweep-L19-K2-C8",
+        "sweep-L19-K4-C8"
+      ],
+      "minimumSaving": 0.02,
+      "outcome": "ADOPT sweep-L19-K4-C8",
+      "platform": "platform-x64",
+      "platforms": [
+        "platform-x64"
+      ],
+      "reason": null,
+      "runIds": [
+        "PATCH-PREFREEZE-001/RUN-20260928-1-853c89e-linux-x64",
+        "PATCH-ENC-002/RUN-20260928-1-853c89e-linux-x64"
+      ],
+      "savingFraction": 0.06504291913834426,
+      "settings": {
+        "sweep-L19-K1-C16": {
+          "calibrationBytes": 17299200,
+          "calibrationCreateSeconds": 810.1404812,
+          "eligible": false,
+          "holdoutBytes": 30745145
+        },
+        "sweep-L19-K1-C8": {
+          "calibrationBytes": 17327822,
+          "calibrationCreateSeconds": 405.1354341,
+          "eligible": true,
+          "holdoutBytes": 35817149
+        },
+        "sweep-L19-K2-C16": {
+          "calibrationBytes": 12670505,
+          "calibrationCreateSeconds": 983.697194,
+          "eligible": false,
+          "holdoutBytes": 22173519
+        },
+        "sweep-L19-K2-C8": {
+          "calibrationBytes": 12685716,
+          "calibrationCreateSeconds": 461.596096,
+          "eligible": true,
+          "holdoutBytes": 27752167
+        },
+        "sweep-L19-K4-C16": {
+          "calibrationBytes": 11842761,
+          "calibrationCreateSeconds": 1422.3232693,
+          "eligible": false,
+          "holdoutBytes": 20744911
+        },
+        "sweep-L19-K4-C8": {
+          "calibrationBytes": 11860600,
+          "calibrationCreateSeconds": 595.742102,
+          "eligible": true,
+          "holdoutBytes": 26365088
+        },
+        "sweep-L9-K1-C16": {
+          "calibrationBytes": 19124040,
+          "calibrationCreateSeconds": 92.5135734,
+          "eligible": true,
+          "holdoutBytes": 34175574
+        },
+        "sweep-L9-K1-C8": {
+          "calibrationBytes": 19154849,
+          "calibrationCreateSeconds": 35.9019944,
+          "eligible": true,
+          "holdoutBytes": 39454932
+        },
+        "sweep-L9-K2-C16": {
+          "calibrationBytes": 14140826,
+          "calibrationCreateSeconds": 105.1027007,
+          "eligible": true,
+          "holdoutBytes": 25169269
+        },
+        "sweep-L9-K2-C8": {
+          "calibrationBytes": 14154935,
+          "calibrationCreateSeconds": 33.4492462,
+          "eligible": true,
+          "holdoutBytes": 30951875
+        },
+        "sweep-L9-K4-C16": {
+          "calibrationBytes": 13249191,
+          "calibrationCreateSeconds": 128.3884714,
+          "eligible": true,
+          "holdoutBytes": 23653859
+        },
+        "sweep-L9-K4-C8": {
+          "calibrationBytes": 13268972,
+          "calibrationCreateSeconds": 42.2647292,
+          "eligible": true,
+          "holdoutBytes": 29618501
+        }
+      },
+      "verdict": "ADOPT",
+      "winner": "sweep-L19-K4-C8",
+      "winnerHoldoutWithinDefault": true
+    },
+    "PATCH-PREFREEZE-001": {
+      "informative": {
+        "platforms": {
+          "platform-arm64": {
+            "csp": {
+              "dictionaryReferences": 11989,
+              "patchBytes": 40437883,
+              "payloadEntries": 7057,
+              "storedPayloadBytes": 37882165,
+              "studyEstimateBytes": 40577821,
+              "studyEstimateDeltaBytes": -139938,
+              "targetChunks": 11503,
+              "tcsmBytes": 1159950,
+              "uniqueMissingBytes": 495592214
+            },
+            "directory": "platform-arm64",
+            "lanes": {
+              "bsdiff": {
+                "bytes": 21643816,
+                "decodeSeconds": 4.692379745004587,
+                "encodeSeconds": 268.6732643840012,
+                "endToEnd1000Seconds": 4.865530273004587,
+                "endToEnd50Seconds": 8.155390305004588,
+                "files": 1893
+              },
+              "csp": {
+                "applyNoCheckSeconds": 5.986278899999998,
+                "applySeconds": 7.606076499999994,
+                "bytes": 40437883,
+                "createSeconds": 879.6057891999999,
+                "endToEnd1000Seconds": 7.929579563999994,
+                "endToEnd50Seconds": 14.076137779999994,
+                "files": 1893
+              },
+              "csp-raw": {
+                "applyNoCheckSeconds": 5.372699100000006,
+                "applySeconds": 6.749781299999997,
+                "bytes": 497766768,
+                "createSeconds": 2.7945592999999995,
+                "endToEnd1000Seconds": 10.731915443999997,
+                "endToEnd50Seconds": 86.39246417999999,
+                "files": 1893
+              },
+              "csp-zstd": {
+                "applyNoCheckSeconds": 5.375255999999998,
+                "applySeconds": 6.78690320000001,
+                "bytes": 182350888,
+                "createSeconds": 136.13169389999985,
+                "endToEnd1000Seconds": 8.24571030400001,
+                "endToEnd50Seconds": 35.96304528000001,
+                "files": 1893
+              },
+              "full": {
+                "bytes": 857713581,
+                "decodeSeconds": 0.0,
+                "encodeSeconds": 0.0,
+                "endToEnd1000Seconds": 6.861708648,
+                "endToEnd50Seconds": 137.23417296,
+                "files": 1893
+              },
+              "full-zstd": {
+                "bytes": 262965802,
+                "decodeSeconds": 3.35403799600158,
+                "encodeSeconds": 232.4271688629991,
+                "endToEnd1000Seconds": 5.4577644120015805,
+                "endToEnd50Seconds": 45.42856631600158,
+                "files": 1893
+              },
+              "sweep-L19-K1-C16": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 48044345,
+                "createSeconds": 1557.3261292999994,
+                "endToEnd1000Seconds": 0.38435476,
+                "endToEnd50Seconds": 7.6870952,
+                "files": 1893
+              },
+              "sweep-L19-K1-C8": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 53144971,
+                "createSeconds": 714.7817707999999,
+                "endToEnd1000Seconds": 0.425159768,
+                "endToEnd50Seconds": 8.50319536,
+                "files": 1893
+              },
+              "sweep-L19-K2-C16": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 34844024,
+                "createSeconds": 2136.6443368,
+                "endToEnd1000Seconds": 0.278752192,
+                "endToEnd50Seconds": 5.57504384,
+                "files": 1893
+              },
+              "sweep-L19-K2-C8": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 40437883,
+                "createSeconds": 937.9677032999999,
+                "endToEnd1000Seconds": 0.323503064,
+                "endToEnd50Seconds": 6.47006128,
+                "files": 1893
+              },
+              "sweep-L19-K4-C16": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 32587672,
+                "createSeconds": 3338.0153560999975,
+                "endToEnd1000Seconds": 0.260701376,
+                "endToEnd50Seconds": 5.21402752,
+                "files": 1893
+              },
+              "sweep-L19-K4-C8": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 38225688,
+                "createSeconds": 1425.9708674000008,
+                "endToEnd1000Seconds": 0.305805504,
+                "endToEnd50Seconds": 6.11611008,
+                "files": 1893
+              },
+              "sweep-L9-K1-C16": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 53299614,
+                "createSeconds": 194.1618340000001,
+                "endToEnd1000Seconds": 0.426396912,
+                "endToEnd50Seconds": 8.52793824,
+                "files": 1893
+              },
+              "sweep-L9-K1-C8": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 58609781,
+                "createSeconds": 93.47153509999998,
+                "endToEnd1000Seconds": 0.468878248,
+                "endToEnd50Seconds": 9.37756496,
+                "files": 1893
+              },
+              "sweep-L9-K2-C16": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 39310095,
+                "createSeconds": 244.59890869999987,
+                "endToEnd1000Seconds": 0.31448076,
+                "endToEnd50Seconds": 6.2896152,
+                "files": 1893
+              },
+              "sweep-L9-K2-C8": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 45106810,
+                "createSeconds": 107.06782920000006,
+                "endToEnd1000Seconds": 0.36085448,
+                "endToEnd50Seconds": 7.2170896,
+                "files": 1893
+              },
+              "sweep-L9-K4-C16": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 36903050,
+                "createSeconds": 332.7531966999995,
+                "endToEnd1000Seconds": 0.2952244,
+                "endToEnd50Seconds": 5.904488,
+                "files": 1893
+              },
+              "sweep-L9-K4-C8": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 42887473,
+                "createSeconds": 162.4494178999998,
+                "endToEnd1000Seconds": 0.343099784,
+                "endToEnd50Seconds": 6.86199568,
+                "files": 1893
+              },
+              "xdelta3": {
+                "bytes": 41271169,
+                "decodeSeconds": 4.106191501995113,
+                "encodeSeconds": 117.47429156200008,
+                "endToEnd1000Seconds": 4.436360853995113,
+                "endToEnd50Seconds": 10.709578541995114,
+                "files": 1893
+              },
+              "zstd-patch-from": {
+                "bytes": 30302263,
+                "decodeSeconds": 2.857578833004254,
+                "encodeSeconds": 235.7567501789955,
+                "endToEnd1000Seconds": 3.099996937004254,
+                "endToEnd50Seconds": 7.705940913004254,
+                "files": 1893
+              }
+            }
+          },
+          "platform-win-x64": {
+            "csp": {
+              "dictionaryReferences": 11989,
+              "patchBytes": 40437883,
+              "payloadEntries": 7057,
+              "storedPayloadBytes": 37882165,
+              "studyEstimateBytes": 40577821,
+              "studyEstimateDeltaBytes": -139938,
+              "targetChunks": 11503,
+              "tcsmBytes": 1159950,
+              "uniqueMissingBytes": 495592214
+            },
+            "directory": "platform-win-x64",
+            "lanes": {
+              "csp": {
+                "applyNoCheckSeconds": 8.498051200000006,
+                "applySeconds": 10.76613249999998,
+                "bytes": 40437883,
+                "createSeconds": 950.108010799999,
+                "endToEnd1000Seconds": 11.08963556399998,
+                "endToEnd50Seconds": 17.23619377999998,
+                "files": 1893
+              },
+              "csp-raw": {
+                "applyNoCheckSeconds": 9.99051880000002,
+                "applySeconds": 11.723843800000006,
+                "bytes": 497766768,
+                "createSeconds": 2.8619140999999972,
+                "endToEnd1000Seconds": 15.705977944000006,
+                "endToEnd50Seconds": 91.36652668,
+                "files": 1893
+              },
+              "csp-zstd": {
+                "applyNoCheckSeconds": 10.014597999999987,
+                "applySeconds": 12.280407100000005,
+                "bytes": 182350888,
+                "createSeconds": 187.06497160000015,
+                "endToEnd1000Seconds": 13.739214204000005,
+                "endToEnd50Seconds": 41.45654918000001,
+                "files": 1893
+              }
+            }
+          },
+          "platform-x64": {
+            "csp": {
+              "dictionaryReferences": 11989,
+              "patchBytes": 40437883,
+              "payloadEntries": 7057,
+              "storedPayloadBytes": 37882165,
+              "studyEstimateBytes": 40577821,
+              "studyEstimateDeltaBytes": -139938,
+              "targetChunks": 11503,
+              "tcsmBytes": 1159950,
+              "uniqueMissingBytes": 495592214
+            },
+            "directory": "platform-x64",
+            "lanes": {
+              "bsdiff": {
+                "bytes": 21643816,
+                "decodeSeconds": 5.388065730000193,
+                "encodeSeconds": 265.5775941749997,
+                "endToEnd1000Seconds": 5.561216258000193,
+                "endToEnd50Seconds": 8.851076290000194,
+                "files": 1893
+              },
+              "csp": {
+                "applyNoCheckSeconds": 3.8095222000000044,
+                "applySeconds": 5.1394878000000075,
+                "bytes": 40437883,
+                "createSeconds": 972.7176724000014,
+                "endToEnd1000Seconds": 5.462990864000007,
+                "endToEnd50Seconds": 11.609549080000008,
+                "files": 1893
+              },
+              "csp-raw": {
+                "applyNoCheckSeconds": 3.3761136000000005,
+                "applySeconds": 4.754597400000006,
+                "bytes": 497766768,
+                "createSeconds": 2.711094500000002,
+                "endToEnd1000Seconds": 8.736731544000007,
+                "endToEnd50Seconds": 84.39728028,
+                "files": 1893
+              },
+              "csp-zstd": {
+                "applyNoCheckSeconds": 3.6679129000000006,
+                "applySeconds": 4.970549000000007,
+                "bytes": 182350888,
+                "createSeconds": 164.79300350000045,
+                "endToEnd1000Seconds": 6.429356104000007,
+                "endToEnd50Seconds": 34.14669108000001,
+                "files": 1893
+              },
+              "full": {
+                "bytes": 857713581,
+                "decodeSeconds": 0.0,
+                "encodeSeconds": 0.0,
+                "endToEnd1000Seconds": 6.861708648,
+                "endToEnd50Seconds": 137.23417296,
+                "files": 1893
+              },
+              "full-zstd": {
+                "bytes": 262965802,
+                "decodeSeconds": 4.327896305999275,
+                "encodeSeconds": 265.39098716400207,
+                "endToEnd1000Seconds": 6.431622721999275,
+                "endToEnd50Seconds": 46.402424625999274,
+                "files": 1893
+              },
+              "sweep-L19-K1-C16": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 48044345,
+                "createSeconds": 2646.8264553000026,
+                "endToEnd1000Seconds": 0.38435476,
+                "endToEnd50Seconds": 7.6870952,
+                "files": 1893
+              },
+              "sweep-L19-K1-C8": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 53144971,
+                "createSeconds": 1201.1726680999984,
+                "endToEnd1000Seconds": 0.425159768,
+                "endToEnd50Seconds": 8.50319536,
+                "files": 1893
+              },
+              "sweep-L19-K2-C16": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 34844024,
+                "createSeconds": 3342.2906124,
+                "endToEnd1000Seconds": 0.278752192,
+                "endToEnd50Seconds": 5.57504384,
+                "files": 1893
+              },
+              "sweep-L19-K2-C8": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 40437883,
+                "createSeconds": 1444.4977814000058,
+                "endToEnd1000Seconds": 0.323503064,
+                "endToEnd50Seconds": 6.47006128,
+                "files": 1893
+              },
+              "sweep-L19-K4-C16": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 32587672,
+                "createSeconds": 5077.558004299998,
+                "endToEnd1000Seconds": 0.260701376,
+                "endToEnd50Seconds": 5.21402752,
+                "files": 1893
+              },
+              "sweep-L19-K4-C8": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 38225688,
+                "createSeconds": 2005.5346522000007,
+                "endToEnd1000Seconds": 0.305805504,
+                "endToEnd50Seconds": 6.11611008,
+                "files": 1893
+              },
+              "sweep-L9-K1-C16": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 53299614,
+                "createSeconds": 276.04684800000035,
+                "endToEnd1000Seconds": 0.426396912,
+                "endToEnd50Seconds": 8.52793824,
+                "files": 1893
+              },
+              "sweep-L9-K1-C8": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 58609781,
+                "createSeconds": 89.3232682000001,
+                "endToEnd1000Seconds": 0.468878248,
+                "endToEnd50Seconds": 9.37756496,
+                "files": 1893
+              },
+              "sweep-L9-K2-C16": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 39310095,
+                "createSeconds": 325.8763182999998,
+                "endToEnd1000Seconds": 0.31448076,
+                "endToEnd50Seconds": 6.2896152,
+                "files": 1893
+              },
+              "sweep-L9-K2-C8": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 45106810,
+                "createSeconds": 93.57133380000029,
+                "endToEnd1000Seconds": 0.36085448,
+                "endToEnd50Seconds": 7.2170896,
+                "files": 1893
+              },
+              "sweep-L9-K4-C16": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 36903050,
+                "createSeconds": 393.9238204999998,
+                "endToEnd1000Seconds": 0.2952244,
+                "endToEnd50Seconds": 5.904488,
+                "files": 1893
+              },
+              "sweep-L9-K4-C8": {
+                "applyNoCheckSeconds": 0.0,
+                "applySeconds": 0.0,
+                "bytes": 42887473,
+                "createSeconds": 119.44126830000019,
+                "endToEnd1000Seconds": 0.343099784,
+                "endToEnd50Seconds": 6.86199568,
+                "files": 1893
+              },
+              "xdelta3": {
+                "bytes": 41271169,
+                "decodeSeconds": 5.74589986799792,
+                "encodeSeconds": 72.23158259599798,
+                "endToEnd1000Seconds": 6.076069219997921,
+                "endToEnd50Seconds": 12.349286907997922,
+                "files": 1893
+              },
+              "zstd-patch-from": {
+                "bytes": 30302263,
+                "decodeSeconds": 3.7725912960000727,
+                "encodeSeconds": 241.94823485200112,
+                "endToEnd1000Seconds": 4.015009400000073,
+                "endToEnd50Seconds": 8.620953376000074,
+                "files": 1893
+              }
+            }
+          }
+        }
+      },
+      "platforms": [
+        "platform-x64",
+        "platform-arm64",
+        "platform-win-x64"
+      ],
+      "reason": null,
+      "rules": {
+        "R1": {
+          "maxRatio": 0.75,
+          "platforms": {
+            "platform-arm64": {
+              "cspBytes": 40437883,
+              "cspRawBytes": 497766768,
+              "maxRatio": 0.75,
+              "ratio": 0.08123861535087452,
+              "verdict": "ADOPT"
+            },
+            "platform-win-x64": {
+              "cspBytes": 40437883,
+              "cspRawBytes": 497766768,
+              "maxRatio": 0.75,
+              "ratio": 0.08123861535087452,
+              "verdict": "ADOPT"
+            },
+            "platform-x64": {
+              "cspBytes": 40437883,
+              "cspRawBytes": 497766768,
+              "maxRatio": 0.75,
+              "ratio": 0.08123861535087452,
+              "verdict": "ADOPT"
+            }
+          },
+          "verdict": "ADOPT"
+        },
+        "R2": {
+          "bandwidthBitsPerSecond": 1000000000,
+          "platforms": {
+            "platform-arm64": {
+              "bandwidthBitsPerSecond": 1000000000,
+              "cspApplySeconds": 7.606076499999994,
+              "cspBytes": 40437883,
+              "cspEndToEndSeconds": 7.929579563999994,
+              "cspRawApplySeconds": 6.749781299999997,
+              "cspRawBytes": 497766768,
+              "cspRawEndToEndSeconds": 10.731915443999997,
+              "verdict": "ADOPT"
+            },
+            "platform-win-x64": {
+              "bandwidthBitsPerSecond": 1000000000,
+              "cspApplySeconds": 10.76613249999998,
+              "cspBytes": 40437883,
+              "cspEndToEndSeconds": 11.08963556399998,
+              "cspRawApplySeconds": 11.723843800000006,
+              "cspRawBytes": 497766768,
+              "cspRawEndToEndSeconds": 15.705977944000006,
+              "verdict": "ADOPT"
+            },
+            "platform-x64": {
+              "bandwidthBitsPerSecond": 1000000000,
+              "cspApplySeconds": 5.1394878000000075,
+              "cspBytes": 40437883,
+              "cspEndToEndSeconds": 5.462990864000007,
+              "cspRawApplySeconds": 4.754597400000006,
+              "cspRawBytes": 497766768,
+              "cspRawEndToEndSeconds": 8.736731544000007,
+              "verdict": "ADOPT"
+            }
+          },
+          "verdict": "ADOPT"
+        }
+      },
+      "runIds": [
+        "PATCH-PREFREEZE-001/RUN-20260928-1-853c89e-linux-x64",
+        "PATCH-ENC-002/RUN-20260928-1-853c89e-linux-x64",
+        "PATCH-PREFREEZE-001/RUN-20260928-1-853c89e-linux-arm64",
+        "PATCH-ENC-002/RUN-20260928-1-853c89e-linux-arm64",
+        "PATCH-PREFREEZE-001/RUN-20260928-001-853c89e-win-x64"
+      ],
+      "verdict": "ADOPT"
+    }
+  },
+  "platforms": [
+    {
+      "directory": "platform-x64",
+      "files": [
+        "patch-lab-csp-raw-x64.json",
+        "patch-lab-csp-x64.json",
+        "patch-lab-csp-zstd-x64.json",
+        "patch-lab-memory-x64.json",
+        "patch-lab-references-x64.json",
+        "patch-lab-sweep-L19-K1-C16-x64.json",
+        "patch-lab-sweep-L19-K1-C8-x64.json",
+        "patch-lab-sweep-L19-K2-C16-x64.json",
+        "patch-lab-sweep-L19-K2-C8-x64.json",
+        "patch-lab-sweep-L19-K4-C16-x64.json",
+        "patch-lab-sweep-L19-K4-C8-x64.json",
+        "patch-lab-sweep-L9-K1-C16-x64.json",
+        "patch-lab-sweep-L9-K1-C8-x64.json",
+        "patch-lab-sweep-L9-K2-C16-x64.json",
+        "patch-lab-sweep-L9-K2-C8-x64.json",
+        "patch-lab-sweep-L9-K4-C16-x64.json",
+        "patch-lab-sweep-L9-K4-C8-x64.json"
+      ],
+      "gitCommit": "853c89ee450b148a6b4e1df567d1ac05766168c6",
+      "name": "platform-x64",
+      "osArchitecture": "X64",
+      "osDescription": "Ubuntu 24.04.5 LTS",
+      "runIds": [
+        "PATCH-PREFREEZE-001/RUN-20260928-1-853c89e-linux-x64",
+        "PATCH-ENC-002/RUN-20260928-1-853c89e-linux-x64"
+      ]
+    },
+    {
+      "directory": "platform-arm64",
+      "files": [
+        "patch-lab-csp-arm64.json",
+        "patch-lab-csp-raw-arm64.json",
+        "patch-lab-csp-zstd-arm64.json",
+        "patch-lab-memory-arm64.json",
+        "patch-lab-references-arm64.json",
+        "patch-lab-sweep-L19-K1-C16-arm64.json",
+        "patch-lab-sweep-L19-K1-C8-arm64.json",
+        "patch-lab-sweep-L19-K2-C16-arm64.json",
+        "patch-lab-sweep-L19-K2-C8-arm64.json",
+        "patch-lab-sweep-L19-K4-C16-arm64.json",
+        "patch-lab-sweep-L19-K4-C8-arm64.json",
+        "patch-lab-sweep-L9-K1-C16-arm64.json",
+        "patch-lab-sweep-L9-K1-C8-arm64.json",
+        "patch-lab-sweep-L9-K2-C16-arm64.json",
+        "patch-lab-sweep-L9-K2-C8-arm64.json",
+        "patch-lab-sweep-L9-K4-C16-arm64.json",
+        "patch-lab-sweep-L9-K4-C8-arm64.json"
+      ],
+      "gitCommit": "853c89ee450b148a6b4e1df567d1ac05766168c6",
+      "name": "platform-arm64",
+      "osArchitecture": "Arm64",
+      "osDescription": "Ubuntu 24.04.5 LTS",
+      "runIds": [
+        "PATCH-PREFREEZE-001/RUN-20260928-1-853c89e-linux-arm64",
+        "PATCH-ENC-002/RUN-20260928-1-853c89e-linux-arm64"
+      ]
+    },
+    {
+      "directory": "platform-win-x64",
+      "files": [
+        "patch-lab-csp-raw-win-x64.json",
+        "patch-lab-csp-win-x64.json",
+        "patch-lab-csp-zstd-win-x64.json",
+        "patch-lab-memory-win-x64.json"
+      ],
+      "gitCommit": "853c89ee450b148a6b4e1df567d1ac05766168c6",
+      "name": "platform-win-x64",
+      "osArchitecture": "X64",
+      "osDescription": "Microsoft Windows 10.0.26200",
+      "runIds": [
+        "PATCH-PREFREEZE-001/RUN-20260928-001-853c89e-win-x64"
+      ]
+    }
+  ],
+  "schema": "chunkshift.patch-lab-summary.v1"
+}
