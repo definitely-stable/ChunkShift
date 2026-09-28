@@ -36,14 +36,14 @@ internal sealed unsafe class CspPayloadEncoder : IDisposable
     private const int MaximumWindowLog = 20;
     private const int DefaultParameter = 0;
 
-    private readonly CspDictionaryLoad _load;
+    private readonly int _level;
     private readonly int _dictionaryHashLog;
     private readonly int _dictionaryChainLog;
 
-    // Copy and Attach use ZstdSharp's managed compressor; Prefix owns a raw
+    // Copy and Attach use ZstdSharp's managed compressor; Prefix owns a static
     // context, because ZSTD_CCtx_refPrefix exists only in the low-level API.
     private readonly Compressor? _compressor;
-    private readonly ZstdContextHandle? _context;
+    private readonly StaticContext? _context;
     private byte[] _frameBuffer = [];
     private bool _disposed;
 
@@ -56,11 +56,12 @@ internal sealed unsafe class CspPayloadEncoder : IDisposable
     /// <param name="level">Zstd compression level, 1..22.</param>
     /// <param name="load">How a dictionary is handed to zstd.</param>
     /// <param name="dictionaryHashLog">
-    /// The zstd hash log of entries with a dictionary, or zero for zstd's
-    /// choice from the level, chunk and dictionary sizes.
+    /// The largest zstd hash log of an entry with a dictionary, or zero for no
+    /// cap. A cap applies only where zstd's parameters for the level, chunk and
+    /// dictionary sizes exceed it.
     /// </param>
     /// <param name="dictionaryChainLog">
-    /// The zstd chain log of entries with a dictionary, or zero for zstd's choice.
+    /// The largest zstd chain log of an entry with a dictionary, or zero for no cap.
     /// </param>
     internal CspPayloadEncoder(
         int level,
@@ -68,17 +69,13 @@ internal sealed unsafe class CspPayloadEncoder : IDisposable
         int dictionaryHashLog,
         int dictionaryChainLog)
     {
-        _load = load;
+        _level = level;
         _dictionaryHashLog = dictionaryHashLog;
         _dictionaryChainLog = dictionaryChainLog;
 
         if (load == CspDictionaryLoad.Prefix)
         {
-            _context = ZstdContextHandle.Create();
-            Check(Methods.ZSTD_CCtx_setParameter(
-                _context.Context,
-                ZSTD_cParameter.ZSTD_c_compressionLevel,
-                level));
+            _context = new StaticContext();
             return;
         }
 
@@ -140,9 +137,10 @@ internal sealed unsafe class CspPayloadEncoder : IDisposable
             _frameBuffer = new byte[Math.Max(bound, _frameBuffer.Length * 2)];
         }
 
+        (int hashLog, int chainLog) = TableLogs(chunk.Length, dictionary.Length);
         int written = _context is null
-            ? CompressLoaded(chunk, dictionary, windowLog)
-            : CompressPrefixed(chunk, dictionary, windowLog);
+            ? CompressLoaded(chunk, dictionary, windowLog, hashLog, chainLog)
+            : _context.Compress(_level, chunk, dictionary, windowLog, hashLog, chainLog, _frameBuffer);
         ReadOnlySpan<byte> frame = _frameBuffer.AsSpan(0, written);
 
         try
@@ -181,98 +179,175 @@ internal sealed unsafe class CspPayloadEncoder : IDisposable
         }
     }
 
-    private static int DictionaryParameter(ReadOnlySpan<byte> dictionary, int value) =>
-        dictionary.IsEmpty ? DefaultParameter : value;
+    /// <summary>
+    /// Returns the capped hash and chain logs of an entry, zero where no cap
+    /// applies: without a dictionary, without a cap, or where zstd's own choice
+    /// for the level, chunk and dictionary sizes is already within the cap.
+    /// </summary>
+    private (int HashLog, int ChainLog) TableLogs(int chunkLength, int dictionaryLength)
+    {
+        if (dictionaryLength == 0 || (_dictionaryHashLog == 0 && _dictionaryChainLog == 0))
+        {
+            return (DefaultParameter, DefaultParameter);
+        }
 
-    private int CompressLoaded(ReadOnlySpan<byte> chunk, ReadOnlySpan<byte> dictionary, int windowLog)
+        ZSTD_compressionParameters chosen = Methods.ZSTD_getCParams(
+            _level,
+            (ulong)chunkLength,
+            (nuint)dictionaryLength);
+
+        return (
+            Cap(chosen.hashLog, _dictionaryHashLog),
+            Cap(chosen.chainLog, _dictionaryChainLog));
+
+        static int Cap(uint chosen, int cap) =>
+            cap != 0 && chosen > (uint)cap ? cap : DefaultParameter;
+    }
+
+    private int CompressLoaded(
+        ReadOnlySpan<byte> chunk,
+        ReadOnlySpan<byte> dictionary,
+        int windowLog,
+        int hashLog,
+        int chainLog)
     {
         Compressor compressor = _compressor!;
         compressor.LoadDictionary(dictionary);
         compressor.SetParameter(ZSTD_cParameter.ZSTD_c_windowLog, windowLog);
 
-        // Zero caps leave the parameters untouched, so the default policy
+        // Without caps the parameters are never touched, so the default policy
         // makes the frames it made before the caps existed.
-        if (_dictionaryHashLog != 0)
+        if (_dictionaryHashLog != 0 || _dictionaryChainLog != 0)
         {
-            compressor.SetParameter(
-                ZSTD_cParameter.ZSTD_c_hashLog,
-                DictionaryParameter(dictionary, _dictionaryHashLog));
-        }
-
-        if (_dictionaryChainLog != 0)
-        {
-            compressor.SetParameter(
-                ZSTD_cParameter.ZSTD_c_chainLog,
-                DictionaryParameter(dictionary, _dictionaryChainLog));
+            compressor.SetParameter(ZSTD_cParameter.ZSTD_c_hashLog, hashLog);
+            compressor.SetParameter(ZSTD_cParameter.ZSTD_c_chainLog, chainLog);
         }
 
         return compressor.Wrap(chunk, _frameBuffer);
     }
 
-    private int CompressPrefixed(ReadOnlySpan<byte> chunk, ReadOnlySpan<byte> dictionary, int windowLog)
+    /// <summary>
+    /// A zstd compression context in one native workspace the encoder owns
+    /// (<c>ZSTD_initStaticCCtx</c>). zstd never allocates in it; the workspace
+    /// grows when an entry needs more and never shrinks, so a create allocates
+    /// it a few times at most instead of once per dictionary candidate.
+    /// </summary>
+    private sealed class StaticContext : SafeHandle
     {
-        ZSTD_CCtx_s* context = _context!.Context;
-        Check(Methods.ZSTD_CCtx_setParameter(context, ZSTD_cParameter.ZSTD_c_windowLog, windowLog));
-        Check(Methods.ZSTD_CCtx_setParameter(
-            context,
-            ZSTD_cParameter.ZSTD_c_hashLog,
-            DictionaryParameter(dictionary, _dictionaryHashLog)));
-        Check(Methods.ZSTD_CCtx_setParameter(
-            context,
-            ZSTD_cParameter.ZSTD_c_chainLog,
-            DictionaryParameter(dictionary, _dictionaryChainLog)));
+        // Rounding keeps the few growth steps from following every size change.
+        private const nuint Granularity = 1 << 20;
 
-        fixed (byte* source = chunk)
-        fixed (byte* prefix = dictionary)
-        fixed (byte* destination = _frameBuffer)
-        {
-            // A prefix is raw content and applies to the next frame only; an
-            // empty dictionary references none, so the frame has no dictionary.
-            if (!dictionary.IsEmpty)
-            {
-                Check(Methods.ZSTD_CCtx_refPrefix(context, prefix, (nuint)dictionary.Length));
-            }
+        private nuint _size;
+        private ZSTD_CCtx_s* _context;
 
-            nuint written = Methods.ZSTD_compress2(
-                context,
-                destination,
-                (nuint)_frameBuffer.Length,
-                source,
-                (nuint)chunk.Length);
-            Check(written);
-            return checked((int)written);
-        }
-    }
-
-    /// <summary>Owns one native zstd compression context.</summary>
-    private sealed class ZstdContextHandle : SafeHandle
-    {
-        private ZstdContextHandle()
+        internal StaticContext()
             : base(IntPtr.Zero, ownsHandle: true)
         {
         }
 
         public override bool IsInvalid => handle == IntPtr.Zero;
 
-        internal ZSTD_CCtx_s* Context => (ZSTD_CCtx_s*)handle;
-
-        internal static ZstdContextHandle Create()
+        internal int Compress(
+            int level,
+            ReadOnlySpan<byte> chunk,
+            ReadOnlySpan<byte> dictionary,
+            int windowLog,
+            int hashLog,
+            int chainLog,
+            byte[] destination)
         {
-            var owner = new ZstdContextHandle();
-            owner.SetHandle((IntPtr)Methods.ZSTD_createCCtx());
+            ZSTD_compressionParameters parameters = Methods.ZSTD_getCParams(
+                level,
+                (ulong)chunk.Length,
+                (nuint)dictionary.Length);
 
-            if (owner.IsInvalid)
+            if (windowLog != DefaultParameter)
             {
-                throw new InvalidOperationException("zstd could not allocate a compression context.");
+                parameters.windowLog = (uint)windowLog;
             }
 
-            return owner;
+            if (hashLog != DefaultParameter)
+            {
+                parameters.hashLog = (uint)hashLog;
+            }
+
+            if (chainLog != DefaultParameter)
+            {
+                parameters.chainLog = (uint)chainLog;
+            }
+
+            Reserve(Methods.ZSTD_estimateCCtxSize_usingCParams(parameters));
+
+            fixed (byte* source = chunk)
+            fixed (byte* prefix = dictionary)
+            fixed (byte* output = destination)
+            {
+                while (true)
+                {
+                    Check(Methods.ZSTD_CCtx_reset(_context, ZSTD_ResetDirective.ZSTD_reset_session_and_parameters));
+                    Check(Methods.ZSTD_CCtx_setParameter(_context, ZSTD_cParameter.ZSTD_c_compressionLevel, level));
+                    Check(Methods.ZSTD_CCtx_setParameter(_context, ZSTD_cParameter.ZSTD_c_windowLog, windowLog));
+                    Check(Methods.ZSTD_CCtx_setParameter(_context, ZSTD_cParameter.ZSTD_c_hashLog, hashLog));
+                    Check(Methods.ZSTD_CCtx_setParameter(_context, ZSTD_cParameter.ZSTD_c_chainLog, chainLog));
+
+                    // A prefix is raw content and applies to the next frame
+                    // only; an empty dictionary references none.
+                    if (!dictionary.IsEmpty)
+                    {
+                        Check(Methods.ZSTD_CCtx_refPrefix(_context, prefix, (nuint)dictionary.Length));
+                    }
+
+                    nuint written = Methods.ZSTD_compress2(
+                        _context,
+                        output,
+                        (nuint)destination.Length,
+                        source,
+                        (nuint)chunk.Length);
+
+                    // The estimate is an upper bound for single-shot
+                    // compression; should it fall short, grow and repeat.
+                    if (Methods.ZSTD_isError(written) &&
+                        Methods.ZSTD_getErrorCode(written) == ZSTD_ErrorCode.ZSTD_error_memory_allocation)
+                    {
+                        Reserve(_size * 2);
+                        continue;
+                    }
+
+                    Check(written);
+                    return checked((int)written);
+                }
+            }
         }
 
         protected override bool ReleaseHandle()
         {
-            _ = Methods.ZSTD_freeCCtx((ZSTD_CCtx_s*)handle);
+            NativeMemory.Free((void*)handle);
             return true;
+        }
+
+        private void Reserve(nuint needed)
+        {
+            if (needed <= _size)
+            {
+                return;
+            }
+
+            nuint size = (needed + Granularity - 1) / Granularity * Granularity;
+            void* workspace = NativeMemory.Alloc(size);
+
+            if (!IsInvalid)
+            {
+                NativeMemory.Free((void*)handle);
+            }
+
+            SetHandle((IntPtr)workspace);
+            _size = size;
+            _context = Methods.ZSTD_initStaticCCtx(workspace, size);
+
+            if (_context is null)
+            {
+                throw new InvalidOperationException("zstd could not place a compression context in its workspace.");
+            }
         }
     }
 }
