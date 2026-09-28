@@ -114,6 +114,7 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
   No options type, no public tuning knobs, no public patch-only verification method.
 - **Evidence:** *spec* — PLAN.md §1 and #7 list reuse analysis, create and apply as Patching deliverables; RFC-0001 §10: small one-shot operations, caller-owned streams, mismatches as result values; AGENTS.md: no tuning knobs or abstractions without evidence. *compatibility* — an options type, an overload or a verification method can be added later without a break; removing one cannot.
 - **Naming:** `PlanAsync`/`PatchPlan` matches the existing CLI `plan` command, which moves onto it (P4). RFC-0001 §10's candidate `ChunkManifest.CompareAsync` named a Core method that Core 0.1.0 deliberately did not ship (RFC-0003).
+- **Result (P5):** both `CreateAsync` overloads and `PatchInfo` (target and base `ManifestId`, HashSuite, `FileDigest`, physical length, payload entry count and stored payload bytes) are in `PublicAPI.Unshipped.txt`. Create hashes every target chunk against its `ChunkId`, including the chunks the base supplies, so a patch never describes content other than the caller's; a base chunk is hashed only when it is chosen as a dictionary, because apply verifies every base chunk it uses. The §8 operational limits surface as `NotSupportedException`, as in `PlanAsync`: more than 4,194,304 base records or more than 1,048,576 payload entries.
 - **Status:** confirmed as a shape; each method's XML contract is reviewed in the pull request that adds it.
 
 ### D10. Error model
@@ -158,18 +159,21 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 
 - **Decision:** which chunks get payload entries, which encoding and dictionary an entry uses, the zstd level and how entries are grouped into `PAYL` sections are encoder policy. None enters an identity or the format, and changing them needs evidence, not a format revision.
 - **Evidence:** *spec* — CSP-V1-CANDIDATE §4.6 (grouping is physical), §5 (any encoding must reproduce the `ChunkId`), §12 (e).
+- **Result (P5):** the policy is the internal record `CspEncoderPolicy`; the public API always uses its default (D9: no tuning knobs), and tests and the lab pass other values to the internal builder.
 - **Status:** confirmed.
 
 ### D15. zstd level, dictionary size and search
 
 - **Starting point:** the study's settings: level 19, up to 2 contiguous base chunks per dictionary, up to 8 candidate runs within 256 KiB of the target offset ([CSP-ENCODING-EVIDENCE-2026-09.md](../benchmarks/CSP-ENCODING-EVIDENCE-2026-09.md)).
-- **Evidence still to add:** P5 sweeps level and K for patch size against create time on the same corpus.
-- **Status:** provisional until P5.
+- **Result (P5):** `CspEncoderPolicy.Default` holds these settings. Each distinct missing chunk is stored in the cheapest of raw, zstd without a dictionary and zstd against each candidate, where a dictionary costs 32 bytes per named chunk; ties prefer raw, then zstd without a dictionary, so no stored form exceeds its chunk. The creation tests produce all three forms.
+- **Evidence still to add:** the sweep of level, K, candidate count and radius for patch size against create time moves to P10. It needs the frozen multi-product corpus of CSP §10.2 (P11); tuned on the synthetic test scenarios, the policy would fit synthetic data.
+- **Status:** provisional until P10.
 
 ### D16. `BASE` is always written when a base is supplied
 
 - **Decision:** `CreateAsync` with a base writes `BASE` even when the result turns out self-contained.
 - **Evidence:** *spec* — §3.3: a self-contained patch may carry `BASE`, and apply then needs no base unless the caller supplies one, so the extra section costs 48 bytes and never blocks apply.
+- **Result (P5):** every patch created with a base carries `BASE`, and no self-contained one does (a creation test checks both).
 - **Status:** confirmed.
 
 ### D17. `PAYL` block size
@@ -187,6 +191,7 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 - **Evidence:** *measurement* (2026-09-27, CPython 3.14.3, libzstd 1.5.7): `compression.zstd.decompress()` decodes two concatenated frames into one result and silently skips a trailing skippable frame, so the oracle parses the frame envelope itself and decodes with `ZstdDecompressor`, which stops at the end of one frame and exposes the rest as `unused_data`; raw-content dictionaries work through `ZstdDict(..., is_raw=True)`.
 - **Result (P2):** `tools/csp-fixtures` (`generate.py`, `decode.py`) and 94 committed vectors in `tests/ChunkShift.Patching.Tests/Fixtures/CspV1`, checked in CI and heavy validation. The embedded and base manifests are read by the independent CSM decoder of `tools/csm-fixtures`, which now also returns the parsed records. CI runs CPython 3.14.7 linked to libzstd 1.5.5 on x64 and ARM64; the local reference run used CPython 3.14.3 with libzstd 1.5.7.
 - **Result (P3a):** 22 encoding-1 vectors: valid frames with 0, 1 and 4 dictionary chunks and with a content checksum, dictionary failures (chunk not in the base, a corrupt dictionary chunk, a dictionary starting with the zstd magic) and one vector per frame-envelope rule (no content size, wrong content size, dictionary ID, window above 1 MiB, a second frame, leading and trailing skippable frames, trailing bytes, a reserved block type, a truncated frame, a bad checksum, a frame that decodes to other bytes). Compressed frames that need a dictionary are pinned as hex (made once by libzstd 1.5.7); every other frame is assembled from RFC 8878 fields as a single RLE block, so no vector depends on the compressor at hand and each is decoded by whichever libzstd the runner has.
+- **Result (P5):** CI dumps the SHA-256 patches that `CreateAsync` makes for the eight creation scenarios (raw, zstd and dictionary entries, a repeated chunk, a zero-entry patch and a self-contained one) and requires `decode.py` to reconstruct each target with the expected SHA-256.
 - **Status:** confirmed.
 
 ### D19. Verdict taxonomy
