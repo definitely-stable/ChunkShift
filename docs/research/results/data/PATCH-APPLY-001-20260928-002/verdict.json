@@ -1,0 +1,396 @@
+{
+  "schema": "chunkshift.patch-lab-summary.v1",
+  "corpusLock": {
+    "path": "docs/benchmarks/patch-corpus/corpus-lock.json",
+    "pairsSha256": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd"
+  },
+  "corpusManifest": {
+    "path": "docs/benchmarks/patch-corpus/patch-corpus.json",
+    "families": {
+      "dotnet-aspnetcore-win-x64": "calibration",
+      "dotnet-runtime-linux-arm64": "calibration",
+      "node-win-x64": "holdout",
+      "node-linux-x64": "holdout",
+      "tzdata": "holdout",
+      "chunkshift-source": "holdout"
+    }
+  },
+  "platforms": [
+    {
+      "directory": "platform-x64",
+      "name": "platform-x64",
+      "gitCommit": "2f15c67a48235cb6145c3e6dd6b02f9f027759a9",
+      "osDescription": "Ubuntu 24.04.5 LTS",
+      "osArchitecture": "X64",
+      "runIds": [
+        "PATCH-PREFREEZE-001/RUN-20260928-2-2f15c67-linux-x64"
+      ],
+      "files": [
+        "patch-lab-csp-raw-x64.json",
+        "patch-lab-csp-x64.json",
+        "patch-lab-csp-zstd-x64.json",
+        "patch-lab-memory-x64.json"
+      ]
+    },
+    {
+      "directory": "platform-arm64",
+      "name": "platform-arm64",
+      "gitCommit": "2f15c67a48235cb6145c3e6dd6b02f9f027759a9",
+      "osDescription": "Ubuntu 24.04.5 LTS",
+      "osArchitecture": "Arm64",
+      "runIds": [
+        "PATCH-PREFREEZE-001/RUN-20260928-2-2f15c67-linux-arm64"
+      ],
+      "files": [
+        "patch-lab-csp-arm64.json",
+        "patch-lab-csp-raw-arm64.json",
+        "patch-lab-csp-zstd-arm64.json",
+        "patch-lab-memory-arm64.json"
+      ]
+    }
+  ],
+  "experiments": {
+    "PATCH-PREFREEZE-001": {
+      "verdict": "ADOPT",
+      "reason": null,
+      "rules": {
+        "R1": {
+          "verdict": "ADOPT",
+          "maxRatio": 0.75,
+          "platforms": {
+            "platform-x64": {
+              "cspBytes": 38225688,
+              "cspRawBytes": 497766768,
+              "ratio": 0.07679437531273683,
+              "maxRatio": 0.75,
+              "verdict": "ADOPT"
+            },
+            "platform-arm64": {
+              "cspBytes": 38225688,
+              "cspRawBytes": 497766768,
+              "ratio": 0.07679437531273683,
+              "maxRatio": 0.75,
+              "verdict": "ADOPT"
+            }
+          }
+        },
+        "R2": {
+          "verdict": "ADOPT",
+          "bandwidthBitsPerSecond": 1000000000,
+          "platforms": {
+            "platform-x64": {
+              "bandwidthBitsPerSecond": 1000000000,
+              "cspBytes": 38225688,
+              "cspRawBytes": 497766768,
+              "cspApplySeconds": 6.8602068000000065,
+              "cspRawApplySeconds": 5.463473099999987,
+              "cspEndToEndSeconds": 7.166012304000007,
+              "cspRawEndToEndSeconds": 9.445607243999987,
+              "verdict": "ADOPT"
+            },
+            "platform-arm64": {
+              "bandwidthBitsPerSecond": 1000000000,
+              "cspBytes": 38225688,
+              "cspRawBytes": 497766768,
+              "cspApplySeconds": 8.043711599999993,
+              "cspRawApplySeconds": 6.205184599999991,
+              "cspEndToEndSeconds": 8.349517103999993,
+              "cspRawEndToEndSeconds": 10.187318743999992,
+              "verdict": "ADOPT"
+            }
+          }
+        }
+      },
+      "informative": {
+        "platforms": {
+          "platform-x64": {
+            "directory": "platform-x64",
+            "lanes": {
+              "csp": {
+                "files": 1893,
+                "bytes": 38225688,
+                "createSeconds": 1025.7020833000001,
+                "applySeconds": 6.8602068000000065,
+                "applyNoCheckSeconds": 6.476089599999994,
+                "endToEnd50Seconds": 12.976316880000006,
+                "endToEnd1000Seconds": 7.166012304000007
+              },
+              "csp-raw": {
+                "files": 1893,
+                "bytes": 497766768,
+                "createSeconds": 1.5179631999999996,
+                "applySeconds": 5.463473099999987,
+                "applyNoCheckSeconds": 5.098845199999996,
+                "endToEnd50Seconds": 85.10615597999998,
+                "endToEnd1000Seconds": 9.445607243999987
+              },
+              "csp-zstd": {
+                "files": 1893,
+                "bytes": 182350888,
+                "createSeconds": 126.67567129999993,
+                "applySeconds": 6.5115639999999955,
+                "applyNoCheckSeconds": 6.332621700000011,
+                "endToEnd50Seconds": 35.68770608,
+                "endToEnd1000Seconds": 7.970371103999995
+              }
+            },
+            "csp": {
+              "patchBytes": 38225688,
+              "uniqueMissingBytes": 495592214,
+              "tcsmBytes": 1159950,
+              "storedPayloadBytes": 35375026,
+              "payloadEntries": 7057,
+              "dictionaryReferences": 21206,
+              "targetChunks": 11503,
+              "studyEstimateBytes": 38365626,
+              "studyEstimateDeltaBytes": -139938
+            }
+          },
+          "platform-arm64": {
+            "directory": "platform-arm64",
+            "lanes": {
+              "csp": {
+                "files": 1893,
+                "bytes": 38225688,
+                "createSeconds": 1368.9076440000013,
+                "applySeconds": 8.043711599999993,
+                "applyNoCheckSeconds": 6.517658599999999,
+                "endToEnd50Seconds": 14.159821679999993,
+                "endToEnd1000Seconds": 8.349517103999993
+              },
+              "csp-raw": {
+                "files": 1893,
+                "bytes": 497766768,
+                "createSeconds": 2.6214325000000005,
+                "applySeconds": 6.205184599999991,
+                "applyNoCheckSeconds": 4.927539,
+                "endToEnd50Seconds": 85.84786747999999,
+                "endToEnd1000Seconds": 10.187318743999992
+              },
+              "csp-zstd": {
+                "files": 1893,
+                "bytes": 182350888,
+                "createSeconds": 139.13581019999995,
+                "applySeconds": 6.344027500000004,
+                "applyNoCheckSeconds": 5.0682872,
+                "endToEnd50Seconds": 35.52016958000001,
+                "endToEnd1000Seconds": 7.802834604000004
+              }
+            },
+            "csp": {
+              "patchBytes": 38225688,
+              "uniqueMissingBytes": 495592214,
+              "tcsmBytes": 1159950,
+              "storedPayloadBytes": 35375026,
+              "payloadEntries": 7057,
+              "dictionaryReferences": 21206,
+              "targetChunks": 11503,
+              "studyEstimateBytes": 38365626,
+              "studyEstimateDeltaBytes": -139938
+            }
+          }
+        }
+      },
+      "platforms": [
+        "platform-x64",
+        "platform-arm64"
+      ],
+      "runIds": [
+        "PATCH-PREFREEZE-001/RUN-20260928-2-2f15c67-linux-x64",
+        "PATCH-PREFREEZE-001/RUN-20260928-2-2f15c67-linux-arm64"
+      ]
+    },
+    "PATCH-ENC-002": {
+      "crossPlatformSweepBytes": {
+        "sweep-L9-K1-C8": {
+          "platforms": [],
+          "missingOn": [
+            "platform-x64",
+            "platform-arm64"
+          ],
+          "identical": null
+        },
+        "sweep-L9-K1-C16": {
+          "platforms": [],
+          "missingOn": [
+            "platform-x64",
+            "platform-arm64"
+          ],
+          "identical": null
+        },
+        "sweep-L9-K2-C8": {
+          "platforms": [],
+          "missingOn": [
+            "platform-x64",
+            "platform-arm64"
+          ],
+          "identical": null
+        },
+        "sweep-L9-K2-C16": {
+          "platforms": [],
+          "missingOn": [
+            "platform-x64",
+            "platform-arm64"
+          ],
+          "identical": null
+        },
+        "sweep-L9-K4-C8": {
+          "platforms": [],
+          "missingOn": [
+            "platform-x64",
+            "platform-arm64"
+          ],
+          "identical": null
+        },
+        "sweep-L9-K4-C16": {
+          "platforms": [],
+          "missingOn": [
+            "platform-x64",
+            "platform-arm64"
+          ],
+          "identical": null
+        },
+        "sweep-L19-K1-C8": {
+          "platforms": [],
+          "missingOn": [
+            "platform-x64",
+            "platform-arm64"
+          ],
+          "identical": null
+        },
+        "sweep-L19-K1-C16": {
+          "platforms": [],
+          "missingOn": [
+            "platform-x64",
+            "platform-arm64"
+          ],
+          "identical": null
+        },
+        "sweep-L19-K2-C8": {
+          "platforms": [],
+          "missingOn": [
+            "platform-x64",
+            "platform-arm64"
+          ],
+          "identical": null
+        },
+        "sweep-L19-K2-C16": {
+          "platforms": [],
+          "missingOn": [
+            "platform-x64",
+            "platform-arm64"
+          ],
+          "identical": null
+        },
+        "sweep-L19-K4-C8": {
+          "platforms": [],
+          "missingOn": [
+            "platform-x64",
+            "platform-arm64"
+          ],
+          "identical": null
+        },
+        "sweep-L19-K4-C16": {
+          "platforms": [],
+          "missingOn": [
+            "platform-x64",
+            "platform-arm64"
+          ],
+          "identical": null
+        }
+      },
+      "verdict": "not evaluated",
+      "reason": "no x64 Linux sweep",
+      "missingLanes": [
+        "sweep-L9-K1-C8",
+        "sweep-L9-K1-C16",
+        "sweep-L9-K2-C8",
+        "sweep-L9-K2-C16",
+        "sweep-L9-K4-C8",
+        "sweep-L9-K4-C16",
+        "sweep-L19-K1-C8",
+        "sweep-L19-K1-C16",
+        "sweep-L19-K2-C8",
+        "sweep-L19-K2-C16",
+        "sweep-L19-K4-C8",
+        "sweep-L19-K4-C16"
+      ],
+      "platforms": [
+        "platform-x64"
+      ],
+      "runIds": [
+        "PATCH-PREFREEZE-001/RUN-20260928-2-2f15c67-linux-x64"
+      ]
+    },
+    "PATCH-APPLY-001": {
+      "verdict": "DEFER",
+      "reason": null,
+      "rules": {
+        "A1": {
+          "verdict": "ADOPT",
+          "maxOverheadFraction": 0.25,
+          "platforms": {
+            "platform-x64": {
+              "applySeconds": 6.8602068000000065,
+              "applyNoCheckSeconds": 6.476089599999994,
+              "overheadFraction": 0.05931313859524323,
+              "maxOverheadFraction": 0.25,
+              "verdict": "ADOPT"
+            },
+            "platform-arm64": {
+              "applySeconds": 8.043711599999993,
+              "applyNoCheckSeconds": 6.517658599999999,
+              "overheadFraction": 0.23414129116857918,
+              "maxOverheadFraction": 0.25,
+              "verdict": "ADOPT"
+            }
+          }
+        },
+        "A2": {
+          "verdict": "DEFER",
+          "limitBytes": 67108864,
+          "platforms": {
+            "platform-x64": {
+              "idleBaselineBytes": 35049472,
+              "records": 75,
+              "worst": {
+                "family": "node-linux-x64",
+                "base": "24.20.0",
+                "target": "24.21.0",
+                "path": "bin/node",
+                "createPeakBytes": 265285632,
+                "applyPeakBytes": 73052160,
+                "excessBytes": 230236160
+              },
+              "limitBytes": 67108864,
+              "verdict": "DEFER"
+            },
+            "platform-arm64": {
+              "idleBaselineBytes": 35020800,
+              "records": 75,
+              "worst": {
+                "family": "node-linux-x64",
+                "base": "24.20.0",
+                "target": "24.21.0",
+                "path": "bin/node",
+                "createPeakBytes": 298569728,
+                "applyPeakBytes": 71323648,
+                "excessBytes": 263548928
+              },
+              "limitBytes": 67108864,
+              "verdict": "DEFER"
+            }
+          }
+        }
+      },
+      "platforms": [
+        "platform-x64",
+        "platform-arm64"
+      ],
+      "runIds": [
+        "PATCH-PREFREEZE-001/RUN-20260928-2-2f15c67-linux-x64",
+        "PATCH-PREFREEZE-001/RUN-20260928-2-2f15c67-linux-arm64"
+      ]
+    }
+  }
+}
