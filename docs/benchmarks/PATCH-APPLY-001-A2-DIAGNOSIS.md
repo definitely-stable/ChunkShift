@@ -54,3 +54,7 @@ Evaluated on the worst file of each Linux lane, in order:
 Independently: (c) is excluded when `E(D2) − E(D7) ≤ 8 MiB` on the worst file of every lane and D7 completes; a D7 create that fails for lack of heap is a finding for (c).
 
 The A2 verdict of PATCH-APPLY-001 stays DEFER until a fix passes the frozen A2 rule; this diagnosis alone never turns it into ADOPT.
+
+## 5. Result
+
+Runs at `0e5f93b` (2026-09-28): rule 4, (c) excluded; A2 stays DEFER — [PATCH-APPLY-001-EVIDENCE-20260928-003](../research/results/PATCH-APPLY-001-EVIDENCE-20260928-003.md).
