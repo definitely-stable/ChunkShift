@@ -20,7 +20,7 @@ Every implementation choice the Patching work makes gets one entry:
 - **Decision** and **Reopen if** — the result and the observation that would overturn it;
 - **Status** — *confirmed* (the evidence is recorded) or *provisional* (the entry names the measurement or pull request that settles it).
 
-Measurements that settle an entry follow the research registry ([docs/research/README.md](../research/README.md)): the experiment is claimed in [EXPERIMENT-INDEX.md](../research/EXPERIMENT-INDEX.md) and its hypothesis and decision rule are frozen before the final runs, and the entry links the result record.
+Measurements that settle an entry follow the research registry ([docs/research/README.md](../research/README.md)): the experiment is claimed in [EXPERIMENT-INDEX.md](../research/EXPERIMENT-INDEX.md), its hypothesis and decision rule are frozen before the final runs, and the entry links the result record.
 
 Merge rule: a Patching pull request that makes a choice adds or updates its entry here. A choice without evidence is allowed only as *provisional*, naming what settles it. The pull request body carries a "Choices and evidence" section that points to the entries.
 
