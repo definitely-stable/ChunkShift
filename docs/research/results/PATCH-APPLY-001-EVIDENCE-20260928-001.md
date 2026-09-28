@@ -122,6 +122,8 @@ A2: create exceeds 64 MiB over idle on both Linux lanes, so D17 stays provisiona
 - #168: owner decision on an opt-out for the re-chunk check (D13).
 - A follow-up pull request reuses the dictionary and compression buffers in `ChooseEntryAsync` instead of allocating them per candidate, and the memory lane is rerun on both Linux lanes under a new EvidenceId of this experiment.
 
+The rerun after that pull request refuted the managed-garbage explanation of A2: see `PATCH-APPLY-001/EVIDENCE-20260928-002`.
+
 ## References
 
 - #7, #168; `docs/benchmarks/PATCH-PREFREEZE-PROTOCOL.md`; `PATCH-PREFREEZE-001/EVIDENCE-20260928-001` (same runs).
