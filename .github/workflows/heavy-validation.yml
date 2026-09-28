@@ -115,6 +115,23 @@ jobs:
             --filter "FullyQualifiedName~ChunkShift.Tests.Fuzzing"
           python3 tools/csm-fixtures/decode.py --compare "$CHUNKSHIFT_FUZZ_DUMP"
 
+      - name: Extended CSP apply fuzz with differential decoder check
+        shell: bash
+        env:
+          CHUNKSHIFT_FUZZ_ITERATIONS: 2000
+          CHUNKSHIFT_FUZZ_DUMP: ${{ runner.temp }}/csp-fuzz
+        run: |
+          set -euo pipefail
+          # Fresh seeds per run explore new inputs; any failure prints its seed
+          # and iteration, so it replays with CHUNKSHIFT_FUZZ_SEEDS. The offset
+          # differs from the CSM step so the two lanes never share a stream.
+          base=$(( ${{ github.run_number }} * 16 + 8 ))
+          export CHUNKSHIFT_FUZZ_SEEDS="$base,$((base + 1)),$((base + 2)),$((base + 3))"
+          echo "fuzz seeds: $CHUNKSHIFT_FUZZ_SEEDS"
+          dotnet test tests/ChunkShift.Patching.Tests -c Release --no-build --no-restore \
+            --filter "FullyQualifiedName~ChunkShift.Patching.Tests.Fuzzing"
+          python tools/csp-fixtures/decode.py --compare "$CHUNKSHIFT_FUZZ_DUMP"
+
       - name: Verify external fastcdc-rs 5.0.0 vector
         if: matrix.rid == 'linux-x64'
         shell: bash

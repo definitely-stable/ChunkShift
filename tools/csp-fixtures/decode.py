@@ -44,6 +44,8 @@ BLAKE3 patch is ``unsupported`` here; the vectors use SHA-256.
 
 Usage:
   decode.py PATCH [--base-manifest CSM --base CONTENT] [--max-payload-entries N]
+  decode.py --compare DIRECTORY compare .NET fuzz verdicts (verdicts-*.jsonl
+                                written by CspApplyFuzzTests) with this decoder.
 """
 
 from __future__ import annotations
@@ -616,7 +618,66 @@ def _apply(patch: bytes, base_manifest: bytes | None, base_content: bytes | None
             "dependsOnBase": depends_on_base}
 
 
+def verdict_text(verdict: dict[str, object]) -> str:
+    """Render a verdict the way the .NET fuzz harness does."""
+
+    outcome = str(verdict["verdict"])
+    if outcome == "valid":
+        return "valid:" + str(verdict["outputSha256"])
+    if outcome == "verification":
+        return "verification:" + ",".join(verdict["failures"])  # type: ignore[arg-type]
+    return outcome
+
+
+def compare(directory: Path) -> int:
+    """Differential check of .NET fuzz verdicts against this decoder.
+
+    Reads every verdicts-*.jsonl written by CspApplyFuzzTests (one JSON object
+    per line: {"file": ..., "baseManifest": ... or null, "base": ... or null,
+    "verdict": ...}) and applies each case with its base files.
+    """
+
+    checked = 0
+    mismatches: list[str] = []
+
+    for listing in sorted(directory.glob("verdicts-*.jsonl")):
+        for line in listing.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            case = json.loads(line)
+            base_manifest = (
+                (directory / case["baseManifest"]).read_bytes()
+                if case.get("baseManifest") else None)
+            base_content = (
+                (directory / case["base"]).read_bytes()
+                if case.get("base") else None)
+            verdict = decode(
+                (directory / case["file"]).read_bytes(), base_manifest, base_content)
+            checked += 1
+            text = verdict_text(verdict)
+            if text != case["verdict"]:
+                mismatches.append(
+                    f"{case['file']}: .NET {case['verdict']!r}, "
+                    f"decoder {text!r} ({verdict.get('reason', '')})"
+                )
+
+    for mismatch in mismatches[:50]:
+        print(mismatch, file=sys.stderr)
+
+    print(f"compared {checked} fuzz cases: {len(mismatches)} mismatches")
+    if checked == 0:
+        print("no fuzz cases found", file=sys.stderr)
+        return 1
+    return 1 if mismatches else 0
+
+
 def main(argv: list[str]) -> int:
+    if argv and argv[0] == "--compare":
+        if len(argv) != 2:
+            print("usage: decode.py --compare DIRECTORY", file=sys.stderr)
+            return 2
+        return compare(Path(argv[1]))
+
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("patch", type=Path)
     parser.add_argument("--base-manifest", type=Path)
