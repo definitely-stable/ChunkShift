@@ -333,13 +333,18 @@ internal sealed unsafe class CspPayloadEncoder : IDisposable
             }
 
             nuint size = (needed + Granularity - 1) / Granularity * Granularity;
-            void* workspace = NativeMemory.Alloc(size);
 
+            // The old workspace is freed first, so the two never coexist: a
+            // growth step costs no more than the workspace it produces.
             if (!IsInvalid)
             {
                 NativeMemory.Free((void*)handle);
+                SetHandle(IntPtr.Zero);
+                _size = 0;
+                _context = null;
             }
 
+            void* workspace = NativeMemory.Alloc(size);
             SetHandle((IntPtr)workspace);
             _size = size;
             _context = Methods.ZSTD_initStaticCCtx(workspace, size);
