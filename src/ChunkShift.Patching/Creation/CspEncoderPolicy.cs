@@ -5,7 +5,10 @@ namespace ChunkShift.Patching.Creation;
 /// that decide the stored form of one target chunk
 /// (docs/architecture/PATCHING-DECISIONS.md D14 and D15).
 /// </summary>
-/// <param name="Level">Zstd compression level, 1..22.</param>
+/// <param name="Level">
+/// Zstd compression level, 0..22. Level zero stores every entry raw and never
+/// calls the encoder, so the remaining fields do not matter.
+/// </param>
 /// <param name="DictionaryChunks">
 /// Number of contiguous base chunks concatenated into one dictionary candidate,
 /// 0..4; zero disables dictionary entries.
@@ -19,7 +22,9 @@ namespace ChunkShift.Patching.Creation;
 /// <see cref="Default"/> holds the settings of the CSP encoding study
 /// (docs/benchmarks/CSP-ENCODING-EVIDENCE-2026-09.md); D15 is settled by a
 /// later level and dictionary sweep. The public <see cref="ChunkPatch"/> API
-/// always uses <see cref="Default"/>.
+/// always uses <see cref="Default"/>; the raw-only level exists for the
+/// pre-freeze protocol's raw CSP lane
+/// (docs/benchmarks/PATCH-PREFREEZE-PROTOCOL.md section 2).
 /// </remarks>
 internal sealed record CspEncoderPolicy(
     int Level,

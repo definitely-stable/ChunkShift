@@ -1,0 +1,349 @@
+name: Patch lab
+
+# PATCH-PREFREEZE-001 / PATCH-ENC-002 / PATCH-APPLY-001 on the frozen corpus
+# (docs/benchmarks/PATCH-PREFREEZE-PROTOCOL.md). Dispatch manually: the CSP
+# lanes alone take tens of minutes, so this workflow never runs on a push.
+on:
+  workflow_dispatch:
+    inputs:
+      lanes:
+        description: "all, or a comma list of job groups: csp-lanes, sweep, references"
+        required: false
+        default: all
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+
+jobs:
+  csp-lanes:
+    name: patch-lab-csp-lanes (${{ matrix.arch }})
+    if: inputs.lanes == 'all' || contains(inputs.lanes, 'csp-lanes')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The chunkshift-source family is rebuilt from old commits with
+          # git ls-tree/cat-file, so the full history must be present.
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Install patch tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y xdelta3 zstd
+          python3 -m pip install bsdiff4
+
+      - name: Restore corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$HOME/patch-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download --lock
+
+      - name: Build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      # csp, csp-zstd and csp-raw keep one worker: their apply wall time is
+      # part of the end-to-end numbers the decision rules compare.
+      - name: Run CSP lanes
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="PATCH-PREFREEZE-001/RUN-$(date -u +%Y%m%d)-${{ github.run_number }}-${GITHUB_SHA::7}-linux-${{ matrix.arch }}"
+          mkdir -p artifacts/patch-lab
+          for lane in csp csp-zstd csp-raw
+          do
+            dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
+              patch-lab run \
+              --corpus "$HOME/patch-corpus" \
+              --lane "$lane" \
+              --output "artifacts/patch-lab/patch-lab-$lane-${{ matrix.arch }}.json" \
+              --workers 1 --apply-repeats 3 --run-id "$run_id"
+          done
+          dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
+            patch-lab memory \
+            --corpus "$HOME/patch-corpus" \
+            --output "artifacts/patch-lab/patch-lab-memory-${{ matrix.arch }}.json" \
+            --run-id "$run_id"
+
+      - name: Upload CSP lane evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-lab-csp-lanes-${{ matrix.arch }}
+          path: artifacts/patch-lab
+          if-no-files-found: error
+          retention-days: 90
+
+  sweep:
+    name: patch-lab-sweep (${{ matrix.platform.arch }}, ${{ matrix.group }}, C${{ matrix.candidates }})
+    if: inputs.lanes == 'all' || contains(inputs.lanes, 'sweep')
+    strategy:
+      fail-fast: false
+      # Twelve settings over the whole corpus exceed one job's time limit,
+      # so each job runs three of them.
+      matrix:
+        platform:
+          - { os: ubuntu-24.04, arch: x64 }
+          - { os: ubuntu-24.04-arm, arch: arm64 }
+        group:
+          - L9-K1 L9-K2 L9-K4
+          - L19-K1 L19-K2 L19-K4
+        candidates: [8, 16]
+    runs-on: ${{ matrix.platform.os }}
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The chunkshift-source family is rebuilt from old commits with
+          # git ls-tree/cat-file, so the full history must be present.
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Install patch tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y xdelta3 zstd
+          python3 -m pip install bsdiff4
+
+      - name: Restore corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$HOME/patch-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download --lock
+
+      - name: Build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      # The sweep measures create only and its time is compared between
+      # settings, never in an end-to-end number, so every setting may create
+      # its files in parallel with the same worker count.
+      - name: Run sweep lanes
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="PATCH-ENC-002/RUN-$(date -u +%Y%m%d)-${{ github.run_number }}-${GITHUB_SHA::7}-linux-${{ matrix.platform.arch }}"
+          families=dotnet-aspnetcore-win-x64,dotnet-runtime-linux-arm64,node-win-x64,node-linux-x64,tzdata,chunkshift-source
+          mkdir -p artifacts/patch-lab
+          for setting in ${{ matrix.group }}
+          do
+            lane="sweep-${setting}-C${{ matrix.candidates }}"
+            dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
+              patch-lab run \
+              --corpus "$HOME/patch-corpus" \
+              --lane "$lane" \
+              --output "artifacts/patch-lab/patch-lab-$lane-${{ matrix.platform.arch }}.json" \
+              --families "$families" \
+              --no-apply --workers "$(nproc)" --run-id "$run_id"
+          done
+
+      - name: Upload sweep evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-lab-sweep-${{ strategy.job-index }}-${{ matrix.platform.arch }}
+          path: artifacts/patch-lab
+          if-no-files-found: error
+          retention-days: 90
+
+  references:
+    name: patch-lab-references (${{ matrix.arch }})
+    if: inputs.lanes == 'all' || contains(inputs.lanes, 'references')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The chunkshift-source family is rebuilt from old commits with
+          # git ls-tree/cat-file, so the full history must be present.
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Install patch tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y xdelta3 zstd
+          python3 -m pip install bsdiff4
+
+      - name: Restore corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$HOME/patch-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download --lock
+
+      - name: Build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Run reference lanes
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="PATCH-PREFREEZE-001/RUN-$(date -u +%Y%m%d)-${{ github.run_number }}-${GITHUB_SHA::7}-linux-${{ matrix.arch }}"
+          mkdir -p artifacts/patch-lab
+          python3 benchmarks/scripts/patch_lab_references.py \
+            --corpus "$HOME/patch-corpus" \
+            --output "artifacts/patch-lab/patch-lab-references-${{ matrix.arch }}.json" \
+            --workers 1 --decode-repeats 3 --run-id "$run_id"
+
+      - name: Upload reference lane evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-lab-references-${{ matrix.arch }}
+          path: artifacts/patch-lab
+          if-no-files-found: error
+          retention-days: 90
+
+  summary:
+    name: patch-lab-summary
+    needs: [csp-lanes, sweep, references]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Download x64 evidence
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: patch-lab-*-x64
+          path: platform-x64
+          merge-multiple: true
+
+      - name: Download arm64 evidence
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: patch-lab-*-arm64
+          path: platform-arm64
+          merge-multiple: true
+
+      - name: Summarize patch lab evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p platform-x64 platform-arm64 artifacts/patch-lab
+          python3 benchmarks/scripts/summarize_patch_lab.py \
+            platform-x64 platform-arm64 \
+            --corpus-lock docs/benchmarks/patch-corpus/corpus-lock.json \
+            --output artifacts/patch-lab/verdict.json \
+            --markdown artifacts/patch-lab/summary.md
+          cat artifacts/patch-lab/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload patch lab summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-lab-summary
+          path: artifacts/patch-lab
+          if-no-files-found: error
+          retention-days: 90
