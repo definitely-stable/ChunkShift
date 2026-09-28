@@ -3,13 +3,26 @@ name: Patch lab
 # PATCH-PREFREEZE-001 / PATCH-ENC-002 / PATCH-APPLY-001 on the frozen corpus
 # (docs/benchmarks/PATCH-PREFREEZE-PROTOCOL.md). Dispatch manually: the CSP
 # lanes alone take tens of minutes, so this workflow never runs on a push.
+# lanes=memory runs only the memory lane with the memory-lane policy and the
+# memory-env variables (docs/benchmarks/PATCH-APPLY-001-A2-DIAGNOSIS.md); it
+# is not part of "all".
 on:
   workflow_dispatch:
     inputs:
       lanes:
-        description: "all, or a comma list of job groups: csp-lanes, sweep, references"
+        description: "all, or a comma list of job groups: csp-lanes, sweep, references, memory"
         required: false
         default: all
+        type: string
+      memory-lane:
+        description: "memory group only: the create policy (a patch-lab lane name)"
+        required: false
+        default: csp
+        type: string
+      memory-env:
+        description: "memory group only: space-separated NAME=VALUE pairs, MALLOC_* or DOTNET_GC* only"
+        required: false
+        default: ""
         type: string
 
 permissions:
@@ -294,9 +307,102 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  memory:
+    name: patch-lab-memory (${{ matrix.arch }})
+    if: contains(inputs.lanes, 'memory')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The chunkshift-source family is rebuilt from old commits with
+          # git ls-tree/cat-file, so the full history must be present.
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Restore corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$HOME/patch-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download --lock
+
+      - name: Build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      # The inputs reach the script only through the environment, and each
+      # pair is checked before it is exported, so an input cannot inject
+      # shell code or set an unrelated variable.
+      - name: Run memory lane
+        shell: bash
+        env:
+          MEMORY_LANE: ${{ inputs.memory-lane }}
+          MEMORY_ENV: ${{ inputs.memory-env }}
+        run: |
+          set -euo pipefail
+          for pair in $MEMORY_ENV
+          do
+            if [[ ! "$pair" =~ ^(MALLOC_[A-Z_]+|DOTNET_GC[A-Za-z]+)=[A-Za-z0-9_.]+$ ]]
+            then
+              echo "memory-env: rejected '$pair'" >&2
+              exit 2
+            fi
+            export "$pair"
+          done
+          run_id="PATCH-APPLY-001/RUN-$(date -u +%Y%m%d)-${{ github.run_number }}-${GITHUB_SHA::7}-linux-${{ matrix.arch }}"
+          output="artifacts/patch-lab/patch-lab-memory-${{ matrix.arch }}.json"
+          mkdir -p artifacts/patch-lab
+          dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
+            patch-lab memory \
+            --corpus "$HOME/patch-corpus" \
+            --output "$output" \
+            --lane "$MEMORY_LANE" \
+            --run-id "$run_id"
+          python3 benchmarks/scripts/print_patch_lab_memory.py "$output"
+
+      - name: Upload memory evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-lab-memory-${{ matrix.arch }}
+          path: artifacts/patch-lab
+          if-no-files-found: error
+          retention-days: 90
+
   summary:
     name: patch-lab-summary
-    needs: [csp-lanes, sweep, references]
+    needs: [csp-lanes, sweep, references, memory]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 30

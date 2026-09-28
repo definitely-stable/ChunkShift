@@ -53,6 +53,8 @@ internal static class PatchLabOne
                 "patch-lab one create requires --corpus, --family, --base, --target, --path and --patch.");
         }
 
+        CspEncoderPolicy policy = PatchLabLane.Parse(PatchLabArguments.Value(args, "--lane") ?? "csp");
+
         string workDirectory = PatchLabCorpus.ResolveWorkDirectory(
             corpusRoot,
             PatchLabArguments.Value(args, "--work"));
@@ -84,7 +86,7 @@ internal static class PatchLabOne
                     targetManifestStream,
                     targetContent,
                     destination,
-                    CspEncoderPolicy.Default,
+                    policy,
                     CancellationToken.None)
                 .ConfigureAwait(false);
         }

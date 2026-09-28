@@ -9,7 +9,7 @@ namespace ChunkShift.Benchmarks.PatchLab;
 /// (docs/benchmarks/PATCH-PREFREEZE-PROTOCOL.md) over the frozen patch corpus.
 /// <code>
 /// patch-lab run --corpus &lt;root&gt; --lane &lt;name&gt; --output &lt;file.json&gt; [--families &lt;id,...&gt;] [--workers &lt;n&gt;] [--apply-repeats &lt;n&gt;] [--no-apply] [--run-id &lt;id&gt;] [--work &lt;dir&gt;]
-/// patch-lab memory --corpus &lt;root&gt; --output &lt;file.json&gt; [--min-bytes &lt;n&gt;] [--families &lt;id,...&gt;] [--run-id &lt;id&gt;] [--work &lt;dir&gt;]
+/// patch-lab memory --corpus &lt;root&gt; --output &lt;file.json&gt; [--min-bytes &lt;n&gt;] [--families &lt;id,...&gt;] [--run-id &lt;id&gt;] [--work &lt;dir&gt;] [--lane &lt;name&gt;]
 /// patch-lab one &lt;idle|create|apply&gt; ...
 /// </code>
 /// Failed runs exit with 1, usage errors with 2.
