@@ -1,6 +1,16 @@
 #nullable enable
 ChunkShift.Patching.ChunkPatch
+static ChunkShift.Patching.ChunkPatch.CreateAsync(System.IO.Stream! baseManifest, System.IO.Stream! baseContent, System.IO.Stream! targetManifest, System.IO.Stream! targetContent, System.IO.Stream! destination, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<ChunkShift.Patching.PatchInfo!>!
+static ChunkShift.Patching.ChunkPatch.CreateAsync(System.IO.Stream! targetManifest, System.IO.Stream! targetContent, System.IO.Stream! destination, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<ChunkShift.Patching.PatchInfo!>!
 static ChunkShift.Patching.ChunkPatch.PlanAsync(System.IO.Stream! baseManifest, System.IO.Stream! targetManifest, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<ChunkShift.Patching.PatchPlan!>!
+ChunkShift.Patching.PatchInfo
+ChunkShift.Patching.PatchInfo.BaseManifestId.get -> ChunkShift.Primitives.ManifestId?
+ChunkShift.Patching.PatchInfo.FileDigest.get -> ChunkShift.Primitives.Hash256
+ChunkShift.Patching.PatchInfo.HashSuite.get -> ChunkShift.Primitives.HashSuiteId!
+ChunkShift.Patching.PatchInfo.PayloadBytes.get -> long
+ChunkShift.Patching.PatchInfo.PayloadEntryCount.get -> long
+ChunkShift.Patching.PatchInfo.PhysicalLength.get -> long
+ChunkShift.Patching.PatchInfo.TargetManifestId.get -> ChunkShift.Primitives.ManifestId
 ChunkShift.Patching.PatchPlan
 ChunkShift.Patching.PatchPlan.Base.get -> ChunkShift.ManifestVerificationResult!
 ChunkShift.Patching.PatchPlan.IsValid.get -> bool
