@@ -47,6 +47,10 @@ Usage:
   decode.py PATCH [--base-manifest CSM --base CONTENT] [--max-payload-entries N]
   decode.py --compare DIRECTORY compare .NET fuzz verdicts (verdicts-*.jsonl
                                 written by CspApplyFuzzTests) with this decoder.
+  decode.py --compare-frames DIRECTORY
+                                compare .NET verdicts on mutated zstd frames
+                                (frames-*.jsonl written by ZstdFrameFuzzTests)
+                                with this decoder's encoding-1 checks.
 """
 
 from __future__ import annotations
@@ -718,7 +722,55 @@ def compare(directory: Path) -> int:
     return 1 if mismatches else 0
 
 
+def compare_frames(directory: Path) -> int:
+    """Differential check of encoding-1 frames: ZstdSharp against libzstd.
+
+    Reads every frames-*.jsonl written by ZstdFrameFuzzTests (one JSON object
+    per line: {"file": ..., "dictionary": ... or null, "length": ...,
+    "verdict": "ok:<sha256>" or "malformed"}) and decodes each frame for that
+    chunk length and dictionary with the checks of section 5.2.
+    """
+
+    checked = 0
+    mismatches: list[str] = []
+    dictionaries: dict[str, bytes] = {}
+
+    for listing in sorted(directory.glob("frames-*.jsonl")):
+        for line in listing.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            case = json.loads(line)
+            name = case.get("dictionary")
+            if name and name not in dictionaries:
+                dictionaries[name] = (directory / name).read_bytes()
+            try:
+                decoded = _decode_zstd(
+                    (directory / case["file"]).read_bytes(), case["length"], dictionaries.get(name, b""))
+                text = "ok:" + hashlib.sha256(decoded).hexdigest()
+            except Malformed as error:
+                text, reason = "malformed", str(error)
+            else:
+                reason = ""
+            checked += 1
+            if text != case["verdict"]:
+                mismatches.append(f"{case['file']}: .NET {case['verdict']!r}, decoder {text!r} {reason}")
+
+    for mismatch in mismatches[:50]:
+        print(mismatch, file=sys.stderr)
+
+    print(f"compared {checked} zstd frames: {len(mismatches)} mismatches")
+    if checked == 0:
+        print("no frame cases found", file=sys.stderr)
+        return 1
+    return 1 if mismatches else 0
+
+
 def main(argv: list[str]) -> int:
+    if argv and argv[0] == "--compare-frames":
+        if len(argv) != 2:
+            print("usage: decode.py --compare-frames DIRECTORY", file=sys.stderr)
+            return 2
+        return compare_frames(Path(argv[1]))
     if argv and argv[0] == "--compare":
         if len(argv) != 2:
             print("usage: decode.py --compare DIRECTORY", file=sys.stderr)
