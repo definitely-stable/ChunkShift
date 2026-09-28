@@ -202,6 +202,52 @@
       "question": "exact dirty-range incremental rechunk"
     },
     {
+      "id": "PATCH-ENC-001",
+      "issues": [
+        66,
+        7
+      ],
+      "area": "patching",
+      "status": "ADOPT",
+      "question": "CSP v1 payload encoding shape (raw-only vs zstd against base chunks)"
+    },
+    {
+      "id": "PATCH-ZSTD-001",
+      "issues": [
+        7
+      ],
+      "area": "patching",
+      "status": "ADOPT",
+      "question": "ZstdSharp.Port 0.8.8 frame identity with libzstd, JIT/NativeAOT"
+    },
+    {
+      "id": "PATCH-ENC-002",
+      "issues": [
+        7
+      ],
+      "area": "patching",
+      "status": "PLANNED",
+      "question": "encoder policy sweep: level, dictionary chunks, candidates, radius"
+    },
+    {
+      "id": "PATCH-APPLY-001",
+      "issues": [
+        7
+      ],
+      "area": "patching",
+      "status": "PLANNED",
+      "question": "apply cost, re-chunk check, writer peak memory"
+    },
+    {
+      "id": "PATCH-PREFREEZE-001",
+      "issues": [
+        7
+      ],
+      "area": "patching",
+      "status": "PLANNED",
+      "question": "CSP v1 pre-freeze product evidence (CSP section 10.2)"
+    },
+    {
       "id": "REPO-DELTA-001",
       "issues": [
         151,

@@ -20,6 +20,8 @@ Every implementation choice the Patching work makes gets one entry:
 - **Decision** and **Reopen if** — the result and the observation that would overturn it;
 - **Status** — *confirmed* (the evidence is recorded) or *provisional* (the entry names the measurement or pull request that settles it).
 
+Measurements that settle an entry follow the research registry ([docs/research/README.md](../research/README.md)): the experiment is claimed in [EXPERIMENT-INDEX.md](../research/EXPERIMENT-INDEX.md) and its hypothesis and decision rule are frozen before the final runs, and the entry links the result record.
+
 Merge rule: a Patching pull request that makes a choice adds or updates its entry here. A choice without evidence is allowed only as *provisional*, naming what settles it. The pull request body carries a "Choices and evidence" section that points to the entries.
 
 Persisted-format choices are not recorded here: they are owner decisions in CSP-V1-CANDIDATE §12 and change only through a format revision.
@@ -68,7 +70,7 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 - **Options:** (a) ZstdSharp.Port, a managed C# port of zstd; (b) a binding to native libzstd; (c) the BCL `System.IO.Compression.Zstandard` of .NET 11.
 - **Evidence:**
   - *source* (checked 2026-09-27): ZstdSharp.Port 0.8.8, MIT, published 2026-04-29, 1,389,022 bytes; `lib/net8.0` and `lib/net9.0` without dependencies (a `net10.0` consumer resolves `lib/net9.0`); the assembly reports `ZSTD_versionNumber() = 10507` (zstd 1.5.7) and carries no `IsTrimmable`/`IsAotCompatible` metadata. (b) ships a native library per runtime identifier and adds a native supply chain; (c) is prerelease, needs a .NET 11 SDK and a `net11.0` target, and the repository pins SDK 10.0 (`global.json`).
-  - *measurement*: [ZSTD-BACKEND-EVIDENCE-2026-09.md](../benchmarks/ZSTD-BACKEND-EVIDENCE-2026-09.md) (probe `benchmarks/zstd-backend`).
+  - *measurement*: [ZSTD-BACKEND-EVIDENCE-2026-09.md](../benchmarks/ZSTD-BACKEND-EVIDENCE-2026-09.md) (probe `benchmarks/zstd-backend`; ExperimentId `PATCH-ZSTD-001`).
 - **Decision:** (a), as the implementation dependency of `ChunkShift.Patching` only. The CSP format depends on RFC 8878 and CSP §5.2, not on this package (D6).
 - **Reopen if:** a frame this backend writes is rejected by libzstd or differs in meaning; the packed-package NativeAOT consumer (P8) reports a trim/AOT warning; a security advisory; or the .NET 11 evaluation of D6 passes.
 - **Result:** all 9,192 probe frames (levels 3, 9 and 19, with and without a base-chunk dictionary, JIT and NativeAOT) are byte-identical to libzstd 1.5.7's, each implementation decodes the other's frames, the frames meet the §5.2 header rules, and the NativeAOT publish reports no trim or AOT warning.
@@ -149,7 +151,7 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 ### D13. Re-chunk verification on apply
 
 - **Decision:** on by default when the embedded profile is registered (CSP §9.5 SHOULD). It adds no content integrity (every output chunk already matches its `ChunkId`); it checks that the target manifest is what its profile produces.
-- **Evidence still to add:** P10 measures apply with and without it.
+- **Evidence still to add:** P10 measures apply with and without it (ExperimentId `PATCH-APPLY-001`).
 - **Reopen if:** the cost is material; then a later options type may expose it.
 - **Status:** provisional until P10.
 
@@ -164,9 +166,9 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 
 ### D15. zstd level, dictionary size and search
 
-- **Starting point:** the study's settings: level 19, up to 2 contiguous base chunks per dictionary, up to 8 candidate runs within 256 KiB of the target offset ([CSP-ENCODING-EVIDENCE-2026-09.md](../benchmarks/CSP-ENCODING-EVIDENCE-2026-09.md)).
+- **Starting point:** the study's settings: level 19, up to 2 contiguous base chunks per dictionary, up to 8 candidate runs within 256 KiB of the target offset ([CSP-ENCODING-EVIDENCE-2026-09.md](../benchmarks/CSP-ENCODING-EVIDENCE-2026-09.md), ExperimentId `PATCH-ENC-001`).
 - **Result (P5):** `CspEncoderPolicy.Default` holds these settings. Each distinct missing chunk is stored in the cheapest of raw, zstd without a dictionary and zstd against each candidate, where a dictionary costs 32 bytes per named chunk; ties prefer raw, then zstd without a dictionary, so no stored form exceeds its chunk. The creation tests produce all three forms.
-- **Evidence still to add:** the sweep of level, K, candidate count and radius for patch size against create time moves to P10. It needs the frozen multi-product corpus of CSP §10.2 (P11); tuned on the synthetic test scenarios, the policy would fit synthetic data.
+- **Evidence still to add:** the sweep of level, K, candidate count and radius for patch size against create time moves to P10 (ExperimentId `PATCH-ENC-002`). It needs the frozen multi-product corpus of CSP §10.2 (P11); tuned on the synthetic test scenarios, the policy would fit synthetic data.
 - **Status:** provisional until P10.
 
 ### D16. `BASE` is always written when a base is supplied
@@ -180,7 +182,7 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 
 - **Decision:** a block closes at 4096 entries (format maximum) or when its buffered payload reaches a byte bound, so a forward-only destination never needs more than one bounded block in memory.
 - **Result (P1):** the bound is 4 MiB (`CspWriter.DefaultPayloadBlockBytes`); an entry larger than the bound is written as a block of its own straight from the caller's buffer. A test checks that no single destination write exceeds one block.
-- **Evidence still to add:** P10 records the writer's peak memory.
+- **Evidence still to add:** P10 records the writer's peak memory (ExperimentId `PATCH-APPLY-001`).
 - **Status:** provisional until P10.
 
 ## 6. Verification and independence
