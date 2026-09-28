@@ -119,6 +119,7 @@ jobs:
         shell: bash
         env:
           CHUNKSHIFT_FUZZ_ITERATIONS: 2000
+          CHUNKSHIFT_FRAME_FUZZ_ITERATIONS: 10000
           CHUNKSHIFT_FUZZ_DUMP: ${{ runner.temp }}/csp-fuzz
         run: |
           set -euo pipefail
@@ -132,6 +133,8 @@ jobs:
             --filter "FullyQualifiedName~ChunkShift.Patching.Tests.Fuzzing"
           python tools/csp-fixtures/decode.py --compare "$CHUNKSHIFT_FUZZ_DUMP"
           python tools/csp-fixtures/forward_apply.py --compare "$CHUNKSHIFT_FUZZ_DUMP"
+          # Mutated zstd frames alone: ZstdSharp against the runner's libzstd.
+          python tools/csp-fixtures/decode.py --compare-frames "$CHUNKSHIFT_FUZZ_DUMP"
 
       - name: Verify external fastcdc-rs 5.0.0 vector
         if: matrix.rid == 'linux-x64'
