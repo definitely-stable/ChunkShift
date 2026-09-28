@@ -19,11 +19,10 @@ namespace ChunkShift.Patching.Creation;
 /// the target record offset.
 /// </param>
 /// <remarks>
-/// <see cref="Default"/> holds the settings of the CSP encoding study
-/// (docs/benchmarks/CSP-ENCODING-EVIDENCE-2026-09.md); D15 is settled by a
-/// later level and dictionary sweep. The public <see cref="ChunkPatch"/> API
-/// always uses <see cref="Default"/>; the raw-only level exists for the
-/// pre-freeze protocol's raw CSP lane
+/// <see cref="Default"/> holds the winner of the pre-freeze encoder sweep
+/// (D15; docs/research/results/PATCH-ENC-002-EVIDENCE-20260928-001.md). The
+/// public <see cref="ChunkPatch"/> API always uses <see cref="Default"/>; the
+/// raw-only level exists for the pre-freeze protocol's raw CSP lane
 /// (docs/benchmarks/PATCH-PREFREEZE-PROTOCOL.md section 2).
 /// </remarks>
 internal sealed record CspEncoderPolicy(
@@ -33,9 +32,9 @@ internal sealed record CspEncoderPolicy(
     int SearchRadius)
 {
     /// <summary>
-    /// Gets the study's settings: zstd level 19, two contiguous base chunks per
-    /// dictionary, up to eight candidates within 256 KiB of the target offset.
+    /// Gets zstd level 19, four contiguous base chunks per dictionary, up to
+    /// eight candidates within 256 KiB of the target offset.
     /// </summary>
     internal static CspEncoderPolicy Default { get; } =
-        new(Level: 19, DictionaryChunks: 2, MaxCandidates: 8, SearchRadius: 256 * 1024);
+        new(Level: 19, DictionaryChunks: 4, MaxCandidates: 8, SearchRadius: 256 * 1024);
 }

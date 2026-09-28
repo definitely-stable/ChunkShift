@@ -9,9 +9,9 @@ public class PatchLabLaneTests
     {
         var expected = new Dictionary<string, PatchLabPolicy>(StringComparer.Ordinal)
         {
-            ["csp"] = new PatchLabPolicy(19, 2, 8, 256 * 1024),
+            ["csp"] = new PatchLabPolicy(19, 4, 8, 256 * 1024),
             ["csp-zstd"] = new PatchLabPolicy(19, 0, 8, 256 * 1024),
-            ["csp-raw"] = new PatchLabPolicy(0, 2, 8, 256 * 1024),
+            ["csp-raw"] = new PatchLabPolicy(0, 4, 8, 256 * 1024),
         };
 
         foreach (int level in (int[])[9, 19])

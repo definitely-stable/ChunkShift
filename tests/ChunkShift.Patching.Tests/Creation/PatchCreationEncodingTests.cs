@@ -62,6 +62,39 @@ public sealed class PatchCreationEncodingTests
             await CreationTestSupport.ReconstructAsync(patch, baseManifest, scenario.BaseContent));
     }
 
+    // The builder reuses its dictionary and frame buffers across candidates and
+    // chunks; every K must still name the dictionary its frame was encoded
+    // against, or the reconstruction fails.
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(4)]
+    public async Task DictionaryEntries_ReconstructAtEveryDictionarySize(int dictionaryChunks)
+    {
+        PatchScenario scenario = PatchScenarios.Find(PatchScenarios.EditedChunks);
+        byte[] baseManifest = await CreationTestSupport.CreateManifestAsync(
+            scenario.BaseContent,
+            HashSuiteIds.Sha256V1);
+        byte[] targetManifest = await CreationTestSupport.CreateManifestAsync(
+            scenario.TargetContent,
+            HashSuiteIds.Sha256V1);
+        byte[] patch = await CreationTestSupport.CreatePatchWithPolicyAsync(
+            scenario,
+            baseManifest,
+            targetManifest,
+            CspEncoderPolicy.Default with { DictionaryChunks = dictionaryChunks });
+
+        CspReader reader = await CreationTestSupport.OpenAsync(patch);
+
+        Assert.Contains(reader.Index, static entry => entry.DictionaryCount > 0);
+        Assert.All(
+            reader.Index,
+            entry => Assert.InRange(entry.DictionaryCount, 0, dictionaryChunks));
+        Assert.Equal(
+            scenario.TargetContent,
+            await CreationTestSupport.ReconstructAsync(patch, baseManifest, scenario.BaseContent));
+    }
+
     [Theory]
     [InlineData(PatchScenarios.Different)]
     [InlineData(PatchScenarios.Inserted)]

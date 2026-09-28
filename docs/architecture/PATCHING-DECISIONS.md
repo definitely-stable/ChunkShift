@@ -172,7 +172,7 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 - **Starting point:** the study's settings: level 19, up to 2 contiguous base chunks per dictionary, up to 8 candidate runs within 256 KiB of the target offset ([CSP-ENCODING-EVIDENCE-2026-09.md](../benchmarks/CSP-ENCODING-EVIDENCE-2026-09.md), ExperimentId `PATCH-ENC-001`).
 - **Result (P5):** `CspEncoderPolicy.Default` holds these settings. Each distinct missing chunk is stored in the cheapest of raw, zstd without a dictionary and zstd against each candidate, where a dictionary costs 32 bytes per named chunk; ties prefer raw, then zstd without a dictionary, so no stored form exceeds its chunk. The creation tests produce all three forms.
 - **Evidence:** *measurement* — `PATCH-ENC-002` ([PATCH-ENC-002-EVIDENCE-20260928-001](../research/results/PATCH-ENC-002-EVIDENCE-20260928-001.md)): on the frozen corpus, level 19 with K = 4, 8 candidates and 256 KiB saves 6.50 % of the calibration bytes against the study's settings at 1.29× their calibration create time, and its holdout bytes are 5.0 % smaller.
-- **Decision:** the default becomes level 19, K = 4, 8 candidates, 256 KiB; `CspEncoderPolicy.Default` changes in the pull request that follows the record.
+- **Decision:** the default becomes level 19, K = 4, 8 candidates, 256 KiB, and `CspEncoderPolicy.Default` holds it.
 - **Reopen if:** a follow-up experiment trades bytes for create time (level 9 with K = 4 and 16 candidates, see the record's limitations).
 - **Status:** confirmed.
 
@@ -188,7 +188,8 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 - **Decision:** a block closes at 4096 entries (format maximum) or when its buffered payload reaches a byte bound, so a forward-only destination never needs more than one bounded block in memory.
 - **Result (P1):** the bound is 4 MiB (`CspWriter.DefaultPayloadBlockBytes`); an entry larger than the bound is written as a block of its own straight from the caller's buffer. A test checks that no single destination write exceeds one block.
 - **Evidence:** *measurement* — `PATCH-APPLY-001` rule A2 ([PATCH-APPLY-001-EVIDENCE-20260928-001](../research/results/PATCH-APPLY-001-EVIDENCE-20260928-001.md)): apply stays within 64 MiB over idle on every platform (worst +39.9 MiB), and so does create on win-x64 (+57.7 MiB). Create exceeds it on linux-x64 (+151.2 MiB) and linux-arm64 (+185.2 MiB). Verdict DEFER. Create of the worst file completes under a 48 MiB GC heap limit, so the peak is garbage collected late, most likely the dictionary and compression buffers `ChooseEntryAsync` allocates per candidate.
-- **Evidence still to add:** reuse those buffers, rerun the memory lane on both Linux lanes under a new EvidenceId of `PATCH-APPLY-001`.
+- **Result (A2 follow-up):** `ChooseEntryAsync` reads every dictionary candidate into one of two reused 1 MiB buffers (candidate and best so far) and keeps the best frame in a reused buffer; `CspPayloadEncoder` compresses into a reused compress-bound buffer instead of ZstdSharp's per-call array. Patch bytes are unchanged: at K = 2 the new build reproduces the previous build's patches byte for byte on five corpus files from 1.3 to 120.6 MiB, `bin/node` of Node.js 24.19.0 → 24.20.0 included (SHA-256 `54aba84e…b585`).
+- **Evidence still to add:** the memory lane rerun on both Linux lanes, with the K = 4 default, under a new EvidenceId of `PATCH-APPLY-001`.
 - **Status:** provisional until that rerun.
 
 ## 6. Verification and independence

@@ -20,8 +20,9 @@ namespace ChunkShift.Patching.Encoding;
 /// Every returned frame is checked against <see cref="ZstdFrameEnvelope"/> for
 /// exactly the chunk length, so the encoder cannot emit a frame the format
 /// rejects. The encoder does not choose between raw and zstd encoding: that is
-/// the caller's policy. It is not thread-safe and must not be called after
-/// <see cref="Dispose"/>.
+/// the caller's policy. The returned frame lives in a buffer the encoder
+/// reuses, so it is valid only until the next call. The encoder is not
+/// thread-safe and must not be called after <see cref="Dispose"/>.
 /// </para>
 /// </remarks>
 internal sealed class CspPayloadEncoder : IDisposable
@@ -30,6 +31,7 @@ internal sealed class CspPayloadEncoder : IDisposable
     private const int DefaultWindowLog = 0;
 
     private readonly Compressor _compressor;
+    private byte[] _frameBuffer = [];
     private bool _disposed;
 
     /// <param name="level">Zstd compression level, 1..22.</param>
@@ -44,7 +46,10 @@ internal sealed class CspPayloadEncoder : IDisposable
     /// Concatenated raw dictionary content of the entry's named base chunks, or
     /// an empty span for no dictionary.
     /// </param>
-    /// <returns>The stored bytes of one encoding-1 payload entry.</returns>
+    /// <returns>
+    /// The stored bytes of one encoding-1 payload entry, valid until the next
+    /// call.
+    /// </returns>
     /// <exception cref="ObjectDisposedException">The encoder has been disposed.</exception>
     /// <exception cref="ArgumentException">
     /// <paramref name="dictionary"/> exceeds 1 MiB or starts with the zstd
@@ -53,7 +58,7 @@ internal sealed class CspPayloadEncoder : IDisposable
     /// <exception cref="InvalidOperationException">
     /// The backend produced a frame that <see cref="ZstdFrameEnvelope"/> rejects.
     /// </exception>
-    internal byte[] EncodeZstd(ReadOnlySpan<byte> chunk, ReadOnlySpan<byte> dictionary)
+    internal ReadOnlySpan<byte> EncodeZstd(ReadOnlySpan<byte> chunk, ReadOnlySpan<byte> dictionary)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -72,8 +77,17 @@ internal sealed class CspPayloadEncoder : IDisposable
                 ? MaximumWindowLog
                 : DefaultWindowLog);
 
-        // Wrap returns a span over a compress-bound buffer; keep exactly the frame.
-        byte[] frame = _compressor.Wrap(chunk).ToArray();
+        // Wrap(ReadOnlySpan<byte>) allocates a compress-bound array per call;
+        // the create path encodes each chunk up to nine times, so the buffer
+        // is reused instead.
+        int bound = Compressor.GetCompressBound(chunk.Length);
+
+        if (_frameBuffer.Length < bound)
+        {
+            _frameBuffer = new byte[Math.Max(bound, _frameBuffer.Length * 2)];
+        }
+
+        ReadOnlySpan<byte> frame = _frameBuffer.AsSpan(0, _compressor.Wrap(chunk, _frameBuffer));
 
         try
         {
