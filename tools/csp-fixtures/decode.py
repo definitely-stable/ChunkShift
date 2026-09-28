@@ -458,6 +458,53 @@ def _frame_envelope(stored: bytes, length: int) -> None:
         raise Malformed(30, "zstd Frame_Content_Size differs from the chunk Length")
     if (window if window is not None else content_size) > MAX_WINDOW_BYTES:
         raise Malformed(30, "zstd window exceeds 1 MiB")
+    _check_sequence_headers(stored, position + fcs_size)
+
+
+def _check_sequence_headers(stored: bytes, position: int) -> None:
+    """Reject reserved Symbol_Compression_Modes bits (RFC 8878 3.1.1.3.2.1).
+
+    The RFC requires them to be zero. libzstd enforces that only from 1.5.6, so
+    the check is made here to keep the verdict independent of the libzstd the
+    interpreter links. Truncation and every other block rule are left to libzstd.
+    """
+
+    while position + 3 <= len(stored):
+        header = int.from_bytes(stored[position:position + 3], "little")
+        last, block_type, block_size = header & 1, (header >> 1) & 3, header >> 3
+        start = position + 3
+        position = start + (1 if block_type == 1 else block_size)
+        if block_type == 2 and position <= len(stored):
+            block = stored[start:position]
+            literals = _literals_section_size(block)
+            if literals is not None and literals < len(block):
+                count = block[literals]
+                modes_at = literals + (1 if count < 128 else 2 if count < 255 else 3)
+                if count != 0 and modes_at < len(block) and block[modes_at] & 0x03:
+                    raise Malformed(29, "zstd Symbol_Compression_Modes reserved bits are set")
+        if last:
+            return
+
+
+def _literals_section_size(block: bytes) -> int | None:
+    """Return the byte length of a compressed block's Literals_Section."""
+
+    if not block:
+        return None
+    literals_type, size_format = block[0] & 3, (block[0] >> 2) & 3
+    if literals_type in (0, 1):  # raw or RLE
+        header = (1, 2, 1, 3)[size_format]
+        if len(block) < header:
+            return None
+        value = int.from_bytes(block[:header], "little")
+        regenerated = value >> (3 if header == 1 else 4)
+        return header + (regenerated if literals_type == 0 else 1)
+    header = (3, 3, 4, 5)[size_format]  # compressed or treeless
+    if len(block) < header:
+        return None
+    bits = (10, 10, 14, 18)[size_format]
+    value = int.from_bytes(block[:header], "little") >> 4
+    return header + ((value >> bits) & ((1 << bits) - 1))
 
 
 def _decode_zstd(stored: bytes, length: int, dictionary: bytes) -> bytes:
