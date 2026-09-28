@@ -408,6 +408,48 @@ jobs:
 
           test -z "$(find artifacts/cli-smoke -name '*.tmp')"
 
+      - name: CLI patch apply and create on a full disk
+        if: matrix.os == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A 512 KiB tmpfs cannot hold the 1 MiB target or the 1 MiB
+          # self-contained patch: both fail with the file system's error, the
+          # existing destination keeps its bytes and no temporary file remains.
+          full=artifacts/cli-smoke/full
+          mkdir -p "$full"
+          sudo mount -t tmpfs -o size=512k,uid="$(id -u)",gid="$(id -g)" tmpfs "$full"
+          trap 'sudo umount "$full"' EXIT
+          printf 'previous' > "$full/target.bin"
+
+          set +e
+          dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
+            patch apply artifacts/cli-smoke/edited.csp -o "$full/target.bin" \
+            --base-manifest artifacts/cli-smoke/content.csm --base artifacts/cli-smoke/content.bin \
+            > artifacts/cli-smoke/apply-full.txt 2>&1
+          status=$?
+          set -e
+
+          cat artifacts/cli-smoke/apply-full.txt
+          test "$status" -eq 1
+          grep -q '^error: No space left on device' artifacts/cli-smoke/apply-full.txt
+          test "$(cat "$full/target.bin")" = previous
+
+          set +e
+          dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
+            patch create --target-manifest artifacts/cli-smoke/edited.csm --target artifacts/cli-smoke/edited.bin \
+            -o "$full/self.csp" \
+            > artifacts/cli-smoke/create-full.txt 2>&1
+          status=$?
+          set -e
+
+          cat artifacts/cli-smoke/create-full.txt
+          test "$status" -eq 1
+          grep -q '^error: No space left on device' artifacts/cli-smoke/create-full.txt
+          test ! -e "$full/self.csp"
+
+          test "$(ls -A "$full")" = target.bin
+
   package-smoke:
     name: package-smoke
     needs: build-test
