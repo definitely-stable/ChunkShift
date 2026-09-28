@@ -41,11 +41,19 @@ internal sealed record PatchLabFileResult(
     double? ApplyNoCheckSeconds);
 
 /// <summary>One <c>patch-lab memory</c> result document (<c>chunkshift.patch-lab-memory.v1</c>).</summary>
+/// <remarks>
+/// <see cref="Lane"/> and <see cref="Policy"/> name the encoder policy of the
+/// create children; <see cref="MemoryEnvironment"/> holds the allocator and GC
+/// variables every child inherited (glibc <c>MALLOC_*</c>, <c>DOTNET_GC*</c>).
+/// </remarks>
 internal sealed record PatchLabMemoryResult(
     string Schema,
     string? RunId,
+    string Lane,
+    PatchLabPolicy Policy,
     string CorpusPairsSha256,
     EnvironmentSnapshot Environment,
+    IReadOnlyDictionary<string, string> MemoryEnvironment,
     long IdleBaselineBytes,
     PatchLabMemoryFile[] Files);
 

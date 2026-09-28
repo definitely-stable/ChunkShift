@@ -15,6 +15,7 @@ public class PatchLabMemoryTests
                 "--families", "tzdata, node-win-x64",
                 "--run-id", "PATCH-APPLY-001/RUN-1",
                 "--work", "work",
+                "--lane", "sweep-L19-K2-C8",
             ],
             out PatchLabMemoryOptions options,
             out string? error));
@@ -26,6 +27,7 @@ public class PatchLabMemoryTests
         Assert.Equal(["tzdata", "node-win-x64"], options.Families!);
         Assert.Equal("PATCH-APPLY-001/RUN-1", options.RunId);
         Assert.Equal("work", options.Work);
+        Assert.Equal("sweep-L19-K2-C8", options.Lane);
     }
 
     [Fact]
@@ -40,6 +42,40 @@ public class PatchLabMemoryTests
         Assert.Null(options.Families);
         Assert.Null(options.RunId);
         Assert.Null(options.Work);
+        Assert.Equal("csp", options.Lane);
+    }
+
+    [Fact]
+    public void UnknownLaneIsRejected()
+    {
+        Assert.False(PatchLabMemoryOptions.TryParse(
+            ["--corpus", "root", "--output", "memory.json", "--lane", "sweep-L3-K2-C8"],
+            out _,
+            out string? error));
+        Assert.Contains("sweep-L3-K2-C8", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MemoryEnvironmentKeepsOnlyAllocatorAndGcVariables()
+    {
+        System.Environment.SetEnvironmentVariable("MALLOC_ARENA_MAX", "2");
+        System.Environment.SetEnvironmentVariable("DOTNET_GCHeapHardLimit", "0x3000000");
+        System.Environment.SetEnvironmentVariable("CHUNKSHIFT_PATCH_LAB_OTHER", "1");
+
+        try
+        {
+            SortedDictionary<string, string> variables = PatchLabMemory.MemoryEnvironment();
+
+            Assert.Equal("2", variables["MALLOC_ARENA_MAX"]);
+            Assert.Equal("0x3000000", variables["DOTNET_GCHeapHardLimit"]);
+            Assert.False(variables.ContainsKey("CHUNKSHIFT_PATCH_LAB_OTHER"));
+        }
+        finally
+        {
+            System.Environment.SetEnvironmentVariable("MALLOC_ARENA_MAX", null);
+            System.Environment.SetEnvironmentVariable("DOTNET_GCHeapHardLimit", null);
+            System.Environment.SetEnvironmentVariable("CHUNKSHIFT_PATCH_LAB_OTHER", null);
+        }
     }
 
     [Fact]

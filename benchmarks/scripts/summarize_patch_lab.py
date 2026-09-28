@@ -594,6 +594,16 @@ def evaluate_apply(platforms: list[dict]) -> dict:
                     "limitBytes": MEMORY_LIMIT_BYTES,
                     "verdict": "ADOPT" if within else "DEFER",
                 }
+                # A2 is frozen for the default policy in an unmodified
+                # environment; a diagnosis run (another lane, or allocator/GC
+                # variables) is reported but never decides it.
+                lane = document.get("lane") or "csp"
+                environment = document.get("memoryEnvironment") or {}
+                if lane != "csp" or environment:
+                    settings = " ".join(f"{key}={value}" for key, value in sorted(environment.items()))
+                    a2_platforms[name]["verdict"] = None
+                    a2_platforms[name]["reason"] = (
+                        f"diagnosis run (lane {lane}{', ' + settings if settings else ''}), A2 not evaluated")
         else:
             a2_platforms[name] = {"verdict": None, "reason": "no memory file"}
             a2_missing.append(name)
@@ -613,7 +623,14 @@ def evaluate_apply(platforms: list[dict]) -> dict:
         notes.append("A2: no memory records on " + ", ".join(a2_missing))
     if a1_verdict == NOT_EVALUATED and not a1_missing:
         notes.append("A1: no usable csp apply and apply-no-check timings")
-    if a2_verdict == NOT_EVALUATED and not a2_missing:
+    diagnosis = [
+        f"{name}: {entry['reason']}"
+        for name, entry in a2_platforms.items()
+        if (entry.get("reason") or "").startswith("diagnosis run")
+    ]
+    if diagnosis:
+        notes.append("A2: " + "; ".join(diagnosis))
+    elif a2_verdict == NOT_EVALUATED and not a2_missing:
         notes.append("A2: no usable memory records")
 
     used_platforms = [

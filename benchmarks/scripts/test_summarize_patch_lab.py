@@ -17,6 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import print_patch_lab_memory as memory_print  # noqa: E402
 import summarize_patch_lab as summary  # noqa: E402
 
 PAIRS_SHA256 = "0" * 64
@@ -558,6 +559,69 @@ class ProvenanceTests(unittest.TestCase):
         self.assertEqual(document["experiments"]["PATCH-ENC-002"]["verdict"], "not evaluated")
         self.assertEqual(document["experiments"]["PATCH-APPLY-001"]["verdict"], "not evaluated")
         self.assertIn("not evaluated", markdown)
+
+
+class DiagnosisMemoryTests(unittest.TestCase):
+    def test_a_diagnosis_memory_run_never_decides_a2(self) -> None:
+        within = {"family": "f", "base": "1", "target": "2", "path": "a", "targetSize": 2 * MIB,
+                  "createPeakBytes": 40 * MIB, "applyPeakBytes": 35 * MIB}
+        for lane, environment in (("sweep-L19-K2-C8", {}), ("csp", {"MALLOC_ARENA_MAX": "2"})):
+            platform = {
+                "name": "x64",
+                "lanes": {},
+                "runIds": [],
+                "memory": {
+                    "idleBaselineBytes": 30 * MIB,
+                    "lane": lane,
+                    "memoryEnvironment": environment,
+                    "files": [within],
+                },
+            }
+            result = summary.evaluate_apply([platform])
+            self.assertEqual(summary.NOT_EVALUATED, result["verdict"])
+            self.assertIsNone(result["rules"]["A2"]["platforms"]["x64"]["verdict"])
+            self.assertIn("diagnosis run", result["reason"])
+            self.assertIn(lane, result["reason"])
+
+
+class PrintMemoryTests(unittest.TestCase):
+    def document(self, files: list[dict]) -> dict:
+        return {
+            "schema": "chunkshift.patch-lab-memory.v1",
+            "runId": "PATCH-APPLY-001/RUN-1",
+            "lane": "sweep-L19-K2-C8",
+            "policy": {"level": 19, "dictionaryChunks": 2, "maxCandidates": 8, "searchRadius": 262144},
+            "memoryEnvironment": {"MALLOC_TRIM_THRESHOLD_": "131072"},
+            "idleBaselineBytes": 30 * MIB,
+            "files": files,
+        }
+
+    def test_excess_is_reported_per_file_with_worst_median_and_count(self) -> None:
+        files = [
+            {"family": "f", "base": "1", "target": "2", "path": "a", "targetSize": 2 * MIB,
+             "createPeakBytes": 130 * MIB, "applyPeakBytes": 40 * MIB},
+            {"family": "f", "base": "1", "target": "2", "path": "b", "targetSize": MIB,
+             "createPeakBytes": 60 * MIB, "applyPeakBytes": 50 * MIB},
+        ]
+        lines = memory_print.render(self.document(files))
+        self.assertIn("lane=sweep-L19-K2-C8", lines[1])
+        self.assertEqual("memoryEnvironment=MALLOC_TRIM_THRESHOLD_=131072", lines[2])
+        self.assertEqual("idle=30.0 MiB", lines[3])
+        self.assertEqual("100.0\t10.0\t2.0\tf 1->2 a", lines[5])
+        self.assertEqual("files=2 create worst=100.0 median=65.0 over64=1 apply worst=20.0", lines[-1])
+
+    def test_documents_before_the_lane_field_default_to_csp(self) -> None:
+        document = self.document([])
+        for key in ("lane", "policy", "memoryEnvironment"):
+            del document[key]
+        lines = memory_print.render(document)
+        self.assertTrue(lines[1].startswith("lane=csp "))
+        self.assertEqual("memoryEnvironment=-", lines[2])
+        self.assertEqual("files=0", lines[-1])
+
+    def test_other_schemas_are_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            memory_print.render({"schema": "chunkshift.patch-lab.v1"})
 
 
 if __name__ == "__main__":

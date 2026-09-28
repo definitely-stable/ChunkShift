@@ -77,7 +77,8 @@ internal sealed record PatchLabMemoryOptions(
     long MinBytes,
     string[]? Families,
     string? RunId,
-    string? Work)
+    string? Work,
+    string Lane)
 {
     private const long DefaultMinBytes = 1024 * 1024;
 
@@ -116,6 +117,14 @@ internal sealed record PatchLabMemoryOptions(
             return false;
         }
 
+        string lane = PatchLabArguments.Value(args, "--lane") ?? "csp";
+
+        if (!PatchLabLane.TryParse(lane, out _))
+        {
+            error = $"Unknown lane '{lane}'; expected one of: {string.Join(", ", PatchLabLane.Names)}.";
+            return false;
+        }
+
         try
         {
             options = new PatchLabMemoryOptions(
@@ -124,7 +133,8 @@ internal sealed record PatchLabMemoryOptions(
                 minBytes,
                 PatchLabArguments.Families(PatchLabArguments.Value(args, "--families")),
                 PatchLabArguments.Value(args, "--run-id"),
-                PatchLabArguments.Value(args, "--work"));
+                PatchLabArguments.Value(args, "--work"),
+                lane);
             return true;
         }
         catch (PatchLabUsageException exception)

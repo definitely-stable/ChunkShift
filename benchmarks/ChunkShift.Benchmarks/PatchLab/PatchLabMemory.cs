@@ -72,6 +72,7 @@ internal static class PatchLabMemory
                         "--target", pair.Target,
                         "--path", file.Path,
                         "--work", corpus.WorkDirectory,
+                        "--lane", options.Lane,
                     ];
 
                     string patchPath = Path.Combine(directory, Invariant($"patch-{index}.csp"));
@@ -109,8 +110,11 @@ internal static class PatchLabMemory
             PatchLabRunner.WriteJson(options.Output, new PatchLabMemoryResult(
                 Schema,
                 options.RunId,
+                options.Lane,
+                PatchLabLane.Describe(PatchLabLane.Parse(options.Lane)),
                 corpus.PairsSha256,
                 PatchLabRunner.Snapshot(),
+                MemoryEnvironment(),
                 idleBaselineBytes,
                 [.. files]));
 
@@ -120,6 +124,28 @@ internal static class PatchLabMemory
         {
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    /// <summary>
+    /// Returns the allocator and GC variables the children inherit, sorted by
+    /// name, so a run records the memory configuration it measured.
+    /// </summary>
+    internal static SortedDictionary<string, string> MemoryEnvironment()
+    {
+        var variables = new SortedDictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (System.Collections.DictionaryEntry entry in System.Environment.GetEnvironmentVariables())
+        {
+            string name = (string)entry.Key;
+
+            if (name.StartsWith("MALLOC_", StringComparison.Ordinal) ||
+                name.StartsWith("DOTNET_GC", StringComparison.OrdinalIgnoreCase))
+            {
+                variables[name] = (string?)entry.Value ?? string.Empty;
+            }
+        }
+
+        return variables;
     }
 
     /// <summary>
