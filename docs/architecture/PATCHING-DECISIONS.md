@@ -80,7 +80,7 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 ### D6. Codec semantics and later backends
 
 - **Decision:** encoding 1 is defined by RFC 8878 plus the CSP §5.2 restrictions. Replacing the backend (for example by the BCL codec on `net11.0`) changes no persisted identifier and needs no format revision. It is adopted only after .NET 11 is generally available and the backend reproduces every committed CSP vector and the product-corpus results. No abstraction is added for that future backend now (AGENTS.md).
-- **Freeze follow-up:** when CSP v1 freezes (P12), AGENTS.md gets a rule like the BLAKE3 one: a zstd backend or version change must reproduce every CSP decoder vector before merge.
+- **Freeze follow-up (done at P12):** AGENTS.md has a rule like the BLAKE3 one: a zstd backend or version change must reproduce every committed CSP vector and pass the frame comparison against the independent decoder before merge.
 - **Status:** confirmed.
 
 ### D7. Patch bytes are not a contract
@@ -140,7 +140,7 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 
 - **Evidence:** *spec* — CSP-V1-CANDIDATE §6 and §12 (h). *compatibility* — relaxing a requirement later is additive, tightening it is breaking, so v1 requires exactly what the algorithm needs today.
 - **Reopen if:** forward-only apply of the target-ordered layout is taken up (the later optimization named by decision (h)).
-- **Evidence (before P12):** [CSP-V1-FORWARD-ONLY-APPLY.md](CSP-V1-FORWARD-ONLY-APPLY.md). A prototype that reads the patch once, front to back, holding back only the TRAILER and retaining no stored payload bytes, reaches decode.py's verdict on all 125 vectors, the 16 created scenario patches and 20,338 fuzz cases, provided it decides only after EOF in D21 order. The v1 bytes admit forward-only apply; §6's "before any output exists" for the `FileDigest` and the base binding does not. Whether the frozen text says "published" instead is an owner decision at P12. CI checks the prototype against decode.py on the vectors, heavy validation on the fuzz dump.
+- **Evidence (before P12):** [CSP-V1-FORWARD-ONLY-APPLY.md](CSP-V1-FORWARD-ONLY-APPLY.md). A prototype that reads the patch once, front to back, holding back only the TRAILER and retaining no stored payload bytes, reaches decode.py's verdict on all 125 vectors, the 16 created scenario patches and 20,338 fuzz cases, provided it decides only after EOF in D21 order. The v1 bytes admit forward-only apply; §6's "before any output exists" for the `FileDigest` and the base binding does not. At P12 the owner took option 2 as CSP §12 decision (k): §6 now requires the verdict and no publication before every check, with "before any output exists" a SHOULD for random-access appliers. CI checks the prototype against decode.py on the vectors, heavy validation on the fuzz dump.
 - **Status:** confirmed.
 
 ### D12. Publication of the applied target
@@ -232,7 +232,7 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
   4. base binding: HashSuite, then base-manifest integrity, then `ManifestId`;
   5. target records in order, stopping at the first failure;
   6. the total length.
-- **Decision — clarifications (proposed for the specification at the freeze, P12):**
+- **Decision — clarifications (folded into CSP v1 at the freeze, P12: §3.4, §4.3, the verdict order of §6 and rules 5, 7, 8, 9, 17, 20 and 23):**
   1. CRC before interpretation: a corrupted field inside a CRC-covered section reports the CRC (rule 9), never a field rule or an unsupported encoding.
   2. `StoredLength = 0` is malformed (rule 8): §4.6 requires `> 0`, but §7 names no rule.
   3. Rule 20's "BASE is present and no base is supplied" applies to base-dependent patches; a self-contained patch carrying `BASE` applies without a base (§3.3).

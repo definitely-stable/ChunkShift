@@ -1,6 +1,6 @@
 # CSP v1: can a patch be applied reading it forward only?
 
-Status: analysis for the owner decision at the CSP v1 freeze (P12); changes no rule by itself  
+Status: analysis for the owner decision at the CSP v1 freeze (P12). Decided 2026-09-28: option 2, CSP §12 decision (k)  
 Date: 2026-09-28  
 Issue: [#7](https://github.com/definitely-stable/ChunkShift/issues/7) · Specification: [CSP-V1-CANDIDATE.md](CSP-V1-CANDIDATE.md) §6, §12 (h) · Register: [PATCHING-DECISIONS.md](PATCHING-DECISIONS.md) D11, D12, D21  
 Prototype: [`tools/csp-fixtures/forward_apply.py`](../../tools/csp-fixtures/forward_apply.py)
