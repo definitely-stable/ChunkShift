@@ -226,7 +226,7 @@
         7
       ],
       "area": "patching",
-      "status": "PLANNED",
+      "status": "ADOPT",
       "question": "encoder policy sweep: level, dictionary chunks, candidates, radius"
     },
     {
@@ -235,7 +235,7 @@
         7
       ],
       "area": "patching",
-      "status": "PLANNED",
+      "status": "DEFER",
       "question": "apply cost, re-chunk check, writer peak memory"
     },
     {
@@ -244,7 +244,7 @@
         7
       ],
       "area": "patching",
-      "status": "PLANNED",
+      "status": "ADOPT",
       "question": "CSP v1 pre-freeze product evidence (CSP section 10.2)"
     },
     {
