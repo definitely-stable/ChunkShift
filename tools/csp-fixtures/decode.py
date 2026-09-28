@@ -466,13 +466,22 @@ def _frame_envelope(stored: bytes, length: int) -> None:
 
 
 def _check_sequence_headers(stored: bytes, position: int) -> None:
-    """Reject reserved Symbol_Compression_Modes bits (RFC 8878 3.1.1.3.2.1).
+    """Check the Sequences_Section of every compressed block (RFC 8878 3.1.1.3.2).
 
-    The RFC requires them to be zero. libzstd enforces that only from 1.5.6, so
-    the check is made here to keep the verdict independent of the libzstd the
-    interpreter links. Truncation and every other block rule are left to libzstd.
+    Two rules that libzstd enforces only from 1.5.6 are checked here, so the
+    verdict does not depend on the libzstd the interpreter links:
+
+    - the reserved Symbol_Compression_Modes bits must be zero;
+    - the sequence bitstream must be consumed exactly: decoding the declared
+      number of sequences reads every bit below the padding marker, no more
+      and no fewer. libzstd 1.5.5 accepts spare bits there.
+
+    A section this check cannot follow (a truncated block, an invalid table
+    description, a repeat mode without an earlier table, an invalid symbol) is
+    left to libzstd, which rejects it in every version.
     """
 
+    tables: dict[str, list[tuple[int, int, int]] | None] = {"ll": None, "of": None, "ml": None}
     while position + 3 <= len(stored):
         header = int.from_bytes(stored[position:position + 3], "little")
         last, block_type, block_size = header & 1, (header >> 1) & 3, header >> 3
@@ -486,8 +495,182 @@ def _check_sequence_headers(stored: bytes, position: int) -> None:
                 modes_at = literals + (1 if count < 128 else 2 if count < 255 else 3)
                 if count != 0 and modes_at < len(block) and block[modes_at] & 0x03:
                     raise Malformed(29, "zstd Symbol_Compression_Modes reserved bits are set")
+                if not _check_sequence_bitstream(block, literals, tables):
+                    tables = {"ll": None, "of": None, "ml": None}
         if last:
             return
+
+
+# RFC 8878 3.1.1.3.2.2: predefined distributions, their accuracy logs, the
+# largest symbol of each code and the (baseline, extra bits) of every
+# Literals_Length and Match_Length code.
+_LL_DEFAULT = [4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 1, 1, 1, 1, 1,
+               -1, -1, -1, -1]
+_ML_DEFAULT = [1, 4, 3, 2, 2, 2, 2, 2, 2] + [1] * 37 + [-1] * 7
+_OF_DEFAULT = [1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1]
+_SEQUENCE_CODES = {  # kind: (predefined distribution, predefined accuracy log, largest symbol, largest accuracy log)
+    "ll": (_LL_DEFAULT, 6, 35, 9),
+    "of": (_OF_DEFAULT, 5, 31, 8),
+    "ml": (_ML_DEFAULT, 6, 52, 9),
+}
+_LL_EXTRA = [0] * 16 + [1, 1, 1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+_ML_EXTRA = [0] * 32 + [1, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+
+
+def _fse_table(distribution: list[int], accuracy_log: int) -> list[tuple[int, int, int]]:
+    """Build an FSE decoding table: (symbol, bits to read, baseline) per state (RFC 8878 4.1.1)."""
+
+    size = 1 << accuracy_log
+    high = size - 1
+    symbols = [0] * size
+    next_state = {}
+    for symbol, probability in enumerate(distribution):
+        if probability == -1:
+            symbols[high] = symbol
+            high -= 1
+            next_state[symbol] = 1
+        else:
+            next_state[symbol] = probability
+    step, mask, position = (size >> 1) + (size >> 3) + 3, size - 1, 0
+    for symbol, probability in enumerate(distribution):
+        for _ in range(max(probability, 0)):
+            symbols[position] = symbol
+            position = (position + step) & mask
+            while position > high:
+                position = (position + step) & mask
+    table = []
+    for state in range(size):
+        symbol = symbols[state]
+        value = next_state[symbol]
+        next_state[symbol] += 1
+        bits = accuracy_log - (value.bit_length() - 1)
+        table.append((symbol, bits, (value << bits) - size))
+    return table
+
+
+def _fse_description(data: bytes, max_symbol: int, max_log: int) -> tuple[list[int], int, int] | None:
+    """Read an FSE table description; return (distribution, accuracy log, bytes) or None if invalid."""
+
+    value = int.from_bytes(data, "little")
+    accuracy_log = (value & 0x0F) + 5
+    if accuracy_log > max_log:
+        return None
+    bit = 4
+    remaining = (1 << accuracy_log) + 1
+    threshold = 1 << accuracy_log
+    width = accuracy_log + 1
+    distribution: list[int] = []
+    while remaining > 1 and len(distribution) <= max_symbol:
+        largest = (2 * threshold - 1) - remaining
+        low = (value >> bit) & (threshold - 1)
+        if low < largest:
+            count, bit = low, bit + width - 1
+        else:
+            count = (value >> bit) & (2 * threshold - 1)
+            if count >= threshold:
+                count -= largest
+            bit += width
+        count -= 1
+        remaining -= abs(count)
+        distribution.append(count)
+        if count == 0:
+            while True:
+                repeat = (value >> bit) & 3
+                bit += 2
+                distribution.extend([0] * repeat)
+                if repeat != 3:
+                    break
+        while remaining < threshold:
+            width -= 1
+            threshold >>= 1
+    size = (bit + 7) >> 3
+    if remaining != 1 or len(distribution) > max_symbol + 1 or size > len(data):
+        return None
+    return distribution, accuracy_log, size
+
+
+def _check_sequence_bitstream(block: bytes, literals: int,
+                              tables: dict[str, list[tuple[int, int, int]] | None]) -> bool:
+    """Decode one block's sequences and require the bitstream to be consumed exactly.
+
+    Updates ``tables`` for later repeat modes. Returns False when the section
+    cannot be followed (the caller then forgets the tables); raises Malformed
+    when the bitstream has spare or missing bits.
+    """
+
+    at = literals
+    first = block[at]
+    if first == 0:
+        return True
+    if first < 128:
+        count, at = first, at + 1
+    elif first < 255:
+        if at + 2 > len(block):
+            return False
+        count, at = ((first - 128) << 8) + block[at + 1], at + 2
+    else:
+        if at + 3 > len(block):
+            return False
+        count, at = block[at + 1] + (block[at + 2] << 8) + 0x7F00, at + 3
+    if at >= len(block):
+        return False
+    modes = block[at]
+    at += 1
+    decoding = {}
+    for kind, shift in (("ll", 6), ("of", 4), ("ml", 2)):
+        distribution, predefined_log, max_symbol, max_log = _SEQUENCE_CODES[kind]
+        mode = (modes >> shift) & 3
+        if mode == 0:
+            table = _fse_table(distribution, predefined_log)
+        elif mode == 1:
+            if at >= len(block) or block[at] > max_symbol:
+                return False
+            table = [(block[at], 0, 0)]
+            at += 1
+        elif mode == 2:
+            description = _fse_description(block[at:], max_symbol, max_log)
+            if description is None:
+                return False
+            table = _fse_table(description[0], description[1])
+            at += description[2]
+        else:
+            table = tables[kind]
+            if table is None:
+                return False
+        decoding[kind] = table
+    tables.update(decoding)
+
+    stream = block[at:]
+    if not stream or stream[-1] == 0:
+        return False
+    value = int.from_bytes(stream, "little")
+    available = value.bit_length() - 1
+    position = available
+
+    def read(bits: int) -> int:
+        nonlocal position
+        position -= bits
+        if position < 0:
+            return (value << -position) & ((1 << bits) - 1)
+        return (value >> position) & ((1 << bits) - 1)
+
+    ll, of, ml = decoding["ll"], decoding["of"], decoding["ml"]
+    states = {"ll": read(len(ll).bit_length() - 1), "of": read(len(of).bit_length() - 1),
+              "ml": read(len(ml).bit_length() - 1)}
+    for remaining in range(count, 0, -1):
+        of_code, ml_code, ll_code = of[states["of"]][0], ml[states["ml"]][0], ll[states["ll"]][0]
+        if of_code > 31 or ml_code > 52 or ll_code > 35:
+            return False
+        read(of_code)
+        read(_ML_EXTRA[ml_code])
+        read(_LL_EXTRA[ll_code])
+        if remaining > 1:
+            for kind, table in (("ll", ll), ("ml", ml), ("of", of)):
+                _, bits, baseline = table[states[kind]]
+                states[kind] = baseline + read(bits)
+    if position != 0:
+        raise Malformed(29, "zstd sequence bitstream is not consumed exactly")
+    return True
 
 
 def _literals_section_size(block: bytes) -> int | None:
