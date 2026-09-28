@@ -12,6 +12,10 @@
       "content": "base-a-blake3.bin",
       "manifest": "base-a-blake3.csm"
     },
+    "base-a-blake3-corrupt-content": {
+      "content": "base-a-blake3-corrupt-content.bin",
+      "manifest": "base-a-blake3-corrupt-content.csm"
+    },
     "base-a-corrupt-content": {
       "content": "base-a-corrupt-content.bin",
       "manifest": "base-a-corrupt-content.csm"
@@ -136,6 +140,65 @@
       "expect": {
         "rule": 13,
         "verdict": "malformed"
+      },
+      "stage": "structure"
+    },
+    "blake3-base-chunk-corrupt.csp": {
+      "base": "base-a-blake3-corrupt-content",
+      "expect": {
+        "failures": [
+          "BaseChunk"
+        ],
+        "verdict": "verification"
+      },
+      "stage": "apply"
+    },
+    "blake3-base-sha256.csp": {
+      "base": "base-a",
+      "expect": {
+        "failures": [
+          "BaseMismatch"
+        ],
+        "verdict": "verification"
+      },
+      "stage": "apply"
+    },
+    "blake3-patch-file-digest.csp": {
+      "base": "base-a-blake3",
+      "expect": {
+        "failures": [
+          "FileDigest"
+        ],
+        "verdict": "verification"
+      },
+      "stage": "structure"
+    },
+    "blake3-payload-hash.csp": {
+      "base": "base-a-blake3",
+      "expect": {
+        "failures": [
+          "PayloadChunk"
+        ],
+        "verdict": "verification"
+      },
+      "stage": "apply"
+    },
+    "blake3-sha256-chunk-ids.csp": {
+      "expect": {
+        "failures": [
+          "PayloadChunk"
+        ],
+        "verdict": "verification"
+      },
+      "stage": "apply"
+    },
+    "blake3-tcsm-integrity.csp": {
+      "base": "base-a-blake3",
+      "expect": {
+        "failures": [
+          "EmbeddedManifest"
+        ],
+        "verdict": "verification"
       },
       "stage": "structure"
     },
@@ -753,6 +816,35 @@
         "dependsOnBase": true,
         "outputLength": 5683,
         "outputSha256": "1d262a35d40b911a501853e0e35d87a18b34820598446aac83f00e7794d8130d",
+        "verdict": "valid"
+      },
+      "stage": "apply"
+    },
+    "valid-blake3-base-dependent.csp": {
+      "base": "base-a-blake3",
+      "expect": {
+        "dependsOnBase": true,
+        "outputLength": 5683,
+        "outputSha256": "1d262a35d40b911a501853e0e35d87a18b34820598446aac83f00e7794d8130d",
+        "verdict": "valid"
+      },
+      "stage": "apply"
+    },
+    "valid-blake3-self-contained.csp": {
+      "expect": {
+        "dependsOnBase": false,
+        "outputLength": 4112,
+        "outputSha256": "d430ffa5a895b374b1479ea5da5a47d1cc67540ae954dfc08b16000dfc2447b6",
+        "verdict": "valid"
+      },
+      "stage": "apply"
+    },
+    "valid-blake3-zstd-dictionary.csp": {
+      "base": "base-a-blake3",
+      "expect": {
+        "dependsOnBase": true,
+        "outputLength": 2800,
+        "outputSha256": "63bd36a875fa7f80e980cc4b080257a70e474165bc8dd2851a5770a5d76d6317",
         "verdict": "valid"
       },
       "stage": "apply"
