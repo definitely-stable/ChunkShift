@@ -152,6 +152,59 @@
       "question": "periodic and low-entropy adversarial matrix"
     },
     {
+      "id": "CORE011-SCAN-007",
+      "issues": [
+        153,
+        152,
+        137
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": "exact speculative parallel cutting of a seekable source"
+    },
+    {
+      "id": "CORE011-JIT-001",
+      "issues": [
+        153,
+        152
+      ],
+      "area": "core-0.1.1",
+      "status": "PLANNED",
+      "question": "tiers, PGO and NativeAOT for short-lived processes"
+    },
+    {
+      "id": "CORE-VERIFY-001",
+      "issues": [
+        186,
+        152
+      ],
+      "area": "core-api",
+      "status": "PLANNED",
+      "question": "integrity-only verification guided by the manifest"
+    },
+    {
+      "id": "CORE-BOUNDARY-001",
+      "issues": [
+        186,
+        135,
+        182,
+        150
+      ],
+      "area": "core-api",
+      "status": "PLANNED",
+      "question": "hash-free boundary scanning"
+    },
+    {
+      "id": "CORE-SOURCE-001",
+      "issues": [
+        186,
+        153
+      ],
+      "area": "core-api",
+      "status": "PLANNED",
+      "question": "ReadOnlyMemory and file-handle scan sources"
+    },
+    {
       "id": "CDC-FUTURE-001",
       "issues": [
         136,
@@ -246,6 +299,68 @@
       "area": "patching",
       "status": "ADOPT",
       "question": "CSP v1 pre-freeze product evidence (CSP section 10.2)"
+    },
+    {
+      "id": "PATCH-ENC-003",
+      "issues": [
+        7,
+        179
+      ],
+      "area": "patching",
+      "status": "PLANNED",
+      "question": "dictionary loading mode and caps vs create peak memory (D8, D17)"
+    },
+    {
+      "id": "PATCH-ENC-004",
+      "issues": [
+        181,
+        7
+      ],
+      "area": "patching",
+      "status": "PLANNED",
+      "question": "same-bytes create throughput: base-window cache, bounded parallel encoding"
+    },
+    {
+      "id": "PATCH-ENC-005",
+      "issues": [
+        181,
+        7,
+        151
+      ],
+      "area": "patching",
+      "status": "PLANNED",
+      "question": "dictionary-candidate search: ranking, resemblance sketches, early exit, level ladder"
+    },
+    {
+      "id": "PATCH-APPLY-002",
+      "issues": [
+        182,
+        168,
+        7
+      ],
+      "area": "patching",
+      "status": "PLANNED",
+      "question": "apply pipeline and a cheaper re-chunk check (D13)"
+    },
+    {
+      "id": "PATCH-GAP-001",
+      "issues": [
+        183,
+        7
+      ],
+      "area": "patching-research",
+      "status": "PLANNED",
+      "question": "decompose the CSP size gap to zstd --patch-from, bsdiff, HDiffPatch, Zucchini"
+    },
+    {
+      "id": "PATCH-TREE-001",
+      "issues": [
+        184,
+        7
+      ],
+      "area": "patching-research",
+      "status": "PLANNED",
+      "question": "update sets: cross-file base reuse and tree manifest"
     },
     {
       "id": "REPO-DELTA-001",
@@ -353,6 +468,16 @@
       "area": "repository-reconstruction",
       "status": "PLANNED",
       "question": "reflink/sparse local reconstruction"
+    },
+    {
+      "id": "TRUST-SIG-001",
+      "issues": [
+        185,
+        1
+      ],
+      "area": "trust",
+      "status": "PLANNED",
+      "question": "detached trust envelope: signature algorithm and package matrix"
     }
   ]
 }

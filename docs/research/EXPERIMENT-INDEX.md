@@ -22,6 +22,11 @@ This table is the human-readable research index. Machine-readable experiment def
 | CORE011-CSM-006 | Core 0.1.1 | #154 | CRC32C Amdahl/backend gate | PLANNED | — |
 | CORE011-FUZZ-001 | Core 0.1.1 | #137, #153 | Scanner property/differential fuzz oracle | PLANNED | — |
 | CORE011-FUZZ-002 | Core 0.1.1 | #137 | Periodic/low-entropy adversarial matrix | PLANNED | — |
+| CORE011-SCAN-007 | Core 0.1.1 | #153, #152, #137 | Exact speculative parallel cutting of a seekable source (a shared cut position resynchronizes every later cut) | PLANNED | — |
+| CORE011-JIT-001 | Core 0.1.1 | #153, #152 | Tiers, PGO and NativeAOT for short-lived processes: time to first chunk and steady state | PLANNED | — |
+| CORE-VERIFY-001 | Core API (additive) | #186, #152 | Integrity-only verification guided by the manifest: slice by record lengths, hash, parallel by record range | PLANNED | — |
+| CORE-BOUNDARY-001 | Core API (additive) | #186, #135, #182, #150 | Hash-free boundary scanning at the shipped profile's exact cuts | PLANNED | — |
+| CORE-SOURCE-001 | Core API (additive) | #186, #153 | `ReadOnlyMemory<byte>` and file-handle scan sources | PLANNED | — |
 | CDC-FUTURE-001 | Future CDC | #136, #14 | RepMaxCDC matched-mean/parallel evidence | PLANNED | — |
 | CDC-FUTURE-002 | Future CDC | #136, #14 | SeqCDC/vectorized SeqCDC evidence | PLANNED | — |
 | CDC-FUTURE-003 | Future CDC | #136, #14 | Chonkers strict-bound/edit-locality evidence | PLANNED | — |
@@ -32,6 +37,12 @@ This table is the human-readable research index. Machine-readable experiment def
 | PATCH-ENC-002 | Patching | #7 | Encoder policy sweep: zstd level, dictionary chunks, candidates and radius vs patch size and create time (D15) | ADOPT | [PATCH-ENC-002-EVIDENCE-20260928-001](results/PATCH-ENC-002-EVIDENCE-20260928-001.md) |
 | PATCH-APPLY-001 | Patching | #7 | Apply cost: CPU/wall, peak memory, temp disk, re-chunk check on/off (D13), writer peak memory (D17) | DEFER | [PATCH-APPLY-001-EVIDENCE-20260928-001](results/PATCH-APPLY-001-EVIDENCE-20260928-001.md), [PATCH-APPLY-001-EVIDENCE-20260928-002](results/PATCH-APPLY-001-EVIDENCE-20260928-002.md), [PATCH-APPLY-001-EVIDENCE-20260928-003](results/PATCH-APPLY-001-EVIDENCE-20260928-003.md) |
 | PATCH-PREFREEZE-001 | Patching | #7 | CSP v1 pre-freeze evidence on a frozen multi-product corpus: CSP vs full target vs xdelta3, end-to-end at 50 Mbit/s and 1 Gbit/s (CSP §10.2) | ADOPT | [PATCH-PREFREEZE-001-EVIDENCE-20260928-001](results/PATCH-PREFREEZE-001-EVIDENCE-20260928-001.md) |
+| PATCH-ENC-003 | Patching | #7, #179 | Dictionary loading mode (`Copy`/`Attach`/`Prefix`) and hash/chain caps vs the create peak memory (D8, D17) | PLANNED | — |
+| PATCH-ENC-004 | Patching | #181, #7 | Same-bytes create throughput: base-window cache and bounded parallel encoding with ordered writes | PLANNED | — |
+| PATCH-ENC-005 | Patching | #181, #7, #151 | Dictionary-candidate search: cheap ranking, resemblance sketches, early exit, level ladder (D15) | PLANNED | — |
+| PATCH-APPLY-002 | Patching | #182, #168, #7 | Apply pipeline and a cheaper re-chunk check: boundary-only, overlapped, preallocation, coalesced reads (D13) | PLANNED | — |
+| PATCH-GAP-001 | Patching research | #183, #7 | Decompose the CSP size gap to `zstd --patch-from`, bsdiff, HDiffPatch and Zucchini | PLANNED | — |
+| PATCH-TREE-001 | Patching research | #184, #7 | Update sets: cross-file base reuse, tree manifest, atomic tree publication | PLANNED | — |
 | REPO-INDEX-001 | Repository index | #145 | MPHF/PtrHash exact-key accelerator bake-off | PLANNED | — |
 | REPO-INDEX-002 | Repository index | #145 | Intra-segment partitioned index | PLANNED | — |
 | REPO-INDEX-003 | Repository index/pack | #145, #144 | Direct location vs PackOrdinal+FrameOrdinal indirection | PLANNED | — |
@@ -43,6 +54,7 @@ This table is the human-readable research index. Machine-readable experiment def
 | REPO-REMOTE-002 | Repository verification | #148, #139 | Bao/BLAKE3 authenticated partial ranges | PLANNED | — |
 | REPO-REMOTE-003 | Repository reconstruction | #148 | Reflink/sparse local reconstruction | PLANNED | — |
 | REPO-DELTA-001 | Repository research | #151, #138, #146, #147, #148 | Locality-bounded one-hop delta storage | PLANNED | — |
+| TRUST-SIG-001 | Trust | #185, #1 | Detached trust envelope: signature algorithm and package matrix (RFC-0004 §4–§5) | PLANNED | — |
 
 PATCH-ENC-001 and PATCH-ZSTD-001 predate this registry; their evidence notes stay under `docs/benchmarks/` and are indexed here so the decisions remain discoverable.
 

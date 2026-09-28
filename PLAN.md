@@ -1,7 +1,7 @@
 # ChunkShift implementation plan
 
 Status: Active  
-Last reviewed: 2026-09-27
+Last reviewed: 2026-09-28
 
 Program order: [ROADMAP.md](ROADMAP.md)  
 Release policy: [docs/RELEASES.md](docs/RELEASES.md)  
@@ -331,6 +331,18 @@ Evidence:
 - compare against full target delivery and xdelta3 on identical file pairs;
 - publish Patching only when its own compatibility fixtures are ready.
 
+Experiment map for the remaining work (ROADMAP "Patching gate" lists the exit items):
+
+| ExperimentId | Issue | Question | Exit item |
+| --- | --- | --- | --- |
+| `PATCH-ENC-003` | #179 | dictionary loading mode and caps vs the create peak (D8, D17) | yes |
+| `PATCH-APPLY-002` | [#182](https://github.com/definitely-stable/ChunkShift/issues/182) | cheaper re-chunk check and apply pipeline (D13, #168) | yes |
+| `PATCH-ENC-004` | [#181](https://github.com/definitely-stable/ChunkShift/issues/181) | same-bytes create throughput: base-window cache, bounded parallel encoding | yes |
+| `PATCH-ENC-005` | [#181](https://github.com/definitely-stable/ChunkShift/issues/181) | dictionary-candidate search: ranking, resemblance sketches, level ladder (D15) | yes |
+| `PATCH-GAP-001` | [#183](https://github.com/definitely-stable/ChunkShift/issues/183) | size gap to `zstd --patch-from`, bsdiff, HDiffPatch, Zucchini | no (informs a CSP revision) |
+| `PATCH-TREE-001` | [#184](https://github.com/definitely-stable/ChunkShift/issues/184) | update sets: cross-file base reuse, tree manifest | no (informs an update-set RFC) |
+| `TRUST-SIG-001` | [#185](https://github.com/definitely-stable/ChunkShift/issues/185) | detached trust envelope and update policy (RFC-0004 §4–§5) | no; required before launcher-facing guidance |
+
 ### Parallel Core 0.1.1 maintenance track — [#152](https://github.com/definitely-stable/ChunkShift/issues/152)
 
 Core 0.1.0 is a published compatibility baseline. The next Core patch train is an evidence-gated maintenance/performance track and **does not block #7 Patching**.
@@ -352,7 +364,12 @@ Workstreams:
 - [#137](https://github.com/definitely-stable/ChunkShift/issues/137) — scanner property/differential fuzzing;
 - [#153](https://github.com/definitely-stable/ChunkShift/issues/153) — frozen-profile FastCDC/scanner backend, I/O topology and pooled raw-buffer hygiene;
 - [#154](https://github.com/definitely-stable/ChunkShift/issues/154) — CSM reader/writer ManifestId batching, decode/LOH/batch/CRC evidence;
-- [#135](https://github.com/definitely-stable/ChunkShift/issues/135) — optional secondary scanner API research; **not** a 0.1.1 gate and “ship none” is valid.
+- [#135](https://github.com/definitely-stable/ChunkShift/issues/135) — optional secondary scanner API research; **not** a 0.1.1 gate and “ship none” is valid;
+- [#186](https://github.com/definitely-stable/ChunkShift/issues/186) — additive entry points, each only with a named consumer: integrity-only verification guided by the manifest (`CORE-VERIFY-001`), hash-free boundary scanning (`CORE-BOUNDARY-001`), `ReadOnlyMemory<byte>` and file-handle sources (`CORE-SOURCE-001`).
+
+#153 also carries `CORE011-SCAN-007` (exact speculative parallel cutting of a seekable source) and `CORE011-JIT-001` (tiers, PGO and NativeAOT for short-lived processes).
+
+Candidate classes: S (same semantics, internal), A (additive API), B (breaking API), P (new persisted semantics). No class B change was found to be needed for speed. Candidates that parallelize inside one operation must also beat running several files concurrently (the #152 multi-file lane).
 
 New CDC semantics such as RepMaxCDC stay under [#14](https://github.com/definitely-stable/ChunkShift/issues/14)/[#136](https://github.com/definitely-stable/ChunkShift/issues/136) with a new candidate identity. They do not mutate the shipped FastCDC profile.
 
@@ -362,7 +379,7 @@ Execution and results are indexed through [docs/research/README.md](docs/researc
 
 ## 13. Later tracks
 
-Repository remains downstream of the useful local Patching loop, but its implementation gates are now explicit enough to prevent an early pack/index format from hardening the wrong assumptions.
+Repository remains downstream of the useful local Patching loop, but its implementation gates are now explicit enough to prevent an early pack/index format from hardening the wrong assumptions. Update sets ([#184](https://github.com/definitely-stable/ChunkShift/issues/184)) and the trust-envelope RFC ([#185](https://github.com/definitely-stable/ChunkShift/issues/185)) are design inputs to it.
 
 ### M5 — Repository foundation
 
