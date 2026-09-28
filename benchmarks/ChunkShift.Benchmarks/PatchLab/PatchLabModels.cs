@@ -3,7 +3,14 @@ using ChunkShift.Benchmarks.Lab;
 namespace ChunkShift.Benchmarks.PatchLab;
 
 /// <summary>The encoder settings one lane ran; the output of <c>patch-lab run</c>.</summary>
-internal sealed record PatchLabPolicy(int Level, int DictionaryChunks, int MaxCandidates, int SearchRadius);
+internal sealed record PatchLabPolicy(
+    int Level,
+    int DictionaryChunks,
+    int MaxCandidates,
+    int SearchRadius,
+    string DictionaryLoad = "copy",
+    int DictionaryHashLog = 0,
+    int DictionaryChainLog = 0);
 
 /// <summary>One <c>patch-lab run</c> result document (<c>chunkshift.patch-lab.v1</c>).</summary>
 internal sealed record PatchLabRunResult(
@@ -38,7 +45,8 @@ internal sealed record PatchLabFileResult(
     long TargetChunks,
     double CreateSeconds,
     double? ApplySeconds,
-    double? ApplyNoCheckSeconds);
+    double? ApplyNoCheckSeconds,
+    string? PatchSha256 = null);
 
 /// <summary>One <c>patch-lab memory</c> result document (<c>chunkshift.patch-lab-memory.v1</c>).</summary>
 /// <remarks>

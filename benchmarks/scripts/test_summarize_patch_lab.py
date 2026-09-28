@@ -17,6 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import print_patch_lab_encoder as encoder_print  # noqa: E402
 import print_patch_lab_memory as memory_print  # noqa: E402
 import summarize_patch_lab as summary  # noqa: E402
 
@@ -622,6 +623,52 @@ class PrintMemoryTests(unittest.TestCase):
     def test_other_schemas_are_rejected(self) -> None:
         with self.assertRaises(ValueError):
             memory_print.render({"schema": "chunkshift.patch-lab.v1"})
+
+
+class PrintEncoderTests(unittest.TestCase):
+    FAMILIES = {"cal": "calibration", "hold": "holdout"}
+
+    def document(self, files: list[dict]) -> dict:
+        return {
+            "schema": "chunkshift.patch-lab.v1",
+            "runId": "PATCH-ENC-003/RUN-1",
+            "lane": "enc-L19-K4-C8-prefix",
+            "policy": {"level": 19, "dictionaryChunks": 4, "dictionaryLoad": "prefix"},
+            "workers": 4,
+            "elapsedSeconds": 12.34,
+            "files": files,
+        }
+
+    @staticmethod
+    def file(family: str, path: str, size: int, seconds: float, sha: str) -> dict:
+        return {"family": family, "base": "1", "target": "2", "path": path,
+                "patchBytes": size, "createSeconds": seconds, "patchSha256": sha}
+
+    def test_totals_are_split_and_the_digest_covers_every_patch(self) -> None:
+        files = [
+            self.file("cal", "a", 100, 1.5, "aa"),
+            self.file("cal", "b", 50, 0.5, "bb"),
+            self.file("hold", "c", 7, 3.0, "cc"),
+        ]
+        lines = encoder_print.render(self.document(files), self.FAMILIES)
+        self.assertIn("lane=enc-L19-K4-C8-prefix workers=4", lines[0])
+        self.assertEqual("calibration files=2 bytes=150 createSeconds=2.00", lines[1])
+        self.assertEqual("holdout files=1 bytes=7 createSeconds=3.00", lines[2])
+        self.assertEqual("total bytes=157 createSeconds=5.00 elapsedSeconds=12.3", lines[3])
+
+        reordered = encoder_print.render(self.document(files[::-1]), self.FAMILIES)
+        self.assertEqual(lines[4], reordered[4])
+        changed = encoder_print.render(
+            self.document([*files[:2], self.file("hold", "c", 7, 3.0, "cd")]), self.FAMILIES)
+        self.assertNotEqual(lines[4], changed[4])
+
+    def test_a_family_without_a_split_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            encoder_print.render(self.document([self.file("other", "a", 1, 1.0, "aa")]), self.FAMILIES)
+
+    def test_other_schemas_are_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            encoder_print.render({"schema": "chunkshift.patch-lab-memory.v1"}, self.FAMILIES)
 
 
 if __name__ == "__main__":
