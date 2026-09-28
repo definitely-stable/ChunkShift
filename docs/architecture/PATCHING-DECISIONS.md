@@ -123,8 +123,9 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 
 - **Decision:** malformed input throws `InvalidDataException`; well-formed but unsupported input (unknown HashSuite, unknown required feature, unimplemented encoding) throws `NotSupportedException`; argument errors are thrown synchronously; integrity mismatches (CSP-V1-CANDIDATE §7 "verification") are `PatchApplyFailure` flags on the result, and nothing is published. `PatchApplyResult.IsApplied` is exactly `Failures == None`; `Target` is returned whenever the embedded CSM was read, including on failure.
 - **Evidence:** *spec* — RFC-0001 §10; CSP §7 categories; Core's `ManifestVerificationResult` precedent.
-- **Open point:** CSP §7 rule 26 files an exceeded §8 limit under "verification"; Core rejects its operational BIDX cap with `InvalidDataException`. The mapping (a `ResourceLimit` flag or an exception) is settled in P6 together with the verdict taxonomy of D19.
-- **Status:** confirmed except the limit mapping (provisional, P6).
+- **Limit mapping (P6):** CSP §7 rule 26 files an exceeded §8 limit under "verification", so apply reports it as the `PatchApplyFailure.ResourceLimit` flag and publishes nothing. Create and `PlanAsync` have no result type for integrity and throw `NotSupportedException` for their limits (D9).
+- **Result (P6):** `ApplyAsync` throws `InvalidDataException` for every malformed vector and `NotSupportedException` for every unsupported one, and returns the flags for the verification and limit vectors.
+- **Status:** confirmed.
 
 ### D11. Stream requirements
 
@@ -146,11 +147,13 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 - **Decision:** apply writes to a temporary file in the destination directory, completes every check of CSP §6, flushes the file to disk (`FileStream.Flush(flushToDisk: true)`), then renames it over the destination (`File.Move(overwrite: true)`). Any failure or cancellation deletes the temporary file and leaves an existing destination byte-for-byte unchanged. The contract says "replaced only after full verification"; it does not promise crash durability of the directory entry.
 - **In-place updates** (destination = base path) work when the caller's base stream allows the replacement; on Windows that means the stream was opened with `FileShare.Delete`. Otherwise the rename fails with `IOException` after verification, and the destination stays unchanged.
 - **Evidence:** *spec* — CSP §6 step 8, RFC-0004 §1 (publication mechanics belong to Patching). *test* — P6's failure-point matrix compares the destination bytes after every pre-publication failure.
-- **Status:** provisional until P6.
+- **Result (P6):** `IO/PendingFile` creates the temporary file only after the patch and the base binding passed, flushes it with `Flush(flushToDisk: true)` and publishes with `File.Replace` when the destination exists, `File.Move` otherwise. `File.Move(overwrite: true)` was the plan, but on Windows (MoveFileEx) it refuses a destination that is open even with `FileShare.Delete`, so the in-place update above could never succeed; `File.Replace` (ReplaceFile) replaces it, and on Unix both are `rename(2)`. Tests: wrong base, a corrupt patch byte, a payload hash failure, cancellation at the first and a later base read and an I/O failure of the base stream all leave an existing destination byte-for-byte unchanged and no temporary file; an in-place update succeeds with `FileShare.Read | FileShare.Delete` and, on Windows, fails with the destination unchanged under `FileShare.Read`.
+- **Status:** confirmed.
 
 ### D13. Re-chunk verification on apply
 
 - **Decision:** on by default when the embedded profile is registered (CSP §9.5 SHOULD). It adds no content integrity (every output chunk already matches its `ChunkId`); it checks that the target manifest is what its profile produces.
+- **Result (P6):** `ChunkManifest.VerifyAsync` re-reads the temporary file before publication; a `Content` or `ProfileSemantics` failure is `PatchApplyFailure.ProfileContent`, and a profile this build does not register skips the check (the committed vectors use such a profile). An internal switch turns it off for tests and the lab.
 - **Evidence still to add:** P10 measures apply with and without it (ExperimentId `PATCH-APPLY-001`).
 - **Reopen if:** the cost is material; then a later options type may expose it.
 - **Status:** provisional until P10.
@@ -199,7 +202,7 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 ### D19. Verdict taxonomy
 
 - **Decision:** the C# implementation and the oracle agree on a verdict per input: `valid`, `malformed`, `unsupported`, `verification` (with the failure kind) and `limit`. Differential tests compare verdicts, never exception text.
-- **Status:** confirmed; the .NET mapping of `limit` is D10's open point.
+- **Status:** confirmed; `limit` is the `ResourceLimit` flag (D10).
 
 ### D20. NativeAOT acceptance
 
@@ -228,7 +231,8 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
   9. Rule 23 (total length) cannot fail on its own, because the embedded CSM's `LogicalTotals` already bind the record lengths; the check stays, without a vector.
 - **Evidence:** *oracle* — each vector breaks exactly one rule and decode.py reaches the expected verdict for all 94; *test* — a vector set with a wrong expected rule or output digest fails `--verify`.
 - **Result (P1):** the C# reader reaches the decoder's verdict on all 76 structure-stage vectors (with the same failure kinds for the verification ones) and accepts all 40 apply-stage vectors; every prefix and every single-byte flip of a small patch opens or throws only a documented exception type. Patches written by `CspWriter` from real manifests (base-dependent in one and four `PAYL` blocks, and self-contained) are applied by the independent decoder to the exact target bytes.
-- **Status:** confirmed for the decoder, the writer and the reader; the apply-stage verdicts are checked with P6.
+- **Result (P6):** `ChunkPatch.ApplyAsync` reaches the decoder's verdict on all 116 committed vectors, with the same failure kinds for the verification ones, and every valid vector writes the pinned output SHA-256 and length; no non-valid vector leaves a file in the destination directory.
+- **Status:** confirmed.
 
 ### D22. Reuse plan (`ChunkPatch.PlanAsync`)
 

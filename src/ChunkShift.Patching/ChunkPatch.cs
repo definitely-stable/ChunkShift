@@ -1,11 +1,13 @@
+using ChunkShift.Patching.Application;
 using ChunkShift.Patching.Creation;
+using ChunkShift.Patching.Format;
 using ChunkShift.Primitives;
 
 namespace ChunkShift.Patching;
 
 /// <summary>
-/// Plans chunk reuse between CSM manifests and produces ChunkShift CSP patches
-/// over caller-owned streams.
+/// Plans chunk reuse between CSM manifests, produces ChunkShift CSP patches and
+/// applies them over caller-owned streams.
 /// </summary>
 /// <remarks>
 /// The operations read and write caller-owned streams, never dispose them, and
@@ -103,10 +105,10 @@ public static class ChunkPatch
         return PlanCoreAsync(baseManifest, targetManifest, cancellationToken);
     }
 
-    // CreateAsync has an overload with a base and one without. Their optional
-    // tokens do not create an ambiguous call site: the overloads differ in
-    // arity, and every other stream operation in the package makes the token
-    // optional the same way.
+    // CreateAsync and ApplyAsync each have an overload with a base and one
+    // without. Their optional tokens do not create an ambiguous call site: the
+    // overloads differ in arity, and every other stream operation in the
+    // package makes the token optional the same way.
 #pragma warning disable RS0026
     /// <summary>
     /// Creates a CSP v1 patch that reconstructs the target content over the base.
@@ -305,6 +307,203 @@ public static class ChunkPatch
             targetContent,
             destination,
             CspEncoderPolicy.Default,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Applies a CSP v1 patch over a supplied base and replaces
+    /// <paramref name="destinationPath"/> with the verified target.
+    /// </summary>
+    /// <param name="patch">Readable and seekable CSP stream owned by the caller.</param>
+    /// <param name="baseManifest">Readable base CSM stream owned by the caller.</param>
+    /// <param name="baseContent">Readable and seekable base content stream owned by the caller.</param>
+    /// <param name="destinationPath">Destination file path whose existing file is replaced.</param>
+    /// <param name="cancellationToken">Cooperative cancellation token.</param>
+    /// <returns>The outcome and the embedded target manifest.</returns>
+    /// <remarks>
+    /// <para>
+    /// The embedded target manifest is reconstructed in target order: every
+    /// target chunk comes from the patch payload or from the base, and the bytes
+    /// of every source are verified against their <see cref="ChunkId"/> and chunk
+    /// length before they are written. The destination is replaced only after
+    /// full verification: the reconstruction goes to a temporary file next to
+    /// the destination, and that file is renamed over
+    /// <paramref name="destinationPath"/> only when the recorded target length
+    /// and the re-chunk check agree with the embedded manifest. An existing
+    /// destination file is replaced; the replacement is not advertised as
+    /// crash-durable, because the destination directory is not flushed.
+    /// </para>
+    /// <para>
+    /// A patch that carries no <c>BASE</c> section ignores a supplied base, and
+    /// a patch that carries <c>BASE</c> verifies a supplied base even when it
+    /// turns out to be self-contained. When the destination is the base file
+    /// itself (an in-place update), Windows requires the base stream to allow
+    /// deletion (<see cref="FileShare.Delete"/>); otherwise the final
+    /// replacement fails with <see cref="IOException"/> or
+    /// <see cref="UnauthorizedAccessException"/> after verification, and the
+    /// destination is unchanged.
+    /// </para>
+    /// <para>
+    /// A malformed patch or base manifest throws <see cref="InvalidDataException"/>;
+    /// input that needs semantics this build does not implement throws
+    /// <see cref="NotSupportedException"/>; integrity mismatches and exceeded
+    /// operational limits are reported in <see cref="PatchApplyResult.Failures"/>; a stream read or write failure
+    /// throws <see cref="IOException"/>. In every outcome other than an
+    /// applied result nothing is written at <paramref name="destinationPath"/>
+    /// and no temporary file remains.
+    /// </para>
+    /// <para>
+    /// Streams are never disposed, and only the patch and the base content are
+    /// repositioned. The operation re-chunks the verified reconstruction with
+    /// the embedded manifest's profile when this build registers it.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// A stream argument or <paramref name="destinationPath"/> is
+    /// <see langword="null"/>. Thrown by this call, not by the returned task.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// A stream does not have the capability its role requires, the same
+    /// <see cref="Stream"/> instance is passed in two roles, or
+    /// <paramref name="destinationPath"/> is empty. Thrown by this call, not by
+    /// the returned task.
+    /// </exception>
+    /// <exception cref="InvalidDataException">
+    /// The patch or the base manifest is not a well-formed representation, or a
+    /// payload entry is not exactly one decodable zstd frame of its target chunk.
+    /// </exception>
+    /// <exception cref="NotSupportedException">
+    /// The patch requires semantics this build does not implement, for example
+    /// an unknown hash suite or an unimplemented payload encoding.
+    /// </exception>
+    /// <exception cref="IOException">
+    /// The destination cannot be written, or the final replacement failed
+    /// because the destination is locked.
+    /// </exception>
+    /// <exception cref="UnauthorizedAccessException">
+    /// The destination cannot be written, or Windows refused the final
+    /// replacement of a destination that is open without delete sharing.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">
+    /// Cancellation is observed before the verified target is published.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// A stream returned a byte count outside the <see cref="Stream"/> contract.
+    /// </exception>
+    public static Task<PatchApplyResult> ApplyAsync(
+        Stream patch,
+        Stream baseManifest,
+        Stream baseContent,
+        string destinationPath,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfNotReadable(patch, nameof(patch));
+        ThrowIfNotSeekable(patch, nameof(patch));
+        ThrowIfNotReadable(baseManifest, nameof(baseManifest));
+        ThrowIfNotReadable(baseContent, nameof(baseContent));
+        ThrowIfNotSeekable(baseContent, nameof(baseContent));
+        ArgumentException.ThrowIfNullOrEmpty(destinationPath);
+
+        ThrowIfSameInstance(patch, baseManifest, nameof(baseManifest));
+        ThrowIfSameInstance(patch, baseContent, nameof(baseContent));
+        ThrowIfSameInstance(baseManifest, baseContent, nameof(baseContent));
+
+        return CspApplier.ApplyAsync(
+            patch,
+            baseManifest,
+            baseContent,
+            destinationPath,
+            CspFormat.DefaultMaximumPayloadEntries,
+            verifyChunking: true,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Applies a self-contained CSP v1 patch and replaces
+    /// <paramref name="destinationPath"/> with the verified target.
+    /// </summary>
+    /// <param name="patch">Readable and seekable CSP stream owned by the caller.</param>
+    /// <param name="destinationPath">Destination file path whose existing file is replaced.</param>
+    /// <param name="cancellationToken">Cooperative cancellation token.</param>
+    /// <returns>The outcome and the embedded target manifest.</returns>
+    /// <remarks>
+    /// <para>
+    /// Every target chunk must come from the patch payload. A patch that carries
+    /// a <c>BASE</c> section and depends on a base is rejected with
+    /// <see cref="PatchApplyFailure.BaseMismatch"/>; a base-dependent patch
+    /// without <c>BASE</c> is malformed.
+    /// </para>
+    /// <para>
+    /// The destination is replaced only after full verification: the
+    /// reconstruction goes to a temporary file next to the destination, and that
+    /// file is renamed over <paramref name="destinationPath"/> only when the
+    /// recorded target length and the re-chunk check agree with the embedded
+    /// manifest. An existing destination file is replaced; the replacement is
+    /// not advertised as crash-durable, because the destination directory is not
+    /// flushed.
+    /// </para>
+    /// <para>
+    /// A malformed patch throws <see cref="InvalidDataException"/>; input that
+    /// needs semantics this build does not implement throws
+    /// <see cref="NotSupportedException"/>; integrity mismatches and exceeded
+    /// operational limits are reported in <see cref="PatchApplyResult.Failures"/>; a stream read or write failure
+    /// throws <see cref="IOException"/>. In every outcome other than an
+    /// applied result nothing is written at <paramref name="destinationPath"/>
+    /// and no temporary file remains.
+    /// </para>
+    /// <para>
+    /// Streams are never disposed, and only the patch is repositioned. The
+    /// operation re-chunks the verified reconstruction with the embedded
+    /// manifest's profile when this build registers it.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="patch"/> or <paramref name="destinationPath"/> is
+    /// <see langword="null"/>. Thrown by this call, not by the returned task.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="patch"/> is not readable or not seekable, or
+    /// <paramref name="destinationPath"/> is empty. Thrown by this call, not by
+    /// the returned task.
+    /// </exception>
+    /// <exception cref="InvalidDataException">
+    /// The patch is not a well-formed representation, or a payload entry is not
+    /// exactly one decodable zstd frame of its target chunk.
+    /// </exception>
+    /// <exception cref="NotSupportedException">
+    /// The patch requires semantics this build does not implement, for example
+    /// an unknown hash suite or an unimplemented payload encoding.
+    /// </exception>
+    /// <exception cref="IOException">
+    /// The destination cannot be written, or the final replacement failed
+    /// because the destination is locked.
+    /// </exception>
+    /// <exception cref="UnauthorizedAccessException">
+    /// The destination cannot be written, or Windows refused the final
+    /// replacement of a destination that is open without delete sharing.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">
+    /// Cancellation is observed before the verified target is published.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// A stream returned a byte count outside the <see cref="Stream"/> contract.
+    /// </exception>
+    public static Task<PatchApplyResult> ApplyAsync(
+        Stream patch,
+        string destinationPath,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfNotReadable(patch, nameof(patch));
+        ThrowIfNotSeekable(patch, nameof(patch));
+        ArgumentException.ThrowIfNullOrEmpty(destinationPath);
+
+        return CspApplier.ApplyAsync(
+            patch,
+            baseManifest: null,
+            baseContent: null,
+            destinationPath,
+            CspFormat.DefaultMaximumPayloadEntries,
+            verifyChunking: true,
             cancellationToken);
     }
 #pragma warning restore RS0026
