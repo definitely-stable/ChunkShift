@@ -38,7 +38,36 @@ public class PatchLabLaneTests
     }
 
     [Theory]
+    [InlineData("enc-L19-K4-C8-copy", 19, 4, 8, 256 * 1024, "copy", 0, 0)]
+    [InlineData("enc-L19-K4-C8-attach", 19, 4, 8, 256 * 1024, "attach", 0, 0)]
+    [InlineData("enc-L19-K2-C16-prefix", 19, 2, 16, 1024 * 1024, "prefix", 0, 0)]
+    [InlineData("enc-L9-K4-C8-prefix-H20C21", 9, 4, 8, 256 * 1024, "prefix", 20, 21)]
+    [InlineData("enc-L19-K1-C8-copy-H6C30", 19, 1, 8, 256 * 1024, "copy", 6, 30)]
+    public void EncoderLaneMapsToItsPolicy(
+        string name,
+        int level,
+        int chunks,
+        int candidates,
+        int radius,
+        string load,
+        int hashLog,
+        int chainLog)
+    {
+        Assert.True(PatchLabLane.TryDescribe(name, out PatchLabPolicy described), name);
+        Assert.Equal(
+            new PatchLabPolicy(level, chunks, candidates, radius, load, hashLog, chainLog),
+            described);
+    }
+
+    [Theory]
     [InlineData("")]
+    [InlineData("enc-L19-K4-C8")]
+    [InlineData("enc-L19-K4-C8-link")]
+    [InlineData("enc-L19-K4-C8-copy-H20")]
+    [InlineData("enc-L19-K4-C8-copy-H5C20")]
+    [InlineData("enc-L19-K4-C8-copy-H20C31")]
+    [InlineData("enc-L19-K4-C8-copy-C20H20")]
+    [InlineData("enc-L19-K4-C8-copy-H20C21-x")]
     [InlineData("raw")]
     [InlineData("csp-zstd-19")]
     [InlineData("sweep-L8-K1-C8")]

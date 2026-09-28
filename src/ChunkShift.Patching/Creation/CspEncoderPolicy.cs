@@ -1,3 +1,5 @@
+using ChunkShift.Patching.Encoding;
+
 namespace ChunkShift.Patching.Creation;
 
 /// <summary>
@@ -31,6 +33,21 @@ internal sealed record CspEncoderPolicy(
     int MaxCandidates,
     int SearchRadius)
 {
+    /// <summary>Gets how a dictionary is handed to zstd.</summary>
+    internal CspDictionaryLoad DictionaryLoad { get; init; } = CspDictionaryLoad.Copy;
+
+    /// <summary>
+    /// Gets the zstd hash log of entries with a dictionary, or zero for zstd's
+    /// choice from the level, chunk and dictionary sizes.
+    /// </summary>
+    internal int DictionaryHashLog { get; init; }
+
+    /// <summary>
+    /// Gets the zstd chain log of entries with a dictionary, or zero for zstd's
+    /// choice.
+    /// </summary>
+    internal int DictionaryChainLog { get; init; }
+
     /// <summary>
     /// Gets zstd level 19, four contiguous base chunks per dictionary, up to
     /// eight candidates within 256 KiB of the target offset.
