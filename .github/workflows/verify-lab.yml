@@ -1,0 +1,294 @@
+name: Verify lab
+
+# CORE-VERIFY-001 (docs/benchmarks/CORE-VERIFY-001-PROTOCOL.md).
+# - smoke: pull requests from perf/186-verify* branches run the oracle's quick
+#   set and the whole pipeline on small generated workloads, on every platform.
+# - the decision runs take hours, so they start only on workflow_dispatch or
+#   when the "verify-lab" label is added to a pull request; a later push does
+#   not repeat them.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled]
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+
+jobs:
+  smoke:
+    name: verify-lab-smoke (${{ matrix.platform }})
+    if: github.event_name == 'pull_request' && github.event.action != 'labeled' && startsWith(github.head_ref, 'perf/186-verify')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, platform: linux-x64 }
+          - { os: ubuntu-24.04-arm, platform: linux-arm64 }
+          - { os: windows-2025, platform: win-x64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Smoke the verify lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          lab() { dotnet benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll verify-lab "$@"; }
+          out=artifacts/verify-lab
+          work="$RUNNER_TEMP/verify-lab"
+          mkdir -p "$out"
+          lab oracle --quick --fixtures tests/ChunkShift.Tests/Fixtures/CsmV1 --output "$out/smoke-oracle-${{ matrix.platform }}.json"
+          lab prepare --dir "$work" --workloads S1,S10,T --smoke
+          lab run --dir "$work" --workloads S1,S10 --samples 1 --platform "${{ matrix.platform }}" --output "$out/run-single-${{ matrix.platform }}.json"
+          lab run --dir "$work" --workloads T --samples 1 --platform "${{ matrix.platform }}" --output "$out/run-tree-${{ matrix.platform }}.json"
+          lab decide --runs "$out/run-single-${{ matrix.platform }}.json,$out/run-tree-${{ matrix.platform }}.json" \
+            --oracles "$out/smoke-oracle-${{ matrix.platform }}.json" --output "$out/decision-${{ matrix.platform }}.json" > /dev/null
+
+      - name: Upload smoke output
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verify-lab-smoke-${{ matrix.platform }}
+          path: artifacts/verify-lab
+          if-no-files-found: warn
+          retention-days: 7
+
+  single:
+    name: verify-lab-single (${{ matrix.platform }})
+    if: github.event_name == 'workflow_dispatch' || (github.event.action == 'labeled' && github.event.label.name == 'verify-lab')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, platform: linux-x64 }
+          - { os: ubuntu-24.04-arm, platform: linux-arm64 }
+          - { os: windows-2025, platform: win-x64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Measure the pull request's head commit, not the merge commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      # S10 needs 10 GiB next to S1; the hosted Linux images keep large
+      # toolchains the lab never uses.
+      - name: Free disk space
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /opt/ghc /usr/local/.ghcup /usr/share/swift /opt/hostedtoolcache/CodeQL
+          df -h "$RUNNER_TEMP"
+
+      - name: Record storage
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = "Linux" ]
+          then
+            lsblk -d -o NAME,MODEL,ROTA,SIZE,TRAN || true
+            df -h "$RUNNER_TEMP"
+          else
+            powershell -NoProfile -Command "Get-PhysicalDisk | Format-Table FriendlyName,MediaType,BusType,Size; Get-Volume | Format-Table DriveLetter,FileSystem,SizeRemaining,Size"
+          fi
+
+      - name: Build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/verify-lab
+          dotnet benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll verify-lab oracle \
+            --fixtures tests/ChunkShift.Tests/Fixtures/CsmV1 \
+            --output "artifacts/verify-lab/single-oracle-${{ matrix.platform }}.json"
+
+      - name: Run S1 and S10
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          lab() { dotnet benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll verify-lab "$@"; }
+          run_id="CORE-VERIFY-001/RUN-$(date -u +%Y%m%d)-${{ github.run_number }}-${HEAD_SHA::7}-${{ matrix.platform }}"
+          work="$RUNNER_TEMP/verify-lab"
+          lab prepare --dir "$work" --workloads S1,S10
+          lab run --dir "$work" --workloads S1,S10 --modes warm,cold,throttled \
+            --platform "${{ matrix.platform }}" --run-id "$run_id" --commit "$HEAD_SHA" \
+            --output "artifacts/verify-lab/run-single-${{ matrix.platform }}.json"
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verify-lab-single-${{ matrix.platform }}
+          path: artifacts/verify-lab
+          if-no-files-found: error
+          retention-days: 90
+
+  tree:
+    name: verify-lab-tree (${{ matrix.platform }})
+    if: github.event_name == 'workflow_dispatch' || (github.event.action == 'labeled' && github.event.label.name == 'verify-lab')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, platform: linux-x64 }
+          - { os: ubuntu-24.04-arm, platform: linux-arm64 }
+          - { os: windows-2025, platform: win-x64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # The chunkshift-source family is rebuilt from old commits with
+          # git ls-tree/cat-file, so the full history must be present.
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Restore corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$HOME/patch-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download --lock
+
+      - name: Build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/verify-lab
+          dotnet benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll verify-lab oracle \
+            --fixtures tests/ChunkShift.Tests/Fixtures/CsmV1 \
+            --output "artifacts/verify-lab/tree-oracle-${{ matrix.platform }}.json"
+
+      - name: Run T
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          lab() { dotnet benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll verify-lab "$@"; }
+          run_id="CORE-VERIFY-001/RUN-$(date -u +%Y%m%d)-${{ github.run_number }}-${HEAD_SHA::7}-${{ matrix.platform }}"
+          work="$RUNNER_TEMP/verify-lab"
+          lab prepare --dir "$work" --workloads T --corpus "$HOME/patch-corpus"
+          lab run --dir "$work" --workloads T --modes warm,cold,throttled \
+            --platform "${{ matrix.platform }}" --run-id "$run_id" --commit "$HEAD_SHA" \
+            --output "artifacts/verify-lab/run-tree-${{ matrix.platform }}.json"
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verify-lab-tree-${{ matrix.platform }}
+          path: artifacts/verify-lab
+          if-no-files-found: error
+          retention-days: 90
+
+  decide:
+    name: verify-lab-decide
+    needs: [single, tree]
+    if: always() && (github.event_name == 'workflow_dispatch' || (github.event.action == 'labeled' && github.event.label.name == 'verify-lab'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Download evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: verify-lab-*
+          path: evidence
+          merge-multiple: true
+
+      - name: Evaluate the decision rules
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release
+          runs=$(ls evidence/run-*.json | paste -sd, -)
+          oracles=$(ls evidence/*-oracle-*.json | paste -sd, -)
+          mkdir -p artifacts/verify-lab
+          dotnet benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll verify-lab decide \
+            --runs "$runs" --oracles "$oracles" \
+            --output artifacts/verify-lab/decision.json --markdown artifacts/verify-lab/decision.md
+          cat artifacts/verify-lab/decision.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload decision
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verify-lab-decision
+          path: artifacts/verify-lab
+          if-no-files-found: error
+          retention-days: 90
