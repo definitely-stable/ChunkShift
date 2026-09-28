@@ -34,6 +34,34 @@ public sealed class PatchCreationEncodingTests
             await CreationTestSupport.ReconstructAsync(patch, baseManifest, scenario.BaseContent));
     }
 
+    [Fact]
+    public async Task LevelZero_NoEntryIsEncoded()
+    {
+        PatchScenario scenario = PatchScenarios.Find(PatchScenarios.EditedChunks);
+        byte[] baseManifest = await CreationTestSupport.CreateManifestAsync(
+            scenario.BaseContent,
+            HashSuiteIds.Sha256V1);
+        byte[] targetManifest = await CreationTestSupport.CreateManifestAsync(
+            scenario.TargetContent,
+            HashSuiteIds.Sha256V1);
+        byte[] patch = await CreationTestSupport.CreatePatchWithPolicyAsync(
+            scenario,
+            baseManifest,
+            targetManifest,
+            CspEncoderPolicy.Default with { Level = 0 });
+
+        CspReader reader = await CreationTestSupport.OpenAsync(patch);
+
+        Assert.NotEmpty(reader.Index);
+        Assert.All(
+            reader.Index,
+            static entry => Assert.Equal(CspFormat.EncodingRaw, entry.Encoding));
+
+        Assert.Equal(
+            scenario.TargetContent,
+            await CreationTestSupport.ReconstructAsync(patch, baseManifest, scenario.BaseContent));
+    }
+
     [Theory]
     [InlineData(PatchScenarios.Different)]
     [InlineData(PatchScenarios.Inserted)]

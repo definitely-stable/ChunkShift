@@ -200,7 +200,13 @@ internal static class CspPatchBuilder
         CancellationToken cancellationToken)
     {
         var emitted = new HashSet<ChunkId>();
-        using var encoder = new CspPayloadEncoder(policy.Level);
+
+        // Level zero is raw-only: no encoder is created and the stored forms
+        // are never compared with the raw bytes.
+        using CspPayloadEncoder? encoder = policy.Level == 0
+            ? null
+            : new CspPayloadEncoder(policy.Level);
+
         byte[] chunkBuffer = [];
 
         await using ManifestReader reader = await ManifestReader
@@ -295,9 +301,10 @@ internal static class CspPatchBuilder
     /// without a dictionary and zstd against each dictionary candidate, where a
     /// dictionary costs 32 bytes per named chunk. Ties prefer raw, then zstd
     /// without a dictionary, so a stored form never exceeds the chunk length.
+    /// A null <paramref name="encoder"/> selects the raw form without encoding.
     /// </summary>
     private static async Task<EntryChoice> ChooseEntryAsync(
-        CspPayloadEncoder encoder,
+        CspPayloadEncoder? encoder,
         List<BaseRecord> baseRecords,
         Stream? baseContent,
         long targetOffset,
@@ -307,6 +314,12 @@ internal static class CspPatchBuilder
         CancellationToken cancellationToken)
     {
         var best = new EntryChoice(CspFormat.EncodingRaw, bytes, []);
+
+        if (encoder is null)
+        {
+            return best;
+        }
+
         int bestCost = bytes.Length;
 
         byte[] frame = encoder.EncodeZstd(bytes.Span, ReadOnlySpan<byte>.Empty);
@@ -488,7 +501,7 @@ internal static class CspPatchBuilder
     private static void ValidatePolicy(CspEncoderPolicy policy)
     {
         ArgumentNullException.ThrowIfNull(policy);
-        ArgumentOutOfRangeException.ThrowIfLessThan(policy.Level, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(policy.Level, 0);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(policy.Level, 22);
         ArgumentOutOfRangeException.ThrowIfNegative(policy.DictionaryChunks);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(

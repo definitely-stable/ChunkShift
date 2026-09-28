@@ -1,6 +1,7 @@
 using BenchmarkDotNet.Running;
 using ChunkShift.Benchmarks.Lab;
 using ChunkShift.Benchmarks.Lab.Prefreeze;
+using ChunkShift.Benchmarks.PatchLab;
 
 namespace ChunkShift.Benchmarks;
 
@@ -52,6 +53,27 @@ internal static class Program
             return ChunkDumpHarness.Run(args[1..]);
         }
 
+        if (string.Equals(mode, "patch-lab", StringComparison.OrdinalIgnoreCase))
+        {
+            // Timings from an unoptimized library build would be evidence of
+            // nothing; a solution build can leave a referenced project in Debug.
+            foreach (System.Reflection.Assembly measured in new[]
+            {
+                typeof(ChunkManifest).Assembly,
+                typeof(ChunkShift.Patching.ChunkPatch).Assembly,
+            })
+            {
+                if (measured.GetCustomAttributes(typeof(System.Diagnostics.DebuggableAttribute), false)
+                    is [System.Diagnostics.DebuggableAttribute { IsJITOptimizerDisabled: true }])
+                {
+                    Console.Error.WriteLine($"patch-lab refuses to measure an unoptimized {measured.GetName().Name}.");
+                    return 1;
+                }
+            }
+
+            return PatchLabRunner.Run(args[1..]);
+        }
+
         PrintUsage();
         return 2;
     }
@@ -67,5 +89,7 @@ internal static class Program
         Console.WriteLine("  prefreeze --plan <plan.json> --output <result.json> [--markdown <summary.md>] [--lane <name>] [--real <real-corpus.json>] [--no-synthetic]");
         Console.WriteLine("  prefreeze validate-real --real <real-corpus.json> [--plan <plan.json>] [--lock-output <corpus-lock.json>]");
         Console.WriteLine("  chunks --list <list.tsv>");
+        Console.WriteLine("  patch-lab run --corpus <root> --lane <name> --output <file.json> [--families <id,...>] [--workers <n>] [--apply-repeats <n>] [--no-apply] [--run-id <id>] [--work <dir>]");
+        Console.WriteLine("  patch-lab memory --corpus <root> --output <file.json> [--min-bytes <n>] [--families <id,...>] [--run-id <id>] [--work <dir>]");
     }
 }
