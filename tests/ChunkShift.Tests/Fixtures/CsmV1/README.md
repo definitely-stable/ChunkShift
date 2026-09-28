@@ -4,8 +4,9 @@ These fixtures are compatibility evidence for the pre-freeze CSM v1 candidate.
 
 The checked-in binary files are generated independently from the production
 `CsmWriter` / `CsmReader`. The generator is
-`tools/csm-fixtures/generate.py` and uses only Python's standard library plus
-the byte layout in `docs/architecture/CSM-V1-CANDIDATE.md`.
+`tools/csm-fixtures/generate.py` and uses only Python's standard library, the
+pure-Python BLAKE3 of `tools/csm-fixtures/blake3_reference.py` and the byte
+layout in `docs/architecture/CSM-V1-CANDIDATE.md`.
 
 Checked in during #5:
 
@@ -52,6 +53,10 @@ exercises, all over a small three-entry SHA-256 manifest:
   `InvalidDataException`.
 - `unsupported-*`: a grammatically valid but unknown HashSuite. The public API
   throws `NotSupportedException`.
+- `*-blake3-*`: the same small and 4097-entry manifests under
+  `chunkshift.blake3-256.v1`, valid and with a wrong stored ManifestId or
+  FileDigest. `CsmIndependentVectorTests` checks their BLAKE3 ManifestId and
+  FileDigest against the production hasher.
 
 Every vector is built from the byte layout with all unrelated offsets and
 digests kept consistent, so it breaks only the rule in its name.
@@ -61,7 +66,9 @@ from the generator's definitions, not from any decoder.
 
 `tools/csm-fixtures/decode.py` is a second, independent implementation of the
 reading side of the specification. It uses only the Python standard library
-and does not import the generator or any ChunkShift code. Two checks use the
+and `blake3_reference.py`, and does not import the generator or any ChunkShift
+code. `blake3_reference.py` is written from the BLAKE3 specification; run it
+directly to check it against the official BLAKE3 test vectors. Two checks use the
 same `vectors.json`:
 
 - `CsmIndependentVectorTests` runs every vector through

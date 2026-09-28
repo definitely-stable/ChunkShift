@@ -7,7 +7,8 @@ that CSP verdicts are not checked only by the production C# code.
 Independence rules:
 
 - it uses only the Python standard library (3.14 or later, for the
-  ``compression.zstd`` module that decodes payload encoding 1);
+  ``compression.zstd`` module that decodes payload encoding 1) and the
+  pure-Python BLAKE3 of tools/csm-fixtures/blake3_reference.py;
 - it does not import generate.py or any ChunkShift code, and it was written
   from the specification, not from the C# implementation;
 - the embedded target CSM and the base manifest are checked by
@@ -39,8 +40,8 @@ E  base binding;
 F  every target record in order, stopping at the first failure;
 G  the total length.
 
-Only the SHA-256 HashSuite can be computed with the standard library, so a
-BLAKE3 patch is ``unsupported`` here; the vectors use SHA-256.
+Both v1 HashSuites are implemented (the CSM decoder's table). BLAKE3 runs at
+about 1 MB/s in pure Python, enough for the vectors and the test corpora.
 
 Usage:
   decode.py PATCH [--base-manifest CSM --base CONTENT] [--max-payload-entries N]
@@ -104,7 +105,6 @@ ZSTD_FRAME_MAGIC = b"\x28\xb5\x2f\xfd"
 # Section 8 operational default.
 DEFAULT_MAX_PAYLOAD_ENTRIES = 1_048_576
 
-SHA256_SUITE = "chunkshift.sha256.v1"
 U64_MAX = (1 << 64) - 1
 
 
@@ -557,11 +557,11 @@ def _apply(patch: bytes, base_manifest: bytes | None, base_content: bytes | None
         raise Malformed(14, "embedded CSM PhysicalLength differs from TCSM PayloadLength")
     failures = _manifest_failures(target)
 
-    # C. Patch FileDigest (section 9.2), with the embedded HashSuite.
-    if target["hashSuite"] != SHA256_SUITE:
-        raise Unsupported(16, f"HashSuite {target['hashSuite']} is not available here")
+    # C. Patch FileDigest (section 9.2), with the embedded HashSuite. The CSM
+    # decoder has already rejected a suite it does not know as unsupported.
+    new_hash = csm.HASH_SUITES[target["hashSuite"]]
     stored_digest = patch[-TRAILER_LENGTH + 24:-TRAILER_LENGTH + 56]
-    if hashlib.sha256(patch[:-TRAILER_LENGTH]).digest() != stored_digest:
+    if new_hash(patch[:-TRAILER_LENGTH]).digest() != stored_digest:
         failures.add("FileDigest")
     if failures:
         raise Verification(failures, "patch or embedded manifest integrity")
@@ -623,7 +623,7 @@ def _apply(patch: bytes, base_manifest: bytes | None, base_content: bytes | None
             raise Verification({failure}, "chunk is not in the base manifest")
         offset, length = located
         data = base_content[offset:offset + length]
-        if len(data) != length or hashlib.sha256(data).digest() != chunk_id or (
+        if len(data) != length or new_hash(data).digest() != chunk_id or (
                 expected_length is not None and length != expected_length):
             raise Verification({failure}, "base chunk does not match its ChunkId and Length")
         return data
@@ -645,7 +645,7 @@ def _apply(patch: bytes, base_manifest: bytes | None, base_content: bytes | None
                     if dictionary[:4] == ZSTD_DICTIONARY_MAGIC:
                         raise Verification({"DictionaryChunk"}, "dictionary starts with the zstd magic")
                     data = _decode_zstd(entry.stored, length, dictionary)
-                if len(data) != length or hashlib.sha256(data).digest() != chunk_id:
+                if len(data) != length or new_hash(data).digest() != chunk_id:
                     raise Verification({"PayloadChunk"}, "payload bytes do not match their ChunkId")
             elif base_locator:
                 if chunk_id not in base_locator:

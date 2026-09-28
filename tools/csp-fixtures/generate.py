@@ -4,7 +4,7 @@
 This tool does not call ChunkShift code. It uses only the Python standard
 library, the byte layout of docs/architecture/CSP-V1-CANDIDATE.md, and the CSM
 builder of tools/csm-fixtures/generate.py for the embedded target manifest and
-the base manifests.
+the base manifests (with its pure-Python BLAKE3 for the BLAKE3 vectors).
 
 Every vector is built from explicit field values with every unrelated offset,
 CRC and digest kept consistent, so it violates exactly the rule its name
@@ -49,12 +49,22 @@ _spec.loader.exec_module(csmgen)
 
 REQUIRED = 1
 HASH_SUITE = csmgen.HASH_SUITE_ID.decode("ascii")
+BLAKE3 = csmgen.BLAKE3_SUITE_ID
 PROFILE = csmgen.PROFILE_ID.decode("ascii")
 TRAILER_LENGTH = 64
 
 
 def sha256(data: bytes) -> bytes:
     return hashlib.sha256(data).digest()
+
+
+def digest(data: bytes, suite: bytes) -> bytes:
+    """A digest under a HashSuite: ChunkIds, dictionary ChunkIds and the patch FileDigest."""
+    return csmgen.suite_hash(suite)(data).digest()
+
+
+def suite_of(layout) -> bytes:
+    return layout.hash_suite_id if layout is not None else csmgen.HASH_SUITE_ID
 
 
 def crc32c(data: bytes) -> int:
@@ -81,8 +91,9 @@ def content(label: str, length: int) -> bytes:
 
 
 def manifest(chunks: list[bytes], layout=None) -> tuple[bytes, dict]:
-    """A CSM v1 (SHA-256, synthetic fixture profile) whose ChunkIds hash the chunks."""
-    return csmgen.build([(sha256(c), len(c)) for c in chunks], False, layout)
+    """A CSM v1 (synthetic fixture profile) whose ChunkIds hash the chunks with its HashSuite."""
+    suite = suite_of(layout)
+    return csmgen.build([(digest(c, suite), len(c)) for c in chunks], False, layout)
 
 
 # --- Content --------------------------------------------------------------------
@@ -169,7 +180,9 @@ BASES = {
     "base-a-corrupt-content": Base(BASE_A, content_override=b"".join(
         BASE_A[:3] + [bytes([BASE_A[3][0] ^ 1]) + BASE_A[3][1:]] + BASE_A[4:])),
     "base-a-bad-manifest": Base(BASE_A, csmgen.Layout(trailer_digest_xor=True)),
-    "base-a-blake3": Base(BASE_A, csmgen.Layout(hash_suite_id=b"chunkshift.blake3-256.v1")),
+    "base-a-blake3": Base(BASE_A, csmgen.Layout(hash_suite_id=BLAKE3)),
+    "base-a-blake3-corrupt-content": Base(BASE_A, csmgen.Layout(hash_suite_id=BLAKE3), content_override=b"".join(
+        BASE_A[:3] + [bytes([BASE_A[3][0] ^ 1]) + BASE_A[3][1:]] + BASE_A[4:])),
     "base-magic": Base(BASE_A[:2] + [MAGIC_CHUNK]),
     "base-a-corrupt-dictionary": Base(BASE_A, content_override=b"".join(
         BASE_A[:1] + [bytes([BASE_A[1][0] ^ 1]) + BASE_A[1][1:]] + BASE_A[2:])),
@@ -186,12 +199,12 @@ class Entry:
     encoding: int = 0
     dictionary: list[bytes] = field(default_factory=list)   # base chunk bytes
     stored: bytes | None = None                              # default: the raw chunk
-    chunk_id: bytes | None = None                            # default: SHA-256 of chunk
+    chunk_id: bytes | None = None                            # default: the chunk's digest
     reserved: int = 0
     declared_length: int | None = None                       # StoredLength field override
 
-    def identity(self) -> bytes:
-        return self.chunk_id if self.chunk_id is not None else sha256(self.chunk)
+    def identity(self, suite: bytes) -> bytes:
+        return self.chunk_id if self.chunk_id is not None else digest(self.chunk, suite)
 
     def stored_bytes(self) -> bytes:
         return self.stored if self.stored is not None else self.chunk
@@ -261,13 +274,18 @@ class Patch:
     trailer_reserved: int = 0
     after_trailer: bytes = b""
 
+    @property
+    def suite(self) -> bytes:
+        """The HashSuite of the embedded target manifest, which the whole patch uses."""
+        return suite_of(self.target_layout)
+
     def payload_entries(self) -> list[Entry]:
         if self.entries is not None:
             return self.entries
-        base_ids = {sha256(c) for c in BASES[self.base].chunks} if self.base else set()
+        base_ids = {digest(c, self.suite) for c in BASES[self.base].chunks} if self.base else set()
         seen, entries = set(), []
         for chunk in self.target:
-            chunk_id = sha256(chunk)
+            chunk_id = digest(chunk, self.suite)
             if chunk_id not in base_ids and chunk_id not in seen:
                 seen.add(chunk_id)
                 entries.append(Entry(chunk))
@@ -277,7 +295,7 @@ class Patch:
         entries = self.payload_entries()
         first_index = {}
         for index, chunk in enumerate(self.target):
-            first_index.setdefault(sha256(chunk), index)
+            first_index.setdefault(digest(chunk, self.suite), index)
 
         out = bytearray(self.magic + struct.pack(
             "<HHQQQ", self.major, self.preamble_size, self.required_features,
@@ -320,10 +338,10 @@ class Patch:
                 record_offset = section_offset + 16 + len(body)
                 stored = entry.stored_bytes()
                 declared = len(stored) if entry.declared_length is None else entry.declared_length
-                body += entry.identity() + struct.pack(
+                body += entry.identity(self.suite) + struct.pack(
                     "<IBBH", declared, entry.encoding, len(entry.dictionary), entry.reserved)
-                body += b"".join(sha256(d) for d in entry.dictionary) + stored
-                fti = self.first_target_index.get(ordinal, first_index.get(entry.identity(), 0))
+                body += b"".join(digest(d, self.suite) for d in entry.dictionary) + stored
+                fti = self.first_target_index.get(ordinal, first_index.get(entry.identity(self.suite), 0))
                 pidx_rows.append([fti, record_offset, declared, entry.encoding, len(entry.dictionary), 0])
                 ordinal += 1
             body += self.payl_padding
@@ -372,12 +390,12 @@ class Patch:
                 "<QQQQQQQ", values["tcsm"], values["base"], values["pidx"], values["first_payl"],
                 values["payl_count"], values["entries"], self.foot_reserved)
 
-        digest = sha256(bytes(out))
+        file_digest = digest(bytes(out), self.suite)
         if self.trailer_digest_xor:
-            digest = bytes([digest[0] ^ 1]) + digest[1:]
+            file_digest = bytes([file_digest[0] ^ 1]) + file_digest[1:]
         out += self.trailer_magic + struct.pack(
             "<HHQQ", self.trailer_major, 64, foot_offset + self.trailer_foot_delta,
-            len(out) + TRAILER_LENGTH + self.trailer_length_delta) + digest + struct.pack(
+            len(out) + TRAILER_LENGTH + self.trailer_length_delta) + file_digest + struct.pack(
             "<Q", self.trailer_reserved)
         return bytes(out + self.after_trailer)
 
@@ -670,6 +688,40 @@ def fixtures() -> dict[str, Vector]:
     v["zstd-bad-content-checksum.csp"] = Vector(
         Patch([TEXT], entries=[Entry(TEXT, z, stored=checksum_broken)]), malformed(30), "apply")
     v["zstd-decodes-other-bytes.csp"] = frame_vector(rle_frame(ord("B"), len(RLE_CHUNK)), dep("PayloadChunk"))
+
+    # The BLAKE3 HashSuite: ChunkIds, dictionary ChunkIds, the embedded and base
+    # manifests and the patch FileDigest are BLAKE3 digests.
+    b3 = csmgen.Layout(hash_suite_id=BLAKE3)
+
+    def blake3_mixed(**knobs) -> Patch:
+        return Patch(MIXED, base="base-a-blake3", target_layout=knobs.pop("target_layout", b3), **knobs)
+
+    v["valid-blake3-base-dependent.csp"] = Vector(blake3_mixed(), valid(MIXED, True), "apply", "base-a-blake3")
+    v["valid-blake3-self-contained.csp"] = Vector(
+        Patch(SELF, target_layout=b3), valid(SELF, False), "apply")
+    v["valid-blake3-zstd-dictionary.csp"] = Vector(
+        Patch(one, base="base-a-blake3", target_layout=b3,
+              entries=[Entry(EDITED_A1, z, [A[1]], FRAME_EDITED_A1)]),
+        valid(one, True), "apply", "base-a-blake3")
+    v["blake3-tcsm-integrity.csp"] = Vector(
+        blake3_mixed(target_layout=csmgen.Layout(hash_suite_id=BLAKE3, trailer_digest_xor=True)),
+        dep("EmbeddedManifest"), "structure", "base-a-blake3")
+    v["blake3-patch-file-digest.csp"] = Vector(
+        blake3_mixed(trailer_digest_xor=True), dep("FileDigest"), "structure", "base-a-blake3")
+    v["blake3-payload-hash.csp"] = Vector(
+        blake3_mixed(entries=[Entry(N[0]), Entry(N[1], stored=bytes([N[1][0] ^ 1]) + N[1][1:]), Entry(N[2])]),
+        dep("PayloadChunk"), "apply", "base-a-blake3")
+    v["blake3-base-chunk-corrupt.csp"] = Vector(
+        blake3_mixed(), dep("BaseChunk"), "apply", "base-a-blake3-corrupt-content")
+    v["blake3-base-sha256.csp"] = Vector(blake3_mixed(), dep("BaseMismatch"), "apply", "base-a")
+    # A consistent BLAKE3 manifest whose ChunkIds are SHA-256 digests: a reader
+    # that hashed payloads with SHA-256 whatever the suite would accept it.
+    sha256_ids = [(sha256(c), len(c)) for c in SELF]
+    v["blake3-sha256-chunk-ids.csp"] = Vector(
+        Patch(SELF, target_layout=b3, tcsm_bytes=csmgen.build(sha256_ids, False, b3)[0],
+              entries=[Entry(c, chunk_id=sha256(c)) for c in (N[3], N[4], N[5])],
+              first_target_index={1: 1, 2: 3}),
+        dep("PayloadChunk"), "apply")
 
     v.update(truncations())
     return v

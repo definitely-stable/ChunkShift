@@ -290,9 +290,11 @@ public sealed class CspApplyFuzzTests : IDisposable
     /// Builds the corpus once: the SHA-256 patches <c>CreateAsync</c> makes
     /// for every creation scenario, each with the base it applies over, plus
     /// every committed vector whose expected verdict is <c>valid</c>, with the
-    /// base files it names. BLAKE3 is left out because the independent decoder
-    /// cannot compute it, and base content above four MiB is dropped so a
-    /// dumped case stays small.
+    /// base files it names. BLAKE3 enters through the committed BLAKE3
+    /// vectors, whose bases are a few KiB: the independent decoder computes
+    /// BLAKE3 in pure Python at about 1 MB/s, too slow for thousands of cases
+    /// over the megabyte scenario bases. Base content above four MiB is
+    /// dropped so a dumped case stays small.
     /// </summary>
     private static List<CorpusEntry> BuildCorpus()
     {

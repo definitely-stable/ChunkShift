@@ -156,42 +156,55 @@ public sealed class PatchCreationTests
     }
 
     /// <summary>
-    /// Writes the patches of every scenario and their base files to
-    /// <paramref name="directory"/>, with the file names the independent
-    /// decoder consumes.
+    /// Writes the patches of every scenario under both HashSuites and their
+    /// base files to <paramref name="directory"/>, with the file names the
+    /// independent decoder consumes.
     /// </summary>
     internal static async Task DumpScenariosAsync(string directory)
     {
         Directory.CreateDirectory(directory);
-        HashSuiteId suite = HashSuiteIds.Sha256V1;
 
-        foreach (PatchScenario scenario in PatchScenarios.All)
+        foreach (HashSuiteId suite in (HashSuiteId[])[HashSuiteIds.Sha256V1, HashSuiteIds.Blake3256V1])
         {
-            byte[] baseManifest = await CreationTestSupport.CreateManifestAsync(
-                scenario.BaseContent,
-                suite);
-            byte[] targetManifest = await CreationTestSupport.CreateManifestAsync(
-                scenario.TargetContent,
-                suite);
-            (byte[] patch, _) = await CreationTestSupport.CreatePatchAsync(
-                scenario,
-                baseManifest,
-                targetManifest);
+            string suffix = suite == HashSuiteIds.Sha256V1 ? string.Empty : "-blake3";
 
-            File.WriteAllBytes(
-                Path.Combine(directory, $"{scenario.Name}.csp"),
-                patch);
-            File.WriteAllBytes(
-                Path.Combine(directory, $"{scenario.Name}.base.csm"),
-                baseManifest);
-            File.WriteAllBytes(
-                Path.Combine(directory, $"{scenario.Name}.base.bin"),
-                scenario.BaseContent);
-            File.WriteAllText(
-                Path.Combine(directory, $"{scenario.Name}.target.sha256"),
-                Convert.ToHexStringLower(
-                    System.Security.Cryptography.SHA256.HashData(
-                        scenario.TargetContent)));
+            foreach (PatchScenario scenario in PatchScenarios.All)
+            {
+                await DumpScenarioAsync(directory, scenario.Name + suffix, scenario, suite);
+            }
         }
+    }
+
+    private static async Task DumpScenarioAsync(
+        string directory,
+        string name,
+        PatchScenario scenario,
+        HashSuiteId suite)
+    {
+        byte[] baseManifest = await CreationTestSupport.CreateManifestAsync(
+            scenario.BaseContent,
+            suite);
+        byte[] targetManifest = await CreationTestSupport.CreateManifestAsync(
+            scenario.TargetContent,
+            suite);
+        (byte[] patch, _) = await CreationTestSupport.CreatePatchAsync(
+            scenario,
+            baseManifest,
+            targetManifest);
+
+        File.WriteAllBytes(
+            Path.Combine(directory, $"{name}.csp"),
+            patch);
+        File.WriteAllBytes(
+            Path.Combine(directory, $"{name}.base.csm"),
+            baseManifest);
+        File.WriteAllBytes(
+            Path.Combine(directory, $"{name}.base.bin"),
+            scenario.BaseContent);
+        File.WriteAllText(
+            Path.Combine(directory, $"{name}.target.sha256"),
+            Convert.ToHexStringLower(
+                System.Security.Cryptography.SHA256.HashData(
+                    scenario.TargetContent)));
     }
 }
