@@ -329,6 +329,21 @@ jobs:
             -p:RestoreAdditionalProjectSources="${GITHUB_WORKSPACE}/artifacts/packages" \
             -- --evidence artifacts/package-smoke/jit-linux-x64.txt
 
+      - name: Consume produced Patching package
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project tests/ChunkShift.Patching.PackageSmoke/ChunkShift.Patching.PackageSmoke.csproj -c Release \
+            -p:ChunkShiftPackageVersion="${PACKAGE_VERSION}" \
+            -p:RestoreAdditionalProjectSources="${GITHUB_WORKSPACE}/artifacts/packages" \
+            -- --evidence artifacts/package-smoke/patching-jit-linux-x64.txt
+          # The same packed Patching package over the published Core 0.1.0.
+          dotnet run --project tests/ChunkShift.Patching.PackageSmoke/ChunkShift.Patching.PackageSmoke.csproj -c Release \
+            -p:ChunkShiftPackageVersion="${PACKAGE_VERSION}" -p:ChunkShiftCoreVersion=0.1.0 \
+            -p:RestoreAdditionalProjectSources="${GITHUB_WORKSPACE}/artifacts/packages" \
+            -- --evidence artifacts/package-smoke/patching-core-0.1.0.txt
+          diff -u artifacts/package-smoke/patching-jit-linux-x64.txt artifacts/package-smoke/patching-core-0.1.0.txt
+
       - name: Build and run samples against produced package
         shell: bash
         run: |

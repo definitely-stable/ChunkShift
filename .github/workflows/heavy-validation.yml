@@ -181,6 +181,37 @@ jobs:
             --evidence "${GITHUB_WORKSPACE}/artifacts/package-smoke/large-${{ matrix.rid }}.txt"
           rm -f "$source"
 
+      - name: Patching package smoke (JIT)
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project tests/ChunkShift.Patching.PackageSmoke/ChunkShift.Patching.PackageSmoke.csproj -c Release \
+            -p:ChunkShiftPackageVersion="${PACKAGE_VERSION}" \
+            -p:RestoreAdditionalProjectSources="${GITHUB_WORKSPACE}/artifacts/packages" \
+            -- --evidence "artifacts/package-smoke/patching-jit-${{ matrix.rid }}.txt"
+
+      - name: Patching NativeAOT package-consumer publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          # TreatWarningsAsErrors is repository-wide, so a trim or AOT warning
+          # fails this publish instead of passing quietly.
+          dotnet publish tests/ChunkShift.Patching.PackageSmoke/ChunkShift.Patching.PackageSmoke.csproj -c Release \
+            -r "${{ matrix.rid }}" --self-contained true -p:PublishAot=true -p:PublishTrimmed=true \
+            -p:ChunkShiftPackageVersion="${PACKAGE_VERSION}" \
+            -p:RestoreAdditionalProjectSources="${GITHUB_WORKSPACE}/artifacts/packages" \
+            -o artifacts/aot-publish-patching
+
+      - name: Run Patching NativeAOT smoke and compare with JIT
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./artifacts/aot-publish-patching/ChunkShift.Patching.PackageSmoke \
+            --evidence "artifacts/package-smoke/patching-aot-${{ matrix.rid }}.txt"
+          diff -u \
+            "artifacts/package-smoke/patching-jit-${{ matrix.rid }}.txt" \
+            "artifacts/package-smoke/patching-aot-${{ matrix.rid }}.txt"
+
       - name: Upload package-smoke evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -265,7 +296,12 @@ jobs:
           diff -u \
             artifacts/package-smoke/large-linux-x64.txt \
             artifacts/package-smoke/large-linux-arm64.txt
-          cat artifacts/package-smoke/aot-linux-x64.txt artifacts/package-smoke/large-linux-x64.txt
+          diff -u \
+            artifacts/package-smoke/patching-aot-linux-x64.txt \
+            artifacts/package-smoke/patching-aot-linux-arm64.txt
+          cat artifacts/package-smoke/aot-linux-x64.txt \
+            artifacts/package-smoke/large-linux-x64.txt \
+            artifacts/package-smoke/patching-aot-linux-x64.txt
 
       - name: Compare deterministic evidence
         shell: bash

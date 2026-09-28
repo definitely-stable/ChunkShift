@@ -43,8 +43,8 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 - **Options:** Core internals through `InternalsVisibleTo`; the public surface only.
 - **Evidence:** *spec* — AGENTS.md (Core stays usable without Patching; public API changes need issue/RFC coverage); docs/RELEASES.md §2 (a package that did not change is not republished). *compatibility* — Core 0.1.0 grants no `InternalsVisibleTo`, so using internals would force a Core release and couple the two packages to non-contract code.
 - **Decision:** Patching uses only the published Core 0.1.0 surface (`PublicAPI.Shipped.txt`): `ManifestReader`, `ChunkManifest`, the identity types. Here it references Core as a project. The dependency floor of a published Patching package is chosen at publication, not implied by `dotnet pack` (which would record the version being packed).
-- **Evidence still to add:** P8 builds Patching against the published `ChunkShift` 0.1.0 package, which proves a floor of 0.1.0.
-- **Status:** provisional until P8.
+- **Result (P8):** Core's `PublicAPI.Unshipped.txt` is empty, so Patching compiles only against the shipped 0.1.0 surface. CI's `package-smoke` runs the packed Patching consumer (`tests/ChunkShift.Patching.PackageSmoke`) twice: over the Core packed with it and, with `-p:ChunkShiftCoreVersion=0.1.0`, over the published `ChunkShift` 0.1.0 from nuget.org; plan, create, apply, wrong-base and in-place results are identical. The floor of a published Patching package is therefore 0.1.0.
+- **Status:** confirmed.
 
 ### D3. Hashing
 
@@ -207,7 +207,8 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 ### D20. NativeAOT acceptance
 
 - **Decision:** a packed `ChunkShift.Patching` package, restored only from a local package source into a clean consumer, published with NativeAOT and run through a real create/apply round trip with raw, zstd and dictionary entries; any trim or AOT warning fails the lane. JIT on CI, JIT and NativeAOT on x64 and ARM64 in heavy validation (P8), with an earlier probe in P3.
-- **Status:** confirmed as the gate; results land with P3 and P8.
+- **Result (P8):** heavy validation run 36376110134 published the packed Patching consumer with NativeAOT (trimmed, warnings as errors) on linux-x64 and linux-arm64 without a warning; its create/apply evidence matched the JIT run on each architecture and between x64 and ARM64. Which entry forms the smoke's patches use is not visible through the public API; the creation tests (P5) cover raw, zstd and dictionary entries on the same kind of edits.
+- **Status:** confirmed.
 
 ### D21. Check order and specification clarifications
 

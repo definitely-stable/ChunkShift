@@ -61,6 +61,13 @@ dotnet pack src/ChunkShift/ChunkShift.csproj -c Release -o artifacts/packages -p
 dotnet run --project tests/ChunkShift.PackageSmoke -c Release -p:ChunkShiftPackageVersion=0.0.0-local.1 -p:RestoreAdditionalProjectSources=<repo>/artifacts/packages
 ```
 
+For `ChunkShift.Patching`, pack it with the same version and run its consumer (`tests/ChunkShift.Patching.PackageSmoke`); CI runs it a second time with `-p:ChunkShiftCoreVersion=0.1.0` to use the published Core:
+
+```text
+dotnet pack src/ChunkShift.Patching/ChunkShift.Patching.csproj -c Release -o artifacts/packages -p:PackageVersion=0.0.0-local.1
+dotnet run --project tests/ChunkShift.Patching.PackageSmoke -c Release -p:ChunkShiftPackageVersion=0.0.0-local.1 -p:RestoreAdditionalProjectSources=<repo>/artifacts/packages
+```
+
 Use a new local version for each pack; NuGet caches packages by version.
 
 If it affects NativeAOT, binary formats, deterministic chunking, security parsers or hot paths, run the corresponding milestone-specific validation instead of claiming completion from unit tests alone.
