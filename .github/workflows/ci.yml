@@ -117,6 +117,9 @@ jobs:
           # than fall back to a third-party package (PATCHING-DECISIONS D18).
           python -c "import sys; from compression import zstd; print(sys.version, zstd.zstd_version_info)"
           python tools/csp-fixtures/generate.py --verify tests/ChunkShift.Patching.Tests/Fixtures/CspV1
+          # The forward-only prototype must reach the same verdicts
+          # (docs/architecture/CSP-V1-FORWARD-ONLY-APPLY.md).
+          python tools/csp-fixtures/forward_apply.py --vectors tests/ChunkShift.Patching.Tests/Fixtures/CspV1
 
       - name: Decode created patches with the independent decoder
         if: matrix.os == 'ubuntu-24.04'

@@ -140,6 +140,7 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 
 - **Evidence:** *spec* — CSP-V1-CANDIDATE §6 and §12 (h). *compatibility* — relaxing a requirement later is additive, tightening it is breaking, so v1 requires exactly what the algorithm needs today.
 - **Reopen if:** forward-only apply of the target-ordered layout is taken up (the later optimization named by decision (h)).
+- **Evidence (before P12):** [CSP-V1-FORWARD-ONLY-APPLY.md](CSP-V1-FORWARD-ONLY-APPLY.md). A prototype that reads the patch once, front to back, holding back only the TRAILER and retaining no stored payload bytes, reaches decode.py's verdict on all 125 vectors, the 16 created scenario patches and 20,338 fuzz cases, provided it decides only after EOF in D21 order. The v1 bytes admit forward-only apply; §6's "before any output exists" for the `FileDigest` and the base binding does not. Whether the frozen text says "published" instead is an owner decision at P12. CI checks the prototype against decode.py on the vectors, heavy validation on the fuzz dump.
 - **Status:** confirmed.
 
 ### D12. Publication of the applied target
