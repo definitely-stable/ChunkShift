@@ -1,10 +1,10 @@
-# CSP v1 candidate patch specification
+# CSP v1 patch specification
 
-Status: Candidate (owner decisions taken 2026-09-27, section 12; not frozen; no encoder exists)  
-Date: 2026-09-27  
+Status: Frozen as CSP v1 on 2026-09-28 (section 13). Not yet published: publication follows the fixture gate of section 11 from the publication repository. Originally the [#66](https://github.com/definitely-stable/ChunkShift/issues/66)/[#7](https://github.com/definitely-stable/ChunkShift/issues/7) candidate; owner decisions in section 12  
+Date: 2026-09-27 (candidate), 2026-09-28 (frozen)  
 Authority: RFC-0001 section 9 + PLAN.md §12 + [#66](https://github.com/definitely-stable/ChunkShift/issues/66)
 
-This document turns the CSP paragraphs of RFC-0001 §9 into an implementable candidate. The shape decisions of section 12 are taken; the byte layout still is not a compatibility baseline, and no encoder, decoder or consumer may treat it as one, until the fixtures and the independent decoder of section 11 exist and the pre-freeze evidence of section 10 is recorded. The CSP format version is independent from the NuGet package version, from the CSM format version and from the chunking-profile version (RFC-0001 §15): editing this file changes no package, and releasing a package does not freeze this format. Every size and limit below is a candidate value.
+This document is the CSP v1 byte format: the CSP paragraphs of RFC-0001 §9 made implementable. The layout, identities, apply contract and rejection rules are frozen as v1. A change to any of them needs an owner decision, a format revision and updated vectors (section 11). The fixed sizes and format maxima of section 8 are part of the format; its operational defaults are implementation limits, not persisted ones. The CSP format version is independent from the NuGet package version, from the CSM format version and from the chunking-profile version (RFC-0001 §15): releasing a package does not change the format, and the format does not follow package versions.
 
 ## 1. Scope and non-goals
 
@@ -63,15 +63,15 @@ CSP v1 defines no separate whole-content digest. Reconstruction is bound chunk-b
 
 A patch **depends on a base** when at least one distinct target `ChunkId` has no payload entry (it is taken from the base), or at least one payload entry names dictionary chunks (section 5.2).
 
-- A patch that depends on a base MUST carry the `BASE` section (section 4.4) with the expected base `ManifestId`. Apply requires a base manifest with exactly that `ManifestId` and rejects the patch before any output exists otherwise.
+- A patch that depends on a base MUST carry the `BASE` section (section 4.4) with the expected base `ManifestId`. Apply requires a base manifest with exactly that `ManifestId` and fails otherwise, without publishing any output (section 6).
 - A patch that does not depend on a base (every distinct target `ChunkId` has a payload entry and no entry names dictionary chunks) is **self-contained**. It MAY carry `BASE` as information; apply then still requires the base to match if the caller supplies one, and needs no base otherwise.
 
-RFC-0001 §9 makes the expected base optional; this candidate keeps it optional only for self-contained patches. A base-dependent patch is built for one base (reuse and dictionaries are chosen against it), so the binding makes a wrong base fail fast and gives the update-policy layer an explicit `(base, target)` pair to sign. Serving several bases means one patch per base.
+RFC-0001 §9 makes the expected base optional; CSP v1 keeps it optional only for self-contained patches. A base-dependent patch is built for one base (reuse and dictionaries are chosen against it), so the binding makes a wrong base fail fast and gives the update-policy layer an explicit `(base, target)` pair to sign. Serving several bases means one patch per base.
 
 ### 3.4 HashSuite and profile compatibility
 
 - The base manifest and the target manifest MUST declare the same `HashSuiteId`. `ChunkId` values are comparable only within one HashSuite, and CSP v1 does not re-hash base chunks under a different suite. A base manifest with a different HashSuite is rejected (section 7, rule 20).
-- The base manifest's `ProfileFingerprint` is not an apply requirement. Reuse is decided by `ChunkId` equality alone, and different chunking profiles can still share identical chunk bytes; dictionary entries (section 5.2) recover most of the remaining similarity. Patch creation SHOULD use a base with the same `ProfileFingerprint`, because a different profile lowers reuse and inflates the payload.
+- The base manifest's `ProfileFingerprint` is not an apply requirement, so a base manifest whose only verification failure is profile semantics (CSM §14) is accepted. Reuse is decided by `ChunkId` equality alone, and different chunking profiles can still share identical chunk bytes; dictionary entries (section 5.2) recover most of the remaining similarity. Patch creation SHOULD use a base with the same `ProfileFingerprint`, because a different profile lowers reuse and inflates the payload.
 - Target-side profile semantics are unchanged from CSM §14: an unregistered `ChunkingProfileId` does not block manifest-only checks, while the optional re-chunk verification of section 9.5 requires a reader that registers the embedded CSM's profile and fingerprint.
 
 ### 3.5 Patch identity
@@ -129,7 +129,7 @@ Unknown optional physical sections are permitted only in the optional phase and 
 | 16 | 8 | OptionalPhysicalFeatures |
 | 24 | 8 | Reserved = 0 |
 
-The current candidate defines no physical feature bits: writers MUST emit both fields as zero, and a reader MUST reject a different magic/major, a different `PreambleSize`, non-zero reserved bytes and unknown required physical bits. Optional physical bits are reserved for a future revision that also defines how a reader that does not understand them behaves; this candidate assigns none.
+CSP v1 defines no physical feature bits: writers MUST emit both fields as zero, and a reader MUST reject a different magic/major, a different `PreambleSize`, non-zero reserved bytes and unknown required physical bits. Optional physical bits are reserved for a future revision that also defines how a reader that does not understand them behaves; v1 assigns none.
 
 ### 4.3 Section header — fixed 16 bytes
 
@@ -141,7 +141,7 @@ Every section after PREAMBLE and before TRAILER starts with the CSM §4 header:
 | 4 | 4 | Flags |
 | 8 | 8 | PayloadLength |
 
-Known v1 types: `TCSM`, `BASE`, `PAYL`, `AUX0`, `PIDX`, `FOOT`. Section flag bit 0 means REQUIRED; all other v1 flag bits are reserved and MUST be zero. `TCSM`, `PAYL`, `PIDX` and `FOOT` are required sections and writers MUST set REQUIRED on them. `BASE` and `AUX0` are optional sections: writers MUST clear REQUIRED, and readers MUST reject either one with REQUIRED set, because an optional section cannot demand to be understood. A known section's type, not its REQUIRED flag, decides where it may appear (section 4.1). Whether `BASE` must be present is a semantic rule of section 3.3, checked after the payload is known, not a physical-order rule.
+Known v1 types: `TCSM`, `BASE`, `PAYL`, `AUX0`, `PIDX`, `FOOT`. Section flag bit 0 means REQUIRED; all other v1 flag bits are reserved and MUST be zero. `TCSM`, `PAYL`, `PIDX` and `FOOT` are required sections and writers MUST set REQUIRED on them. `BASE` and `AUX0` are optional sections: writers MUST clear REQUIRED, and readers MUST reject either one with REQUIRED set, because an optional section cannot demand to be understood. A known section's type, not its REQUIRED flag, decides where it may appear (section 4.1), and a reader accepts a known required section whatever its REQUIRED flag, as the CSM reader does: the flag governs unknown section types, and the optional `BASE` and `AUX0` above. Whether `BASE` must be present is a semantic rule of section 3.3, checked after the payload is known, not a physical-order rule.
 
 Unknown section behavior is the CSM §4 behavior: REQUIRED set -> fail; REQUIRED clear -> skip exactly `PayloadLength` bytes without allocating the payload. Section length plus header MUST fit the remaining physical bytes under checked UInt64 arithmetic.
 
@@ -296,10 +296,10 @@ Why it is in v1: on the preliminary corpus of section 10, a chunk-granular raw p
 
 Inputs: the CSP artifact, the base (base manifest plus random-access base content) when the patch depends on one, and a destination path. Apply proceeds in target-manifest order:
 
-1. Read the fixed TRAILER, validate magic/major/`TrailerSize`/`PhysicalLength`, locate `FOOT`, and validate the section state machine of section 4.1, including CRC32C for every `PAYL` and `PIDX` section. The patch `FileDigest` (section 9.2) is recomputed over the same bytes, once the embedded CSM has named the HashSuite; a mismatch aborts apply before any output exists.
-2. Read the embedded `TCSM` through a bounded substream and run the existing CSM reader over it. Obtain the target `HashSuiteId`, `ChunkingProfileId`, `ProfileFingerprint`, `ManifestId`, `FileDigest`, `TotalChunkCount`, `TotalContentLength` and the ordered `(ChunkId, Length)` records. An invalid embedded CSM aborts apply.
+1. Read the fixed TRAILER, validate magic/major/`TrailerSize`/`PhysicalLength`, locate `FOOT`, and validate the section state machine of section 4.1, including CRC32C for every `PAYL` and `PIDX` section. The patch `FileDigest` (section 9.2) is recomputed over the same bytes, once the embedded CSM has named the HashSuite; a mismatch fails apply.
+2. Read the embedded `TCSM` through a bounded substream and run the existing CSM reader over it. Obtain the target `HashSuiteId`, `ChunkingProfileId`, `ProfileFingerprint`, `ManifestId`, `FileDigest`, `TotalChunkCount`, `TotalContentLength` and the ordered `(ChunkId, Length)` records. An invalid embedded CSM fails apply.
 3. Read `PIDX` (bounded by section 8) and validate it against the `PAYL` entries and against the target manifest: every payload `ChunkId` is a target `ChunkId`, `FirstTargetIndex` names its first occurrence, indices agree with payload records, and ordering follows section 4.7.
-4. Decide the base binding (section 3.3). If the patch depends on a base and `BASE` is absent, reject it. If `BASE` is present, open the supplied base manifest, require its `HashSuiteId` to equal the target's and its `ManifestId` to equal `ExpectedBaseManifestId`; a missing or different base aborts apply before any output exists. A self-contained patch without `BASE` uses no base.
+4. Decide the base binding (section 3.3). If the patch depends on a base and `BASE` is absent, reject it. If `BASE` is present, open the supplied base manifest, require its `HashSuiteId` to equal the target's and its `ManifestId` to equal `ExpectedBaseManifestId`; a missing or different base fails apply. A self-contained patch without `BASE` uses no base.
 5. Resolve each target record, in order:
    - if a payload entry exists for the record's `ChunkId`, read its stored bytes; for encoding 1 with dictionary chunks, read each named base chunk and verify it by `ChunkId` and `Length`; decode per section 5 within its bounds; verify `Length` and `ChunkId`; write;
    - otherwise, read the base chunk with that `ChunkId`, verify `Length` and `ChunkId`, and write;
@@ -309,7 +309,20 @@ Inputs: the CSP artifact, the base (base manifest plus random-access base conten
 7. Optional stronger check: if the target profile is registered, re-chunk the written output with it and compare the result against the embedded manifest (section 9.5).
 8. Only after all checks pass, publish the output by atomic rename from a temporary file in the destination directory. On any failure, the temporary file is discarded and the destination path is never replaced.
 
-Wrong base or corrupt patch never publishes a target: a `BASE` mismatch fails before any output exists, and a per-chunk or final mismatch fails before publication. Publication mechanics (temp naming, disk preflight, Windows locks) are Patching behavior under RFC-0004 §1; the format requirement is only that no partial or unverified target becomes visible at the destination path.
+Wrong base or corrupt patch never publishes a target. Publication mechanics (temp naming, disk preflight, Windows locks) are Patching behavior under RFC-0004 §1; the format requirement is only that no partial or unverified target becomes visible at the destination path.
+
+**What is observable.** The contract of apply is its outcome, not the order of its reads: the verdict below, the target it publishes, and that nothing is published before every check has passed. The steps above are the reference order. An applier that reads the patch with random access SHOULD complete steps 1–4 before it writes any output, so that a corrupt patch or a wrong base costs no output I/O. An applier MAY instead read the patch once, front to back, writing the reconstruction to its temporary file as it goes; it then decides the verdict only after the end of the patch ([CSP-V1-FORWARD-ONLY-APPLY.md](CSP-V1-FORWARD-ONLY-APPLY.md), decision (k)).
+
+**Verdict order.** An input that breaks more than one rule gets the verdict of the first failing stage, in this order, whatever order the applier reads it in:
+
+1. structure: an artifact shorter than PREAMBLE plus TRAILER (rule 7), the TRAILER (rules 5, 6 and its reserved field), the PREAMBLE (rules 1, 2), then the sections in physical order; inside `PAYL` and `PIDX` the CRC (rule 9) is checked before any field of the section is interpreted, and an unimplemented encoding (rule 16) is reported when its entry is reached;
+2. the embedded CSM: malformed (rule 14) or of an unknown HashSuite (rule 16); then its integrity and profile-semantics failures (rule 25, section 9.6) and the patch `FileDigest` (rule 25), which are reported together;
+3. payload entries against the target: a `FirstTargetIndex` that is not the first occurrence of its `ChunkId` (rule 12) is malformed, even when rule 17 fails as well; otherwise duplicate entries, entries not in the target (rule 17) and stored lengths (rule 18) are reported together;
+4. base binding: a base-dependent patch without `BASE` (rule 13); then a required base that was not supplied, the base HashSuite, the base manifest's integrity and its `ManifestId` (rule 20), in that order;
+5. the target records in order, stopping at the first failure (rules 19, 21, 22, 28, 29 and 30);
+6. the total length (rule 23), then the optional re-chunk check (rule 24).
+
+A limit of section 8 (rule 26) is reported where it is exceeded. Stages 2 and 3 report every verification failure kind they find together; every other stage reports its first failure. The verdict categories are those of section 7.
 
 Memory bounds, capped by section 8:
 
@@ -327,11 +340,11 @@ Each rule is normative and testable. Category: `malformed` = format error, `unsu
 2. (unsupported) unknown required physical feature bits are set.
 3. (malformed) any non-zero reserved field not listed elsewhere: section flag bits above bit 0, `PAYL`/`PIDX` entry reserved bytes, `FOOT` reserved, TRAILER reserved.
 4. (malformed) a known optional section has REQUIRED set, or an unknown section with REQUIRED set is encountered; only unknown optional sections may be skipped.
-5. (malformed) the state machine of section 4.1 is violated: duplicate, missing or out-of-order required sections (TCSM/PAYL/PIDX/FOOT/TRAILER), a duplicated or misplaced BASE, a section after FOOT, bytes after TRAILER, a gap or padding between sections, or TRAILER not at physical EOF.
+5. (malformed) the state machine of section 4.1 is violated: duplicate, missing or out-of-order required sections (TCSM/PAYL/PIDX/FOOT/TRAILER), a duplicated or misplaced BASE, a section after FOOT, bytes after TRAILER, a gap or padding between sections, or TRAILER not at physical EOF, which includes a TRAILER with the wrong magic, `FormatMajor` or `TrailerSize`.
 6. (malformed) `PhysicalLength` does not equal the actual artifact length.
-7. (malformed) any section `PayloadLength` cannot fit the remaining bytes under checked arithmetic, or a section is truncated.
-8. (malformed) `PAYL` computed payload length differs from `PayloadLength`, `EntryCount` is outside 1..4096, `FirstEntryOrdinal` disagrees with preceding entries, or an entry overruns the section.
-9. (malformed) `PAYL` or `PIDX` CRC32C mismatch.
+7. (malformed) any section `PayloadLength` cannot fit the remaining bytes under checked arithmetic, a section is truncated, or the artifact is shorter than PREAMBLE plus TRAILER.
+8. (malformed) `PAYL` computed payload length differs from `PayloadLength`, `EntryCount` is outside 1..4096, `FirstEntryOrdinal` disagrees with preceding entries, an entry has `StoredLength` 0, or an entry overruns the section.
+9. (malformed) `PAYL` or `PIDX` CRC32C mismatch. The CRC is checked before any field of its section is interpreted, so a corrupted field inside a CRC-covered section reports this rule, never a field rule or an unsupported encoding.
 10. (malformed) `PIDX` computed payload length differs from `PayloadLength`, or `IndexVersion` is not 1.
 11. (malformed) `PIDX` and `PAYL` disagree: entry counts differ, or an entry differs from its payload record in `StoredLength`, `Encoding` or `DictionaryCount`.
 12. (malformed) index out of range, overlapping stored ranges, a `PayloadOffset` outside the `PAYL` phase, a `FirstTargetIndex` that is out of range, does not carry the entry's `ChunkId` or is not its first occurrence, or `FirstTargetIndex` values that do not strictly increase.
@@ -339,16 +352,16 @@ Each rule is normative and testable. Category: `malformed` = format error, `unsu
 14. (malformed) the embedded CSM fails any CSM §14 check, its `PhysicalLength` disagrees with `TCSM.PayloadLength`, or its format major is not 1.
 15. (malformed) `FOOT` fields disagree: `BaseSectionOffset`/`FirstPaylSectionOffset`/`PaylCount`/`PayloadEntryCount` do not match the observed sections.
 16. (unsupported) the embedded CSM declares an unknown HashSuite, or an entry uses an encoding this reader does not implement.
-17. (verification) a payload entry names a `ChunkId` that is not a target-manifest `ChunkId`, or one target `ChunkId` has more than one payload entry.
+17. (verification) a payload entry names a `ChunkId` that is not a target-manifest `ChunkId`, or one target `ChunkId` has more than one payload entry. Such an entry necessarily breaks rule 12 as well; it is reported under this rule, and rule 12's first-occurrence check applies to the first entry of each target `ChunkId`.
 18. (verification) for raw encoding, `StoredLength` differs from the target chunk `Length`; for any encoding, `StoredLength` exceeds it.
 19. (verification) decoded or stored bytes do not hash to the entry's target `ChunkId` under the embedded manifest's HashSuite, or are not exactly the target `Length` long.
-20. (verification) `BASE` is present and no base is supplied, the supplied base manifest's `ManifestId` differs from `ExpectedBaseManifestId`, or the base manifest's HashSuite differs from the target's.
+20. (verification) the patch depends on a base, `BASE` is present and no base is supplied; the base manifest's HashSuite differs from the target's; the supplied base manifest fails verification for a reason other than profile semantics (section 3.4); or its `ManifestId` differs from `ExpectedBaseManifestId`. A self-contained patch that carries `BASE` applies without a base (section 3.3); a supplied base is still checked.
 21. (verification) a reused base chunk's bytes do not hash to the target `ChunkId`, or its base `Length` differs from the target `Length`.
 22. (verification) a target chunk is neither supplied by the base nor present in the payload (missing payload).
-23. (verification) the total bytes written differ from `TotalContentLength`.
+23. (verification) the total bytes written differ from `TotalContentLength`. The embedded CSM's logical totals already bind the record lengths, so this rule cannot fail on its own; the check stays as a guard.
 24. (verification) the optional re-chunk check of section 9.5 was performed and does not reproduce the embedded manifest.
 25. (verification) CSP TRAILER `FileDigest` mismatch, or embedded CSM `FileDigest`/`ManifestId` mismatch.
-26. (verification) a limit of section 8 is exceeded.
+26. (verification) an operational limit of section 8 is exceeded (a limits failure).
 27. (malformed) `DictionaryCount` is non-zero for raw encoding or greater than 4 for encoding 1.
 28. (verification) a `DictionaryChunkId` is not a chunk of the base manifest, a dictionary chunk's bytes do not hash to its `ChunkId` or have a different length, the dictionary exceeds 1 MiB, or it begins with `37 A4 30 EC`.
 29. (malformed) an encoding-1 entry is not exactly one zstd frame: a skippable frame, a second frame or trailing bytes are present, or the frame is truncated or corrupt.
@@ -356,17 +369,21 @@ Each rule is normative and testable. Category: `malformed` = format error, `unsu
 
 ## 8. Resource bounds
 
-A conforming v1 reader/applier enforces at least the following. All values are candidate values.
+A conforming v1 reader/applier enforces at least the following. The fixed sizes, format maxima and derived bounds are **normative**: they are part of CSP v1, and changing one is a format revision. The operational defaults are **not**: they are implementation limits, configurable and never persisted.
 
-Fixed sizes:
+Fixed sizes (normative):
 
 - `PreambleSize = 32`, `SectionHeaderSize = 16`, `TrailerSize = 64`;
 - `BASE` payload = 32 bytes;
-- `PAYL` prefix = 16 bytes, entry header = 40 bytes plus 32 bytes per dictionary reference, `EntryCount` 1..4096; `PIDX` prefix = 8 bytes, entry = 24 bytes, `IndexVersion = 1`;
-- `FOOT` payload = 56 bytes;
+- `PAYL` prefix = 16 bytes, entry header = 40 bytes plus 32 bytes per dictionary reference; `PIDX` prefix = 8 bytes, entry = 24 bytes, `IndexVersion = 1`;
+- `FOOT` payload = 56 bytes.
+
+Format maxima (normative):
+
+- `PAYL` `EntryCount` 1..4096;
 - per encoding-1 entry: at most 4 dictionary chunks, at most 1 MiB of dictionary, a zstd window of at most 1 MiB, output exactly the target chunk `Length`.
 
-Derived bounds, computed from the embedded CSM before allocating:
+Derived bounds (normative), computed from the embedded CSM before allocating:
 
 - payload entries <= distinct target `ChunkId` count <= `TotalChunkCount`;
 - every `StoredLength` <= its target chunk `Length`, therefore total stored payload bytes <= `TotalContentLength`;
@@ -374,12 +391,12 @@ Derived bounds, computed from the embedded CSM before allocating:
 - every `PayloadOffset` and every section range lies inside the artifact, under checked UInt64 arithmetic;
 - the embedded CSM is bounded by the CSM reader's own limits and by the remaining patch bytes.
 
-Operational defaults, configurable and not persisted compatibility limits:
+Operational defaults (not part of the format):
 
 - `MaximumPayloadEntries = 1,048,576`. A fully materialized `PIDX` at this cap is 24 MiB; an applier that streams the index may process more, and a stricter configured cap is allowed.
-- `MaximumMaterializedManifestRecords = 4,194,304` for a materialized target record table or base locator. A stricter configured cap is allowed; exceeding it is a limits failure, not malformed input.
+- `MaximumMaterializedManifestRecords = 4,194,304` for a materialized target record table or base locator. A stricter configured cap is allowed.
 
-Configurable operational limits may be stricter than the format maxima, in the CSM §13 sense. Limits are not persisted compatibility limits unless a later revision says so. Every offset/count/length multiplication or addition is checked; a reader MUST NOT allocate from an untrusted length before validating them.
+Exceeding an operational limit is a limits failure (rule 26), not malformed input, and says nothing about whether another reader with other limits accepts the patch. Configurable operational limits may be stricter than the format maxima, in the CSM §13 sense; a revision may make one persisted only by moving it to the normative lists above. Every offset/count/length multiplication or addition is checked; a reader MUST NOT allocate from an untrusted length before validating them.
 
 ## 9. Verification levels
 
@@ -407,7 +424,7 @@ Require the total bytes written to equal `TotalContentLength`. Because every out
 
 Unchanged from CSM §14: the format does not require a reader to know any profile. A reader that registers the declared `ChunkingProfileId` compares its fingerprint with the embedded CSM's recorded one and reports a mismatch as a profile-semantics failure; an identifier it does not register is not a manifest-only failure.
 
-Hash equality proves integrity against a trusted expected value; it does not provide authenticity (RFC-0001 §13.1). The .NET API shape for these outcomes is decided with the implementation ([#7](https://github.com/definitely-stable/ChunkShift/issues/7)); the format contract is the three outcome categories of section 7, and no verification failure may publish a target.
+Hash equality proves integrity against a trusted expected value; it does not provide authenticity (RFC-0001 §13.1). The format contract is the outcome categories of section 7, and no verification failure may publish a target; the .NET API maps them as [PATCHING-DECISIONS.md](PATCHING-DECISIONS.md) D10 records.
 
 ## 10. Evidence
 
@@ -417,18 +434,20 @@ Hash equality proves integrity against a trusted expected value; it does not pro
 
 ### 10.2 Pre-freeze evidence
 
-Before the format freezes, the lab records, per pre-registered file pair with the profile fixed and on a frozen, reproducibly materialized corpus that adds non-.NET native binaries, ARM64/ELF binaries and non-code data:
+Before the freeze, the lab recorded, per pre-registered file pair with the profile fixed and on a frozen, reproducibly materialized corpus that adds non-.NET native binaries, ARM64/ELF binaries and non-code data:
 
 1. Actual CSP bytes from the real encoder versus `UniqueMissingPayloadBytes` and versus the framing estimate of the study, with the embedded-CSM share recorded separately.
 2. Whole-file delivery (raw and zstd) versus CSP on the identical pair.
 3. xdelta3 on the identical pair (PLAN.md §12; ROADMAP Patching gate), plus `zstd --patch-from` and bsdiff as byte-level references.
 4. Apply evidence: wrong base and corrupt patch never publish; memory/temp/index behavior is explicit; apply CPU time and peak memory recorded under the normal lab rules; and end-to-end update time (transfer plus apply) at 50 Mbit/s and 1 Gbit/s, because a smaller patch always costs some decode CPU and the product question is the total. Patching is ported only when its own compatibility fixtures are ready (PLAN.md §12).
 
-A result where encoding 1 does not reduce patch bytes by at least 25% versus raw on the frozen corpus, or where end-to-end update time is worse than raw CSP at 1 Gbit/s, reopens decision (a) before the freeze. Thresholds are fixed here, before those numbers exist.
+A result where encoding 1 does not reduce patch bytes by at least 25% versus raw on the frozen corpus, or where end-to-end update time is worse than raw CSP at 1 Gbit/s, would have reopened decision (a) before the freeze. The thresholds were fixed here before the numbers existed.
+
+Results ([PATCH-PREFREEZE-PROTOCOL.md](../benchmarks/PATCH-PREFREEZE-PROTOCOL.md) §4): `PATCH-PREFREEZE-001` ADOPT, so decision (a) stands ([evidence](../research/results/PATCH-PREFREEZE-001-EVIDENCE-20260928-001.md)). `PATCH-APPLY-001` is DEFER on its memory rule A2: the Linux create peak of the encoder exceeds the 64 MiB allowance, which is encoder policy and implementation memory (PATCHING-DECISIONS D14, D17), not the format ([evidence](../research/results/PATCH-APPLY-001-EVIDENCE-20260928-003.md)). Wrong base and corrupt patch never publish (section 11).
 
 ## 11. Golden vectors and compatibility
 
-Before this format freezes, committed vectors plus an independent generator/decoder are required, in the shape of `tools/csm-fixtures` (`generate.py`/`decode.py`), so the format is checkable by more than one implementation. The independent decoder may use a separate zstd implementation; vectors pin the exact stored bytes, so encoder differences cannot change them. Required cases include at least:
+The freeze required committed vectors plus an independent generator/decoder, in the shape of `tools/csm-fixtures` (`generate.py`/`decode.py`), so the format is checkable by more than one implementation. They exist: `tools/csp-fixtures` and the 125 vectors in `tests/ChunkShift.Patching.Tests/Fixtures/CspV1`, under both v1 HashSuites, checked in CI against the production reader and applier and by differential fuzzing (PATCHING-DECISIONS D18, D19). The independent decoder uses a separate zstd implementation (libzstd through CPython); vectors pin the exact stored bytes, so encoder differences cannot change them. The vectors cover at least:
 
 - no payload (target fully supplied by the base), one chunk, and a target with repeated missing chunks (one entry, several uses);
 - a self-contained patch without `BASE`, the same with `BASE`, and a base-dependent patch;
@@ -450,7 +469,7 @@ Compatibility rules:
 
 ## 12. Owner decisions (taken 2026-09-27)
 
-The draft of this document left these open; the owner took them on 2026-09-27 on the evidence of section 10.1. They fix the shape of v1; the byte layout still freezes only through section 11.
+The draft of this document left these open; the owner took (a)–(j) on 2026-09-27 on the evidence of section 10.1, and (k) on 2026-09-28 at the freeze.
 
 1. (a) **Intra-chunk delta is in v1.** Encoding 1 (a zstd frame against 0..4 named base chunks, section 5.2) ships with raw. The draft recommended raw-only v1 with the delta reserved; the evidence reversed it: raw-only CSP costs more than whole-file compression on servicing updates, while dictionary entries land within 1.2–1.3x of `zstd --patch-from`.
 2. (b) **Base binding is mandatory for base-dependent patches** and optional only for self-contained ones (section 3.3). This tightens RFC-0001 §9's optional expected base without contradicting it.
@@ -459,6 +478,19 @@ The draft of this document left these open; the owner took them on 2026-09-27 on
 5. (e) **Payload entries for chunks the base also holds are permitted**; writers SHOULD omit them. They cannot change the output because both sources verify against the same `ChunkId`.
 6. (f) **No persisted `PatchId`** (section 3.5).
 7. (g) **A base/target `ProfileFingerprint` difference is creation-time guidance**, not an apply rejection (section 3.4).
-8. (h) **Apply requires random-access base content**, because reused and dictionary chunks are located by `ChunkId` anywhere in the base; the patch itself is read with random access in v1, and forward-only apply of the target-ordered layout is a later optimization.
+8. (h) **Apply requires random-access base content**, because reused and dictionary chunks are located by `ChunkId` anywhere in the base. The first implementation reads the patch with random access; forward-only apply of the target-ordered layout is a later optimization that decision (k) keeps conforming.
 9. (i) **The codec is zstd (RFC 8878), in the Patching package only.** It has raw-content dictionaries, a managed .NET implementation for the current targets and a BCL implementation from .NET 11 (`System.IO.Compression.Zstandard`); Brotli has no dictionary API on the supported targets. Core stays codec-free (RFC-0004 §3).
 10. (j) **A dictionary is up to 4 base chunks, at most 1 MiB, named by `ChunkId`.** In the study, two contiguous chunks capture most of the gain over one (native code, 10.0.11 -> 10.0.12: `clrjit.dll` 15.9% -> 6.9%, `coreclr.dll` 17.8% -> 11.0% of the target) and four add little; naming chunks by `ChunkId` keeps the dictionary identity a content digest and makes it verifiable without trusting offsets.
+11. (k) **The apply contract is observable** (taken 2026-09-28). Section 6 requires the verdict of its verdict order and that nothing is published before every check has passed; "before any output exists" is a SHOULD for an applier that reads the patch with random access. The v1 bytes already admit a forward-only applier that decides after the end of the patch ([CSP-V1-FORWARD-ONLY-APPLY.md](CSP-V1-FORWARD-ONLY-APPLY.md)), and this keeps it conforming without a revision.
+
+## 13. Freeze (2026-09-28)
+
+CSP v1 is frozen as this document states it: the byte layout of section 4, the encodings of section 5, the identities of section 3, the apply contract and verdict order of section 6, the rules of section 7 and the normative bounds of section 8. What the freeze added to the candidate text changes no byte and no verdict of the committed vectors:
+
+- the verdict order of section 6 and the clarifications of rules 5, 7, 8, 9, 17, 20 and 23, of section 3.4 (a base manifest with only a profile-semantics failure) and of section 4.3 (a known required section whatever its REQUIRED flag), which PATCHING-DECISIONS D21 had recorded from the independent decoder and the production reader, both of which already implement them;
+- decision (k): "before any output exists" became "before any output is published", with the random-access behavior as a SHOULD;
+- the split of section 8 into normative bounds and operational defaults.
+
+Freeze evidence: the pre-freeze results of section 10.2; the 125 vectors and the independent decoder of section 11, with the BLAKE3 HashSuite computed by the oracle; the differential fuzzing of the apply path and of zstd frames against libzstd; short-read, full-disk, cancellation and publication-failure tests (PATCHING-DECISIONS D12, D18, D19, D21).
+
+Changes from here follow section 11: a new encoding, layout, identity or rule needs an owner decision, a format revision and vectors. A change of the zstd implementation or its version is not a format change, but it must reproduce every vector before merge (AGENTS.md). Publishing CSP v1 is a release step of the publication repository, taken when the Patching package is ported (PLAN.md §12).

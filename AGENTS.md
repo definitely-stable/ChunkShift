@@ -31,6 +31,7 @@ Read the RFC/spec for the subsystem you change before editing it.
 - Persisted identities remain 256-bit unless an accepted RFC changes that contract.
 - CSM/CSP/profile/hash semantics must not change as a side effect of optimization.
 - A change to the BLAKE3 implementation or its package version (`Blake3` in `Directory.Packages.props`) is compatibility-sensitive, even as a dependency-only update: before merge it must reproduce every persisted BLAKE3/`ChunkId`/`ManifestId` conformance vector, and swapping the implementation never changes a `HashSuiteId`.
+- A change to the zstd implementation or its package version (`ZstdSharp.Port` in `Directory.Packages.props`, or a replacement backend) is compatibility-sensitive in the same way: CSP v1 is frozen, so before merge it must reproduce every committed CSP vector (`tools/csp-fixtures/generate.py --verify` and the C# vector tests) and pass the zstd frame comparison against the independent decoder (`decode.py --compare-frames`). Encoder output may change (patch bytes are not a contract); decoding and every verdict may not.
 - Repository truth is immutable content/metadata; rebuildable indexes are not authoritative data.
 - Do not add unbounded buffering to a streaming path.
 
