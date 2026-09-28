@@ -241,3 +241,10 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 - **Different hash suites:** the public `ManifestReader` reports a manifest's HashSuite only after the last record, so `PlanAsync` cannot refuse the pair up front. The documentation says the counts then do not describe a usable patch and callers compare `Base.Manifest.HashSuite` with `Target.Manifest.HashSuite`; the CLI keeps rejecting the pair with the same message.
 - **Evidence:** *test* — parity with counts computed directly from both manifests' records for identical, inserted and different content under both suites; duplicate target chunks; the unchanged CLI round trip in CI.
 - **Status:** confirmed.
+
+### D23. Engineering CLI `patch create` / `patch apply`
+
+- **Decision:** the unpackaged engineering CLI gets `chunkshift patch create --target-manifest <csm> --target <file> -o <csp> [--base-manifest <csm> --base <file>]` and `chunkshift patch apply <csp> -o <file> [--base-manifest <csm> --base <file>]`. They print `key=value` lines like the existing commands and keep their exit codes (0 success, 1 verification mismatch or operational error, 2 usage, 130 cancellation). `patch create` publishes through a temporary file like `create`; `patch apply` leaves publication to `ApplyAsync` (D12) and opens the base with `FileShare.Read | FileShare.Delete`, so the output may be the base file itself. An output that is the same file as an input is a usage error.
+- **Scope:** the `patch` group follows the grouped shape #140 proposes; #140 still owns the final taxonomy, machine-readable output and exit-code contract, and nothing existing is renamed here.
+- **Evidence:** *test* — the CI CLI round trip creates and applies a base-dependent and a self-contained patch, applies over a wrong base (`BaseMismatch`, no output) and a corrupt patch (exit 1, no output), updates the base in place, and finds no temporary file afterwards.
+- **Status:** confirmed for the engineering CLI; provisional as a product surface until #140.
