@@ -1,7 +1,7 @@
 # ChunkShift roadmap
 
 Status: Active  
-Last reviewed: 2026-09-27
+Last reviewed: 2026-09-28
 
 Authority:
 
@@ -83,6 +83,7 @@ Completed release-evidence stage: [#68](https://github.com/definitely-stable/Chu
 - [#9](https://github.com/definitely-stable/ChunkShift/issues/9) and [#69](https://github.com/definitely-stable/ChunkShift/issues/69) are **complete in the publication repository**: `0.1.0` was released there directly (no preview), the CLI is not published, and `0.1.0` is the package-validation baseline;
 - [#24](https://github.com/definitely-stable/ChunkShift/issues/24): publication-specific enforcement (release-tag ruleset, immutable releases, protected `main`) is active on the publication repository; what remains here is ordinary `main` governance.
 - [#152](https://github.com/definitely-stable/ChunkShift/issues/152) is the parallel Core 0.1.1 maintenance/evidence track. It preserves the published 0.1.0 API/profile/format identities by default and does not replace the current #7 Patching product phase.
+- [#7](https://github.com/definitely-stable/ChunkShift/issues/7) Patching: CSP v1 is frozen (PR #178, 2026-09-28) and the plan/create/apply loop, the engineering CLI, the independent decoder, fuzzing and the NativeAOT package consumer are on `main`. The remaining exit items are listed under [Patching gate](#patching-gate).
 
 ## Critical path
 
@@ -148,7 +149,11 @@ Core 0.1.0 published
                |- #127 BLAKE3 backend decision
                |- #137 scanner differential fuzz
                |- #153 frozen-profile scanner/backend evidence
-               `- #154 CSM hot-path evidence
+               |     (SCAN-002 lanes, SCAN-006 hash parallelism,
+               |      SCAN-007 parallel cutting of seekable sources, JIT-001)
+               |- #154 CSM hot-path evidence (manifest-only operations)
+               `- #186 additive entry points: integrity-only verify,
+                     hash-free boundaries, non-Stream sources
 ```
 
 This branch does not block #7. Only adopted, compatibility-preserving changes are ported to the publication repository for a future 0.1.1.
@@ -165,9 +170,11 @@ This branch does not block #7. Only adopted, compatibility-preserving changes ar
 | Evidence infrastructure | [#67](https://github.com/definitely-stable/ChunkShift/issues/67), [#68](https://github.com/definitely-stable/ChunkShift/issues/68) | streaming-lane lab; fuzz, independent decoder, cancellation, coverage, >RAM | complete |
 | Core source-contract evidence | [#8](https://github.com/definitely-stable/ChunkShift/issues/8), [#17](https://github.com/definitely-stable/ChunkShift/issues/17) | transferable Core source contract | complete: stable profile/identity, vectors, real consumers and host proof |
 | Publication handoff | [#9](https://github.com/definitely-stable/ChunkShift/issues/9), [#69](https://github.com/definitely-stable/ChunkShift/issues/69) | **ChunkShift Core 0.1.0** published from the publication repository | complete (2026-09-27) |
-| Core 0.1.1 maintenance | [#152](https://github.com/definitely-stable/ChunkShift/issues/152), [#127](https://github.com/definitely-stable/ChunkShift/issues/127), [#137](https://github.com/definitely-stable/ChunkShift/issues/137), [#153](https://github.com/definitely-stable/ChunkShift/issues/153), [#154](https://github.com/definitely-stable/ChunkShift/issues/154) | same-semantics performance + hardening candidates | exact 0.1.0 compatibility + end-to-end evidence; parallel to Patching |
+| Core 0.1.1 maintenance | [#152](https://github.com/definitely-stable/ChunkShift/issues/152), [#127](https://github.com/definitely-stable/ChunkShift/issues/127), [#137](https://github.com/definitely-stable/ChunkShift/issues/137), [#153](https://github.com/definitely-stable/ChunkShift/issues/153), [#154](https://github.com/definitely-stable/ChunkShift/issues/154), [#186](https://github.com/definitely-stable/ChunkShift/issues/186) | same-semantics performance + hardening candidates; additive entry points only with a named consumer | exact 0.1.0 compatibility + end-to-end evidence; parallel to Patching |
 | Repository governance | [#24](https://github.com/definitely-stable/ChunkShift/issues/24) | server-side enforcement of normal `main` policy here; tag/release enforcement is active on the publication repository | independent of local Patching |
-| Patching | [#7](https://github.com/definitely-stable/ChunkShift/issues/7) | compare/diff, CSP create/apply, exact reconstruction | verified output + product benchmark evidence |
+| Patching | [#7](https://github.com/definitely-stable/ChunkShift/issues/7), [#181](https://github.com/definitely-stable/ChunkShift/issues/181), [#182](https://github.com/definitely-stable/ChunkShift/issues/182) | compare/diff, CSP create/apply, exact reconstruction | verified output + product benchmark evidence; exit items under [Patching gate](#patching-gate) |
+| Patching research | [#183](https://github.com/definitely-stable/ChunkShift/issues/183), [#184](https://github.com/definitely-stable/ChunkShift/issues/184) | CSP size gap decomposition; update sets (tree manifest, cross-file reuse) | informative; a CSP revision or an update-set RFC only on their frozen rules |
+| Trust | [#185](https://github.com/definitely-stable/ChunkShift/issues/185) | RFC for the detached trust envelope and update policy (RFC-0004 §4–§5) | before launcher-facing Patching guidance is published |
 | Repository | [#10](https://github.com/definitely-stable/ChunkShift/issues/10)-[#13](https://github.com/definitely-stable/ChunkShift/issues/13) | packs → index/catalog → lifecycle → remote | storage-specific crash/scale gates |
 | Optional host package | [#18](https://github.com/definitely-stable/ChunkShift/issues/18) | package only if repeated host behavior justifies it | no package by default |
 | Research | [#14](https://github.com/definitely-stable/ChunkShift/issues/14) | future CDC/index/filter candidates | promotion only through normal evidence gates |
@@ -203,6 +210,21 @@ It owns:
 
 Patching is ported to the publication repository and published on a later `0.1.Z` release when its own evidence is complete.
 
+Remaining exit items (CSP v1 frozen 2026-09-28):
+
+1. D17 create memory: `PATCH-ENC-003` (#179).
+2. D13 re-chunk check cost: #168 is decided for option 3 (no public opt-out); `PATCH-APPLY-002` ([#182](https://github.com/definitely-stable/ChunkShift/issues/182)) makes the check cheaper internally, overlap (A2) first.
+3. Create throughput: `PATCH-ENC-004`/`PATCH-ENC-005` ([#181](https://github.com/definitely-stable/ChunkShift/issues/181)).
+4. D23 CLI product surface: [#140](https://github.com/definitely-stable/ChunkShift/issues/140).
+5. Public API review of `PublicAPI.Unshipped.txt`, including whether an options type (from #168) should also carry progress reporting.
+6. Port per [CONTRIBUTING.md](CONTRIBUTING.md#porting-to-the-publication-repository).
+
+Linked research that does not block the exit:
+
+- `PATCH-GAP-001` ([#183](https://github.com/definitely-stable/ChunkShift/issues/183)): where the size gap to byte-level delta tools comes from;
+- `PATCH-TREE-001` ([#184](https://github.com/definitely-stable/ChunkShift/issues/184)): update sets;
+- `TRUST-SIG-001` ([#185](https://github.com/definitely-stable/ChunkShift/issues/185)): the trust-envelope RFC.
+
 ## Core 0.1.1 maintenance
 
 [#152](https://github.com/definitely-stable/ChunkShift/issues/152) owns the next Core maintenance evidence train.
@@ -213,7 +235,13 @@ Order is evidence-driven rather than feature-count driven:
 2. run [#127](https://github.com/definitely-stable/ChunkShift/issues/127), [#153](https://github.com/definitely-stable/ChunkShift/issues/153) and [#154](https://github.com/definitely-stable/ChunkShift/issues/154) as independent optimization studies;
 3. use [#137](https://github.com/definitely-stable/ChunkShift/issues/137) as a stronger semantic regression oracle for scanner/backend work;
 4. adopt only changes with exact 0.1.0 identity/format/API compatibility and material end-to-end or hardening value;
-5. keep [#135](https://github.com/definitely-stable/ChunkShift/issues/135) optional until a real consumer justifies additive public API.
+5. keep [#135](https://github.com/definitely-stable/ChunkShift/issues/135) optional until a real consumer justifies additive public API;
+6. treat the additive entry points of [#186](https://github.com/definitely-stable/ChunkShift/issues/186) the same way. They are integrity-only verification guided by the manifest, hash-free boundary scanning and non-`Stream` sources, and each ships only with a named consumer.
+   - `CORE-VERIFY-001` goes next as internal lab research, lanes V0–V2; it does not touch the scanner, so it can start before `FUZZ-001`.
+   - `CORE-BOUNDARY-001` stays a Core-internal primitive.
+   - `CORE-SOURCE-001` is deferred until the `SCAN-007` and V2 prototypes show whether the internal `FileStream` fast path suffices.
+
+Every candidate is classed as S (same semantics, internal), A (additive API), B (breaking API) or P (new persisted semantics). The search for #152 found no speedup that needs a class B change to the shipped surface; the reasoning is in #186. Candidates that parallelize inside one operation (`SCAN-006`, `SCAN-007`, `CORE-VERIFY-001`) must also beat running several files concurrently, measured in the multi-file lane that #152 defines.
 
 Core 0.1.1 does **not** mean a new chunking algorithm. RepMaxCDC/other CDC candidates stay research-only under #14/#136 and require a distinct future profile identity if promoted.
 
@@ -221,7 +249,10 @@ Research execution/results are discoverable from the common [experiment index](d
 
 ## Repository sequence
 
-Repository work follows the useful local Patching loop. It must not become a prerequisite for Core or Patching correctness.
+Repository work follows the useful local Patching loop. It must not become a prerequisite for Core or Patching correctness. Two design inputs come from the Patching side first:
+
+- update sets ([#184](https://github.com/definitely-stable/ChunkShift/issues/184)), because a tree manifest and cross-file reuse shape what the Repository stores;
+- the trust-envelope RFC ([#185](https://github.com/definitely-stable/ChunkShift/issues/185)), because signed identities shape what remote clients accept.
 
 Order:
 
@@ -249,7 +280,7 @@ Cross-cutting Repository rules:
 
 ## Immediate work order
 
-1. continue local product engineering with [#7](https://github.com/definitely-stable/ChunkShift/issues/7) Patching; it remains the product critical path.
-2. run [#152](https://github.com/definitely-stable/ChunkShift/issues/152) as bounded parallel Core maintenance research: #127/#137/#153/#154 may proceed without changing the shipped profile/format/API contract.
+1. continue local product engineering with [#7](https://github.com/definitely-stable/ChunkShift/issues/7) Patching; it remains the product critical path. Close the exit items under [Patching gate](#patching-gate), starting with #179 (D17) and #182 (D13/#168).
+2. run [#152](https://github.com/definitely-stable/ChunkShift/issues/152) as bounded parallel Core maintenance research: #127/#137/#153/#154 may proceed without changing the shipped profile/format/API contract. #186 proceeds only for candidates with a named consumer.
 3. adopt/port a Core candidate only after its exact-compatibility and end-to-end evidence gate passes; do not publish from this repository.
 4. finish ordinary `main` governance for this repository under [#24](https://github.com/definitely-stable/ChunkShift/issues/24).
