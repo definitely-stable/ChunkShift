@@ -15,8 +15,8 @@ public class PatchLabRunTests
     private const string ChangedPath = "changed.bin";
 
     [Theory]
-    [InlineData("csp", 19, 2, 8, 262144)]
-    [InlineData("csp-raw", 0, 2, 8, 262144)]
+    [InlineData("csp", 19, 4, 8, 262144)]
+    [InlineData("csp-raw", 0, 4, 8, 262144)]
     public void RunRecordsChangedFilesAndAppliesThem(
         string lane,
         int level,

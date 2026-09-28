@@ -19,7 +19,7 @@ public sealed class ZstdEncoderRegressionTests
             string.Concat(Enumerable.Repeat(line, 40))[..900]);
 
         using var encoder = new CspPayloadEncoder(19);
-        byte[] frame = encoder.EncodeZstd(chunk, []);
+        byte[] frame = encoder.EncodeZstd(chunk, []).ToArray();
 
         Assert.Equal(
             Convert.FromHexString(

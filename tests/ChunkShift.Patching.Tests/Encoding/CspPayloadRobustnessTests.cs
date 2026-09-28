@@ -19,7 +19,7 @@ public sealed class CspPayloadRobustnessTests
         byte[] chunk = CreateChunk();
         byte[] dictionary = CreateDictionary();
         using var encoder = new CspPayloadEncoder(1);
-        byte[] frame = encoder.EncodeZstd(chunk, dictionary);
+        byte[] frame = encoder.EncodeZstd(chunk, dictionary).ToArray();
 
         using var decoder = new CspPayloadDecoder();
         AssertDecodes(decoder, frame, dictionary, chunk);
@@ -38,7 +38,7 @@ public sealed class CspPayloadRobustnessTests
         byte[] chunk = CreateChunk();
         byte[] dictionary = CreateDictionary();
         using var encoder = new CspPayloadEncoder(1);
-        byte[] frame = encoder.EncodeZstd(chunk, dictionary);
+        byte[] frame = encoder.EncodeZstd(chunk, dictionary).ToArray();
 
         using var decoder = new CspPayloadDecoder();
         AssertDecodes(decoder, frame, dictionary, chunk);

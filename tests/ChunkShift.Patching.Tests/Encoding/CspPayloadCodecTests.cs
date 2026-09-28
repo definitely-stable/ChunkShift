@@ -31,7 +31,7 @@ public sealed class CspPayloadCodecTests
         byte[] dictionary = withDictionary ? DictionaryFor(compressible) : [];
 
         using var encoder = new CspPayloadEncoder(level);
-        byte[] frame = encoder.EncodeZstd(chunk, dictionary);
+        byte[] frame = encoder.EncodeZstd(chunk, dictionary).ToArray();
 
         ZstdFrameEnvelope.Validate(frame, chunk.Length);
 
@@ -52,7 +52,7 @@ public sealed class CspPayloadCodecTests
         byte[] chunk = Compressible(1_500_000);
 
         using var encoder = new CspPayloadEncoder(3);
-        byte[] frame = encoder.EncodeZstd(chunk, []);
+        byte[] frame = encoder.EncodeZstd(chunk, []).ToArray();
 
         ZstdFrameEnvelope.Validate(frame, chunk.Length);
 
@@ -74,8 +74,8 @@ public sealed class CspPayloadCodecTests
         byte[] dictionary = DictionaryFor(compressible: true);
 
         using var encoder = new CspPayloadEncoder(3);
-        byte[] withDictionary = encoder.EncodeZstd(chunk, dictionary);
-        byte[] withoutDictionary = encoder.EncodeZstd(chunk, []);
+        byte[] withDictionary = encoder.EncodeZstd(chunk, dictionary).ToArray();
+        byte[] withoutDictionary = encoder.EncodeZstd(chunk, []).ToArray();
 
         using var decoder = new CspPayloadDecoder();
         byte[] destination = new byte[chunk.Length];
@@ -96,8 +96,8 @@ public sealed class CspPayloadCodecTests
         byte[] dictionary = DictionaryFor(compressible: true);
 
         using var encoder = new CspPayloadEncoder(3);
-        byte[] withDictionary = encoder.EncodeZstd(chunk, dictionary);
-        byte[] withoutDictionary = encoder.EncodeZstd(chunk, []);
+        byte[] withDictionary = encoder.EncodeZstd(chunk, dictionary).ToArray();
+        byte[] withoutDictionary = encoder.EncodeZstd(chunk, []).ToArray();
 
         using var decoder = new CspPayloadDecoder();
         byte[] destination = new byte[chunk.Length];

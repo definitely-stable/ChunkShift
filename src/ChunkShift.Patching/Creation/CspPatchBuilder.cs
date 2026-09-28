@@ -208,6 +208,7 @@ internal static class CspPatchBuilder
             : new CspPayloadEncoder(policy.Level);
 
         byte[] chunkBuffer = [];
+        var entryBuffers = new EntryBuffers();
 
         await using ManifestReader reader = await ManifestReader
             .OpenAsync(targetManifest, cancellationToken)
@@ -266,8 +267,11 @@ internal static class CspPatchBuilder
                     bytes,
                     hashSuite,
                     policy,
+                    entryBuffers,
                     cancellationToken).ConfigureAwait(false);
 
+                // The writer copies or writes the stored bytes before it
+                // returns, so the next chunk may reuse the entry buffers.
                 await writer.AddPayloadEntryAsync(
                     new CspPayloadEntry(
                         chunk.Id,
@@ -302,6 +306,8 @@ internal static class CspPatchBuilder
     /// dictionary costs 32 bytes per named chunk. Ties prefer raw, then zstd
     /// without a dictionary, so a stored form never exceeds the chunk length.
     /// A null <paramref name="encoder"/> selects the raw form without encoding.
+    /// The returned stored bytes may live in <paramref name="buffers"/> and are
+    /// valid until the next call.
     /// </summary>
     private static async Task<EntryChoice> ChooseEntryAsync(
         CspPayloadEncoder? encoder,
@@ -311,6 +317,7 @@ internal static class CspPatchBuilder
         ReadOnlyMemory<byte> bytes,
         HashSuiteId hashSuite,
         CspEncoderPolicy policy,
+        EntryBuffers buffers,
         CancellationToken cancellationToken)
     {
         var best = new EntryChoice(CspFormat.EncodingRaw, bytes, []);
@@ -322,11 +329,11 @@ internal static class CspPatchBuilder
 
         int bestCost = bytes.Length;
 
-        byte[] frame = encoder.EncodeZstd(bytes.Span, ReadOnlySpan<byte>.Empty);
+        ReadOnlySpan<byte> frame = encoder.EncodeZstd(bytes.Span, ReadOnlySpan<byte>.Empty);
 
         if (frame.Length < bestCost)
         {
-            best = new EntryChoice(CspFormat.EncodingZstd, frame, []);
+            best = new EntryChoice(CspFormat.EncodingZstd, buffers.KeepFrame(frame), []);
             bestCost = frame.Length;
         }
 
@@ -335,7 +342,8 @@ internal static class CspPatchBuilder
             return best;
         }
 
-        byte[]? bestDictionary = null;
+        buffers.EnsureDictionaries();
+        bool haveDictionary = false;
         int bestStart = 0;
         int bestCount = 0;
 
@@ -354,7 +362,9 @@ internal static class CspPatchBuilder
                 continue;
             }
 
-            byte[] dictionary = new byte[length];
+            // Every candidate is read into the same buffer; the best one so far
+            // is kept by swapping buffers, not by allocating one per candidate.
+            Memory<byte> dictionary = buffers.Candidate.AsMemory(0, (int)length);
             int offset = 0;
 
             for (int index = start; index < start + count; index++)
@@ -363,31 +373,32 @@ internal static class CspPatchBuilder
                 baseContent.Position = record.Offset;
                 await ReadExactlyAsync(
                     baseContent,
-                    dictionary.AsMemory(offset, record.Length),
+                    dictionary.Slice(offset, record.Length),
                     "The base content ended before the base manifest's declared length.",
                     cancellationToken).ConfigureAwait(false);
                 offset += record.Length;
             }
 
-            if (!CspDictionary.IsUsable(dictionary))
+            if (!CspDictionary.IsUsable(dictionary.Span))
             {
                 continue;
             }
 
-            byte[] dictionaryFrame = encoder.EncodeZstd(bytes.Span, dictionary);
+            ReadOnlySpan<byte> dictionaryFrame = encoder.EncodeZstd(bytes.Span, dictionary.Span);
             int cost = dictionaryFrame.Length + (count * CspFormat.DictionaryReferenceSize);
 
             if (cost < bestCost)
             {
                 bestCost = cost;
-                best = new EntryChoice(CspFormat.EncodingZstd, dictionaryFrame, []);
-                bestDictionary = dictionary;
+                best = new EntryChoice(CspFormat.EncodingZstd, buffers.KeepFrame(dictionaryFrame), []);
+                buffers.KeepCandidateAsBest();
+                haveDictionary = true;
                 bestStart = start;
                 bestCount = count;
             }
         }
 
-        if (bestDictionary is null)
+        if (!haveDictionary)
         {
             return best;
         }
@@ -401,7 +412,7 @@ internal static class CspPatchBuilder
         {
             BaseRecord record = baseRecords[bestStart + index];
 
-            if (PatchHashing.Hash(hashSuite, bestDictionary.AsSpan(verified, record.Length))
+            if (PatchHashing.Hash(hashSuite, buffers.Best.AsSpan(verified, record.Length))
                 != record.ChunkId.Value)
             {
                 throw new InvalidDataException(
@@ -509,6 +520,48 @@ internal static class CspPatchBuilder
             CspFormat.MaximumDictionaryCount);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(policy.MaxCandidates);
         ArgumentOutOfRangeException.ThrowIfNegative(policy.SearchRadius);
+    }
+
+    /// <summary>
+    /// Buffers <see cref="ChooseEntryAsync"/> reuses across candidates and
+    /// chunks: the dictionary being tried, the best dictionary so far (each at
+    /// most <see cref="CspDictionary.MaximumBytes"/>) and a copy of the best
+    /// frame so far.
+    /// </summary>
+    private sealed class EntryBuffers
+    {
+        private byte[] _frame = [];
+
+        internal byte[] Candidate { get; private set; } = [];
+
+        internal byte[] Best { get; private set; } = [];
+
+        /// <summary>
+        /// Allocates both dictionary buffers at their maximum on first use,
+        /// so a later, longer dictionary never reallocates them.
+        /// </summary>
+        internal void EnsureDictionaries()
+        {
+            if (Candidate.Length == 0)
+            {
+                Candidate = new byte[CspDictionary.MaximumBytes];
+                Best = new byte[CspDictionary.MaximumBytes];
+            }
+        }
+
+        internal void KeepCandidateAsBest() => (Candidate, Best) = (Best, Candidate);
+
+        /// <summary>Copies <paramref name="frame"/> out of the encoder's buffer.</summary>
+        internal ReadOnlyMemory<byte> KeepFrame(ReadOnlySpan<byte> frame)
+        {
+            if (_frame.Length < frame.Length)
+            {
+                _frame = new byte[Math.Max(frame.Length, _frame.Length * 2)];
+            }
+
+            frame.CopyTo(_frame);
+            return _frame.AsMemory(0, frame.Length);
+        }
     }
 
     /// <summary>One base manifest record: its logical offset, length and identity.</summary>
