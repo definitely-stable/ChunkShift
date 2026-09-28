@@ -213,7 +213,7 @@ Patching is ported to the publication repository and published on a later `0.1.Z
 Remaining exit items (CSP v1 frozen 2026-09-28):
 
 1. D17 create memory: `PATCH-ENC-003` (#179).
-2. D13 re-chunk check cost and the #168 opt-out question: `PATCH-APPLY-002` ([#182](https://github.com/definitely-stable/ChunkShift/issues/182)).
+2. D13 re-chunk check cost: #168 is decided for option 3 (no public opt-out); `PATCH-APPLY-002` ([#182](https://github.com/definitely-stable/ChunkShift/issues/182)) makes the check cheaper internally, overlap (A2) first.
 3. Create throughput: `PATCH-ENC-004`/`PATCH-ENC-005` ([#181](https://github.com/definitely-stable/ChunkShift/issues/181)).
 4. D23 CLI product surface: [#140](https://github.com/definitely-stable/ChunkShift/issues/140).
 5. Public API review of `PublicAPI.Unshipped.txt`, including whether an options type (from #168) should also carry progress reporting.
@@ -237,6 +237,9 @@ Order is evidence-driven rather than feature-count driven:
 4. adopt only changes with exact 0.1.0 identity/format/API compatibility and material end-to-end or hardening value;
 5. keep [#135](https://github.com/definitely-stable/ChunkShift/issues/135) optional until a real consumer justifies additive public API;
 6. treat the additive entry points of [#186](https://github.com/definitely-stable/ChunkShift/issues/186) the same way. They are integrity-only verification guided by the manifest, hash-free boundary scanning and non-`Stream` sources, and each ships only with a named consumer.
+   - `CORE-VERIFY-001` goes next as internal lab research, lanes V0–V2; it does not touch the scanner, so it can start before `FUZZ-001`.
+   - `CORE-BOUNDARY-001` stays a Core-internal primitive.
+   - `CORE-SOURCE-001` is deferred until the `SCAN-007` and V2 prototypes show whether the internal `FileStream` fast path suffices.
 
 Every candidate is classed as S (same semantics, internal), A (additive API), B (breaking API) or P (new persisted semantics). The search for #152 found no speedup that needs a class B change to the shipped surface; the reasoning is in #186. Candidates that parallelize inside one operation (`SCAN-006`, `SCAN-007`, `CORE-VERIFY-001`) must also beat running several files concurrently, measured in the multi-file lane that #152 defines.
 

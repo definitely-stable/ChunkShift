@@ -157,8 +157,13 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 - **Decision:** on by default when the embedded profile is registered (CSP §9.5 SHOULD). It adds no content integrity (every output chunk already matches its `ChunkId`); it checks that the target manifest is what its profile produces.
 - **Result (P6):** `ChunkManifest.VerifyAsync` re-reads the temporary file before publication; a `Content` or `ProfileSemantics` failure is `PatchApplyFailure.ProfileContent`, and a profile this build does not register skips the check (the committed vectors use such a profile). An internal switch turns it off for tests and the lab.
 - **Evidence:** *measurement* — `PATCH-APPLY-001` rule A1 ([PATCH-APPLY-001-EVIDENCE-20260928-001](../research/results/PATCH-APPLY-001-EVIDENCE-20260928-001.md)): over the frozen corpus the check adds 34.9 % (linux-x64), 27.1 % (linux-arm64) and 26.7 % (win-x64) to apply, above the 25 % bound. The rerun at `2f15c67` ([PATCH-APPLY-001-EVIDENCE-20260928-002](../research/results/PATCH-APPLY-001-EVIDENCE-20260928-002.md)) measured 5.9 % and 23.4 % on the Linux lanes, so the ratio moves with runner noise by more than the bound. Verdict DEFER: the check stays on by default, and [#168](https://github.com/definitely-stable/ChunkShift/issues/168) asks the owner whether `ApplyAsync` gets an opt-out.
-- **Reopen if:** the owner decides #168 for an opt-out; then an options type exposes it. `PATCH-APPLY-002` ([#182](https://github.com/definitely-stable/ChunkShift/issues/182)) measures cheaper forms of the same check (boundaries only, or overlapped with writing, since every output chunk is already hash-verified) with a paired CPU-time protocol; its result is the input to #168.
-- **Status:** default confirmed; the opt-out waits for #168.
+- **Decision on #168 (2026-09-28): option 3, no public opt-out.** The check stays on and becomes cheaper internally under `PATCH-APPLY-002` ([#182](https://github.com/definitely-stable/ChunkShift/issues/182)):
+  1. A2 first. The verified chunks, already written in target order, are fed through a bounded in-memory pipe into `ChunkManifest.VerifyAsync` running concurrently. This removes the temporary-file re-read and hides the check's wall time, with no semantic duplication and no new Core API.
+  2. A1a only if CPU still matters: an internal boundary-only check for the shipped profile, cross-checked against `ChunkScanner`.
+
+  Both keep Patching on the shipped Core 0.1.0 surface (D2).
+- **Reopen if:** the paired protocol of #182 shows, on at least two platforms, either a wall-time overhead with an upper 95 % CI bound above 10 % of apply after A2, or a CPU overhead above 25 % of apply CPU in the many-file concurrent lane after A2 + A1a. An options type then exposes the switch and also carries progress reporting.
+- **Status:** default confirmed; #168 decided for option 3; the cheaper check waits for `PATCH-APPLY-002`.
 
 ## 5. Encoder policy
 
