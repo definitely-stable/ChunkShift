@@ -202,3 +202,208 @@ internal sealed class ForwardOnlyReadStream : Stream
     public override void Write(byte[] buffer, int offset, int count) =>
         throw new NotSupportedException();
 }
+
+/// <summary>
+/// Read-only stream over a byte array whose reads return fewer bytes than
+/// requested: a quarter of them return one byte, the rest a pseudo-random
+/// count below 4 KiB, and only the end of the data returns zero. It is
+/// seekable unless constructed otherwise, so it can stand in for every input
+/// of create, apply and plan.
+/// </summary>
+internal sealed class ShortReadStream : Stream
+{
+    private const int MaximumRead = 4093;
+
+    private readonly byte[] _data;
+    private readonly bool _seekable;
+    private ulong _state;
+    private long _position;
+
+    internal ShortReadStream(byte[] data, ulong seed, bool seekable = true)
+    {
+        _data = data;
+        _seekable = seekable;
+        _state = seed | 1;
+    }
+
+    /// <summary>Gets the number of reads that returned less than requested before the end.</summary>
+    internal int ShortReads { get; private set; }
+
+    public override bool CanRead => true;
+
+    public override bool CanSeek => _seekable;
+
+    public override bool CanWrite => false;
+
+    public override long Length => _seekable ? _data.Length : throw new NotSupportedException();
+
+    public override long Position
+    {
+        get => _seekable ? _position : throw new NotSupportedException();
+        set
+        {
+            if (!_seekable)
+            {
+                throw new NotSupportedException();
+            }
+
+            ArgumentOutOfRangeException.ThrowIfNegative(value);
+            _position = value;
+        }
+    }
+
+    public override int Read(byte[] buffer, int offset, int count) =>
+        Read(buffer.AsSpan(offset, count));
+
+    public override int Read(Span<byte> buffer)
+    {
+        int count = NextCount(buffer.Length);
+        _data.AsSpan((int)_position, count).CopyTo(buffer);
+        _position += count;
+        return count;
+    }
+
+    public override ValueTask<int> ReadAsync(
+        Memory<byte> buffer,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult(Read(buffer.Span));
+    }
+
+    public override Task<int> ReadAsync(
+        byte[] buffer,
+        int offset,
+        int count,
+        CancellationToken cancellationToken) =>
+        ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+    public override long Seek(long offset, SeekOrigin origin)
+    {
+        if (!_seekable)
+        {
+            throw new NotSupportedException();
+        }
+
+        long position = origin switch
+        {
+            SeekOrigin.Begin => offset,
+            SeekOrigin.Current => _position + offset,
+            SeekOrigin.End => _data.Length + offset,
+            _ => throw new ArgumentOutOfRangeException(nameof(origin)),
+        };
+        ArgumentOutOfRangeException.ThrowIfNegative(position, nameof(offset));
+        _position = position;
+        return position;
+    }
+
+    public override void Flush()
+    {
+    }
+
+    public override void SetLength(long value) =>
+        throw new NotSupportedException();
+
+    public override void Write(byte[] buffer, int offset, int count) =>
+        throw new NotSupportedException();
+
+    private int NextCount(int requested)
+    {
+        int available = (int)Math.Clamp(_data.Length - _position, 0, requested);
+
+        if (available <= 1)
+        {
+            return available;
+        }
+
+        // xorshift64: a deterministic count per read.
+        _state ^= _state << 13;
+        _state ^= _state >> 7;
+        _state ^= _state << 17;
+
+        int count = (_state & 3) == 0
+            ? 1
+            : 1 + (int)((_state >> 8) % (ulong)Math.Min(available, MaximumRead));
+
+        if (count < requested)
+        {
+            ShortReads++;
+        }
+
+        return count;
+    }
+}
+
+/// <summary>
+/// Write-only, non-seekable destination that accepts a fixed number of bytes
+/// and then fails every write with the <see cref="IOException"/> a full disk
+/// raises.
+/// </summary>
+internal sealed class FullDestinationStream : Stream
+{
+    private readonly long _capacity;
+
+    internal FullDestinationStream(long capacity)
+    {
+        _capacity = capacity;
+    }
+
+    internal long Written { get; private set; }
+
+    public override bool CanRead => false;
+
+    public override bool CanSeek => false;
+
+    public override bool CanWrite => true;
+
+    public override long Length => throw new NotSupportedException();
+
+    public override long Position
+    {
+        get => throw new NotSupportedException();
+        set => throw new NotSupportedException();
+    }
+
+    public override void Flush()
+    {
+    }
+
+    public override int Read(byte[] buffer, int offset, int count) =>
+        throw new NotSupportedException();
+
+    public override long Seek(long offset, SeekOrigin origin) =>
+        throw new NotSupportedException();
+
+    public override void SetLength(long value) =>
+        throw new NotSupportedException();
+
+    public override void Write(byte[] buffer, int offset, int count) =>
+        Write(buffer.AsSpan(offset, count));
+
+    public override void Write(ReadOnlySpan<byte> buffer)
+    {
+        if (Written + buffer.Length > _capacity)
+        {
+            Written = _capacity;
+            throw new IOException("No space left on device");
+        }
+
+        Written += buffer.Length;
+    }
+
+    public override ValueTask WriteAsync(
+        ReadOnlyMemory<byte> buffer,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Write(buffer.Span);
+        return ValueTask.CompletedTask;
+    }
+
+    public override Task WriteAsync(
+        byte[] buffer,
+        int offset,
+        int count,
+        CancellationToken cancellationToken) =>
+        WriteAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+}
