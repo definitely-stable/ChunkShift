@@ -26,6 +26,8 @@ All lanes use `CspApplier` of the commit under test, selected by its internal ch
 | A2 overlapped | `overlap` | each verified chunk is written to the temporary file in target order and also copied, in the same order, into a bounded in-memory pipe; a concurrently running `ChunkManifest.VerifyAsync` reads the pipe and the embedded CSM. No re-read of the temporary file |
 | A1a boundary-only | `boundary` | measured only if rule 2 (§6) requires it: an internal Gear boundary scanner for `fastcdc.gear.chunkshift.v1.64k` compares cut lengths with the embedded record lengths, without hashing; any other registered profile falls back to the full check |
 
+Out of scope here: A1b (a Core boundary API, which #168 found Patching does not need) and the reconstruction lanes A3–A6 of #182 (preallocation, coalesced base reads, parallel hashing, hash backend). They get their own frozen protocol under the same ExperimentId.
+
 In every lane the verdict order of D21 is unchanged: a reconstruction failure is reported as itself, the total length is checked next, and `ProfileContent` is reported only after both passed. Nothing is published on any failure (D12).
 
 ## 3. Corpus and patches
