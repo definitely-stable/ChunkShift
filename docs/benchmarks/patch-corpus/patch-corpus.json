@@ -1,0 +1,76 @@
+{
+  "schema": "chunkshift.patch-corpus.v1",
+  "note": "Frozen by docs/benchmarks/PATCH-PREFREEZE-PROTOCOL.md before any measurement. Every pair is two adjacent versions of one family; the unit of measurement is a changed file inside the pair.",
+  "families": [
+    {
+      "id": "dotnet-aspnetcore-win-x64",
+      "split": "calibration",
+      "category": "ReadyToRun managed and native PE, x64",
+      "versions": ["10.0.10", "10.0.11", "10.0.12"],
+      "source": "aspnetcore-runtime-{v}-win-x64.zip",
+      "url": "https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/{v}/aspnetcore-runtime-{v}-win-x64.zip",
+      "checksum": "SHA-512 in https://builds.dotnet.microsoft.com/dotnet/release-metadata/10.0/releases.json",
+      "layout": "zip",
+      "path": "replace-version",
+      "license": "MIT"
+    },
+    {
+      "id": "dotnet-runtime-linux-arm64",
+      "split": "calibration",
+      "category": "ReadyToRun managed and native ELF, ARM64",
+      "versions": ["10.0.10", "10.0.11", "10.0.12"],
+      "source": "dotnet-runtime-{v}-linux-arm64.tar.gz",
+      "url": "https://builds.dotnet.microsoft.com/dotnet/Runtime/{v}/dotnet-runtime-{v}-linux-arm64.tar.gz",
+      "checksum": "SHA-512 in https://builds.dotnet.microsoft.com/dotnet/release-metadata/10.0/releases.json",
+      "layout": "tar",
+      "path": "replace-version",
+      "license": "MIT"
+    },
+    {
+      "id": "node-win-x64",
+      "split": "holdout",
+      "category": "native PE (V8/C++), x64, plus JavaScript",
+      "versions": ["24.19.0", "24.20.0", "24.21.0"],
+      "source": "node-v{v}-win-x64.zip",
+      "url": "https://nodejs.org/dist/v{v}/node-v{v}-win-x64.zip",
+      "checksum": "https://nodejs.org/dist/v{v}/SHASUMS256.txt",
+      "layout": "zip",
+      "path": "strip-first",
+      "license": "MIT (+ bundled third-party licenses)"
+    },
+    {
+      "id": "node-linux-x64",
+      "split": "holdout",
+      "category": "native ELF (V8/C++), x64, plus JavaScript",
+      "versions": ["24.19.0", "24.20.0", "24.21.0"],
+      "source": "node-v{v}-linux-x64.tar.xz",
+      "url": "https://nodejs.org/dist/v{v}/node-v{v}-linux-x64.tar.xz",
+      "checksum": "https://nodejs.org/dist/v{v}/SHASUMS256.txt",
+      "layout": "tar",
+      "path": "strip-first",
+      "license": "MIT (+ bundled third-party licenses)"
+    },
+    {
+      "id": "tzdata",
+      "split": "holdout",
+      "category": "text data",
+      "versions": ["2026b", "2026c", "2026d"],
+      "source": "tzdata{v}.tar.gz",
+      "url": "https://data.iana.org/time-zones/releases/tzdata{v}.tar.gz",
+      "checksum": "none published (PGP signature only); SHA-256 pinned at first download",
+      "layout": "tar",
+      "path": "as-is",
+      "license": "public domain"
+    },
+    {
+      "id": "chunkshift-source",
+      "split": "holdout",
+      "category": "source archive",
+      "versions": ["9e7fd3a", "287a59d", "27aa319"],
+      "pairs": [["9e7fd3a", "27aa319"], ["287a59d", "27aa319"]],
+      "layout": "git-tree-tar",
+      "path": "single-file source.tar",
+      "license": "this repository"
+    }
+  ]
+}
