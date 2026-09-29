@@ -172,7 +172,7 @@ Throughput in GiB/s. The first number in each cell is the best V2 on the single 
 | linux-arm64 | **3.875** (W4) vs 2.172 (K8) | 1.78 | **0.634** (W8) vs 0.165 (K8) | 3.84 | holds |
 | win-x64 | `unverified-warm` (0.418 W8 as measured, not admitted) vs 1.780 (K8) | — | **0.627** (W8) vs 0.165 (K8) | 3.80 | **missing** |
 
-The throttled comparison is set by the throttle model (83 MiB/s per request stream), not by the runner, and its margin is 3.8×. The warm margins are 1.66× and 1.78×. They are larger than the runner-to-runner variance seen below, but they do not prove an intra-file advantage independent of runner hardware.
+The throttled comparison is set by the throttle model (83 MiB/s per request stream), not by the runner, and its margin is 3.8×. The warm margins are 1.66× (linux-x64) and 1.78× (linux-arm64). On linux-arm64 the same lanes moved by less than 2 % between runner sets (below), well inside the margin. On linux-x64 they moved by more than 2×, which is more than the margin. Neither margin proves an intra-file advantage independent of runner hardware, and the linux-x64 one least of all.
 
 **How much the same lanes moved between runner sets.** CORE-VERIFY-001 measured the same lanes at `5ff9db9` on another set of hosted runners ([001 `decision.md`](data/CORE-VERIFY-001-20260929/decision.md)). The lab is the same except for the pool setting and the size of the large warm file:
 
@@ -191,7 +191,7 @@ The throttled comparison is set by the throttle model (83 MiB/s per request stre
 | win-x64 | T warm best V1 × K | 1.657 (K4) | 1.780 (K8) |
 
 - On linux-arm64 and win-x64 the warm lanes moved by less than 8 % between runner sets.
-- On linux-x64 the runners of this run hashed at less than half the speed of 001's: V1 on S1 fell from 3.03 to 1.30 GiB/s, and the tree's best V1 × K from 3.67 to 2.01. Spinning does not explain this: V1 runs at about one core with either pool setting. The x64 hosts of this run are a different, slower class of hardware. The run documents do not record the CPU model, so this cannot be confirmed (see Limitations).
+- On linux-x64 the runners of this run hashed at less than half the speed of 001's: V1 on S1 fell from 3.03 to 1.30 GiB/s, and the tree's best V1 × K from 3.67 to 2.01. Spinning does not explain this: V1 runs at about one core with either pool setting. It points to a different, slower class of x64 host, but the run documents do not record the CPU model, so this cannot be confirmed (see Limitations).
 - The throttled operands are identical across both runs, as the model makes them.
 
 ### R3 — V2 does not cost aggregate throughput on the tree
