@@ -656,7 +656,6 @@ jobs:
 
 
   summary:
-  summary:
     name: patch-lab-summary
     needs: [csp-lanes, sweep, references, memory, encoder, apply-check]
     if: always()
