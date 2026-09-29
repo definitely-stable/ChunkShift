@@ -18,16 +18,22 @@ public sealed class ApplyVectorTests : IDisposable
 
     public void Dispose() => Directory.Delete(_directory, recursive: true);
 
-    /// <summary>Gets every vector name in <c>vectors.json</c>.</summary>
-    public static TheoryData<string> Names
+    /// <summary>
+    /// Gets every vector name in <c>vectors.json</c> with every way of running
+    /// the re-chunk check: the check must never change a verdict.
+    /// </summary>
+    public static TheoryData<string, string> Names
     {
         get
         {
-            var names = new TheoryData<string>();
+            var names = new TheoryData<string, string>();
 
             foreach (CspApplyVector vector in CspApplyVectors.All)
             {
-                names.Add(vector.Name);
+                foreach (ChunkingCheck check in Enum.GetValues<ChunkingCheck>())
+                {
+                    names.Add(vector.Name, check.ToString());
+                }
             }
 
             return names;
@@ -36,8 +42,9 @@ public sealed class ApplyVectorTests : IDisposable
 
     [Theory]
     [MemberData(nameof(Names))]
-    public async Task Vector_MatchesTheIndependentVerdict(string name)
+    public async Task Vector_MatchesTheIndependentVerdict(string name, string checkName)
     {
+        ChunkingCheck check = Enum.Parse<ChunkingCheck>(checkName);
         CspApplyVector vector = CspApplyVectors.Find(name);
         byte[] patch = CspApplyVectors.ReadPatch(name);
         string destination = Path.Combine(_directory, "output.bin");
@@ -62,7 +69,7 @@ public sealed class ApplyVectorTests : IDisposable
                     baseContent,
                     destination,
                     vector.MaximumPayloadEntries,
-                    verifyChunking: true,
+                    check,
                     CancellationToken.None);
 
                 verdict = result.IsApplied

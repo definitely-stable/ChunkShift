@@ -24,6 +24,7 @@ internal sealed class PendingFile : IAsyncDisposable
 
     private readonly string _destinationPath;
     private FileStream? _stream;
+    private bool _flushedToDisk;
     private bool _committed;
 
     private PendingFile(string destinationPath, string temporaryPath, FileStream stream)
@@ -75,8 +76,24 @@ internal sealed class PendingFile : IAsyncDisposable
     }
 
     /// <summary>
-    /// Flushes the temporary file to disk, closes it and renames it over the
-    /// destination, replacing an existing file.
+    /// Flushes the temporary file to disk ahead of <see cref="CommitAsync"/>,
+    /// which then does not flush again. Nothing may be written afterwards. This
+    /// publishes nothing: the destination changes only in <see cref="CommitAsync"/>.
+    /// </summary>
+    internal async Task FlushToDiskAsync(CancellationToken cancellationToken)
+    {
+        FileStream stream = Stream;
+        cancellationToken.ThrowIfCancellationRequested();
+
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+        stream.Flush(flushToDisk: true);
+        _flushedToDisk = true;
+    }
+
+    /// <summary>
+    /// Flushes the temporary file to disk unless <see cref="FlushToDiskAsync"/>
+    /// already did, closes it and renames it over the destination, replacing an
+    /// existing file.
     /// </summary>
     /// <exception cref="IOException">
     /// The rename failed, for example because the destination is open without
@@ -89,8 +106,11 @@ internal sealed class PendingFile : IAsyncDisposable
         FileStream stream = Stream;
         cancellationToken.ThrowIfCancellationRequested();
 
-        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-        stream.Flush(flushToDisk: true);
+        if (!_flushedToDisk)
+        {
+            await FlushToDiskAsync(cancellationToken).ConfigureAwait(false);
+        }
+
         await stream.DisposeAsync().ConfigureAwait(false);
         _stream = null;
 

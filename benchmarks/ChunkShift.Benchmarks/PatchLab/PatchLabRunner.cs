@@ -11,6 +11,7 @@ namespace ChunkShift.Benchmarks.PatchLab;
 /// patch-lab run --corpus &lt;root&gt; --lane &lt;name&gt; --output &lt;file.json&gt; [--families &lt;id,...&gt;] [--workers &lt;n&gt;] [--apply-repeats &lt;n&gt;] [--no-apply] [--run-id &lt;id&gt;] [--work &lt;dir&gt;]
 /// patch-lab memory --corpus &lt;root&gt; --output &lt;file.json&gt; [--min-bytes &lt;n&gt;] [--families &lt;id,...&gt;] [--run-id &lt;id&gt;] [--work &lt;dir&gt;] [--lane &lt;name&gt;]
 /// patch-lab one &lt;idle|create|apply&gt; ...
+/// patch-lab apply-check &lt;prepare|time|concurrent|memory&gt; ...
 /// </code>
 /// Failed runs exit with 1, usage errors with 2.
 /// </summary>
@@ -26,7 +27,7 @@ internal static class PatchLabRunner
     {
         if (args.Length == 0)
         {
-            Console.Error.WriteLine("patch-lab needs a mode: run, memory or one.");
+            Console.Error.WriteLine("patch-lab needs a mode: run, memory, one or apply-check.");
             return 2;
         }
 
@@ -37,6 +38,7 @@ internal static class PatchLabRunner
                 "run" => PatchLabRun.Execute(args[1..]),
                 "memory" => PatchLabMemory.Execute(args[1..]),
                 "one" => PatchLabOne.Execute(args[1..]),
+                "apply-check" => PatchLabApplyCheck.Execute(args[1..]),
                 _ => UnknownMode(args[0]),
             };
         }
@@ -75,7 +77,8 @@ internal static class PatchLabRunner
         RuntimeInformation.ProcessArchitecture.ToString(),
         RuntimeInformation.FrameworkDescription,
         System.Environment.ProcessorCount,
-        System.Environment.GetEnvironmentVariable("GITHUB_SHA"));
+        System.Environment.GetEnvironmentVariable("GITHUB_SHA"),
+        EnvironmentSnapshot.CaptureProcessorDescription());
 
     /// <summary>Gets the median of a sample, or zero when the sample is empty.</summary>
     internal static double Median(IEnumerable<double> values)
@@ -111,7 +114,7 @@ internal static class PatchLabRunner
 
     private static int UnknownMode(string mode)
     {
-        Console.Error.WriteLine($"Unknown patch-lab mode '{mode}'; expected run, memory or one.");
+        Console.Error.WriteLine($"Unknown patch-lab mode '{mode}'; expected run, memory, one or apply-check.");
         return 2;
     }
 }

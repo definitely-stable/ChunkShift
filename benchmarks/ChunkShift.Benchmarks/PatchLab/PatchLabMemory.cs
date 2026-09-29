@@ -152,7 +152,7 @@ internal static class PatchLabMemory
     /// Runs one <c>patch-lab one</c> child of this same executable and returns
     /// the peak working set the child reported as its last stdout line.
     /// </summary>
-    private static long RunChild(string[] arguments, string description)
+    internal static long RunChild(string[] arguments, string description)
     {
         string host = Environment.ProcessPath
             ?? throw new InvalidOperationException("Cannot locate the running executable for a patch-lab child.");
