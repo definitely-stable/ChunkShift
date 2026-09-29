@@ -261,6 +261,38 @@ public sealed class ApplyChunkingCheckTests : IDisposable
         Assert.True(result.Target!.ContentLength > 4 * OverlappedChunkingCheck.PauseBytes);
     }
 
+
+    [Fact]
+    public async Task OverlappedCheck_RespectsANonZeroPatchStart()
+    {
+        // CspReader offsets are patch-relative while SharedStreamView positions
+        // are absolute. Exercise that composition explicitly instead of only
+        // testing a patch that begins at stream position zero.
+        (byte[] patch, byte[] baseManifest, byte[] baseContent) = await CreateLargePatchAsync();
+        const int prefixBytes = 37;
+        byte[] wrapped = new byte[prefixBytes + patch.Length];
+        Array.Fill<byte>(wrapped, 0xA5, 0, prefixBytes);
+        patch.CopyTo(wrapped.AsSpan(prefixBytes));
+
+        using var patchStream = new MemoryStream(wrapped, writable: false)
+        {
+            Position = prefixBytes,
+        };
+        string destination = Path.Combine(_directory, "offset.bin");
+
+        PatchApplyResult result = await CspApplier.ApplyAsync(
+            patchStream,
+            new MemoryStream(baseManifest, writable: false),
+            new MemoryStream(baseContent, writable: false),
+            destination,
+            CspFormat.DefaultMaximumPayloadEntries,
+            ChunkingCheck.Overlapped,
+            CancellationToken.None);
+
+        Assert.True(result.IsApplied, result.Failures.ToString());
+        Assert.Equal(result.Target!.ContentLength, new FileInfo(destination).Length);
+    }
+
     private static async Task<(byte[] Patch, byte[] BaseManifest, byte[] BaseContent)> CreateLargePatchAsync()
     {
         byte[] baseContent = CspBytes.CreateXorShiftBytes(6 * 1024 * 1024, 0x5EED6101u);
