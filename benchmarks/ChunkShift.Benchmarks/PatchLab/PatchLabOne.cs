@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using ChunkShift.Patching.Application;
 using ChunkShift.Patching.Creation;
 using static System.FormattableString;
 
@@ -95,6 +96,11 @@ internal static class PatchLabOne
         return 0;
     }
 
+    /// <remarks>
+    /// <c>--patch</c> names an existing patch; <c>--check</c> selects the
+    /// re-chunk check (<c>off</c>, <c>seq</c> or <c>overlap</c>, default
+    /// <c>seq</c>).
+    /// </remarks>
     private static async Task<int> ApplyAsync(string[] args)
     {
         if (!PatchLabArguments.TryValue(args, "--corpus", out string corpusRoot) ||
@@ -107,6 +113,13 @@ internal static class PatchLabOne
         {
             throw new PatchLabUsageException(
                 "patch-lab one apply requires --corpus, --family, --base, --target, --path, --patch and --output.");
+        }
+
+        string lane = PatchLabArguments.Value(args, "--check") ?? "seq";
+
+        if (!PatchLabApplyCheck.TryParseLane(lane, out ChunkingCheck check))
+        {
+            throw new PatchLabUsageException($"Unknown --check '{lane}'; expected off, seq or overlap.");
         }
 
         string workDirectory = PatchLabCorpus.ResolveWorkDirectory(
@@ -125,7 +138,7 @@ internal static class PatchLabOne
                 baseManifest,
                 PatchLabCorpus.ContentPath(corpusRoot, family, baseVersion, path),
                 outputPath,
-                verifyChunking: true,
+                check,
                 CancellationToken.None)
             .ConfigureAwait(false);
 

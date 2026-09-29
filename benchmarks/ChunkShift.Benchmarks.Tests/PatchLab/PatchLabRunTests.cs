@@ -101,7 +101,7 @@ public class PatchLabRunTests
     /// Writes the two versions of a one-family corpus with two files, one of
     /// them changed, and a pairs.json in the materializer's format.
     /// </summary>
-    private static SyntheticCorpus WriteCorpus(string directory)
+    internal static SyntheticCorpus WriteCorpus(string directory)
     {
         byte[] unchanged = CorpusGenerator.Generate(
             new CorpusEntry("test", "test", "random", 64 * 1024, 1, "test"));
@@ -167,13 +167,13 @@ public class PatchLabRunTests
 
     private static string Sha256(string path) => Sha256(File.ReadAllBytes(path));
 
-    private sealed record SyntheticCorpus(
+    internal sealed record SyntheticCorpus(
         long TargetSize,
         string BaseSha256,
         string TargetSha256,
         string PairsSha256);
 
-    private sealed class TempDirectory : IDisposable
+    internal sealed class TempDirectory : IDisposable
     {
         public string Path { get; } = Directory.CreateTempSubdirectory("chunkshift-patch-lab-").FullName;
 

@@ -5,12 +5,13 @@ name: Patch lab
 # lanes alone take tens of minutes, so this workflow never runs on a push.
 # lanes=memory runs only the memory lane with the memory-lane policy and the
 # memory-env variables (docs/benchmarks/PATCH-APPLY-001-A2-DIAGNOSIS.md); it
-# is not part of "all".
+# is not part of "all". lanes=apply-check runs PATCH-APPLY-002
+# (docs/benchmarks/PATCH-APPLY-002-PROTOCOL.md); it is not part of "all" either.
 on:
   workflow_dispatch:
     inputs:
       lanes:
-        description: "all, or a comma list of job groups: csp-lanes, sweep, references, memory"
+        description: "all, or a comma list of job groups: csp-lanes, sweep, references, memory, apply-check"
         required: false
         default: all
         type: string
@@ -400,9 +401,97 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  apply-check:
+    name: patch-lab-apply-check (${{ matrix.arch }})
+    if: contains(inputs.lanes, 'apply-check')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The chunkshift-source family is rebuilt from old commits with
+          # git ls-tree/cat-file, so the full history must be present.
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Restore corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$HOME/patch-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download --lock
+
+      - name: Build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      # Protocol section 5: patches are created once and not timed; every
+      # repetition is its own process; the page cache stays warm.
+      - name: Run apply-check lanes
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="PATCH-APPLY-002/RUN-$(date -u +%Y%m%d)-${{ github.run_number }}-${GITHUB_SHA::7}-linux-${{ matrix.arch }}"
+          lab="benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks"
+          out="artifacts/patch-lab"
+          mkdir -p "$out"
+          "$lab" patch-lab apply-check prepare --corpus "$HOME/patch-corpus" \
+            --output "$out/apply-check-prepare-${{ matrix.arch }}.json" --run-id "$run_id"
+          for repetition in $(seq 0 9)
+          do
+            "$lab" patch-lab apply-check time --corpus "$HOME/patch-corpus" --repetition "$repetition" \
+              --output "$out/apply-check-time-$repetition-${{ matrix.arch }}.json" --run-id "$run_id"
+          done
+          for repetition in $(seq 0 9)
+          do
+            "$lab" patch-lab apply-check concurrent --corpus "$HOME/patch-corpus" --repetition "$repetition" \
+              --output "$out/apply-check-concurrent-$repetition-${{ matrix.arch }}.json" --run-id "$run_id"
+          done
+          "$lab" patch-lab apply-check memory --corpus "$HOME/patch-corpus" \
+            --output "$out/apply-check-memory-${{ matrix.arch }}.json" --run-id "$run_id"
+
+      - name: Upload apply-check evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-lab-apply-check-${{ matrix.arch }}
+          path: artifacts/patch-lab
+          if-no-files-found: error
+          retention-days: 90
+
   summary:
     name: patch-lab-summary
-    needs: [csp-lanes, sweep, references, memory]
+    needs: [csp-lanes, sweep, references, memory, apply-check]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -444,6 +533,19 @@ jobs:
             --output artifacts/patch-lab/verdict.json \
             --markdown artifacts/patch-lab/summary.md
           cat artifacts/patch-lab/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summarize apply-check evidence
+        if: always() && contains(inputs.lanes, 'apply-check')
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/patch-lab
+          python3 benchmarks/scripts/summarize_apply_check.py \
+            platform-x64 platform-arm64 \
+            --corpus-lock docs/benchmarks/patch-corpus/corpus-lock.json \
+            --output artifacts/patch-lab/apply-check-verdict.json \
+            --markdown artifacts/patch-lab/apply-check-summary.md
+          cat artifacts/patch-lab/apply-check-summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload patch lab summary
         if: always()

@@ -218,7 +218,7 @@ internal static class PatchLabRun
                     directory,
                     "check",
                     file.TargetSha256,
-                    verifyChunking: true,
+                    ChunkingCheck.Sequential,
                     applyRepeats,
                     cancellationToken).ConfigureAwait(false);
                 applyNoCheckSeconds = await ApplyRepeatedAsync(
@@ -228,7 +228,7 @@ internal static class PatchLabRun
                     directory,
                     "no-check",
                     targetSha256: null,
-                    verifyChunking: false,
+                    ChunkingCheck.Off,
                     applyRepeats,
                     cancellationToken).ConfigureAwait(false);
             }
@@ -272,7 +272,7 @@ internal static class PatchLabRun
         string directory,
         string name,
         string? targetSha256,
-        bool verifyChunking,
+        ChunkingCheck check,
         int repeats,
         CancellationToken cancellationToken)
     {
@@ -286,7 +286,7 @@ internal static class PatchLabRun
                 baseManifestPath,
                 baseContentPath,
                 outputPath,
-                verifyChunking,
+                check,
                 cancellationToken).ConfigureAwait(false);
 
             if (repeat == 0 && targetSha256 is not null)
@@ -316,7 +316,7 @@ internal static class PatchLabRun
         string baseManifestPath,
         string baseContentPath,
         string outputPath,
-        bool verifyChunking,
+        ChunkingCheck check,
         CancellationToken cancellationToken)
     {
         await using FileStream patch = PatchLabFiles.OpenRead(patchPath);
@@ -330,7 +330,7 @@ internal static class PatchLabRun
                 baseContent,
                 outputPath,
                 CspFormat.DefaultMaximumPayloadEntries,
-                verifyChunking,
+                check,
                 cancellationToken)
             .ConfigureAwait(false);
         double seconds = clock.Elapsed.TotalSeconds;

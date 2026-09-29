@@ -129,7 +129,7 @@ public sealed class CspApplyFuzzTests : IDisposable
                 Path.Combine(destinationDirectory, "output.bin"));
 
             (PatchApplyResult? result, Exception? failure, long allocated) =
-                Apply(entry, patch, destination);
+                Apply(entry, patch, destination, CspApplier.DefaultChunkingCheck);
 
             string verdict;
             string? detail = null;
@@ -205,6 +205,17 @@ public sealed class CspApplyFuzzTests : IDisposable
                 }
             }
 
+            if (problem is null)
+            {
+                // The other way of running the re-chunk check reaches the
+                // same outcome and output for the same case.
+                problem = CompareOtherCheck(
+                    entry,
+                    patch,
+                    destinationDirectory,
+                    Outcome(result, failure, destination));
+            }
+
             if (problem is not null)
             {
                 failures.Add(Describe(seed, iteration, entry, trace, patch, problem, detail));
@@ -250,10 +261,47 @@ public sealed class CspApplyFuzzTests : IDisposable
     /// measured where they happen, and work the library hands to the pool
     /// after a real asynchronous hop is not charged to this iteration.
     /// </summary>
+    /// <summary>
+    /// Applies the case again with the sequential check when the default is
+    /// overlapped, and the other way round, and returns a problem when the
+    /// outcome differs.
+    /// </summary>
+    private static string? CompareOtherCheck(
+        CorpusEntry entry,
+        byte[] patch,
+        string destinationDirectory,
+        string expected)
+    {
+        ChunkingCheck other = CspApplier.DefaultChunkingCheck == ChunkingCheck.Overlapped
+            ? ChunkingCheck.Sequential
+            : ChunkingCheck.Overlapped;
+        string otherDirectory = Path.Combine(destinationDirectory, "other");
+        Directory.CreateDirectory(otherDirectory);
+        string otherDestination = Path.Combine(otherDirectory, "output.bin");
+
+        (PatchApplyResult? result, Exception? failure, _) =
+            Apply(entry, patch, otherDestination, other);
+        string actual = Outcome(result, failure, otherDestination);
+        Directory.Delete(otherDirectory, recursive: true);
+
+        return string.Equals(expected, actual, StringComparison.Ordinal)
+            ? null
+            : $"the {other} re-chunk check reached {actual}, the default {expected}";
+    }
+
+    /// <summary>Renders an outcome for comparison: exception type, failures or output digest.</summary>
+    private static string Outcome(PatchApplyResult? result, Exception? failure, string destination) =>
+        failure is not null
+            ? failure.GetType().Name
+            : result!.IsApplied
+                ? "applied:" + Sha256File(destination)
+                : "failed:" + result.Failures;
+
     private static (PatchApplyResult? Result, Exception? Failure, long Allocated) Apply(
         CorpusEntry entry,
         byte[] patch,
-        string destination)
+        string destination,
+        ChunkingCheck check)
     {
         using var patchStream = new MemoryStream(patch, writable: false);
         using MemoryStream? baseManifest = entry.BaseManifest is null
@@ -273,7 +321,7 @@ public sealed class CspApplyFuzzTests : IDisposable
                     baseContent,
                     destination,
                     CspFormat.DefaultMaximumPayloadEntries,
-                    verifyChunking: true,
+                    check,
                     CancellationToken.None)
                 .GetAwaiter()
                 .GetResult();

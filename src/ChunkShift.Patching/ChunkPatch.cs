@@ -414,7 +414,7 @@ public static class ChunkPatch
             baseContent,
             destinationPath,
             CspFormat.DefaultMaximumPayloadEntries,
-            verifyChunking: true,
+            CspApplier.DefaultChunkingCheck,
             cancellationToken);
     }
 
@@ -503,7 +503,7 @@ public static class ChunkPatch
             baseContent: null,
             destinationPath,
             CspFormat.DefaultMaximumPayloadEntries,
-            verifyChunking: true,
+            CspApplier.DefaultChunkingCheck,
             cancellationToken);
     }
 #pragma warning restore RS0026

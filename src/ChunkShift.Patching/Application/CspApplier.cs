@@ -20,13 +20,19 @@ namespace ChunkShift.Patching.Application;
 /// <para>
 /// Memory is bounded by the payload map, the base locator of at most 4,194,304
 /// records, one chunk buffer of the current record length and one dictionary of
-/// at most <see cref="CspDictionary.MaximumBytes"/>. Argument validation is the
-/// public caller's job. No stream is disposed; only the base content and the
-/// temporary file are repositioned.
+/// at most <see cref="CspDictionary.MaximumBytes"/>; the overlapped re-chunk
+/// check adds its pipe (<see cref="OverlappedChunkingCheck"/>). Argument
+/// validation is the public caller's job. No stream is disposed; only the base
+/// content and the temporary file are repositioned.
 /// </para>
 /// </remarks>
 internal static class CspApplier
 {
+    /// <summary>
+    /// The re-chunk check of the public apply methods (PATCHING-DECISIONS D13).
+    /// </summary>
+    internal const ChunkingCheck DefaultChunkingCheck = ChunkingCheck.Sequential;
+
     private const int ManifestBatchEntries = 256;
 
     // CSP-V1-CANDIDATE section 8, MaximumMaterializedManifestRecords.
@@ -46,9 +52,22 @@ internal static class CspApplier
         Stream? baseContent,
         string destinationPath,
         int maximumPayloadEntries,
-        bool verifyChunking,
+        ChunkingCheck chunkingCheck,
         CancellationToken cancellationToken)
     {
+        // The overlapped check reads the embedded CSM while the reconstruction
+        // reads payload entries, and both reposition the caller's patch stream.
+        // Each then reads through a view of its own, and the views take turns.
+        using SemaphoreSlim? patchGate = chunkingCheck == ChunkingCheck.Overlapped
+            ? new SemaphoreSlim(1, 1)
+            : null;
+        long patchStart = patch.Position;
+        Stream patchSource = patchGate is null
+            ? patch
+            : new SharedStreamView(patch, patchGate, patchStart);
+        Stream? checkPatch = patchGate is null
+            ? null
+            : new SharedStreamView(patch, patchGate, patchStart);
         CspReader reader;
 
         // D21 step 1: structure, embedded CSM, patch FileDigest, payload
@@ -56,7 +75,7 @@ internal static class CspApplier
         try
         {
             reader = await CspReader
-                .OpenAsync(patch, maximumPayloadEntries, cancellationToken)
+                .OpenAsync(patchSource, maximumPayloadEntries, cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (CspResourceLimitException)
@@ -127,11 +146,26 @@ internal static class CspApplier
         await using PendingFile pending = PendingFile.Create(destinationPath);
         Stream output = pending.Stream;
 
+        // Disposed before the pending file: whatever ends the apply, the check
+        // is cancelled and awaited first.
+        await using OverlappedChunkingCheck? overlapped = checkPatch is null
+            ? null
+            : OverlappedChunkingCheck.Start(
+                (content, token) => CheckChunkingAsync(
+                    content,
+                    new BoundedReadStream(
+                        checkPatch,
+                        checked(patchStart + reader.TargetManifestOffset),
+                        reader.TargetManifestLength),
+                    token),
+                cancellationToken);
+
         PatchApplyFailure failure = await ResolveTargetAsync(
             reader,
             output,
             baseLocator,
             baseStream,
+            overlapped,
             cancellationToken).ConfigureAwait(false);
 
         if (failure != PatchApplyFailure.None)
@@ -145,8 +179,24 @@ internal static class CspApplier
             return new PatchApplyResult(PatchApplyFailure.ContentLength, target);
         }
 
-        if (verifyChunking &&
-            !await VerifyChunkingAsync(reader, output, cancellationToken).ConfigureAwait(false))
+        // D21 step 6, then the re-chunk check (CSP-V1-CANDIDATE section 6,
+        // rule 24): reported only after the reconstruction and its length
+        // passed, whichever way it ran.
+        bool profileMatches = chunkingCheck switch
+        {
+            ChunkingCheck.Off => true,
+            ChunkingCheck.Sequential => await VerifyChunkingAsync(
+                reader,
+                output,
+                cancellationToken).ConfigureAwait(false),
+            ChunkingCheck.Overlapped => await CompleteOverlappedAsync(
+                overlapped!,
+                pending,
+                cancellationToken).ConfigureAwait(false),
+            _ => throw new ArgumentOutOfRangeException(nameof(chunkingCheck)),
+        };
+
+        if (!profileMatches)
         {
             return new PatchApplyResult(PatchApplyFailure.ProfileContent, target);
         }
@@ -157,13 +207,16 @@ internal static class CspApplier
 
     /// <summary>
     /// D21 step 5: resolves every target record in order, writing the verified
-    /// bytes to <paramref name="output"/> and stopping at the first failure.
+    /// bytes to <paramref name="output"/> and, when a check overlaps the
+    /// reconstruction, to <paramref name="overlapped"/>, stopping at the first
+    /// failure.
     /// </summary>
     private static async Task<PatchApplyFailure> ResolveTargetAsync(
         CspReader reader,
         Stream output,
         Dictionary<ChunkId, ChunkInfo> baseLocator,
         Stream? baseStream,
+        OverlappedChunkingCheck? overlapped,
         CancellationToken cancellationToken)
     {
         HashSuiteId hashSuite = reader.TargetManifest.Manifest.HashSuite;
@@ -333,6 +386,14 @@ internal static class CspApplier
                     await output
                         .WriteAsync(chunk, cancellationToken)
                         .ConfigureAwait(false);
+
+                    if (overlapped is not null)
+                    {
+                        await overlapped
+                            .WriteAsync(chunk, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+
                     writeOffset = checked(writeOffset + chunk.Length);
                 }
             }
@@ -415,21 +476,47 @@ internal static class CspApplier
     }
 
     /// <summary>
-    /// Re-chunks the reconstruction with the embedded manifest's profile and
-    /// requires it to reproduce that manifest (CSP-V1-CANDIDATE section 9.5).
-    /// An unregistered profile cannot run the check and does not block apply.
+    /// Ends the overlapped check's content and flushes the temporary file to
+    /// disk, which publication needs anyway (D12), while the check works
+    /// through the rest of the pipe. The rename still waits for the outcome.
     /// </summary>
-    private static async Task<bool> VerifyChunkingAsync(
+    private static async Task<bool> CompleteOverlappedAsync(
+        OverlappedChunkingCheck overlapped,
+        PendingFile pending,
+        CancellationToken cancellationToken)
+    {
+        await overlapped.EndContentAsync().ConfigureAwait(false);
+        await pending.FlushToDiskAsync(cancellationToken).ConfigureAwait(false);
+        return await overlapped.CompleteAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Re-reads the temporary file for the sequential re-chunk check.
+    /// </summary>
+    private static Task<bool> VerifyChunkingAsync(
         CspReader reader,
         Stream output,
         CancellationToken cancellationToken)
     {
         output.Position = 0;
 
+        return CheckChunkingAsync(output, reader.OpenTargetManifest(), cancellationToken);
+    }
+
+    /// <summary>
+    /// Re-chunks the reconstruction with the embedded manifest's profile and
+    /// requires it to reproduce that manifest (CSP-V1-CANDIDATE section 9.5).
+    /// An unregistered profile cannot run the check and does not block apply.
+    /// </summary>
+    private static async Task<bool> CheckChunkingAsync(
+        Stream content,
+        Stream manifest,
+        CancellationToken cancellationToken)
+    {
         try
         {
             ManifestVerificationResult verification = await ChunkManifest
-                .VerifyAsync(output, reader.OpenTargetManifest(), cancellationToken)
+                .VerifyAsync(content, manifest, cancellationToken)
                 .ConfigureAwait(false);
 
             return (verification.Failures &

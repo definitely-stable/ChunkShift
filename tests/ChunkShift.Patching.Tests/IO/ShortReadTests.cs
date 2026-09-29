@@ -41,15 +41,37 @@ public sealed class ShortReadTests : IDisposable
         }
     }
 
-    public static TheoryData<string> VectorNames
+    /// <summary>
+    /// Gets every scenario with the sequential and the overlapped re-chunk
+    /// check; the overlapped check reads the patch concurrently with the
+    /// reconstruction.
+    /// </summary>
+    public static TheoryData<string, string> ScenarioChecks
     {
         get
         {
-            var names = new TheoryData<string>();
+            var cases = new TheoryData<string, string>();
+
+            foreach (PatchScenario scenario in PatchScenarios.All)
+            {
+                cases.Add(scenario.Name, nameof(ChunkingCheck.Sequential));
+                cases.Add(scenario.Name, nameof(ChunkingCheck.Overlapped));
+            }
+
+            return cases;
+        }
+    }
+
+    public static TheoryData<string, string> VectorNames
+    {
+        get
+        {
+            var names = new TheoryData<string, string>();
 
             foreach (CspApplyVector vector in CspApplyVectors.All)
             {
-                names.Add(vector.Name);
+                names.Add(vector.Name, nameof(ChunkingCheck.Sequential));
+                names.Add(vector.Name, nameof(ChunkingCheck.Overlapped));
             }
 
             return names;
@@ -96,9 +118,10 @@ public sealed class ShortReadTests : IDisposable
     }
 
     [Theory]
-    [MemberData(nameof(ScenarioNames))]
-    public async Task Apply_WithShortReads_ReconstructsTheTarget(string scenarioName)
+    [MemberData(nameof(ScenarioChecks))]
+    public async Task Apply_WithShortReads_ReconstructsTheTarget(string scenarioName, string checkName)
     {
+        ChunkingCheck check = Enum.Parse<ChunkingCheck>(checkName);
         PatchScenario scenario = PatchScenarios.Find(scenarioName);
         (byte[] baseManifest, byte[] targetManifest, byte[] patch) = await CreateBufferedAsync(scenario);
         string destination = Path.Combine(_directory, "target.bin");
@@ -107,18 +130,28 @@ public sealed class ShortReadTests : IDisposable
 
         if (scenario.SelfContained)
         {
-            result = await ChunkPatch.ApplyAsync(patchStream, destination);
+            result = await CspApplier.ApplyAsync(
+                patchStream,
+                baseManifest: null,
+                baseContent: null,
+                destination,
+                CspFormat.DefaultMaximumPayloadEntries,
+                check,
+                CancellationToken.None);
         }
         else
         {
             var baseManifestStream = new ShortReadStream(baseManifest, 0x5EED4012u, seekable: false);
             var baseContentStream = new ShortReadStream(scenario.BaseContent, 0x5EED4013u);
 
-            result = await ChunkPatch.ApplyAsync(
+            result = await CspApplier.ApplyAsync(
                 patchStream,
                 baseManifestStream,
                 baseContentStream,
-                destination);
+                destination,
+                CspFormat.DefaultMaximumPayloadEntries,
+                check,
+                CancellationToken.None);
 
             Assert.True(baseManifestStream.ShortReads > 0);
 
@@ -141,8 +174,9 @@ public sealed class ShortReadTests : IDisposable
     /// </summary>
     [Theory]
     [MemberData(nameof(VectorNames))]
-    public async Task Vector_WithShortReads_ReachesTheBufferedOutcome(string name)
+    public async Task Vector_WithShortReads_ReachesTheBufferedOutcome(string name, string checkName)
     {
+        ChunkingCheck check = Enum.Parse<ChunkingCheck>(checkName);
         CspApplyVector vector = CspApplyVectors.Find(name);
         byte[] patch = CspApplyVectors.ReadPatch(name);
         byte[]? baseManifest = vector.BaseName is null ? null : CspApplyVectors.ReadBaseManifest(vector);
@@ -153,13 +187,15 @@ public sealed class ShortReadTests : IDisposable
             new MemoryStream(patch, writable: false),
             baseManifest is null ? null : new MemoryStream(baseManifest, writable: false),
             baseContent is null ? null : new MemoryStream(baseContent, writable: false),
-            Path.Combine(_directory, "buffered"));
+            Path.Combine(_directory, "buffered"),
+            check);
         string shortReads = await ApplyVectorAsync(
             vector,
             new ShortReadStream(patch, 0x5EED4021u),
             baseManifest is null ? null : new ShortReadStream(baseManifest, 0x5EED4022u, seekable: false),
             baseContent is null ? null : new ShortReadStream(baseContent, 0x5EED4023u),
-            Path.Combine(_directory, "short"));
+            Path.Combine(_directory, "short"),
+            check);
 
         Assert.Equal(buffered, shortReads);
     }
@@ -252,7 +288,8 @@ public sealed class ShortReadTests : IDisposable
         Stream patch,
         Stream? baseManifest,
         Stream? baseContent,
-        string directory)
+        string directory,
+        ChunkingCheck check)
     {
         Directory.CreateDirectory(directory);
         string destination = Path.Combine(directory, "output.bin");
@@ -265,7 +302,7 @@ public sealed class ShortReadTests : IDisposable
                 baseContent,
                 destination,
                 vector.MaximumPayloadEntries,
-                verifyChunking: true,
+                check,
                 CancellationToken.None);
 
             return result.IsApplied
