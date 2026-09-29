@@ -23,10 +23,11 @@ internal sealed record VerifyLabWorkloadsDocument(string Schema, bool Smoke, Ver
 }
 
 /// <summary>
-/// <c>verify-lab prepare</c>: generates the S1/S10 files, the warm-up file and
-/// the many-file tree T with their manifests
-/// (docs/benchmarks/CORE-VERIFY-001-PROTOCOL.md section 4) and writes
-/// <c>&lt;dir&gt;/workloads.json</c>.
+/// <c>verify-lab prepare</c>: generates the S1 file, the warm-up file, the
+/// large file SL sized to the machine's memory
+/// (docs/benchmarks/CORE-VERIFY-002-PROTOCOL.md section 4.1) and the many-file
+/// tree T with their manifests (docs/benchmarks/CORE-VERIFY-001-PROTOCOL.md
+/// section 4), and writes <c>&lt;dir&gt;/workloads.json</c>.
 /// </summary>
 internal static class VerifyLabWorkloads
 {
@@ -34,22 +35,48 @@ internal static class VerifyLabWorkloads
     internal const string DocumentName = "workloads.json";
     internal const string Warmup = "warmup";
 
+    /// <summary>The largest single file: its size follows the machine's memory.</summary>
+    internal const string Large = "SL";
+
+    /// <summary>SL is this fraction of the machine's memory, rounded to whole GiB...</summary>
+    internal const double LargeMemoryFraction = 0.4;
+
+    /// <summary>...and at most this many GiB (and at least one).</summary>
+    internal const int LargeMaximumGiB = 10;
+
     private const int BlockBytes = 1 << 20;
 
-    /// <summary>The generated workloads: id, full size, smoke size, seed and suites.</summary>
+    /// <summary>
+    /// The generated workloads: id, full size, smoke size, seed and suites. A
+    /// full size of 0 is SL's, which <see cref="LargeBytes"/> computes.
+    /// </summary>
     internal static readonly (string Id, long Bytes, long SmokeBytes, ulong Seed, string[] Suites)[] Generated =
     [
         (Warmup, 64L << 20, 8L << 20, 0xC0FE_0000, ["blake3", "sha256"]),
         ("S1", 1L << 30, 16L << 20, 0xC0FE_0001, ["blake3", "sha256"]),
-        ("S10", 10L << 30, 48L << 20, 0xC0FE_0010, ["blake3"]),
+        (Large, 0, 48L << 20, 0xC0FE_0020, ["blake3"]),
     ];
+
+    /// <summary>The machine's memory as .NET reports it (the cgroup limit where one applies).</summary>
+    internal static long TotalMemoryBytes() => GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+
+    /// <summary>
+    /// The size of SL: <c>min(10 GiB, round(0.4 × memory / 1 GiB) GiB)</c>,
+    /// at least 1 GiB (docs/benchmarks/CORE-VERIFY-002-PROTOCOL.md section 4.1).
+    /// </summary>
+    internal static long LargeBytes(long totalMemoryBytes)
+    {
+        long gib = (long)Math.Round(LargeMemoryFraction * totalMemoryBytes / (1L << 30), MidpointRounding.AwayFromZero);
+        return Math.Clamp(gib, 1, LargeMaximumGiB) << 30;
+    }
 
     internal static async Task<int> PrepareAsync(VerifyLabOptions options)
     {
         string directory = Path.GetFullPath(options.Require("dir"));
         Directory.CreateDirectory(directory);
         bool smoke = options.Flag("smoke");
-        string[] requested = options.List("workloads") ?? ["S1", "S10", "T"];
+        string[] requested = options.List("workloads") ?? ["S1", Large, "T"];
+        long memory = TotalMemoryBytes();
         var workloads = new List<VerifyLabWorkload>();
 
         foreach ((string id, long bytes, long smokeBytes, ulong seed, string[] suites) in Generated)
@@ -59,7 +86,7 @@ internal static class VerifyLabWorkloads
                 continue;
             }
 
-            long size = smoke ? smokeBytes : bytes;
+            long size = smoke ? smokeBytes : id == Large ? LargeBytes(memory) : bytes;
             string content = Path.Combine(directory, id.ToLowerInvariant() + ".bin");
             string sha256 = await GenerateAsync(content, size, seed).ConfigureAwait(false);
             var manifests = new SortedDictionary<string, string>(StringComparer.Ordinal);
@@ -76,7 +103,7 @@ internal static class VerifyLabWorkloads
                 string.Create(CultureInfo.InvariantCulture, $"splitmix64 seed=0x{seed:X} bytes={size}"),
                 size,
                 [new VerifyLabWorkloadFile(content, size, sha256, manifests)]));
-            Console.Error.WriteLine($"verify-lab prepare {id}: {size} bytes, sha256 {sha256}");
+            Console.Error.WriteLine($"verify-lab prepare {id}: {size} bytes, sha256 {sha256}, memory {memory} bytes");
         }
 
         if (requested.Contains("T"))

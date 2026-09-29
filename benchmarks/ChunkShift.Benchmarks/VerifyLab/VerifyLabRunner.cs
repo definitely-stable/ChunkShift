@@ -5,12 +5,13 @@ using System.Text.Json.Serialization;
 namespace ChunkShift.Benchmarks.VerifyLab;
 
 /// <summary>
-/// <c>verify-lab</c> mode: CORE-VERIFY-001 (docs/benchmarks/CORE-VERIFY-001-PROTOCOL.md).
+/// <c>verify-lab</c> mode: CORE-VERIFY-002 (docs/benchmarks/CORE-VERIFY-002-PROTOCOL.md),
+/// the confirmatory run of CORE-VERIFY-001 (docs/benchmarks/CORE-VERIFY-001-PROTOCOL.md).
 /// <code>
 /// verify-lab oracle --output &lt;file.json&gt; [--fixtures &lt;dir&gt;] [--quick] [--scratch &lt;dir&gt;]
-/// verify-lab prepare --dir &lt;dir&gt; [--workloads S1,S10,T] [--corpus &lt;root&gt;] [--work &lt;dir&gt;] [--smoke]
-/// verify-lab run --dir &lt;dir&gt; --workloads &lt;S1,S10|T&gt; --output &lt;file.json&gt; --run-id &lt;id&gt; --platform &lt;name&gt; [--commit &lt;sha&gt;] [--modes warm,cold,throttled] [--samples &lt;n&gt;]
-/// verify-lab one --dir &lt;dir&gt; --workload &lt;id&gt; --suite &lt;blake3|sha256&gt; --mode &lt;warm|cold|throttled&gt; --lane &lt;V0|V1|V2-Wn&gt; [--concurrency &lt;k&gt;]
+/// verify-lab prepare --dir &lt;dir&gt; [--workloads S1,SL,T] [--corpus &lt;root&gt;] [--work &lt;dir&gt;] [--smoke]
+/// verify-lab run --dir &lt;dir&gt; --workloads &lt;S1,SL|T&gt; --output &lt;file.json&gt; --run-id &lt;id&gt; --platform &lt;name&gt; [--commit &lt;sha&gt;] [--modes warm,cold,throttled] [--samples &lt;n&gt;]
+/// verify-lab one --dir &lt;dir&gt; --workload &lt;id&gt; --suite &lt;blake3|sha256&gt; --mode &lt;warm|cold|throttled&gt; [--pool &lt;spin-0|default&gt;] --lane &lt;V0|V1|V2-Wn&gt; [--concurrency &lt;k&gt;]
 /// verify-lab one --idle
 /// verify-lab decide --runs &lt;file.json,...&gt; --oracles &lt;file.json,...&gt; --output &lt;file.json&gt; [--markdown &lt;file.md&gt;]
 /// </code>

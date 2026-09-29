@@ -1,6 +1,7 @@
 name: Verify lab
 
-# CORE-VERIFY-001 (docs/benchmarks/CORE-VERIFY-001-PROTOCOL.md).
+# CORE-VERIFY-002 (docs/benchmarks/CORE-VERIFY-002-PROTOCOL.md), the
+# confirmatory run of CORE-VERIFY-001 (docs/benchmarks/CORE-VERIFY-001-PROTOCOL.md).
 # - smoke: pull requests from perf/186-verify* branches run the oracle's quick
 #   set and the whole pipeline on small generated workloads, on every platform.
 # - the decision runs take hours, so they start only on workflow_dispatch or
@@ -59,8 +60,8 @@ jobs:
           work="$RUNNER_TEMP/verify-lab"
           mkdir -p "$out"
           lab oracle --quick --fixtures tests/ChunkShift.Tests/Fixtures/CsmV1 --output "$out/smoke-oracle-${{ matrix.platform }}.json"
-          lab prepare --dir "$work" --workloads S1,S10,T --smoke
-          lab run --dir "$work" --workloads S1,S10 --samples 1 --platform "${{ matrix.platform }}" --output "$out/run-single-${{ matrix.platform }}.json"
+          lab prepare --dir "$work" --workloads S1,SL,T --smoke
+          lab run --dir "$work" --workloads S1,SL --samples 1 --platform "${{ matrix.platform }}" --output "$out/run-single-${{ matrix.platform }}.json"
           lab run --dir "$work" --workloads T --samples 1 --platform "${{ matrix.platform }}" --output "$out/run-tree-${{ matrix.platform }}.json"
           lab decide --runs "$out/run-single-${{ matrix.platform }}.json,$out/run-tree-${{ matrix.platform }}.json" \
             --oracles "$out/smoke-oracle-${{ matrix.platform }}.json" --output "$out/decision-${{ matrix.platform }}.json" > /dev/null
@@ -99,7 +100,7 @@ jobs:
         with:
           global-json-file: global.json
 
-      # S10 needs 10 GiB next to S1; the hosted Linux images keep large
+      # SL needs up to 10 GiB next to S1; the hosted Linux images keep large
       # toolchains the lab never uses.
       - name: Free disk space
         if: runner.os == 'Linux'
@@ -109,7 +110,7 @@ jobs:
           sudo rm -rf /usr/local/lib/android /opt/ghc /usr/local/.ghcup /usr/share/swift /opt/hostedtoolcache/CodeQL
           df -h "$RUNNER_TEMP"
 
-      - name: Record storage
+      - name: Record storage and memory
         shell: bash
         run: |
           set -euo pipefail
@@ -117,8 +118,9 @@ jobs:
           then
             lsblk -d -o NAME,MODEL,ROTA,SIZE,TRAN || true
             df -h "$RUNNER_TEMP"
+            free -b
           else
-            powershell -NoProfile -Command "Get-PhysicalDisk | Format-Table FriendlyName,MediaType,BusType,Size; Get-Volume | Format-Table DriveLetter,FileSystem,SizeRemaining,Size"
+            powershell -NoProfile -Command "Get-PhysicalDisk | Format-Table FriendlyName,MediaType,BusType,Size; Get-Volume | Format-Table DriveLetter,FileSystem,SizeRemaining,Size; Get-CimInstance Win32_ComputerSystem | Format-List TotalPhysicalMemory"
           fi
 
       - name: Build benchmark lab
@@ -137,17 +139,17 @@ jobs:
             --fixtures tests/ChunkShift.Tests/Fixtures/CsmV1 \
             --output "artifacts/verify-lab/single-oracle-${{ matrix.platform }}.json"
 
-      - name: Run S1 and S10
+      - name: Run S1 and SL
         shell: bash
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           lab() { dotnet benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll verify-lab "$@"; }
-          run_id="CORE-VERIFY-001/RUN-$(date -u +%Y%m%d)-${{ github.run_number }}-${HEAD_SHA::7}-${{ matrix.platform }}"
+          run_id="CORE-VERIFY-002/RUN-$(date -u +%Y%m%d)-${{ github.run_number }}-${HEAD_SHA::7}-${{ matrix.platform }}"
           work="$RUNNER_TEMP/verify-lab"
-          lab prepare --dir "$work" --workloads S1,S10
-          lab run --dir "$work" --workloads S1,S10 --modes warm,cold,throttled \
+          lab prepare --dir "$work" --workloads S1,SL
+          lab run --dir "$work" --workloads S1,SL --modes warm,cold,throttled \
             --platform "${{ matrix.platform }}" --run-id "$run_id" --commit "$HEAD_SHA" \
             --output "artifacts/verify-lab/run-single-${{ matrix.platform }}.json"
 
@@ -230,7 +232,7 @@ jobs:
         run: |
           set -euo pipefail
           lab() { dotnet benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll verify-lab "$@"; }
-          run_id="CORE-VERIFY-001/RUN-$(date -u +%Y%m%d)-${{ github.run_number }}-${HEAD_SHA::7}-${{ matrix.platform }}"
+          run_id="CORE-VERIFY-002/RUN-$(date -u +%Y%m%d)-${{ github.run_number }}-${HEAD_SHA::7}-${{ matrix.platform }}"
           work="$RUNNER_TEMP/verify-lab"
           lab prepare --dir "$work" --workloads T --corpus "$HOME/patch-corpus"
           lab run --dir "$work" --workloads T --modes warm,cold,throttled \
