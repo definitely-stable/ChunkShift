@@ -102,7 +102,8 @@ internal static class PatchLabApplyCheck
             file.BaseSha256 + "-" + file.TargetSha256 + ".csp");
 
     private static string PolicyTag(CspEncoderPolicy policy) =>
-        Invariant($"L{policy.Level}-K{policy.DictionaryChunks}-C{policy.MaxCandidates}-R{policy.SearchRadius}");
+        Invariant(
+            $"L{policy.Level}-K{policy.DictionaryChunks}-C{policy.MaxCandidates}-R{policy.SearchRadius}-{policy.DictionaryLoad}-H{policy.DictionaryHashLog}-G{policy.DictionaryChainLog}");
 
     private static async Task<int> PrepareAsync(string[] args)
     {

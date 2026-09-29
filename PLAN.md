@@ -335,7 +335,7 @@ Experiment map for the remaining work (ROADMAP "Patching gate" lists the exit it
 
 | ExperimentId | Issue | Question | Exit item |
 | --- | --- | --- | --- |
-| `PATCH-ENC-003` | #179 | dictionary loading mode and caps vs the create peak (D8, D17) | yes |
+| `PATCH-ENC-003` | #179 | dictionary loading mode and caps vs the create peak (D8, D17) | done: ADOPT ([record](docs/research/results/PATCH-ENC-003-EVIDENCE-20260929-001.md)); A2 of `PATCH-APPLY-001` holds ([record](docs/research/results/PATCH-APPLY-001-EVIDENCE-20260929-001.md)) |
 | `PATCH-APPLY-002` | [#182](https://github.com/definitely-stable/ChunkShift/issues/182) | cheaper re-chunk check and apply pipeline (D13, #168) | yes |
 | `PATCH-ENC-004` | [#181](https://github.com/definitely-stable/ChunkShift/issues/181) | same-bytes create throughput: base-window cache, bounded parallel encoding | yes |
 | `PATCH-ENC-005` | [#181](https://github.com/definitely-stable/ChunkShift/issues/181) | dictionary-candidate search: ranking, resemblance sketches, level ladder (D15) | yes |

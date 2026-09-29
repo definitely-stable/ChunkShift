@@ -89,6 +89,67 @@ public sealed class CspPayloadCodecTests
         Assert.Equal(chunk, destination);
     }
 
+    // Every dictionary load mode (PATCH-ENC-003) must use the dictionary, so
+    // an edited copy of 64 KiB of random base bytes compresses to a fraction
+    // of the chunk, and each frame decodes against the raw content only.
+    [Theory]
+    [InlineData(3, 0, 0, 0)]
+    [InlineData(3, 1, 0, 0)]
+    [InlineData(3, 2, 0, 0)]
+    [InlineData(19, 0, 0, 0)]
+    [InlineData(19, 1, 0, 0)]
+    [InlineData(19, 2, 0, 0)]
+    [InlineData(19, 0, 18, 19)]
+    [InlineData(19, 1, 18, 19)]
+    [InlineData(19, 2, 18, 19)]
+    public void DictionaryLoadModes_UseTheDictionary(int level, int load, int hashLog, int chainLog)
+    {
+        byte[] dictionary = RandomBytes(512 * 1024, 0xBA5Eu);
+        byte[] chunk = dictionary.AsSpan(300 * 1024, 64 * 1024).ToArray();
+        chunk[1000] ^= 0x5A;
+        chunk[40_000] ^= 0xA5;
+
+        using var encoder = new CspPayloadEncoder(level, (CspDictionaryLoad)load, hashLog, chainLog);
+        using var decoder = new CspPayloadDecoder();
+        byte[] destination = new byte[chunk.Length];
+
+        // The encoder is reused across entries with and without a dictionary,
+        // as the builder uses it.
+        for (int round = 0; round < 2; round++)
+        {
+            byte[] frame = encoder.EncodeZstd(chunk, dictionary).ToArray();
+            ZstdFrameEnvelope.Validate(frame, chunk.Length);
+            Assert.InRange(frame.Length, 1, 1024);
+            decoder.Decode(CspFormat.EncodingZstd, frame, dictionary, destination);
+            Assert.Equal(chunk, destination);
+
+            byte[] plain = encoder.EncodeZstd(chunk, []).ToArray();
+            Assert.True(plain.Length > chunk.Length / 2, "A frame without a dictionary kept the previous one.");
+            decoder.Decode(CspFormat.EncodingZstd, plain, [], destination);
+            Assert.Equal(chunk, destination);
+        }
+    }
+
+    // The load mode and the table caps apply to dictionary entries only: an
+    // entry without a dictionary gets the default policy's frame.
+    [Theory]
+    [InlineData(1, 0, 0)]
+    [InlineData(2, 0, 0)]
+    [InlineData(0, 18, 19)]
+    [InlineData(2, 18, 19)]
+    public void DictionaryLoadModes_WithoutADictionary_MatchTheDefaultFrame(int load, int hashLog, int chainLog)
+    {
+        byte[] chunk = Compressible(64 * 1024);
+        chunk[100] = 0;
+
+        using var reference = new CspPayloadEncoder(19);
+        using var encoder = new CspPayloadEncoder(19, (CspDictionaryLoad)load, hashLog, chainLog);
+
+        Assert.Equal(
+            reference.EncodeZstd(chunk, []).ToArray(),
+            encoder.EncodeZstd(chunk, []).ToArray());
+    }
+
     [Fact]
     public void ReusingOneDecoder_ClearsThePreviousDictionary()
     {

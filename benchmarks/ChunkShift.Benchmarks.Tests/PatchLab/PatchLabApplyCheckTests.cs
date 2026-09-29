@@ -28,7 +28,8 @@ public class PatchLabApplyCheckTests
         Assert.Equal("chunkshift.patch-lab-apply-check.v1", prepareResult.Schema);
         Assert.Equal("prepare", prepareResult.Kind);
         Assert.Equal("R", prepareResult.RunId);
-        Assert.Equal(new PatchLabPolicy(19, 4, 8, 256 * 1024), prepareResult.Policy);
+        Assert.True(PatchLabLane.TryDescribe("csp", out PatchLabPolicy defaultPolicy));
+        Assert.Equal(defaultPolicy, prepareResult.Policy);
         Assert.Equal(corpus.PairsSha256, prepareResult.CorpusPairsSha256);
         PatchLabPreparedFile file = Assert.Single(prepareResult.Files);
         Assert.True(file.PatchBytes > 0);

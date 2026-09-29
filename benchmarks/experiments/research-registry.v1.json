@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-09-28",
+  "updated": "2026-09-29",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -179,8 +179,18 @@
         152
       ],
       "area": "core-api",
-      "status": "PLANNED",
+      "status": "ADOPT",
       "question": "integrity-only verification guided by the manifest"
+    },
+    {
+      "id": "CORE-VERIFY-002",
+      "issues": [
+        186,
+        152
+      ],
+      "area": "core-api",
+      "status": "PLANNED",
+      "question": "CORE-VERIFY-001 confirmatory run: no pool spinning, cache-sized warm file"
     },
     {
       "id": "CORE-BOUNDARY-001",
@@ -288,7 +298,7 @@
         7
       ],
       "area": "patching",
-      "status": "DEFER",
+      "status": "ADOPT",
       "question": "apply cost, re-chunk check, writer peak memory"
     },
     {
@@ -307,7 +317,7 @@
         179
       ],
       "area": "patching",
-      "status": "PLANNED",
+      "status": "ADOPT",
       "question": "dictionary loading mode and caps vs create peak memory (D8, D17)"
     },
     {

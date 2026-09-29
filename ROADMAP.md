@@ -210,14 +210,15 @@ It owns:
 
 Patching is ported to the publication repository and published on a later `0.1.Z` release when its own evidence is complete.
 
+D17 create memory is done: `PATCH-ENC-003` made a raw prefix with capped tables the encoder default (#194, #195), and A2 of `PATCH-APPLY-001` holds on every platform ([PATCH-APPLY-001-EVIDENCE-20260929-001](docs/research/results/PATCH-APPLY-001-EVIDENCE-20260929-001.md)).
+
 Remaining exit items (CSP v1 frozen 2026-09-28):
 
-1. D17 create memory: `PATCH-ENC-003` (#179).
-2. D13 re-chunk check cost: #168 is decided for option 3 (no public opt-out); `PATCH-APPLY-002` ([#182](https://github.com/definitely-stable/ChunkShift/issues/182)) makes the check cheaper internally, overlap (A2) first.
-3. Create throughput: `PATCH-ENC-004`/`PATCH-ENC-005` ([#181](https://github.com/definitely-stable/ChunkShift/issues/181)).
-4. D23 CLI product surface: [#140](https://github.com/definitely-stable/ChunkShift/issues/140).
-5. Public API review of `PublicAPI.Unshipped.txt`, including whether an options type (from #168) should also carry progress reporting.
-6. Port per [CONTRIBUTING.md](CONTRIBUTING.md#porting-to-the-publication-repository).
+1. D13 re-chunk check cost: #168 is decided for option 3 (no public opt-out); `PATCH-APPLY-002` ([#182](https://github.com/definitely-stable/ChunkShift/issues/182)) makes the check cheaper internally, overlap (A2) first.
+2. Create throughput: `PATCH-ENC-004`/`PATCH-ENC-005` ([#181](https://github.com/definitely-stable/ChunkShift/issues/181)).
+3. D23 CLI product surface: [#140](https://github.com/definitely-stable/ChunkShift/issues/140).
+4. Public API review of `PublicAPI.Unshipped.txt`, including whether an options type (from #168) should also carry progress reporting.
+5. Port per [CONTRIBUTING.md](CONTRIBUTING.md#porting-to-the-publication-repository).
 
 Linked research that does not block the exit:
 
@@ -280,7 +281,7 @@ Cross-cutting Repository rules:
 
 ## Immediate work order
 
-1. continue local product engineering with [#7](https://github.com/definitely-stable/ChunkShift/issues/7) Patching; it remains the product critical path. Close the exit items under [Patching gate](#patching-gate), starting with #179 (D17) and #182 (D13/#168).
+1. continue local product engineering with [#7](https://github.com/definitely-stable/ChunkShift/issues/7) Patching; it remains the product critical path. Close the exit items under [Patching gate](#patching-gate), starting with #182 (D13/#168) and #181 (create throughput).
 2. run [#152](https://github.com/definitely-stable/ChunkShift/issues/152) as bounded parallel Core maintenance research: #127/#137/#153/#154 may proceed without changing the shipped profile/format/API contract. #186 proceeds only for candidates with a named consumer.
 3. adopt/port a Core candidate only after its exact-compatibility and end-to-end evidence gate passes; do not publish from this repository.
 4. finish ordinary `main` governance for this repository under [#24](https://github.com/definitely-stable/ChunkShift/issues/24).

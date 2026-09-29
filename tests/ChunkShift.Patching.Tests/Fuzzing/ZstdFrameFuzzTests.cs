@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using ChunkShift.Patching.Creation;
 using ChunkShift.Patching.Encoding;
 using ChunkShift.Patching.Format;
 using ChunkShift.Patching.Tests.Format;
@@ -405,6 +406,27 @@ public sealed class ZstdFrameFuzzTests(ITestOutputHelper output)
             Add(corpus, encoder, $"edited-dictionary-L{level}", edited, random);
             Add(corpus, encoder, $"text-dictionary-L{level}", text, longText.AsSpan(1000, 64 * 1024).ToArray());
             Add(corpus, encoder, $"tiny-L{level}", text.AsSpan(0, 37).ToArray(), []);
+        }
+
+        // Frames of the default policy's dictionary handling (a raw prefix on the
+        // static context, capped table logs; PATCH-ENC-003). The 512 KiB
+        // dictionary is large enough for the caps to replace zstd's choice.
+        CspEncoderPolicy policy = CspEncoderPolicy.Default;
+        byte[] largeDictionary = CspBytes.CreateXorShiftBytes(512 * 1024, 0x5EED2102u);
+        byte[] largeEdited = largeDictionary.AsSpan(300 * 1024, 64 * 1024).ToArray();
+
+        foreach (int offset in (int[])[10, 20_000, 60_000])
+        {
+            largeEdited[offset] ^= 0xA5;
+        }
+
+        using (var encoder = new CspPayloadEncoder(
+            policy.Level, policy.DictionaryLoad, policy.DictionaryHashLog, policy.DictionaryChainLog))
+        {
+            Add(corpus, encoder, "edited-dictionary-default", edited, random);
+            Add(corpus, encoder, "text-dictionary-default", text, longText.AsSpan(1000, 64 * 1024).ToArray());
+            Add(corpus, encoder, "large-dictionary-default", largeEdited, largeDictionary);
+            Add(corpus, encoder, "text-default", text, []);
         }
 
         // The CSP encoder writes no checksum; a decoder must still verify one.

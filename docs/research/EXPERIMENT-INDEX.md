@@ -1,7 +1,7 @@
 # Experiment index
 
 Status: Active registry
-Last reviewed: 2026-09-28
+Last reviewed: 2026-09-29
 
 This table is the human-readable research index. Machine-readable experiment definitions may also live under `benchmarks/experiments/`.
 
@@ -24,7 +24,8 @@ This table is the human-readable research index. Machine-readable experiment def
 | CORE011-FUZZ-002 | Core 0.1.1 | #137 | Periodic/low-entropy adversarial matrix | PLANNED | — |
 | CORE011-SCAN-007 | Core 0.1.1 | #153, #152, #137 | Exact speculative parallel cutting of a seekable source (a shared cut position resynchronizes every later cut) | PLANNED | — |
 | CORE011-JIT-001 | Core 0.1.1 | #153, #152 | Tiers, PGO and NativeAOT for short-lived processes: time to first chunk and steady state | PLANNED | — |
-| CORE-VERIFY-001 | Core API (additive) | #186, #152 | Integrity-only verification guided by the manifest: slice by record lengths, hash, parallel by record range | PLANNED | — |
+| CORE-VERIFY-001 | Core API (additive) | #186, #152 | Integrity-only verification guided by the manifest: slice by record lengths, hash, parallel by record range | ADOPT | [CORE-VERIFY-001-EVIDENCE-20260929-001](results/CORE-VERIFY-001-EVIDENCE-20260929-001.md) |
+| CORE-VERIFY-002 | Core API (additive) | #186, #152 | Confirmatory run of CORE-VERIFY-001 with thread-pool spinning disabled and a warm large file sized to the runner's memory, residency-checked | PLANNED | — (frozen protocol: [CORE-VERIFY-002-PROTOCOL](../benchmarks/CORE-VERIFY-002-PROTOCOL.md)) |
 | CORE-BOUNDARY-001 | Core API (additive) | #186, #135, #182, #150 | Hash-free boundary scanning at the shipped profile's exact cuts | PLANNED | — |
 | CORE-SOURCE-001 | Core API (additive) | #186, #153 | `ReadOnlyMemory<byte>` and file-handle scan sources | PLANNED | — |
 | CDC-FUTURE-001 | Future CDC | #136, #14 | RepMaxCDC matched-mean/parallel evidence | PLANNED | — |
@@ -35,9 +36,9 @@ This table is the human-readable research index. Machine-readable experiment def
 | PATCH-ENC-001 | Patching | #66, #7 | CSP v1 payload encoding shape: raw-only vs one zstd frame against base chunks (CSP §12 decision (a)) | ADOPT | [CSP-ENCODING-EVIDENCE-2026-09](../benchmarks/CSP-ENCODING-EVIDENCE-2026-09.md) |
 | PATCH-ZSTD-001 | Patching | #7 | zstd backend for encoding 1: ZstdSharp.Port 0.8.8 frames vs libzstd 1.5.7, JIT/NativeAOT (PATCHING-DECISIONS D5) | ADOPT | [ZSTD-BACKEND-EVIDENCE-2026-09](../benchmarks/ZSTD-BACKEND-EVIDENCE-2026-09.md) |
 | PATCH-ENC-002 | Patching | #7 | Encoder policy sweep: zstd level, dictionary chunks, candidates and radius vs patch size and create time (D15) | ADOPT | [PATCH-ENC-002-EVIDENCE-20260928-001](results/PATCH-ENC-002-EVIDENCE-20260928-001.md) |
-| PATCH-APPLY-001 | Patching | #7 | Apply cost: CPU/wall, peak memory, temp disk, re-chunk check on/off (D13), writer peak memory (D17) | DEFER | [PATCH-APPLY-001-EVIDENCE-20260928-001](results/PATCH-APPLY-001-EVIDENCE-20260928-001.md), [PATCH-APPLY-001-EVIDENCE-20260928-002](results/PATCH-APPLY-001-EVIDENCE-20260928-002.md), [PATCH-APPLY-001-EVIDENCE-20260928-003](results/PATCH-APPLY-001-EVIDENCE-20260928-003.md) |
+| PATCH-APPLY-001 | Patching | #7 | Apply cost: CPU/wall, peak memory, temp disk, re-chunk check on/off (D13), writer peak memory (D17) | ADOPT | [PATCH-APPLY-001-EVIDENCE-20260928-001](results/PATCH-APPLY-001-EVIDENCE-20260928-001.md), [PATCH-APPLY-001-EVIDENCE-20260928-002](results/PATCH-APPLY-001-EVIDENCE-20260928-002.md), [PATCH-APPLY-001-EVIDENCE-20260928-003](results/PATCH-APPLY-001-EVIDENCE-20260928-003.md), [PATCH-APPLY-001-EVIDENCE-20260929-001](results/PATCH-APPLY-001-EVIDENCE-20260929-001.md) |
 | PATCH-PREFREEZE-001 | Patching | #7 | CSP v1 pre-freeze evidence on a frozen multi-product corpus: CSP vs full target vs xdelta3, end-to-end at 50 Mbit/s and 1 Gbit/s (CSP §10.2) | ADOPT | [PATCH-PREFREEZE-001-EVIDENCE-20260928-001](results/PATCH-PREFREEZE-001-EVIDENCE-20260928-001.md) |
-| PATCH-ENC-003 | Patching | #7, #179 | Dictionary loading mode (`Copy`/`Attach`/`Prefix`) and hash/chain caps vs the create peak memory (D8, D17) | PLANNED | — |
+| PATCH-ENC-003 | Patching | #7, #179 | Dictionary loading mode (`Copy`/`Attach`/`Prefix`) and hash/chain caps vs the create peak memory (D8, D17) | ADOPT | [PATCH-ENC-003-EVIDENCE-20260929-001](results/PATCH-ENC-003-EVIDENCE-20260929-001.md) (frozen protocol: [PATCH-ENC-003-PROTOCOL](../benchmarks/PATCH-ENC-003-PROTOCOL.md)) |
 | PATCH-ENC-004 | Patching | #181, #7 | Same-bytes create throughput: base-window cache and bounded parallel encoding with ordered writes | PLANNED | — |
 | PATCH-ENC-005 | Patching | #181, #7, #151 | Dictionary-candidate search: cheap ranking, resemblance sketches, early exit, level ladder (D15) | PLANNED | — |
 | PATCH-APPLY-002 | Patching | #182, #168, #7 | Apply pipeline and a cheaper re-chunk check: boundary-only, overlapped, preallocation, coalesced reads (D13) | PLANNED | — |

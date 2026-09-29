@@ -39,7 +39,10 @@ public class PatchLabRunTests
 
         Assert.Equal("chunkshift.patch-lab.v1", run.Schema);
         Assert.Equal(lane, run.Lane);
-        Assert.Equal(new PatchLabPolicy(level, dictionaryChunks, maxCandidates, searchRadius), run.Policy);
+        // Both lanes derive from CspEncoderPolicy.Default and keep its dictionary handling.
+        Assert.Equal(
+            new PatchLabPolicy(level, dictionaryChunks, maxCandidates, searchRadius, "prefix", 20, 20),
+            run.Policy);
         Assert.Equal(1, run.Workers);
         Assert.Equal(1, run.ApplyRepeats);
         Assert.Equal(corpus.PairsSha256, run.CorpusPairsSha256);

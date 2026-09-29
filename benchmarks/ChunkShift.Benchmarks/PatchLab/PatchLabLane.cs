@@ -1,12 +1,15 @@
 using System.Globalization;
 using ChunkShift.Patching.Creation;
+using ChunkShift.Patching.Encoding;
 
 namespace ChunkShift.Benchmarks.PatchLab;
 
 /// <summary>
 /// The CSP lanes of the patching pre-freeze protocol
 /// (docs/benchmarks/PATCH-PREFREEZE-PROTOCOL.md section 2): the three named
-/// policies and the 12 sweep settings.
+/// policies and the 12 sweep settings; and the dictionary-memory lanes of
+/// PATCH-ENC-003, <c>enc-L{level}-K{chunks}-C{8|16}-{copy|attach|prefix}</c>
+/// with an optional <c>-H{hashLog}C{chainLog}</c> cap for dictionary entries.
 /// </summary>
 internal static class PatchLabLane
 {
@@ -43,6 +46,31 @@ internal static class PatchLabLane
             return true;
         }
 
+        if (parts.Length is 5 or 6 &&
+            string.Equals(parts[0], "enc", StringComparison.Ordinal) &&
+            TryLevel(parts[1], out level) &&
+            TryDictionaryChunks(parts[2], out dictionaryChunks) &&
+            TryCandidates(parts[3], out maxCandidates, out searchRadius) &&
+            TryLoad(parts[4], out CspDictionaryLoad load))
+        {
+            int hashLog = 0;
+            int chainLog = 0;
+
+            if (parts.Length == 6 && !TryTableLogs(parts[5], out hashLog, out chainLog))
+            {
+                policy = CspEncoderPolicy.Default;
+                return false;
+            }
+
+            policy = new CspEncoderPolicy(level, dictionaryChunks, maxCandidates, searchRadius)
+            {
+                DictionaryLoad = load,
+                DictionaryHashLog = hashLog,
+                DictionaryChainLog = chainLog,
+            };
+            return true;
+        }
+
         policy = CspEncoderPolicy.Default;
         return false;
     }
@@ -51,7 +79,7 @@ internal static class PatchLabLane
         TryParse(name, out CspEncoderPolicy policy)
             ? policy
             : throw new PatchLabUsageException(
-                $"Unknown lane '{name}'; expected one of: {string.Join(", ", Names)}.");
+                $"Unknown lane '{name}'; expected one of: {string.Join(", ", Names)}, or enc-L{{9|19}}-K{{1|2|4}}-C{{8|16}}-{{copy|attach|prefix}}[-H{{n}}C{{n}}].");
 
     /// <summary>
     /// Returns the effective settings of a lane as the lab records them. This
@@ -72,7 +100,55 @@ internal static class PatchLabLane
 
     /// <summary>Records the effective settings of one policy.</summary>
     internal static PatchLabPolicy Describe(CspEncoderPolicy policy) =>
-        new(policy.Level, policy.DictionaryChunks, policy.MaxCandidates, policy.SearchRadius);
+        new(
+            policy.Level,
+            policy.DictionaryChunks,
+            policy.MaxCandidates,
+            policy.SearchRadius,
+            LoadName(policy.DictionaryLoad),
+            policy.DictionaryHashLog,
+            policy.DictionaryChainLog);
+
+    private static string LoadName(CspDictionaryLoad load) => load switch
+    {
+        CspDictionaryLoad.Attach => "attach",
+        CspDictionaryLoad.Prefix => "prefix",
+        _ => "copy",
+    };
+
+    private static bool TryLoad(string part, out CspDictionaryLoad load)
+    {
+        switch (part)
+        {
+            case "copy":
+                load = CspDictionaryLoad.Copy;
+                return true;
+            case "attach":
+                load = CspDictionaryLoad.Attach;
+                return true;
+            case "prefix":
+                load = CspDictionaryLoad.Prefix;
+                return true;
+            default:
+                load = CspDictionaryLoad.Copy;
+                return false;
+        }
+    }
+
+    // H{hashLog}C{chainLog}, each 6..30.
+    private static bool TryTableLogs(string part, out int hashLog, out int chainLog)
+    {
+        hashLog = 0;
+        chainLog = 0;
+        int chain = part.IndexOf('C', StringComparison.Ordinal);
+
+        return part.StartsWith('H') &&
+            chain > 1 &&
+            int.TryParse(part.AsSpan(1, chain - 1), NumberStyles.None, CultureInfo.InvariantCulture, out hashLog) &&
+            int.TryParse(part.AsSpan(chain + 1), NumberStyles.None, CultureInfo.InvariantCulture, out chainLog) &&
+            hashLog is >= 6 and <= 30 &&
+            chainLog is >= 6 and <= 30;
+    }
 
     private static string[] CreateNames()
     {

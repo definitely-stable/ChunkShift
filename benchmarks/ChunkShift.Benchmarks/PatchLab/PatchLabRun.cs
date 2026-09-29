@@ -206,6 +206,12 @@ internal static class PatchLabRun
             }
 
             PatchFacts facts = await ReadPatchAsync(patchPath, cancellationToken).ConfigureAwait(false);
+
+            // Patch bytes are not a contract (D7), but comparing them between
+            // platforms and lanes needs more than their length.
+            string patchSha256 = await PatchLabManifests
+                .DigestAsync(patchPath, cancellationToken)
+                .ConfigureAwait(false);
             double? applySeconds = null;
             double? applyNoCheckSeconds = null;
 
@@ -251,7 +257,8 @@ internal static class PatchLabRun
                 facts.TargetChunks,
                 createSeconds,
                 applySeconds,
-                applyNoCheckSeconds);
+                applyNoCheckSeconds,
+                patchSha256);
         }
         finally
         {
