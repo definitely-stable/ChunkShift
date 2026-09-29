@@ -41,7 +41,8 @@ This table is the human-readable research index. Machine-readable experiment def
 | PATCH-ENC-003 | Patching | #7, #179 | Dictionary loading mode (`Copy`/`Attach`/`Prefix`) and hash/chain caps vs the create peak memory (D8, D17) | ADOPT | [PATCH-ENC-003-EVIDENCE-20260929-001](results/PATCH-ENC-003-EVIDENCE-20260929-001.md) (frozen protocol: [PATCH-ENC-003-PROTOCOL](../benchmarks/PATCH-ENC-003-PROTOCOL.md)) |
 | PATCH-ENC-004 | Patching | #181, #7 | Same-bytes create throughput: base-window cache and bounded parallel encoding with ordered writes | PLANNED | — |
 | PATCH-ENC-005 | Patching | #181, #7, #151 | Dictionary-candidate search: cheap ranking, resemblance sketches, early exit, level ladder (D15) | PLANNED | — |
-| PATCH-APPLY-002 | Patching | #182, #168, #7 | Apply pipeline and a cheaper re-chunk check: boundary-only, overlapped, preallocation, coalesced reads (D13) | PLANNED | — |
+| PATCH-APPLY-002 | Patching | #182, #168, #7 | Apply pipeline and a cheaper re-chunk check: boundary-only, overlapped, preallocation, coalesced reads (D13) | PLANNED | — (check lanes run as PATCH-APPLY-003) |
+| PATCH-APPLY-003 | Patching | #182, #168, #7 | The PATCH-APPLY-002 check lanes (off, sequential, overlapped; boundary-only if needed) with win-x64 on a GitHub runner (D13) | PLANNED | — (frozen protocol: [PATCH-APPLY-003-PROTOCOL](../benchmarks/PATCH-APPLY-003-PROTOCOL.md)) |
 | PATCH-GAP-001 | Patching research | #183, #7 | Decompose the CSP size gap to `zstd --patch-from`, bsdiff, HDiffPatch and Zucchini | PLANNED | — |
 | PATCH-TREE-001 | Patching research | #184, #7 | Update sets: cross-file base reuse, tree manifest, atomic tree publication | PLANNED | — |
 | REPO-INDEX-001 | Repository index | #145 | MPHF/PtrHash exact-key accelerator bake-off | PLANNED | — |
