@@ -151,4 +151,4 @@ The machine stays otherwise idle, on AC power, with the power plan it used for `
 
 ## 9. Result
 
-Pending.
+Pending. The check lanes run as [PATCH-APPLY-003](PATCH-APPLY-003-PROTOCOL.md), with win-x64 on a GitHub runner.
