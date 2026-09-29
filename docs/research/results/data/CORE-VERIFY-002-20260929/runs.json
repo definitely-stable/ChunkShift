@@ -1,0 +1,1211 @@
+[
+ {
+  "commit": "56e49e2ba2886207e8158d949602128303056bf4",
+  "environment": {
+   "osDescription": "Ubuntu 24.04.5 LTS",
+   "osArchitecture": "Arm64",
+   "processArchitecture": "Arm64",
+   "frameworkDescription": ".NET 10.0.12",
+   "processorCount": 4,
+   "gitCommit": "cd9755f7145c8debd251b94b539420962252ee3d"
+  },
+  "experimentId": "CORE-VERIFY-002",
+  "file": "run-single-linux-arm64.json",
+  "idlePeakWorkingSetBytes": 32264192,
+  "plan": [
+   {
+    "workload": "S1",
+    "suite": "blake3",
+    "mode": "warm",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W4",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W8",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "S1",
+    "suite": "blake3",
+    "mode": "cold",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W4",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W8",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "S1",
+    "suite": "blake3",
+    "mode": "throttled",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W4",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W8",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "S1",
+    "suite": "sha256",
+    "mode": "warm",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "S1",
+    "suite": "blake3",
+    "mode": "warm",
+    "pool": "default",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "SL",
+    "suite": "blake3",
+    "mode": "warm",
+    "pool": "spin-0",
+    "samples": 5,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W4",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W8",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "SL",
+    "suite": "blake3",
+    "mode": "cold",
+    "pool": "spin-0",
+    "samples": 5,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W4",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W8",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "SL",
+    "suite": "blake3",
+    "mode": "warm",
+    "pool": "default",
+    "samples": 5,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     }
+    ]
+   }
+  ],
+  "planFingerprint": "f7fdb5a7ea7067da58be98d4c4ecb20ca006ca485a516348ea299489af612f73",
+  "platform": "linux-arm64",
+  "runId": "CORE-VERIFY-002/RUN-20260929-14-56e49e2-linux-arm64",
+  "sampleCount": 250,
+  "schema": "chunkshift.verify-lab-run.v2",
+  "skipped": [],
+  "smoke": false,
+  "totalMemoryBytes": 16722010112,
+  "workloads": [
+   {
+    "id": "S1",
+    "definition": "splitmix64 seed=0xC0FE0001 bytes=1073741824",
+    "bytes": 1073741824,
+    "files": 1,
+    "contentDigest": "57528a0b33b276292e435462e50f50ee8b6f5273edbb876678e6b4fe97eb7f38"
+   },
+   {
+    "id": "SL",
+    "definition": "splitmix64 seed=0xC0FE0020 bytes=6442450944",
+    "bytes": 6442450944,
+    "files": 1,
+    "contentDigest": "31840063cc1ddc9c57f52db15b4d7958a3dca506b0bec1ae1cd0a79fa8727829"
+   }
+  ]
+ },
+ {
+  "commit": "56e49e2ba2886207e8158d949602128303056bf4",
+  "environment": {
+   "osDescription": "Ubuntu 24.04.5 LTS",
+   "osArchitecture": "X64",
+   "processArchitecture": "X64",
+   "frameworkDescription": ".NET 10.0.12",
+   "processorCount": 4,
+   "gitCommit": "cd9755f7145c8debd251b94b539420962252ee3d"
+  },
+  "experimentId": "CORE-VERIFY-002",
+  "file": "run-single-linux-x64.json",
+  "idlePeakWorkingSetBytes": 32837632,
+  "plan": [
+   {
+    "workload": "S1",
+    "suite": "blake3",
+    "mode": "warm",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W4",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W8",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "S1",
+    "suite": "blake3",
+    "mode": "cold",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W4",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W8",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "S1",
+    "suite": "blake3",
+    "mode": "throttled",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W4",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W8",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "S1",
+    "suite": "sha256",
+    "mode": "warm",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "S1",
+    "suite": "blake3",
+    "mode": "warm",
+    "pool": "default",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "SL",
+    "suite": "blake3",
+    "mode": "warm",
+    "pool": "spin-0",
+    "samples": 5,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W4",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W8",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "SL",
+    "suite": "blake3",
+    "mode": "cold",
+    "pool": "spin-0",
+    "samples": 5,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W4",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W8",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "SL",
+    "suite": "blake3",
+    "mode": "warm",
+    "pool": "default",
+    "samples": 5,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     }
+    ]
+   }
+  ],
+  "planFingerprint": "f7fdb5a7ea7067da58be98d4c4ecb20ca006ca485a516348ea299489af612f73",
+  "platform": "linux-x64",
+  "runId": "CORE-VERIFY-002/RUN-20260929-14-56e49e2-linux-x64",
+  "sampleCount": 250,
+  "schema": "chunkshift.verify-lab-run.v2",
+  "skipped": [],
+  "smoke": false,
+  "totalMemoryBytes": 16766414848,
+  "workloads": [
+   {
+    "id": "S1",
+    "definition": "splitmix64 seed=0xC0FE0001 bytes=1073741824",
+    "bytes": 1073741824,
+    "files": 1,
+    "contentDigest": "57528a0b33b276292e435462e50f50ee8b6f5273edbb876678e6b4fe97eb7f38"
+   },
+   {
+    "id": "SL",
+    "definition": "splitmix64 seed=0xC0FE0020 bytes=6442450944",
+    "bytes": 6442450944,
+    "files": 1,
+    "contentDigest": "31840063cc1ddc9c57f52db15b4d7958a3dca506b0bec1ae1cd0a79fa8727829"
+   }
+  ]
+ },
+ {
+  "commit": "56e49e2ba2886207e8158d949602128303056bf4",
+  "environment": {
+   "osDescription": "Microsoft Windows 10.0.26100",
+   "osArchitecture": "X64",
+   "processArchitecture": "X64",
+   "frameworkDescription": ".NET 10.0.12",
+   "processorCount": 4,
+   "gitCommit": "cd9755f7145c8debd251b94b539420962252ee3d"
+  },
+  "experimentId": "CORE-VERIFY-002",
+  "file": "run-single-win-x64.json",
+  "idlePeakWorkingSetBytes": 25665536,
+  "plan": [
+   {
+    "workload": "S1",
+    "suite": "blake3",
+    "mode": "warm",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W4",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W8",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "S1",
+    "suite": "blake3",
+    "mode": "throttled",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W4",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W8",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "S1",
+    "suite": "sha256",
+    "mode": "warm",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "S1",
+    "suite": "blake3",
+    "mode": "warm",
+    "pool": "default",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "SL",
+    "suite": "blake3",
+    "mode": "warm",
+    "pool": "spin-0",
+    "samples": 5,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W4",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W8",
+      "concurrency": 1
+     }
+    ]
+   },
+   {
+    "workload": "SL",
+    "suite": "blake3",
+    "mode": "warm",
+    "pool": "default",
+    "samples": 5,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     }
+    ]
+   }
+  ],
+  "planFingerprint": "7cee96c990678ccd38cbf81d12b9aa44c62013a7d9de1f824caec830c641d965",
+  "platform": "win-x64",
+  "runId": "CORE-VERIFY-002/RUN-20260929-14-56e49e2-win-x64",
+  "sampleCount": 175,
+  "schema": "chunkshift.verify-lab-run.v2",
+  "skipped": [
+   "cold: dropping the page cache is available on Linux only"
+  ],
+  "smoke": false,
+  "totalMemoryBytes": 17174360064,
+  "workloads": [
+   {
+    "id": "S1",
+    "definition": "splitmix64 seed=0xC0FE0001 bytes=1073741824",
+    "bytes": 1073741824,
+    "files": 1,
+    "contentDigest": "57528a0b33b276292e435462e50f50ee8b6f5273edbb876678e6b4fe97eb7f38"
+   },
+   {
+    "id": "SL",
+    "definition": "splitmix64 seed=0xC0FE0020 bytes=6442450944",
+    "bytes": 6442450944,
+    "files": 1,
+    "contentDigest": "31840063cc1ddc9c57f52db15b4d7958a3dca506b0bec1ae1cd0a79fa8727829"
+   }
+  ]
+ },
+ {
+  "commit": "56e49e2ba2886207e8158d949602128303056bf4",
+  "environment": {
+   "osDescription": "Ubuntu 24.04.5 LTS",
+   "osArchitecture": "Arm64",
+   "processArchitecture": "Arm64",
+   "frameworkDescription": ".NET 10.0.12",
+   "processorCount": 4,
+   "gitCommit": "cd9755f7145c8debd251b94b539420962252ee3d"
+  },
+  "experimentId": "CORE-VERIFY-002",
+  "file": "run-tree-linux-arm64.json",
+  "idlePeakWorkingSetBytes": 32288768,
+  "plan": [
+   {
+    "workload": "T",
+    "suite": "blake3",
+    "mode": "warm",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V0",
+      "concurrency": 2
+     },
+     {
+      "lane": "V1",
+      "concurrency": 2
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 2
+     },
+     {
+      "lane": "V0",
+      "concurrency": 4
+     },
+     {
+      "lane": "V1",
+      "concurrency": 4
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 4
+     },
+     {
+      "lane": "V0",
+      "concurrency": 8
+     },
+     {
+      "lane": "V1",
+      "concurrency": 8
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 8
+     }
+    ]
+   },
+   {
+    "workload": "T",
+    "suite": "blake3",
+    "mode": "cold",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V0",
+      "concurrency": 2
+     },
+     {
+      "lane": "V1",
+      "concurrency": 2
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 2
+     },
+     {
+      "lane": "V0",
+      "concurrency": 4
+     },
+     {
+      "lane": "V1",
+      "concurrency": 4
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 4
+     },
+     {
+      "lane": "V0",
+      "concurrency": 8
+     },
+     {
+      "lane": "V1",
+      "concurrency": 8
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 8
+     }
+    ]
+   },
+   {
+    "workload": "T",
+    "suite": "blake3",
+    "mode": "throttled",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V0",
+      "concurrency": 2
+     },
+     {
+      "lane": "V1",
+      "concurrency": 2
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 2
+     },
+     {
+      "lane": "V0",
+      "concurrency": 4
+     },
+     {
+      "lane": "V1",
+      "concurrency": 4
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 4
+     },
+     {
+      "lane": "V0",
+      "concurrency": 8
+     },
+     {
+      "lane": "V1",
+      "concurrency": 8
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 8
+     }
+    ]
+   }
+  ],
+  "planFingerprint": "b5f7201bfeaadb62345ca2a7e005b69f6a3687a657e82bd4b8f679d67ad48af3",
+  "platform": "linux-arm64",
+  "runId": "CORE-VERIFY-002/RUN-20260929-14-56e49e2-linux-arm64",
+  "sampleCount": 360,
+  "schema": "chunkshift.verify-lab-run.v2",
+  "skipped": [],
+  "smoke": false,
+  "totalMemoryBytes": 16722046976,
+  "workloads": [
+   {
+    "id": "T",
+    "definition": "patch-corpus changed targets pairsSha256=8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+    "bytes": 855440301,
+    "files": 1892,
+    "contentDigest": "7ad7bae664cc5d19296a445e8e194a80215ecb6ae24750bb0a3545ad6fa0e17a"
+   }
+  ]
+ },
+ {
+  "commit": "56e49e2ba2886207e8158d949602128303056bf4",
+  "environment": {
+   "osDescription": "Ubuntu 24.04.5 LTS",
+   "osArchitecture": "X64",
+   "processArchitecture": "X64",
+   "frameworkDescription": ".NET 10.0.12",
+   "processorCount": 4,
+   "gitCommit": "cd9755f7145c8debd251b94b539420962252ee3d"
+  },
+  "experimentId": "CORE-VERIFY-002",
+  "file": "run-tree-linux-x64.json",
+  "idlePeakWorkingSetBytes": 32612352,
+  "plan": [
+   {
+    "workload": "T",
+    "suite": "blake3",
+    "mode": "warm",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V0",
+      "concurrency": 2
+     },
+     {
+      "lane": "V1",
+      "concurrency": 2
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 2
+     },
+     {
+      "lane": "V0",
+      "concurrency": 4
+     },
+     {
+      "lane": "V1",
+      "concurrency": 4
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 4
+     },
+     {
+      "lane": "V0",
+      "concurrency": 8
+     },
+     {
+      "lane": "V1",
+      "concurrency": 8
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 8
+     }
+    ]
+   },
+   {
+    "workload": "T",
+    "suite": "blake3",
+    "mode": "cold",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V0",
+      "concurrency": 2
+     },
+     {
+      "lane": "V1",
+      "concurrency": 2
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 2
+     },
+     {
+      "lane": "V0",
+      "concurrency": 4
+     },
+     {
+      "lane": "V1",
+      "concurrency": 4
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 4
+     },
+     {
+      "lane": "V0",
+      "concurrency": 8
+     },
+     {
+      "lane": "V1",
+      "concurrency": 8
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 8
+     }
+    ]
+   },
+   {
+    "workload": "T",
+    "suite": "blake3",
+    "mode": "throttled",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V0",
+      "concurrency": 2
+     },
+     {
+      "lane": "V1",
+      "concurrency": 2
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 2
+     },
+     {
+      "lane": "V0",
+      "concurrency": 4
+     },
+     {
+      "lane": "V1",
+      "concurrency": 4
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 4
+     },
+     {
+      "lane": "V0",
+      "concurrency": 8
+     },
+     {
+      "lane": "V1",
+      "concurrency": 8
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 8
+     }
+    ]
+   }
+  ],
+  "planFingerprint": "b5f7201bfeaadb62345ca2a7e005b69f6a3687a657e82bd4b8f679d67ad48af3",
+  "platform": "linux-x64",
+  "runId": "CORE-VERIFY-002/RUN-20260929-14-56e49e2-linux-x64",
+  "sampleCount": 360,
+  "schema": "chunkshift.verify-lab-run.v2",
+  "skipped": [],
+  "smoke": false,
+  "totalMemoryBytes": 16766414848,
+  "workloads": [
+   {
+    "id": "T",
+    "definition": "patch-corpus changed targets pairsSha256=8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+    "bytes": 855440301,
+    "files": 1892,
+    "contentDigest": "7ad7bae664cc5d19296a445e8e194a80215ecb6ae24750bb0a3545ad6fa0e17a"
+   }
+  ]
+ },
+ {
+  "commit": "56e49e2ba2886207e8158d949602128303056bf4",
+  "environment": {
+   "osDescription": "Microsoft Windows 10.0.26100",
+   "osArchitecture": "X64",
+   "processArchitecture": "X64",
+   "frameworkDescription": ".NET 10.0.12",
+   "processorCount": 4,
+   "gitCommit": "cd9755f7145c8debd251b94b539420962252ee3d"
+  },
+  "experimentId": "CORE-VERIFY-002",
+  "file": "run-tree-win-x64.json",
+  "idlePeakWorkingSetBytes": 25595904,
+  "plan": [
+   {
+    "workload": "T",
+    "suite": "blake3",
+    "mode": "warm",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V0",
+      "concurrency": 2
+     },
+     {
+      "lane": "V1",
+      "concurrency": 2
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 2
+     },
+     {
+      "lane": "V0",
+      "concurrency": 4
+     },
+     {
+      "lane": "V1",
+      "concurrency": 4
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 4
+     },
+     {
+      "lane": "V0",
+      "concurrency": 8
+     },
+     {
+      "lane": "V1",
+      "concurrency": 8
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 8
+     }
+    ]
+   },
+   {
+    "workload": "T",
+    "suite": "blake3",
+    "mode": "throttled",
+    "pool": "spin-0",
+    "samples": 10,
+    "configurations": [
+     {
+      "lane": "V0",
+      "concurrency": 1
+     },
+     {
+      "lane": "V1",
+      "concurrency": 1
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 1
+     },
+     {
+      "lane": "V0",
+      "concurrency": 2
+     },
+     {
+      "lane": "V1",
+      "concurrency": 2
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 2
+     },
+     {
+      "lane": "V0",
+      "concurrency": 4
+     },
+     {
+      "lane": "V1",
+      "concurrency": 4
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 4
+     },
+     {
+      "lane": "V0",
+      "concurrency": 8
+     },
+     {
+      "lane": "V1",
+      "concurrency": 8
+     },
+     {
+      "lane": "V2-W2",
+      "concurrency": 8
+     }
+    ]
+   }
+  ],
+  "planFingerprint": "dc3471dfa39eeb5145b538f45376933bc354172b5bd8b93db5162b3345c70b1e",
+  "platform": "win-x64",
+  "runId": "CORE-VERIFY-002/RUN-20260929-14-56e49e2-win-x64",
+  "sampleCount": 240,
+  "schema": "chunkshift.verify-lab-run.v2",
+  "skipped": [
+   "cold: dropping the page cache is available on Linux only"
+  ],
+  "smoke": false,
+  "totalMemoryBytes": 17174360064,
+  "workloads": [
+   {
+    "id": "T",
+    "definition": "patch-corpus changed targets pairsSha256=8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+    "bytes": 855440301,
+    "files": 1892,
+    "contentDigest": "7ad7bae664cc5d19296a445e8e194a80215ecb6ae24750bb0a3545ad6fa0e17a"
+   }
+  ]
+ }
+]

@@ -129,3 +129,5 @@ Everything CORE-VERIFY-001 §8 leaves open stays open: the public shape, the man
 ## 9. Records
 
 Each platform run gets a RunId `CORE-VERIFY-002/RUN-YYYYMMDD-NNN-<commit>-<platform>`, with platform `linux-x64`, `linux-arm64` or `win-x64`. It keeps its raw per-sample JSON and the oracle report as a CI artifact, plus a compact committed dataset under `docs/research/results/data/`. The result record `docs/research/results/CORE-VERIFY-002-EVIDENCE-YYYYMMDD-NNN.md` follows `RESULT-TEMPLATE.md`. It evaluates §6 against this note, applies §7, and lists every `not-resident` and `unverified` sample. The index row, the registry entry and #186 link it.
+
+Results (2026-09-29, commit `56e49e2`): DEFER — [CORE-VERIFY-002-EVIDENCE-20260929-001](../research/results/CORE-VERIFY-002-EVIDENCE-20260929-001.md).
