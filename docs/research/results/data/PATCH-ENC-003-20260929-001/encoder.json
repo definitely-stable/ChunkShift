@@ -1,0 +1,227 @@
+{
+ "schema": "chunkshift.patch-enc-003.encoder.v1",
+ "commit": "62c77c87b23069fbe9f797ade6401fdc437627b2",
+ "workflowRun": 36515484951,
+ "pairsSha256": "8b3b92a9\u202622dd",
+ "source": "the per-lane lines printed by benchmarks/scripts/print_patch_lab_encoder.py in the encoder job log; policy level 19, K = 4, 8 candidates, 256 KiB, workers 4",
+ "platforms": [
+  {
+   "platform": "linux-x64",
+   "runId": "PATCH-ENC-003/RUN-20260929-12-62c77c8-linux-x64",
+   "job": 109236700263,
+   "lanes": [
+    {
+     "id": "D",
+     "lane": "enc-L19-K4-C8-copy",
+     "calibration": {
+      "files": 1049,
+      "bytes": 11860600,
+      "createSeconds": 373.73
+     },
+     "holdout": {
+      "files": 844,
+      "bytes": 26365088,
+      "createSeconds": 945.17
+     },
+     "totalCreateSeconds": 1318.9,
+     "elapsedSeconds": 379.5,
+     "patchesSha256": "8f3a481918d5af73be74f17d52d2faba57329ab858679a4726e6fd894dce0c42"
+    },
+    {
+     "id": "P0",
+     "lane": "enc-L19-K4-C8-prefix",
+     "calibration": {
+      "files": 1049,
+      "bytes": 11860586,
+      "createSeconds": 362.61
+     },
+     "holdout": {
+      "files": 844,
+      "bytes": 26364114,
+      "createSeconds": 918.83
+     },
+     "totalCreateSeconds": 1281.45,
+     "elapsedSeconds": 366.1,
+     "patchesSha256": "b8b1f5ead21a946a785a2262b8dac10ce46481f8cb1db50a00298ce893f2623f"
+    },
+    {
+     "id": "P1",
+     "lane": "enc-L19-K4-C8-prefix-H20C21",
+     "calibration": {
+      "files": 1049,
+      "bytes": 11860586,
+      "createSeconds": 387.95
+     },
+     "holdout": {
+      "files": 844,
+      "bytes": 26364164,
+      "createSeconds": 849.5
+     },
+     "totalCreateSeconds": 1237.45,
+     "elapsedSeconds": 349.7,
+     "patchesSha256": "e197bf40dcabb96bc1e001a8e895df90b64db4adc70b1c011400d9b46efa5965"
+    },
+    {
+     "id": "P2",
+     "lane": "enc-L19-K4-C8-prefix-H20C20",
+     "calibration": {
+      "files": 1049,
+      "bytes": 11860274,
+      "createSeconds": 359.4
+     },
+     "holdout": {
+      "files": 844,
+      "bytes": 26363364,
+      "createSeconds": 968.82
+     },
+     "totalCreateSeconds": 1328.22,
+     "elapsedSeconds": 379.7,
+     "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6"
+    },
+    {
+     "id": "P3",
+     "lane": "enc-L19-K4-C8-prefix-H19C19",
+     "calibration": {
+      "files": 1049,
+      "bytes": 11871027,
+      "createSeconds": 329.93
+     },
+     "holdout": {
+      "files": 844,
+      "bytes": 26443845,
+      "createSeconds": 783.84
+     },
+     "totalCreateSeconds": 1113.77,
+     "elapsedSeconds": 316.4,
+     "patchesSha256": "5f28c425a78a50ed96a31a6486dab856f9c9794cb7518561d05f9e14ad537a5d"
+    },
+    {
+     "id": "D",
+     "lane": "enc-L19-K4-C8-copy",
+     "calibration": {
+      "files": 1049,
+      "bytes": 11860600,
+      "createSeconds": 361.67
+     },
+     "holdout": {
+      "files": 844,
+      "bytes": 26365088,
+      "createSeconds": 953.53
+     },
+     "totalCreateSeconds": 1315.21,
+     "elapsedSeconds": 377.2,
+     "patchesSha256": "8f3a481918d5af73be74f17d52d2faba57329ab858679a4726e6fd894dce0c42"
+    }
+   ]
+  },
+  {
+   "platform": "linux-arm64",
+   "runId": "PATCH-ENC-003/RUN-20260929-12-62c77c8-linux-arm64",
+   "job": 109236700308,
+   "lanes": [
+    {
+     "id": "D",
+     "lane": "enc-L19-K4-C8-copy",
+     "calibration": {
+      "files": 1049,
+      "bytes": 11860600,
+      "createSeconds": 367.99
+     },
+     "holdout": {
+      "files": 844,
+      "bytes": 26365088,
+      "createSeconds": 904.77
+     },
+     "totalCreateSeconds": 1272.76,
+     "elapsedSeconds": 381.3,
+     "patchesSha256": "8f3a481918d5af73be74f17d52d2faba57329ab858679a4726e6fd894dce0c42"
+    },
+    {
+     "id": "P0",
+     "lane": "enc-L19-K4-C8-prefix",
+     "calibration": {
+      "files": 1049,
+      "bytes": 11860586,
+      "createSeconds": 355.64
+     },
+     "holdout": {
+      "files": 844,
+      "bytes": 26364114,
+      "createSeconds": 928.72
+     },
+     "totalCreateSeconds": 1284.36,
+     "elapsedSeconds": 381.5,
+     "patchesSha256": "b8b1f5ead21a946a785a2262b8dac10ce46481f8cb1db50a00298ce893f2623f"
+    },
+    {
+     "id": "P1",
+     "lane": "enc-L19-K4-C8-prefix-H20C21",
+     "calibration": {
+      "files": 1049,
+      "bytes": 11860586,
+      "createSeconds": 358.1
+     },
+     "holdout": {
+      "files": 844,
+      "bytes": 26364164,
+      "createSeconds": 924.77
+     },
+     "totalCreateSeconds": 1282.86,
+     "elapsedSeconds": 382.0,
+     "patchesSha256": "e197bf40dcabb96bc1e001a8e895df90b64db4adc70b1c011400d9b46efa5965"
+    },
+    {
+     "id": "P2",
+     "lane": "enc-L19-K4-C8-prefix-H20C20",
+     "calibration": {
+      "files": 1049,
+      "bytes": 11860274,
+      "createSeconds": 356.65
+     },
+     "holdout": {
+      "files": 844,
+      "bytes": 26363364,
+      "createSeconds": 950.13
+     },
+     "totalCreateSeconds": 1306.78,
+     "elapsedSeconds": 387.1,
+     "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6"
+    },
+    {
+     "id": "P3",
+     "lane": "enc-L19-K4-C8-prefix-H19C19",
+     "calibration": {
+      "files": 1049,
+      "bytes": 11871027,
+      "createSeconds": 340.65
+     },
+     "holdout": {
+      "files": 844,
+      "bytes": 26443845,
+      "createSeconds": 850.16
+     },
+     "totalCreateSeconds": 1190.81,
+     "elapsedSeconds": 353.0,
+     "patchesSha256": "5f28c425a78a50ed96a31a6486dab856f9c9794cb7518561d05f9e14ad537a5d"
+    },
+    {
+     "id": "D",
+     "lane": "enc-L19-K4-C8-copy",
+     "calibration": {
+      "files": 1049,
+      "bytes": 11860600,
+      "createSeconds": 363.35
+     },
+     "holdout": {
+      "files": 844,
+      "bytes": 26365088,
+      "createSeconds": 913.85
+     },
+     "totalCreateSeconds": 1277.2,
+     "elapsedSeconds": 379.3,
+     "patchesSha256": "8f3a481918d5af73be74f17d52d2faba57329ab858679a4726e6fd894dce0c42"
+    }
+   ]
+  }
+ ]
+}

@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-09-28",
+  "updated": "2026-09-29",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -307,7 +307,7 @@
         179
       ],
       "area": "patching",
-      "status": "PLANNED",
+      "status": "ADOPT",
       "question": "dictionary loading mode and caps vs create peak memory (D8, D17)"
     },
     {

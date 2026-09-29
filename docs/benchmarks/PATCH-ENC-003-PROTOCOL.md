@@ -87,4 +87,4 @@ A run is invalid, and repeated once, if a job fails or if the two D lanes differ
 
 ## 7. Result
 
-Pending.
+[PATCH-ENC-003-EVIDENCE-20260929-001](../research/results/PATCH-ENC-003-EVIDENCE-20260929-001.md): ADOPT P2 (`enc-L19-K4-C8-prefix-H20C20`).
