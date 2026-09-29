@@ -542,8 +542,6 @@ internal static class PatchLabApplyCheck
 
             foreach (int concurrency in levels)
             {
-                // One unmeasured pass per level warms the cache and the code.
-                _ = await PassAsync(corpus, items, "off", concurrency, directory).ConfigureAwait(false);
                 var counts = new Dictionary<string, int>(StringComparer.Ordinal);
 
                 foreach (string lane in order)
