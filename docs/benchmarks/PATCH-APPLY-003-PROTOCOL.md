@@ -82,4 +82,4 @@ A result record must show all three statistics and their exact unrounded values.
 
 ## 5. Result
 
-Pending.
+- [PATCH-APPLY-003-EVIDENCE-20260929-001](../research/results/PATCH-APPLY-003-EVIDENCE-20260929-001.md)
