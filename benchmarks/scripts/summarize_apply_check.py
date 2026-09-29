@@ -220,7 +220,7 @@ def read_platform(directory: Path, pairs_sha256: str) -> dict:
     }
 
 
-# --- statistics# --- statistics ----------------------------------------------------------------
+# --- statistics ----------------------------------------------------------------
 
 
 def _time_point(per_file: dict, keys: list[tuple], lane: str, metric: str,
@@ -380,7 +380,7 @@ def time_statistics(time_docs: dict[int, dict], repetitions: int, rng: random.Ra
     return result
 
 
-def concurrent_statisticsdef concurrent_statistics(docs: dict[int, dict], repetitions: int, rng: random.Random, resamples: int) -> dict:
+def concurrent_statistics(docs: dict[int, dict], repetitions: int, rng: random.Random, resamples: int) -> dict:
     if not docs:
         return {"complete": False, "reason": "no concurrent files"}
 
