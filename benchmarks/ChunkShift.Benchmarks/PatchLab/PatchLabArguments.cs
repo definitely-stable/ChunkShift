@@ -121,7 +121,7 @@ internal sealed record PatchLabMemoryOptions(
 
         if (!PatchLabLane.TryParse(lane, out _))
         {
-            error = $"Unknown lane '{lane}'; expected one of: {string.Join(", ", PatchLabLane.Names)}.";
+            error = $"Unknown lane '{lane}'; expected one of: {string.Join(", ", PatchLabLane.Names)}, or enc-L{{9|19}}-K{{1|2|4}}-C{{8|16}}-{{copy|attach|prefix}}[-H{{n}}C{{n}}].";
             return false;
         }
 

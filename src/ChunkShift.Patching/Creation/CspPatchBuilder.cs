@@ -205,7 +205,11 @@ internal static class CspPatchBuilder
         // are never compared with the raw bytes.
         using CspPayloadEncoder? encoder = policy.Level == 0
             ? null
-            : new CspPayloadEncoder(policy.Level);
+            : new CspPayloadEncoder(
+                policy.Level,
+                policy.DictionaryLoad,
+                policy.DictionaryHashLog,
+                policy.DictionaryChainLog);
 
         byte[] chunkBuffer = [];
         var entryBuffers = new EntryBuffers();
@@ -520,6 +524,25 @@ internal static class CspPatchBuilder
             CspFormat.MaximumDictionaryCount);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(policy.MaxCandidates);
         ArgumentOutOfRangeException.ThrowIfNegative(policy.SearchRadius);
+
+        if (!Enum.IsDefined(policy.DictionaryLoad))
+        {
+            throw new ArgumentOutOfRangeException(nameof(policy), "Unknown dictionary load mode.");
+        }
+
+        ValidateTableLog(policy.DictionaryHashLog);
+        ValidateTableLog(policy.DictionaryChainLog);
+    }
+
+    // Zero means zstd's choice; otherwise zstd's 64-bit bounds of hashLog and
+    // chainLog (6..30).
+    private static void ValidateTableLog(int value)
+    {
+        if (value != 0)
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, 6);
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(value, 30);
+        }
     }
 
     /// <summary>
