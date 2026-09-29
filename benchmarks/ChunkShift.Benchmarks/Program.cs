@@ -2,6 +2,7 @@ using BenchmarkDotNet.Running;
 using ChunkShift.Benchmarks.Lab;
 using ChunkShift.Benchmarks.Lab.Prefreeze;
 using ChunkShift.Benchmarks.PatchLab;
+using ChunkShift.Benchmarks.VerifyLab;
 
 namespace ChunkShift.Benchmarks;
 
@@ -74,6 +75,18 @@ internal static class Program
             return PatchLabRunner.Run(args[1..]);
         }
 
+        if (string.Equals(mode, "verify-lab", StringComparison.OrdinalIgnoreCase))
+        {
+            if (typeof(ChunkManifest).Assembly.GetCustomAttributes(typeof(System.Diagnostics.DebuggableAttribute), false)
+                is [System.Diagnostics.DebuggableAttribute { IsJITOptimizerDisabled: true }])
+            {
+                Console.Error.WriteLine("verify-lab refuses to measure an unoptimized ChunkShift.");
+                return 1;
+            }
+
+            return VerifyLabRunner.Run(args[1..]);
+        }
+
         PrintUsage();
         return 2;
     }
@@ -91,5 +104,9 @@ internal static class Program
         Console.WriteLine("  chunks --list <list.tsv>");
         Console.WriteLine("  patch-lab run --corpus <root> --lane <name> --output <file.json> [--families <id,...>] [--workers <n>] [--apply-repeats <n>] [--no-apply] [--run-id <id>] [--work <dir>]");
         Console.WriteLine("  patch-lab memory --corpus <root> --output <file.json> [--min-bytes <n>] [--families <id,...>] [--run-id <id>] [--work <dir>] [--lane <name>]");
+        Console.WriteLine("  verify-lab oracle --output <file.json> [--fixtures <dir>] [--quick] [--scratch <dir>]");
+        Console.WriteLine("  verify-lab prepare --dir <dir> [--workloads S1,S10,T] [--corpus <root>] [--work <dir>] [--smoke]");
+        Console.WriteLine("  verify-lab run --dir <dir> --workloads <ids> --output <file.json> --platform <name> [--run-id <id>] [--commit <sha>] [--modes warm,cold,throttled] [--samples <n>]");
+        Console.WriteLine("  verify-lab decide --runs <file.json,...> --oracles <file.json,...> --output <file.json> [--markdown <file.md>]");
     }
 }
