@@ -199,7 +199,7 @@ public sealed record EnvironmentSnapshot(
     string FrameworkDescription,
     int ProcessorCount,
     string? GitCommit,
-    string ProcessorDescription)
+    string ProcessorDescription = "unknown")
 {
     /// <summary>
     /// Gets a stable-enough processor description for benchmark provenance.
