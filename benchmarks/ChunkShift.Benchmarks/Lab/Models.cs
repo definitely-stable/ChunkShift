@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks.Lab;
@@ -197,7 +198,66 @@ public sealed record EnvironmentSnapshot(
     string ProcessArchitecture,
     string FrameworkDescription,
     int ProcessorCount,
-    string? GitCommit);
+    string? GitCommit,
+    string ProcessorDescription)
+{
+    /// <summary>
+    /// Gets a stable-enough processor description for benchmark provenance.
+    /// It is metadata only and never participates in product behavior.
+    /// </summary>
+    public static string CaptureProcessorDescription()
+    {
+        string? value = Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER");
+
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            return value.Trim();
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            try
+            {
+                foreach (string line in File.ReadLines("/proc/cpuinfo"))
+                {
+                    int separator = line.IndexOf(':');
+
+                    if (separator <= 0)
+                    {
+                        continue;
+                    }
+
+                    string key = line[..separator].Trim();
+
+                    if (!key.Equals("model name", StringComparison.OrdinalIgnoreCase) &&
+                        !key.Equals("processor", StringComparison.OrdinalIgnoreCase) &&
+                        !key.Equals("hardware", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    string description = line[(separator + 1)..].Trim();
+
+                    if (!string.IsNullOrWhiteSpace(description) &&
+                        !int.TryParse(description, out _))
+                    {
+                        return description;
+                    }
+                }
+            }
+            catch (IOException)
+            {
+                // Fall through to a deterministic architecture fallback.
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Fall through to a deterministic architecture fallback.
+            }
+        }
+
+        return $"{RuntimeInformation.ProcessArchitecture} ({RuntimeInformation.OSDescription})";
+    }
+}
 
 public sealed record ExperimentEvidence(
     string SourceSha256,
