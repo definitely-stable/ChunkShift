@@ -62,11 +62,12 @@ class Fixture:
         repetition_overlap_factors: list[float] | None = None,
         last_file_overlap_factor: float | None = None,
         experiment: str = summary.EXPERIMENT,
+        workflow_run_number: str = "001",
     ) -> Path:
         directory = self.root / name
         directory.mkdir()
         env = environment or ENVIRONMENTS[name]
-        run_id = f"{experiment}/RUN-20260929-001-{COMMIT[:7]}-{name}"
+        run_id = f"{experiment}/RUN-20260929-{workflow_run_number}-{COMMIT[:7]}-{name}"
         for repetition in range(repetitions):
             files = []
             for index, (path, size) in enumerate(FILES):
@@ -294,6 +295,15 @@ class InputTests(unittest.TestCase):
                 fixture.lock,
                 resamples=RESAMPLES,
                 require_all_platforms=True,
+            )
+
+
+    def test_mixed_workflow_dispatches_are_rejected(self):
+        fixture = Fixture(self)
+        with self.assertRaises(summary.SummaryError):
+            fixture.summarize(
+                fixture.platform("linux-x64", workflow_run_number="101"),
+                fixture.platform("linux-arm64", workflow_run_number="102"),
             )
 
     def test_main_writes_json_and_markdown(self):
