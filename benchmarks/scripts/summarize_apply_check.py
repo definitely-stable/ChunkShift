@@ -526,12 +526,21 @@ def evaluate(platforms: list[dict]) -> dict:
             }
 
         concurrent = platform["concurrentStatistics"]
-        level = (concurrent.get("levels") or {}).get(str(RULE2_CONCURRENCY), {}) if concurrent.get("complete") else {}
-        cpu = (level.get("overlap") or {}).get("cpuOverhead")
-        if cpu is None:
-            rule2_platforms[name] = {"exceeds": None, "reason": concurrent.get("reason") or "incomplete concurrent data"}
+        if platform["processorCount"] > RULE2_CONCURRENCY:
+            rule2_platforms[name] = {
+                "exceeds": None,
+                "reason": (
+                    f"processorCount {platform['processorCount']} exceeds the frozen "
+                    f"c={RULE2_CONCURRENCY} saturation point"
+                ),
+            }
         else:
-            rule2_platforms[name] = {"median": cpu["median"], "exceeds": cpu["median"] > CPU_OVERHEAD_MAX}
+            level = (concurrent.get("levels") or {}).get(str(RULE2_CONCURRENCY), {}) if concurrent.get("complete") else {}
+            cpu = (level.get("overlap") or {}).get("cpuOverhead")
+            if cpu is None:
+                rule2_platforms[name] = {"exceeds": None, "reason": concurrent.get("reason") or "incomplete concurrent data"}
+            else:
+                rule2_platforms[name] = {"median": cpu["median"], "exceeds": cpu["median"] > CPU_OVERHEAD_MAX}
 
     met = [name for name, entry in rule1_platforms.items()
            if entry["wallBoundMet"] is True and entry.get("companionConflict") is False]
