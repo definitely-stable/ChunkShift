@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Summarize PATCH-APPLY-002: the overlapped re-chunk check on apply.
+"""Summarize PATCH-APPLY-003: the overlapped re-chunk check on apply.
 
 Reads one directory per platform holding the `chunkshift.patch-lab-apply-check.v1`
 files of `patch-lab apply-check` (kinds prepare, time, concurrent, memory),
 verifies the corpus lock and the recorded commit, computes the statistics of
-docs/benchmarks/PATCH-APPLY-002-PROTOCOL.md section 5 and applies the frozen
+docs/benchmarks/PATCH-APPLY-003-PROTOCOL.md section 5 and applies the frozen
 rules of section 6:
 
   rule 1  A2 (overlap): upper 95 % CI bound of the wall overhead <= 10 % on at
@@ -34,7 +34,7 @@ from pathlib import Path
 
 SCHEMA = "chunkshift.patch-lab-apply-check.v1"
 SUMMARY_SCHEMA = "chunkshift.patch-lab-apply-check-summary.v1"
-EXPERIMENT = "PATCH-APPLY-002"
+EXPERIMENT = "PATCH-APPLY-003"
 
 LANES = ("off", "seq", "overlap")
 CHECK_LANES = ("seq", "overlap")
@@ -173,27 +173,46 @@ def read_platform(directory: Path, pairs_sha256: str) -> dict:
             raise SummaryError(f"{path}: unknown kind {kind!r}")
         documents.append(document)
 
+    if not documents:
+        raise SummaryError(f"{directory}: no {SCHEMA} documents")
+
     commits = sorted({(document.get("environment") or {}).get("gitCommit") or "" for document in documents})
     if "" in commits:
         raise SummaryError(f"{directory}: a file does not record environment.gitCommit")
-    if len(commits) > 1:
+    if len(commits) != 1:
         raise SummaryError(f"{directory}: mixed evidence, gitCommit values {commits}")
 
     labels = sorted({platform_label(document.get("environment") or {}) or "" for document in documents})
-    if len(labels) > 1:
-        raise SummaryError(f"{directory}: mixed platforms {labels}")
+    if "" in labels or len(labels) != 1 or labels[0] not in PLATFORMS:
+        raise SummaryError(f"{directory}: invalid or mixed platforms {labels}")
+    platform = labels[0]
 
-    run_ids = []
-    for document in documents:
-        run_id = document.get("runId")
-        if run_id and run_id not in run_ids:
-            run_ids.append(run_id)
+    processors = {(document.get("environment") or {}).get("processorCount") for document in documents}
+    descriptions = {(document.get("environment") or {}).get("processorDescription") or "" for document in documents}
+    if len(processors) != 1 or next(iter(processors)) is None or int(next(iter(processors))) <= 0:
+        raise SummaryError(f"{directory}: missing or mixed processorCount values {sorted(str(v) for v in processors)}")
+    if "" in descriptions or len(descriptions) != 1:
+        raise SummaryError(f"{directory}: missing or mixed processorDescription values")
+
+    run_ids = sorted({document.get("runId") or "" for document in documents})
+    if "" in run_ids or len(run_ids) != 1:
+        raise SummaryError(f"{directory}: missing or mixed RunIds {run_ids}")
+    run_id = run_ids[0]
+    commit = commits[0]
+    if not run_id.startswith(f"{EXPERIMENT}/RUN-"):
+        raise SummaryError(f"{directory}: RunId {run_id!r} is not a {EXPERIMENT} run")
+    if f"-{commit[:7]}-" not in run_id:
+        raise SummaryError(f"{directory}: RunId {run_id!r} does not bind commit {commit[:7]}")
+    if not run_id.endswith(f"-{platform}"):
+        raise SummaryError(f"{directory}: RunId {run_id!r} does not bind platform {platform}")
 
     return {
         "directory": str(directory),
-        "platform": labels[0] if labels and labels[0] else directory.name,
-        "gitCommit": commits[0] if commits else None,
-        "runIds": run_ids,
+        "platform": platform,
+        "gitCommit": commit,
+        "runIds": [run_id],
+        "processorCount": int(next(iter(processors))),
+        "processorDescription": next(iter(descriptions)),
         "time": time_docs,
         "concurrent": concurrent_docs,
         "memory": memory,
@@ -201,7 +220,57 @@ def read_platform(directory: Path, pairs_sha256: str) -> dict:
     }
 
 
-# --- statistics ----------------------------------------------------------------
+# --- statistics# --- statistics ----------------------------------------------------------------
+
+
+def _time_point(per_file: dict, keys: list[tuple], lane: str, metric: str,
+                repetition_indices: list[int], sizes: dict[tuple, int] | None = None,
+                minimum_size: int | None = None, corpus_sum: bool = False,
+                cpu_floor: bool = False) -> float | None:
+    ratios = []
+    pairs = []
+    for key in keys:
+        if minimum_size is not None and (sizes or {}).get(key, 0) < minimum_size:
+            continue
+        entry = per_file[key][metric]
+        off = median([entry["off"][index] for index in repetition_indices])
+        lane_value = median([entry[lane][index] for index in repetition_indices])
+        if off <= 0 or (cpu_floor and off < CPU_FLOOR_SECONDS):
+            continue
+        ratios.append(lane_value / off - 1)
+        pairs.append((lane_value, off))
+    if corpus_sum:
+        denominator = sum(off for _, off in pairs)
+        return (sum(value for value, _ in pairs) / denominator - 1) if denominator > 0 else None
+    return median(ratios) if ratios else None
+
+
+def _block_interval(per_file: dict, keys: list[tuple], lane: str, metric: str,
+                    repetitions: int, rng: random.Random, resamples: int,
+                    sizes: dict[tuple, int] | None = None,
+                    minimum_size: int | None = None, corpus_sum: bool = False,
+                    cpu_floor: bool = False) -> dict | None:
+    indices = list(range(repetitions))
+    point = _time_point(per_file, keys, lane, metric, indices, sizes, minimum_size, corpus_sum, cpu_floor)
+    if point is None:
+        return None
+    estimates = []
+    for _ in range(resamples):
+        sample = rng.choices(indices, k=repetitions)
+        estimate = _time_point(per_file, keys, lane, metric, sample, sizes, minimum_size, corpus_sum, cpu_floor)
+        if estimate is not None:
+            estimates.append(estimate)
+    if not estimates:
+        return None
+    estimates.sort()
+    return {
+        "value" if corpus_sum else "median": point,
+        "ciLow": percentile(estimates, 0.025),
+        "ciHigh": percentile(estimates, 0.975),
+        "count": len(keys),
+        "repetitions": repetitions,
+        "resamplingUnit": "paired-repetition-block",
+    }
 
 
 def time_statistics(time_docs: dict[int, dict], repetitions: int, rng: random.Random, resamples: int) -> dict:
@@ -214,6 +283,7 @@ def time_statistics(time_docs: dict[int, dict], repetitions: int, rng: random.Ra
     per_file: dict[tuple, dict] = {}
     sizes: dict[tuple, int] = {}
     outputs_verified = all(document.get("outputsVerified") is True for document in time_docs.values())
+    canonical_keys = None
     for repetition in sorted(time_docs):
         document = time_docs[repetition]
         keys = set()
@@ -235,42 +305,58 @@ def time_statistics(time_docs: dict[int, dict], repetitions: int, rng: random.Ra
                 cost = decomposition.get(name) or {}
                 entry["components"][name]["wall"].append(float(cost.get("wallSeconds", 0.0)))
                 entry["components"][name]["cpu"].append(float(cost.get("cpuSeconds", 0.0)))
-        if per_file and keys != set(per_file):
+        if canonical_keys is None:
+            canonical_keys = keys
+        elif keys != canonical_keys:
             raise SummaryError(f"repetition {repetition}: the file set differs from the other repetitions")
 
+    keys = sorted(per_file)
     values = {
         key: {
-            metric: {lane: median(entry[metric][lane]) for lane in LANES}
+            metric: {lane: median(per_file[key][metric][lane]) for lane in LANES}
             for metric in ("wall", "cpu")
         }
-        for key, entry in per_file.items()
+        for key in keys
     }
-    keys = sorted(values)
 
     result: dict = {
         "complete": complete,
         "repetitions": sorted(present),
         "files": len(keys),
         "outputsVerified": outputs_verified,
+        "resamplingUnit": "paired-repetition-block",
         "lanes": {},
+        "compactFiles": [
+            {
+                "family": key[0], "base": key[1], "target": key[2], "path": key[3],
+                "targetSize": sizes[key],
+                "wallMedianSeconds": values[key]["wall"],
+                "cpuMedianSeconds": values[key]["cpu"],
+            }
+            for key in keys
+        ],
     }
 
-    for lane in CHECK_LANES:
-        wall_ratios = [values[key]["wall"][lane] / values[key]["wall"]["off"] - 1
-                       for key in keys if values[key]["wall"]["off"] > 0]
-        large_ratios = [values[key]["wall"][lane] / values[key]["wall"]["off"] - 1
-                        for key in keys if values[key]["wall"]["off"] > 0 and sizes[key] >= LARGE_FILE_BYTES]
-        cpu_ratios = [values[key]["cpu"][lane] / values[key]["cpu"]["off"] - 1
-                      for key in keys if values[key]["cpu"]["off"] >= CPU_FLOOR_SECONDS]
-        result["lanes"][lane] = {
-            "wallMedianOfRatios": ratio_stat(wall_ratios, rng, resamples),
-            "wallCorpusSum": sum_stat([(values[key]["wall"][lane], values[key]["wall"]["off"]) for key in keys],
-                                      rng, resamples),
-            "wallLargeFilesMedianOfRatios": ratio_stat(large_ratios, rng, resamples),
-            "cpuMedianOfRatios": ratio_stat(cpu_ratios, rng, resamples),
-            "cpuCorpusSum": sum_stat([(values[key]["cpu"][lane], values[key]["cpu"]["off"]) for key in keys],
-                                     rng, resamples),
-        }
+    if complete:
+        for lane in CHECK_LANES:
+            file_ratios = [values[key]["wall"][lane] / values[key]["wall"]["off"] - 1
+                           for key in keys if values[key]["wall"]["off"] > 0]
+            result["lanes"][lane] = {
+                "wallMedianOfRatios": _block_interval(
+                    per_file, keys, lane, "wall", repetitions, rng, resamples, sizes=sizes),
+                "wallCorpusSum": _block_interval(
+                    per_file, keys, lane, "wall", repetitions, rng, resamples, sizes=sizes, corpus_sum=True),
+                "wallLargeFilesMedianOfRatios": _block_interval(
+                    per_file, keys, lane, "wall", repetitions, rng, resamples,
+                    sizes=sizes, minimum_size=LARGE_FILE_BYTES),
+                "cpuMedianOfRatios": _block_interval(
+                    per_file, keys, lane, "cpu", repetitions, rng, resamples, cpu_floor=True),
+                "cpuCorpusSum": _block_interval(
+                    per_file, keys, lane, "cpu", repetitions, rng, resamples, corpus_sum=True),
+                "fileBootstrapDiagnostic": ratio_stat(file_ratios, random.Random(BOOTSTRAP_SEED), resamples),
+            }
+    else:
+        result["reason"] = f"expected repetitions 0..{repetitions - 1}, found {sorted(present)}"
 
     result["totals"] = {
         metric: {lane: sum(values[key][metric][lane] for key in keys) for lane in LANES}
@@ -294,7 +380,7 @@ def time_statistics(time_docs: dict[int, dict], repetitions: int, rng: random.Ra
     return result
 
 
-def concurrent_statistics(docs: dict[int, dict], repetitions: int, rng: random.Random, resamples: int) -> dict:
+def concurrent_statisticsdef concurrent_statistics(docs: dict[int, dict], repetitions: int, rng: random.Random, resamples: int) -> dict:
     if not docs:
         return {"complete": False, "reason": "no concurrent files"}
 
@@ -330,7 +416,31 @@ def concurrent_statistics(docs: dict[int, dict], repetitions: int, rng: random.R
         levels[str(level)]["medianSeconds"] = {
             metric: {lane: median(record[metric][lane]) for lane in LANES} for metric in ("wall", "cpu")
         }
-    return {"complete": complete, "repetitions": sorted(docs), "levels": levels}
+    compact = []
+    for repetition in sorted(docs):
+        grouped: dict[int, dict[str, list[dict]]] = {}
+        for entry in docs[repetition].get("passes") or []:
+            grouped.setdefault(int(entry["concurrency"]), {}).setdefault(entry["lane"], []).append(entry)
+        compact.append({
+            "repetition": repetition,
+            "levels": {
+                str(level): {
+                    lane: {
+                        "wallSeconds": sum(float(run["wallSeconds"]) for run in lanes[lane]) / len(lanes[lane]),
+                        "cpuSeconds": sum(float(run["cpuSeconds"]) for run in lanes[lane]) / len(lanes[lane]),
+                    }
+                    for lane in LANES
+                }
+                for level, lanes in sorted(grouped.items())
+            },
+        })
+    return {
+        "complete": complete,
+        "repetitions": sorted(docs),
+        "resamplingUnit": "paired-repetition-block",
+        "levels": levels,
+        "compactRepetitions": compact,
+    }
 
 
 def memory_statistics(document: dict | None) -> dict:
@@ -354,6 +464,18 @@ def memory_statistics(document: dict | None) -> dict:
         "limitBytes": MEMORY_LIMIT_BYTES,
         "verdict": None if environment else within,
         "reason": "allocator or GC variables set; not evaluated" if environment else None,
+        "compactFiles": [
+            {
+                "family": record["family"],
+                "path": record["path"],
+                "targetSize": int(record["targetSize"]),
+                "excessBytes": {
+                    lane: int(record["applyPeakBytes"][lane]) - baseline
+                    for lane in LANES
+                },
+            }
+            for record in records
+        ],
     }
 
 
@@ -381,13 +503,24 @@ def evaluate(platforms: list[dict]) -> dict:
         name = platform["platform"]
         time = platform["timeStatistics"]
         memory = platform["memoryStatistics"]
-        stat = (time.get("lanes") or {}).get("overlap", {}).get("wallMedianOfRatios") if time.get("complete") else None
-        if stat is None:
+        overlap = (time.get("lanes") or {}).get("overlap", {}) if time.get("complete") else {}
+        primary = overlap.get("wallMedianOfRatios")
+        corpus_sum = overlap.get("wallCorpusSum")
+        large = overlap.get("wallLargeFilesMedianOfRatios")
+        if primary is None:
             rule1_platforms[name] = {"wallBoundMet": None, "reason": time.get("reason") or "incomplete time data"}
         else:
+            primary_met = primary["ciHigh"] <= WALL_OVERHEAD_MAX
+            companion_conflict = primary_met and (
+                corpus_sum is None or large is None or
+                corpus_sum["value"] > WALL_OVERHEAD_MAX or
+                large["median"] > WALL_OVERHEAD_MAX)
             rule1_platforms[name] = {
-                "ciHigh": stat["ciHigh"],
-                "wallBoundMet": stat["ciHigh"] <= WALL_OVERHEAD_MAX,
+                "ciHigh": primary["ciHigh"],
+                "wallBoundMet": primary_met,
+                "corpusSum": None if corpus_sum is None else corpus_sum["value"],
+                "largeFilesMedian": None if large is None else large["median"],
+                "companionConflict": companion_conflict,
                 "outputsVerified": time.get("outputsVerified") is True,
                 "memoryWithinBound": memory.get("verdict"),
             }
@@ -400,20 +533,26 @@ def evaluate(platforms: list[dict]) -> dict:
         else:
             rule2_platforms[name] = {"median": cpu["median"], "exceeds": cpu["median"] > CPU_OVERHEAD_MAX}
 
-    met = [name for name, entry in rule1_platforms.items() if entry["wallBoundMet"] is True]
+    met = [name for name, entry in rule1_platforms.items()
+           if entry["wallBoundMet"] is True and entry.get("companionConflict") is False]
+    conflicted = [name for name, entry in rule1_platforms.items()
+                  if entry["wallBoundMet"] is True and entry.get("companionConflict") is True]
     missed = [name for name, entry in rule1_platforms.items() if entry["wallBoundMet"] is False]
     measured = [name for name, entry in rule1_platforms.items() if entry["wallBoundMet"] is not None]
-    if len(met) >= PLATFORMS_REQUIRED:
+
+    if len(missed) >= PLATFORMS_REQUIRED:
+        rule1 = "REJECT"
+    elif len(met) >= PLATFORMS_REQUIRED:
         conditions = [rule1_platforms[name].get("outputsVerified") and rule1_platforms[name].get("memoryWithinBound")
                       for name in measured]
-        if all(value is True for value in conditions):
+        if all(value is True for value in conditions) and not conflicted:
             rule1 = "ADOPT"
-        elif any(value is False for value in conditions):
+        elif any(value is False for value in conditions) or conflicted:
             rule1 = "DEFER"
         else:
             rule1 = NOT_EVALUATED
-    elif len(missed) >= PLATFORMS_REQUIRED:
-        rule1 = "REJECT"
+    elif conflicted:
+        rule1 = "DEFER"
     else:
         rule1 = NOT_EVALUATED
 
@@ -443,16 +582,18 @@ def evaluate(platforms: list[dict]) -> dict:
     }
 
 
-def summarize(platform_dirs: list[Path], lock_path: Path, repetitions: int = REPETITIONS,
-              resamples: int = BOOTSTRAP_RESAMPLES) -> dict:
+def summarizedef summarize(platform_dirs: list[Path], lock_path: Path, repetitions: int = REPETITIONS,
+              resamples: int = BOOTSTRAP_RESAMPLES, require_all_platforms: bool = False) -> dict:
     pairs_sha256 = load_lock(lock_path)
     platforms = []
     seen = set()
+    commits = set()
     for directory in platform_dirs:
         platform = read_platform(directory, pairs_sha256)
         if platform["platform"] in seen:
             raise SummaryError(f"{directory}: platform {platform['platform']} appears twice")
         seen.add(platform["platform"])
+        commits.add(platform["gitCommit"])
         rng = random.Random(BOOTSTRAP_SEED)
         platform["timeStatistics"] = time_statistics(platform.pop("time"), repetitions, rng, resamples)
         platform["concurrentStatistics"] = concurrent_statistics(platform.pop("concurrent"), repetitions, rng, resamples)
@@ -460,18 +601,51 @@ def summarize(platform_dirs: list[Path], lock_path: Path, repetitions: int = REP
         platform["alignment"] = alignment_statistics(platform.pop("prepare"))
         platforms.append(platform)
 
+    if len(commits) != 1:
+        raise SummaryError(f"mixed evidence across platforms, gitCommit values {sorted(commits)}")
+    if require_all_platforms and seen != set(PLATFORMS):
+        raise SummaryError(f"expected platforms {list(PLATFORMS)}, found {sorted(seen)}")
+
     return {
         "schema": SUMMARY_SCHEMA,
         "experiment": EXPERIMENT,
         "corpusPairsSha256": pairs_sha256,
         "repetitions": repetitions,
-        "bootstrap": {"resamples": resamples, "seed": BOOTSTRAP_SEED},
-        "platforms": platforms,
+        "bootstrap": {
+            "resamples": resamples,
+            "seed": BOOTSTRAP_SEED,
+            "decisionResamplingUnit": "paired-repetition-block",
+            "fileBootstrap": "diagnostic-only",
+        },
+        "platforms": sorted(platforms, key=lambda platform: PLATFORMS.index(platform["platform"])),
         "rules": evaluate(platforms),
     }
 
 
-# --- markdown ----------------------------------------------------------------------
+def write_compact_samples(document: dict, directory: Path) -> list[Path]:
+    directory.mkdir(parents=True, exist_ok=True)
+    written = []
+    for platform in document["platforms"]:
+        compact = {
+            "schema": "chunkshift.patch-lab-apply-check-compact.v1",
+            "experiment": EXPERIMENT,
+            "platform": platform["platform"],
+            "gitCommit": platform["gitCommit"],
+            "runIds": platform["runIds"],
+            "processorCount": platform["processorCount"],
+            "processorDescription": platform["processorDescription"],
+            "corpusPairsSha256": document["corpusPairsSha256"],
+            "timeFiles": platform["timeStatistics"].get("compactFiles", []),
+            "concurrentRepetitions": platform["concurrentStatistics"].get("compactRepetitions", []),
+            "memoryFiles": platform["memoryStatistics"].get("compactFiles", []),
+        }
+        path = directory / f"{EXPERIMENT}-compact-{platform['platform']}.json"
+        path.write_text(json.dumps(compact, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+        written.append(path)
+    return written
+
+
+# --- markdown# --- markdown ----------------------------------------------------------------------
 
 
 def percent(value: float | None) -> str:
@@ -500,6 +674,7 @@ def write_markdown(document: dict) -> str:
         time = platform["timeStatistics"]
         lines += [f"## {platform['platform']}", "",
                   f"Commit `{platform['gitCommit']}`; RunIds: {', '.join(platform['runIds']) or '—'}; "
+                  f"CPU: {platform['processorDescription']} ({platform['processorCount']} logical); "
                   f"time repetitions {time.get('repetitions')}, files {time.get('files', 0)}.", ""]
         if time.get("lanes"):
             lines += ["| lane | wall, median of ratios [95 % CI] | wall, corpus sum | wall, files >= 1 MiB | "
@@ -549,13 +724,15 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--corpus-lock", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--markdown", type=Path)
+    parser.add_argument("--compact-dir", type=Path)
+    parser.add_argument("--require-all-platforms", action="store_true")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
-        document = summarize(args.platforms, args.corpus_lock)
+        document = summarize(args.platforms, args.corpus_lock, require_all_platforms=args.require_all_platforms)
     except SummaryError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
@@ -563,6 +740,8 @@ def main(argv: list[str] | None = None) -> int:
     args.output.write_text(json.dumps(document, indent=1, sort_keys=True) + "\n", encoding="utf-8")
     if args.markdown:
         args.markdown.write_text(write_markdown(document), encoding="utf-8")
+    if args.compact_dir:
+        write_compact_samples(document, args.compact_dir)
     return 0
 
 
