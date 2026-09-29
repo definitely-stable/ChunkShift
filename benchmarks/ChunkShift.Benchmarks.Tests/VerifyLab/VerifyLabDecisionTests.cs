@@ -47,6 +47,23 @@ public sealed class VerifyLabDecisionTests
     }
 
     [Fact]
+    public void ZeroCpuSamplesAreLeftOutOfCpuRatios()
+    {
+        VerifyLabSample Sample(double cpu) => new(
+            "S1", "blake3", "warm", "V1", 1, 0, 0,
+            new VerifyLabMeasurement(1L << 30, 1, 0.5, cpu, 0, 0, Valid: true, []),
+            null);
+
+        VerifyLabAggregate aggregate = Assert.Single(VerifyLabAggregate.Of([Sample(0), Sample(0.5)], 0));
+        Assert.Equal(2, aggregate.GiBPerCpuSecond!.P50);
+        Assert.Equal(2, aggregate.GiBPerSecond!.P50);
+
+        VerifyLabAggregate allZero = Assert.Single(VerifyLabAggregate.Of([Sample(0)], 0));
+        Assert.Null(allZero.GiBPerCpuSecond);
+        _ = System.Text.Json.JsonSerializer.Serialize(allZero, VerifyLabRunner.JsonOptions);
+    }
+
+    [Fact]
     public void AdoptNeedsAllRulesOnTwoPlatforms()
     {
         VerifyLabRunDocument[] runs =

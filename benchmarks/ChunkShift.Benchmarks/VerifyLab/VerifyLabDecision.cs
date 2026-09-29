@@ -49,8 +49,14 @@ internal sealed record VerifyLabAggregate(
                     .Select(static measurement => measurement!)];
                 int invalid = group.Count() - valid.Length;
 
-                VerifyLabStatistic? Statistic(Func<VerifyLabMeasurement, double> metric) =>
-                    valid.Length == 0 ? null : VerifyLabStatistic.Of([.. valid.Select(metric)]);
+                // Windows counts process CPU time in 15.6 ms ticks, so a short
+                // sample can read zero CPU; ratios over it are not finite and are
+                // left out of the statistic instead of being reported as infinite.
+                VerifyLabStatistic? Statistic(Func<VerifyLabMeasurement, double> metric)
+                {
+                    double[] values = [.. valid.Select(metric).Where(double.IsFinite)];
+                    return values.Length == 0 ? null : VerifyLabStatistic.Of(values);
+                }
 
                 return new VerifyLabAggregate(
                     group.Key.Workload,
