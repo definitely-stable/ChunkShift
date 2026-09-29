@@ -189,7 +189,7 @@
         152
       ],
       "area": "core-api",
-      "status": "PLANNED",
+      "status": "RUNNING",
       "question": "CORE-VERIFY-001 confirmatory run: no pool spinning, cache-sized warm file"
     },
     {
