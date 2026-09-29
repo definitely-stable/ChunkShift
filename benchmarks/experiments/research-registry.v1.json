@@ -353,6 +353,17 @@
       "question": "apply pipeline and a cheaper re-chunk check (D13)"
     },
     {
+      "id": "PATCH-APPLY-003",
+      "issues": [
+        182,
+        168,
+        7
+      ],
+      "area": "patching",
+      "status": "PLANNED",
+      "question": "PATCH-APPLY-002 check lanes with win-x64 on a GitHub runner (D13)"
+    },
+    {
       "id": "PATCH-GAP-001",
       "issues": [
         183,
