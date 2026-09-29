@@ -606,7 +606,7 @@ def evaluate(platforms: list[dict]) -> dict:
     }
 
 
-def summarizedef summarize(platform_dirs: list[Path], lock_path: Path, repetitions: int = REPETITIONS,
+def summarize(platform_dirs: list[Path], lock_path: Path, repetitions: int = REPETITIONS,
               resamples: int = BOOTSTRAP_RESAMPLES, require_all_platforms: bool = False) -> dict:
     pairs_sha256 = load_lock(lock_path)
     platforms = []
