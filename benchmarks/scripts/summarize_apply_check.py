@@ -12,7 +12,7 @@ rules of section 6:
           and the 64 MiB memory bound on every measured platform
   rule 2  A1a: needed when the CPU overhead of the overlapped check at eight
           concurrent applies exceeds 25 % on at least two platforms
-  rule 3  #168 option 1 reopens only if rule 1 rejects A2 or rule 2 holds
+  rule 3  #168 option 1 reopens if rule 1 rejects A2, or later if rule 2 still holds after A1a
 
 A rule whose inputs are missing reports "not evaluated", never a pass. Ratios
 are printed in percent with two decimals.
@@ -199,11 +199,18 @@ def read_platform(directory: Path, pairs_sha256: str) -> dict:
         raise SummaryError(f"{directory}: missing or mixed RunIds {run_ids}")
     run_id = run_ids[0]
     commit = commits[0]
-    if not run_id.startswith(f"{EXPERIMENT}/RUN-"):
+    prefix = f"{EXPERIMENT}/RUN-"
+    if not run_id.startswith(prefix):
         raise SummaryError(f"{directory}: RunId {run_id!r} is not a {EXPERIMENT} run")
-    if f"-{commit[:7]}-" not in run_id:
+    parts = run_id[len(prefix):].split("-", 3)
+    if len(parts) != 4:
+        raise SummaryError(f"{directory}: RunId {run_id!r} does not match the frozen format")
+    run_date, workflow_run_number, run_commit, run_platform = parts
+    if len(run_date) != 8 or not run_date.isdigit() or not workflow_run_number.isdigit():
+        raise SummaryError(f"{directory}: RunId {run_id!r} has an invalid date or workflow run number")
+    if run_commit != commit[:7]:
         raise SummaryError(f"{directory}: RunId {run_id!r} does not bind commit {commit[:7]}")
-    if not run_id.endswith(f"-{platform}"):
+    if run_platform != platform:
         raise SummaryError(f"{directory}: RunId {run_id!r} does not bind platform {platform}")
 
     return {
@@ -213,6 +220,8 @@ def read_platform(directory: Path, pairs_sha256: str) -> dict:
         "runIds": [run_id],
         "processorCount": int(next(iter(processors))),
         "processorDescription": next(iter(descriptions)),
+        "workflowRunNumber": workflow_run_number,
+        "runDate": run_date,
         "time": time_docs,
         "concurrent": concurrent_docs,
         "memory": memory,
@@ -612,12 +621,14 @@ def summarize(platform_dirs: list[Path], lock_path: Path, repetitions: int = REP
     platforms = []
     seen = set()
     commits = set()
+    workflow_run_numbers = set()
     for directory in platform_dirs:
         platform = read_platform(directory, pairs_sha256)
         if platform["platform"] in seen:
             raise SummaryError(f"{directory}: platform {platform['platform']} appears twice")
         seen.add(platform["platform"])
         commits.add(platform["gitCommit"])
+        workflow_run_numbers.add(platform["workflowRunNumber"])
         rng = random.Random(BOOTSTRAP_SEED)
         platform["timeStatistics"] = time_statistics(platform.pop("time"), repetitions, rng, resamples)
         platform["concurrentStatistics"] = concurrent_statistics(platform.pop("concurrent"), repetitions, rng, resamples)
@@ -627,6 +638,9 @@ def summarize(platform_dirs: list[Path], lock_path: Path, repetitions: int = REP
 
     if len(commits) != 1:
         raise SummaryError(f"mixed evidence across platforms, gitCommit values {sorted(commits)}")
+    if len(workflow_run_numbers) != 1:
+        raise SummaryError(
+            f"mixed evidence across workflow dispatches, run numbers {sorted(workflow_run_numbers)}")
     if require_all_platforms and seen != set(PLATFORMS):
         raise SummaryError(f"expected platforms {list(PLATFORMS)}, found {sorted(seen)}")
 
@@ -658,6 +672,8 @@ def write_compact_samples(document: dict, directory: Path) -> list[Path]:
             "runIds": platform["runIds"],
             "processorCount": platform["processorCount"],
             "processorDescription": platform["processorDescription"],
+            "workflowRunNumber": platform["workflowRunNumber"],
+            "runDate": platform["runDate"],
             "corpusPairsSha256": document["corpusPairsSha256"],
             "timeFiles": platform["timeStatistics"].get("compactFiles", []),
             "concurrentRepetitions": platform["concurrentStatistics"].get("compactRepetitions", []),
