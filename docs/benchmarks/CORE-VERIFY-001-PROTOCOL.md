@@ -1,6 +1,6 @@
 # CORE-VERIFY-001 protocol (#186): integrity-only verification guided by the manifest
 
-Status: **frozen before measurement.** This note is merged before any run of the lanes below produces a decision dataset. Later edits may only add results links; a change to a lane, workload, oracle case or rule is a new ExperimentId.
+Status: **frozen before measurement.** This note is merged before any run of the lanes below produces a decision dataset. Later edits may only add results links; a change to a lane, workload, oracle case or rule is a new ExperimentId. Amended once before any run, on 2026-09-28, to match the lab of [#191](https://github.com/definitely-stable/ChunkShift/pull/191) (warm-up length, V2 worker count and construction details); the lanes, workloads, oracle classes and §7 rules did not change.
 Issue: [#186](https://github.com/definitely-stable/ChunkShift/issues/186) (decision of 2026-09-28) · Parent: [#152](https://github.com/definitely-stable/ChunkShift/issues/152) (multi-file lane) · Registry: [EXPERIMENT-INDEX.md](../research/EXPERIMENT-INDEX.md)
 
 | ExperimentId | Question |
@@ -15,9 +15,9 @@ This is lab research only. It adds no public API, changes nothing in `src/`, and
 |---|---|
 | `V0` | `ChunkManifest.VerifyAsync(content, manifest)`: the manifest is read and verified, then the content is chunked with the manifest's profile and every chunk is hashed (`CsmContentVerifier`). Content is a `FileStream` from `File.OpenRead`. |
 | `V1` | Slice by the manifest's record lengths and hash, sequential. Content is read forward from a `Stream` (an unbuffered `FileStream`). |
-| `V2-W{2,4,8}` | V1 with W workers over record ranges, positional reads (`RandomAccess.Read` on the file's `SafeFileHandle`), results assembled in record order. |
+| `V2-W{2,4,8}` | V1 with W workers over record ranges, positional reads (`RandomAccess.Read` on the file's `SafeFileHandle`), results assembled in record order. The workers are thread-pool tasks, and a file gets no more workers than it has ranges (`min(W, ⌈content length / 4 MiB⌉)`), so a small file of the tree is verified by one. |
 
-A **record range** is a run of consecutive records of at most 4 MiB in total, and at least one record. A record longer than 4 MiB is its own range and is hashed incrementally in 1 MiB pieces, so no lane holds more than one 4 MiB buffer per reader whatever the manifest declares (the shipped profile's maximum chunk is 256 KiB, so the workloads below never take that path).
+A **record range** is a run of consecutive records of at most 4 MiB and 4,096 records, and at least one record. A record longer than 4 MiB is its own range and is hashed incrementally in 1 MiB pieces, so no lane holds more than one 4 MiB buffer per reader whatever the manifest declares (the shipped profile's maximum chunk is 256 KiB, so the workloads below never take that path).
 
 V1 and V2 use the same range builder, the same hash dispatch as Core (`HashSuiteHasher`) and the same manifest reader as V0 (`CsmReader`). They live in the benchmark project and call Core internals; no Core code changes.
 
@@ -37,7 +37,7 @@ V1 and V2 proceed as follows.
 2. **Profile fingerprint, as V0.** A known ProfileId with a different fingerprint reports `ProfileSemantics`, and the content is not read (`contentMode = none`).
 3. **Untrusted manifest → V0.** If the manifest reports any of `BlockCrc`, `LogicalTotals`, `ManifestId` or `FileDigest`, the content verdict comes from V0 over the same content (`cdc-fallback`). The premise of V1 is a verified manifest: V0's content rule (the content matches the stored *or* the recomputed ManifestId) cannot be reproduced from damaged records, and the reader returns no records after a failed CRC.
 4. **Slices.** Otherwise the manifest's records are read a second time and each record's bytes are hashed with the manifest's HashSuite and compared with its `ChunkId`. The second pass must reproduce the first pass's result (identities, totals, flags); if it does not, the manifest changed under the lab and the sample fails as an error, not a verdict.
-5. **Content flag.** `Content` is reported when a record's digest differs, when the content ends before the last record, or when bytes follow the last record. V2 compares the file length with the manifest's content length before reading, but still hashes the records that lie wholly inside the file, so that `firstMismatchRecord` is the lowest index as in V1.
+5. **Content flag.** `Content` is reported when a record's digest differs, when the content ends before the last record, or when bytes follow the last record. A short content shows as a short read of the first record it cuts; trailing bytes are checked after the last record (V1 reads one more byte, V2 compares the file length with the manifest's content length). Records before a cut are still hashed, so `firstMismatchRecord` is the lowest index in both.
 6. **The profile question.** A `slices` verdict proves that the content equals the manifest's chunk sequence. It does not prove that the sequence is the one the profile would cut; `profileConformance = not-checked` says so in every such result. §3 D1 is the case where this matters.
 
 Pinned alongside:
@@ -45,7 +45,7 @@ Pinned alongside:
 - **Early exit.** V1 stops reading content at its first mismatching record. V2 issues no range that starts after the lowest mismatch found so far and waits for ranges already in flight. Both report the same `firstMismatchRecord`. V0 has no early exit. The manifest is always read to its end (rule 1), so its flags are complete.
 - **Cancellation.** The token is checked before every range read. V2 cancels its workers and waits for all of them before the `OperationCanceledException` leaves the call; no worker runs after the call returns or throws.
 - **No side effects.** No lane writes anything. Content and manifest are opened by the lab and closed after the sample. V1 advances its content stream; V2 does not use a stream position.
-- **Bounded memory.** V1 holds one 4 MiB range buffer; V2 holds W range buffers and a queue of at most 2W ranges. Neither buffers content or records beyond that, whatever the content size.
+- **Bounded memory.** V1 holds one range buffer of 4 MiB (less when the content is smaller); V2 holds W such buffers and a queue of at most 2W ranges. Neither buffers content or records beyond that, whatever the content size.
 
 ## 3. Equivalence oracle
 
@@ -56,9 +56,9 @@ A **case** is a (content, manifest) pair. For every case, V1 and each of V2-W2/W
 | O1 valid content | every workload file of §4 with its manifest, in every timed sample (the sample's verdict must be valid in every lane) |
 | O2 CSM vectors | every `.csm` in `tests/ChunkShift.Tests/Fixtures/CsmV1/`, each with empty content and with 4 KiB of random content; the golden vectors themselves are read, never rewritten |
 | O3 single-byte mutations | the oracle contents below, each with its own valid manifest; one byte XORed with `0x01` at: offset 0, the last byte, the first and last byte of the first and last four records, both sides of eight record boundaries, and 16 positions drawn by SplitMix64 |
-| O4 truncation and extension | the same contents cut to 0, to eight record boundaries and one byte either side, to the middle of a record and to length − 1; extended by one byte and by 64 KiB |
+| O4 truncation and extension | the same contents cut to 0, to eight record boundaries and one byte either side, to the middle of a record and to length − 1; extended by one byte and by 64 KiB; for the 1 MiB contents also through files, so that V2's `RandomAccess` path meets a short and a long file |
 | O5 untrusted manifest | O1-style content with manifest copies whose stored ManifestId, one CBLK byte, one CEND total or the FileDigest was damaged; V1/V2 must take `cdc-fallback` |
-| O6 profile question | manifests written through the internal CSM encoder under the shipped ProfileId and fingerprint whose records are fixed 64 KiB slices of random content (not the profile's cuts); with the exact content, and with O3's mutations of it |
+| O6 profile question | for every oracle content of at least 1 MiB, a manifest written through the internal CSM encoder under the shipped ProfileId and fingerprint whose records are fixed 64 KiB slices (not the profile's cuts); with the exact content, and with mutations at O3's positions |
 
 Oracle contents: 0 bytes, 1 byte, 12 KiB, 1 MiB and 8 MiB of SplitMix64 bytes, 8 MiB of zeros (every cut forced at the maximum) and 8 MiB of a 1,000-byte period, each under BLAKE3 and SHA-256, manifests written by `ChunkManifest.CreateAsync` with the shipped profile.
 
@@ -72,7 +72,7 @@ The oracle output lists, per case class and lane, how many cases ended in `slice
 |---|---|---|
 | `S1` | one file of 1 GiB (1,073,741,824 bytes), SplitMix64 bytes, seed `0xC0FE0001` | BLAKE3; SHA-256 (informative lane) |
 | `S10` | one file of 10 GiB (10,737,418,240 bytes), SplitMix64 bytes, seed `0xC0FE0010` | BLAKE3 |
-| `T` | the many-file tree of #152: every distinct target file (family, target version, path) of the `changed` lists of the patch corpus `pairs.json` at lock `8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd` (the lists hold 1,893 files and 818 MiB; a target shared by two pairs counts once, and the run records the final count and bytes) | one BLAKE3 manifest per file |
+| `T` | the many-file tree of #152: every distinct target file (family, target version, path) of the `changed` lists of the patch corpus `pairs.json` at lock `8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd` (the lists hold 1,893 files and 818 MiB; a target shared by two pairs counts once, and the run records the final count and bytes), in (family, target version, path) order | one BLAKE3 manifest per file |
 
 All manifests use the shipped profile `fastcdc.gear.chunkshift.v1.64k` and are written by `ChunkManifest.CreateAsync` before timing. The generated files and the tree are digested (SHA-256) and the digests go into the run record. A separate 64 MiB file (seed `0xC0FE0000`) is used only for JIT warm-up.
 
@@ -84,7 +84,7 @@ All manifests use the shipped profile `fastcdc.gear.chunkshift.v1.64k` and are w
 | `cold` | Linux | `sync` and `echo 3 > /proc/sys/vm/drop_caches` before each sample; the runner's local disk, whose device is recorded (the "NVMe" lane of #186; informative) |
 | `throttled` | all | a network-like source modelled in the lab over warm files, below |
 
-The throttle: every read request is at most 1 MiB and costs 2 ms plus its size at 100 MiB/s on a **channel**. Channels are independent (no shared bandwidth cap), so concurrent readers overlap latency as they would on a high-latency link with ample aggregate bandwidth. V0 and V1 use one channel, V2 one per worker, and the many-file lanes one per concurrent slot, reused from file to file; manifests are read through the same channels. Each channel keeps a cumulative deadline and sleeps only up to it, so timer granularity (about 15.6 ms on Windows) delays but does not accumulate. V0's content stream is wrapped in a 1 MiB `BufferedStream`, so all lanes issue requests of the same size; a sequential reader is therefore modelled at 1 MiB per 12 ms, about 83 MiB/s.
+The throttle: every read request is at most 1 MiB and costs 2 ms plus its size at 100 MiB/s on a **channel**. Channels are independent (no shared bandwidth cap), so concurrent readers overlap latency as they would on a high-latency link with ample aggregate bandwidth. V0 and V1 use one channel, V2 one per worker, and the many-file lanes one per concurrent slot, reused from file to file; manifests are read through the same channels. Each channel keeps a cumulative deadline and sleeps only up to it, so timer granularity (about 15.6 ms on Windows) delays but does not accumulate; the credit a channel may carry is capped at 16 ms, so time spent hashing between requests does not buy free requests. V0's content stream is wrapped in a 1 MiB `BufferedStream`, so all lanes issue requests of the same size; a sequential reader is therefore modelled at 1 MiB per 12 ms, about 83 MiB/s.
 
 ## 6. Runs
 
@@ -101,7 +101,7 @@ The throttle: every read request is at most 1 MiB and costs 2 ms plus its size a
 
 The many-file lanes take the tree's files from one queue in a fixed order, K at a time, each file verified by the lane's single-file construction; `T` throughput is the aggregate: tree bytes divided by the wall time of the whole tree. `S10` is not run throttled (a sequential sample would take about two minutes).
 
-**Samples:** every sample runs in a fresh process. The process verifies the warm-up file three times with the sample's lane, then applies the storage mode to the sample's files, then times the lane once. `S1` and `T` get 10 samples per (mode, lane), `S10` 5. Within a (workload, mode), repetition r runs the lanes in the matrix order rotated by r. A sample is invalid only if its process fails or its verdict is not valid (O1); invalid samples are listed, never dropped silently, and outliers are not removed.
+**Samples:** every sample runs in a fresh process with a thread-pool floor of 64 threads. The process verifies the warm-up file with the sample's lane for at least five rounds and at least three seconds, pausing 200 ms between rounds (the stabilization of [M0-LAB](M0-LAB.md), so that tiered compilation installs optimized code before timing), then applies the storage mode to the sample's files, then times the lane once. `S1` and `T` get 10 samples per (mode, lane), `S10` 5. Within a (workload, mode), repetition r runs the lanes in the matrix order rotated by r. A sample is invalid only if its process fails or its verdict is not valid (O1); invalid samples are listed, never dropped silently, and outliers are not removed.
 
 **Metrics per sample:** wall time of the timed section (opening files, reading and verifying the manifest and the content); process CPU time over the same section (user + kernel, all threads); effective cores = CPU / wall; GiB/s = content bytes / wall; GiB per CPU-second = content bytes / CPU; managed allocations; peak working set of the process, and the same for an idle process of the same build started the same way (the lab reports the difference). Aggregates per (platform, workload, mode, lane): p50, p95 (nearest rank, which is the maximum for 10 samples), minimum and maximum.
 
