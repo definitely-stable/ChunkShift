@@ -116,7 +116,8 @@ public static class LabRunner
                 RuntimeInformation.ProcessArchitecture.ToString(),
                 RuntimeInformation.FrameworkDescription,
                 Environment.ProcessorCount,
-                Environment.GetEnvironmentVariable("GITHUB_SHA")),
+                Environment.GetEnvironmentVariable("GITHUB_SHA"),
+                EnvironmentSnapshot.CaptureProcessorDescription()),
             summary,
             results.ToArray());
 
