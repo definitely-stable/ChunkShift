@@ -98,7 +98,7 @@ Python 3.12 or later is required for bit-identical sums: from 3.12 on, `sum()` o
 | 2 | Each artifact zip has the digest its upload step printed. |
 | 3 | The per-platform summaries in the artifacts match the ones printed in the job logs, and each platform section of the summary job's `apply-check-summary.md` equals its platform job's summary (win-x64 after CRLF → LF). The summary job's verdict for each platform equals the platform job's verdict except the input directory path. |
 | 4 | `summarize_apply_check.py` from `main`, rerun locally (CPython 3.13) over each platform's raw documents, reproduces that platform's compact file and summary byte for byte (win-x64 after CRLF → LF), and its verdict JSON equal to the job's except the input directory path. |
-| 5 | The same rerun over all three platforms with `--require-all-platforms` reproduces the summary job's `apply-check-verdict.json` and the three compact files. ALL_PLATFORM_DETAIL |
+| 5 | The same rerun over all three platforms with `--require-all-platforms` reproduces the three committed compact files and `apply-check-summary.md` byte for byte, and `apply-check-verdict.json` equal to the committed one except the input directory paths; this reproduces the rule-1 intervals, which the compact files cannot. |
 | 6 | `recompute.py` over the committed files: every recomputed value equals the verdict JSON. |
 
 ## Results
