@@ -17,11 +17,46 @@ Everything in `PATCH-APPLY-002` §1–§7, and the lab mode of its §8:
 - the lanes `off`, `seq`, `overlap`, and `boundary` only if rule 2 requires it (§2), with the D21 verdict order and D12 publication in every lane;
 - the frozen corpus (`pairsSha256 = 8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd`) and one `csp` patch per changed file, created once per platform by `CspEncoderPolicy.Default` (§3);
 - the metrics: process CPU (primary) and wall time per apply, the decomposition of the sequential check, peak memory over idle with the 64 MiB bound, and the record-only clone-alignment share (§4);
-- the method: R = 10 repetitions as separate processes, JIT warm-up pass, the per-file warm-up apply, the rotated `L1 L2 L3 L1 L2 L3` order, the statistics (median over repetitions, median of per-file overheads, 95 % percentile bootstrap with 10,000 resamples and seed 20260928, the 20 ms CPU floor, corpus-sum and ≥ 1 MiB companions), warm page cache, output identity, the many-file lane at c ∈ {1, 2, 4, 8}, and the invalid-run rules (§5);
+- the method: R = 10 repetitions as separate processes, JIT warm-up pass, the per-file warm-up apply, the rotated `L1 L2 L3 L1 L2 L3` order, median-over-repetition point estimates, the 20 ms CPU floor, corpus-sum and ≥ 1 MiB companions, warm page cache, output identity, the many-file lane at c ∈ {1, 2, 4, 8}, and the invalid-run rules (§5);
 - decision rules 1–3 (§6) and the invariants checked outside the lab (§7);
 - the commands `patch-lab apply-check prepare | time | concurrent | memory` and the summarizer `benchmarks/scripts/summarize_apply_check.py` (§8).
 
 Where `PATCH-APPLY-002` names its ExperimentId in a RunId, an EvidenceId or a file name, this experiment uses `PATCH-APPLY-003`.
+
+### 2.1 Statistical override for shared-runner uncertainty
+
+`PATCH-APPLY-003` deliberately changes the confidence-interval resampling unit from the file bootstrap inherited from `PATCH-APPLY-002`.
+
+The frozen corpus is not a random sample that is re-drawn on every run. The instability this experiment is intended to bound is shared-runner / repetition-level noise. Therefore the **decision-grade 95 % interval for rule 1** is a paired repetition/block percentile bootstrap:
+
+1. the ten repetition indices are the resampling units;
+2. one bootstrap sample draws ten repetition indices with replacement;
+3. each selected repetition contributes all three lanes for every file, preserving the within-repetition `off` / `seq` / `overlap` pairing and the complete frozen corpus;
+4. for every file and lane, the bootstrap sample re-computes the median over the selected repetitions;
+5. from those medians it re-computes the median of per-file wall-overhead ratios;
+6. 10,000 resamples use seed `20260928`; the 2.5th and 97.5th percentiles form the interval.
+
+The ordinary median over the ten real repetitions remains the reported point estimate.
+
+A **file bootstrap may also be reported**, but only as a corpus-heterogeneity diagnostic. It is not the confidence interval used to decide whether shared-runner timing satisfies rule 1.
+
+The same paired repetition/block principle applies to concurrent-lane confidence intervals: resample complete repetition blocks and preserve all lane measurements within a selected repetition.
+
+### 2.2 Rule-1 companion guardrail
+
+The median of per-file wall-overhead ratios remains the primary rule-1 statistic. Two companion statistics prevent that equal-file weighting from hiding a material regression concentrated in the bytes that dominate real apply time:
+
+- corpus-sum wall overhead: `sum(overlap wall) / sum(off wall) - 1`;
+- median wall-overhead ratio over files whose target size is at least 1 MiB.
+
+For a platform whose primary rule-1 upper bound is at or below 10 %:
+
+- if both companion point estimates are at or below 10 %, the platform may pass rule 1;
+- if either companion point estimate is above 10 %, that platform is **conflicted** and cannot contribute an `ADOPT` vote; it contributes `DEFER` unless the experiment otherwise reaches a rule-1 `REJECT`.
+
+This guardrail is intentionally conservative: it does not replace the primary statistic and does not claim that the companions are independent tests. It prevents an unconditional `ADOPT` when the equal-file median and byte/large-file user cost disagree.
+
+A result record must show all three statistics and their exact unrounded values.
 
 ## 3. What changes
 
@@ -41,7 +76,7 @@ Where `PATCH-APPLY-002` names its ExperimentId in a RunId, an EvidenceId or a fi
 
 ## 4. Relation to PATCH-APPLY-002 and #168
 
-- This experiment's result decides rule 1 (A2), rule 2 (whether A1a is built) and rule 3 (#168) as `PATCH-APPLY-002` §6 states them.
+- This experiment's result decides rule 1 (A2), rule 2 (whether A1a is built) and rule 3 (#168) as `PATCH-APPLY-002` §6 states them, with the statistical override and companion guardrail frozen in §2.1–§2.2 above.
 - `PATCH-APPLY-002` stays the ExperimentId for the reconstruction lanes A3–A6 of #182, which its §2 leaves to their own frozen protocol.
 - Limitation stated in advance: win-x64 is a shared virtual machine rather than a physical desktop, so its absolute times are not comparable with the `PATCH-APPLY-001` win-x64 figures; the decision reads ratios only.
 
