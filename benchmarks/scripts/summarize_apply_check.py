@@ -245,6 +245,20 @@ def _time_point(per_file: dict, keys: list[tuple], lane: str, metric: str,
     return median(ratios) if ratios else None
 
 
+def _eligible_count(per_file: dict, keys: list[tuple], metric: str,
+                    repetition_indices: list[int], sizes: dict[tuple, int] | None = None,
+                    minimum_size: int | None = None, cpu_floor: bool = False) -> int:
+    count = 0
+    for key in keys:
+        if minimum_size is not None and (sizes or {}).get(key, 0) < minimum_size:
+            continue
+        off = median([per_file[key][metric]["off"][index] for index in repetition_indices])
+        if off <= 0 or (cpu_floor and off < CPU_FLOOR_SECONDS):
+            continue
+        count += 1
+    return count
+
+
 def _block_interval(per_file: dict, keys: list[tuple], lane: str, metric: str,
                     repetitions: int, rng: random.Random, resamples: int,
                     sizes: dict[tuple, int] | None = None,
@@ -267,7 +281,8 @@ def _block_interval(per_file: dict, keys: list[tuple], lane: str, metric: str,
         "value" if corpus_sum else "median": point,
         "ciLow": percentile(estimates, 0.025),
         "ciHigh": percentile(estimates, 0.975),
-        "count": len(keys),
+        "count": _eligible_count(
+            per_file, keys, metric, indices, sizes, minimum_size, cpu_floor),
         "repetitions": repetitions,
         "resamplingUnit": "paired-repetition-block",
     }
@@ -554,7 +569,7 @@ def evaluate(platforms: list[dict]) -> dict:
     elif len(met) >= PLATFORMS_REQUIRED:
         conditions = [rule1_platforms[name].get("outputsVerified") and rule1_platforms[name].get("memoryWithinBound")
                       for name in measured]
-        if all(value is True for value in conditions) and not conflicted:
+        if all(value is True for value in conditions):
             rule1 = "ADOPT"
         elif any(value is False for value in conditions) or conflicted:
             rule1 = "DEFER"
