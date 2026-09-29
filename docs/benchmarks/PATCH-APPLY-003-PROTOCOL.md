@@ -52,7 +52,7 @@ The median of per-file wall-overhead ratios remains the primary rule-1 statistic
 For a platform whose primary rule-1 upper bound is at or below 10 %:
 
 - if both companion point estimates are at or below 10 %, the platform may pass rule 1;
-- if either companion point estimate is above 10 %, that platform is **conflicted** and cannot contribute an `ADOPT` vote; it contributes `DEFER` unless the experiment otherwise reaches a rule-1 `REJECT`.
+- if either companion point estimate is above 10 %, that platform is **conflicted** and cannot contribute an `ADOPT` vote. It is a non-passing/`DEFER` platform for rule 1; the experiment may still `ADOPT` when the other two platforms independently satisfy the clean-pass rule, preserving the frozen two-of-three platform criterion. Two primary misses still produce `REJECT`.
 
 This guardrail is intentionally conservative: it does not replace the primary statistic and does not claim that the companions are independent tests. It prevents an unconditional `ADOPT` when the equal-file median and byte/large-file user cost disagree.
 
