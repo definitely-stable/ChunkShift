@@ -8,7 +8,6 @@ name: Patch lab
 # Linux x64, Linux ARM64 and Windows x64. lanes=encoder creates the whole
 # corpus with each encoder-lanes policy in turn, in one job per architecture,
 # so their create times are compared within a job (PATCH-ENC-003).
-# lanes=apply-check runs PATCH-APPLY-002 (docs/benchmarks/PATCH-APPLY-002-PROTOCOL.md).
 # None of these groups is part of "all".
 on:
   workflow_dispatch:
@@ -541,7 +540,7 @@ jobs:
           retention-days: 90
 
   apply-check:
-    name: patch-lab-apply-check (${{ matrix.arch }})
+    name: patch-lab-apply-check (${{ matrix.platform }})
     if: contains(inputs.lanes, 'apply-check')
     strategy:
       fail-fast: false
@@ -549,8 +548,13 @@ jobs:
         include:
           - os: ubuntu-24.04
             arch: x64
+            platform: linux-x64
           - os: ubuntu-24.04-arm
             arch: arm64
+            platform: linux-arm64
+          - os: windows-2025
+            arch: x64
+            platform: win-x64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 350
 
@@ -558,8 +562,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The chunkshift-source family is rebuilt from old commits with
-          # git ls-tree/cat-file, so the full history must be present.
           fetch-depth: 0
 
       - name: Setup .NET
@@ -582,7 +584,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 benchmarks/scripts/materialize_patch_corpus.py \
+          python=python3
+          command -v python3 >/dev/null || python=python
+          "$python" benchmarks/scripts/materialize_patch_corpus.py \
             --root "$HOME/patch-corpus" \
             --sources "$HOME/patch-corpus/sources" \
             --download --lock
@@ -594,40 +598,64 @@ jobs:
           dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
           dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
 
-      # Protocol section 5: patches are created once and not timed; every
-      # repetition is its own process; the page cache stays warm.
+      # PATCH-APPLY-003: patches are created once and not timed; every
+      # repetition is its own process; all three platforms belong to one
+      # workflow dispatch and exact commit.
       - name: Run apply-check lanes
         shell: bash
         run: |
           set -euo pipefail
-          run_id="PATCH-APPLY-002/RUN-$(date -u +%Y%m%d)-${{ github.run_number }}-${GITHUB_SHA::7}-linux-${{ matrix.arch }}"
-          lab="benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks"
+          run_id="PATCH-APPLY-003/RUN-$(date -u +%Y%m%d)-${{ github.run_number }}-${GITHUB_SHA::7}-${{ matrix.platform }}"
+          lab="benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll"
           out="artifacts/patch-lab"
           mkdir -p "$out"
-          "$lab" patch-lab apply-check prepare --corpus "$HOME/patch-corpus" \
-            --output "$out/apply-check-prepare-${{ matrix.arch }}.json" --run-id "$run_id"
+          dotnet "$lab" patch-lab apply-check prepare --corpus "$HOME/patch-corpus" \
+            --output "$out/apply-check-prepare-${{ matrix.platform }}.json" --run-id "$run_id"
           for repetition in $(seq 0 9)
           do
-            "$lab" patch-lab apply-check time --corpus "$HOME/patch-corpus" --repetition "$repetition" \
-              --output "$out/apply-check-time-$repetition-${{ matrix.arch }}.json" --run-id "$run_id"
+            dotnet "$lab" patch-lab apply-check time --corpus "$HOME/patch-corpus" --repetition "$repetition" \
+              --output "$out/apply-check-time-$repetition-${{ matrix.platform }}.json" --run-id "$run_id"
           done
           for repetition in $(seq 0 9)
           do
-            "$lab" patch-lab apply-check concurrent --corpus "$HOME/patch-corpus" --repetition "$repetition" \
-              --output "$out/apply-check-concurrent-$repetition-${{ matrix.arch }}.json" --run-id "$run_id"
+            dotnet "$lab" patch-lab apply-check concurrent --corpus "$HOME/patch-corpus" --repetition "$repetition" \
+              --output "$out/apply-check-concurrent-$repetition-${{ matrix.platform }}.json" --run-id "$run_id"
           done
-          "$lab" patch-lab apply-check memory --corpus "$HOME/patch-corpus" \
-            --output "$out/apply-check-memory-${{ matrix.arch }}.json" --run-id "$run_id"
+          dotnet "$lab" patch-lab apply-check memory --corpus "$HOME/patch-corpus" \
+            --output "$out/apply-check-memory-${{ matrix.platform }}.json" --run-id "$run_id"
+
+      - name: Build per-platform compact evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python=python3
+          command -v python3 >/dev/null || python=python
+          compact="artifacts/patch-lab/compact"
+          "$python" benchmarks/scripts/summarize_apply_check.py \
+            artifacts/patch-lab \
+            --corpus-lock docs/benchmarks/patch-corpus/corpus-lock.json \
+            --output "artifacts/patch-lab/apply-check-verdict-${{ matrix.platform }}.json" \
+            --markdown "artifacts/patch-lab/apply-check-summary-${{ matrix.platform }}.md" \
+            --compact-dir "$compact"
+          cat "artifacts/patch-lab/apply-check-summary-${{ matrix.platform }}.md"
+          compact_file="$compact/PATCH-APPLY-003-compact-${{ matrix.platform }}.json"
+          "$python" - "$compact_file" <<'PY'
+          import hashlib, pathlib, sys
+          path = pathlib.Path(sys.argv[1])
+          print(f"compact-samples-sha256={hashlib.sha256(path.read_bytes()).hexdigest()} file={path}")
+          PY
 
       - name: Upload apply-check evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: patch-lab-apply-check-${{ matrix.arch }}
+          name: patch-lab-apply-check-${{ matrix.platform }}
           path: artifacts/patch-lab
           if-no-files-found: error
           retention-days: 90
 
+
+  summary:
   summary:
     name: patch-lab-summary
     needs: [csp-lanes, sweep, references, memory, encoder, apply-check]
@@ -673,18 +701,42 @@ jobs:
             --markdown artifacts/patch-lab/summary.md
           cat artifacts/patch-lab/summary.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Summarize apply-check evidence
+      - name: Download apply-check linux-x64 evidence
+        if: always() && contains(inputs.lanes, 'apply-check')
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: patch-lab-apply-check-linux-x64
+          path: apply-check-linux-x64
+
+      - name: Download apply-check linux-arm64 evidence
+        if: always() && contains(inputs.lanes, 'apply-check')
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: patch-lab-apply-check-linux-arm64
+          path: apply-check-linux-arm64
+
+      - name: Download apply-check win-x64 evidence
+        if: always() && contains(inputs.lanes, 'apply-check')
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: patch-lab-apply-check-win-x64
+          path: apply-check-win-x64
+
+      - name: Summarize PATCH-APPLY-003 evidence
         if: always() && contains(inputs.lanes, 'apply-check')
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/patch-lab
+          mkdir -p artifacts/patch-lab/compact
           python3 benchmarks/scripts/summarize_apply_check.py \
-            platform-x64 platform-arm64 \
+            apply-check-linux-x64 apply-check-linux-arm64 apply-check-win-x64 \
             --corpus-lock docs/benchmarks/patch-corpus/corpus-lock.json \
             --output artifacts/patch-lab/apply-check-verdict.json \
-            --markdown artifacts/patch-lab/apply-check-summary.md
+            --markdown artifacts/patch-lab/apply-check-summary.md \
+            --compact-dir artifacts/patch-lab/compact \
+            --require-all-platforms
           cat artifacts/patch-lab/apply-check-summary.md >> "$GITHUB_STEP_SUMMARY"
+          sha256sum artifacts/patch-lab/compact/PATCH-APPLY-003-compact-*.json
 
       - name: Upload patch lab summary
         if: always()
