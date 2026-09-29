@@ -190,6 +190,16 @@ class RuleTests(unittest.TestCase):
         self.assertIsNone(document["rules"]["rule1"]["platforms"]["linux-x64"]["wallBoundMet"])
 
 
+    def test_rule2_is_not_evaluated_when_runner_has_more_than_eight_processors(self):
+        fixture = Fixture(self)
+        env = dict(ENVIRONMENTS["linux-x64"], processorCount=16)
+        document = fixture.summarize(fixture.platform("linux-x64", environment=env))
+
+        entry = document["rules"]["rule2"]["platforms"]["linux-x64"]
+        self.assertIsNone(entry["exceeds"])
+        self.assertIn("exceeds the frozen c=8", entry["reason"])
+
+
 class StatisticTests(unittest.TestCase):
     def test_decomposition_and_alignment_are_reported(self):
         fixture = Fixture(self)
