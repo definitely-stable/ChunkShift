@@ -1,0 +1,124 @@
+{
+  "schema": "chunkshift.verify-lab-oracle.v1",
+  "quick": false,
+  "cases": 1208,
+  "vectors": 62,
+  "profileNonConformingManifests": 8,
+  "declaredDifferences": 32,
+  "passed": true,
+  "modes": {
+    "O1": {
+      "V0": {
+        "cdc": 14
+      },
+      "V1": {
+        "slices": 14
+      },
+      "V2-W2": {
+        "slices": 14
+      },
+      "V2-W4": {
+        "slices": 14
+      },
+      "V2-W8": {
+        "slices": 14
+      }
+    },
+    "O2": {
+      "V0": {
+        "invalid-data": 82,
+        "none": 2,
+        "not-supported": 40
+      },
+      "V1": {
+        "invalid-data": 82,
+        "none": 2,
+        "not-supported": 40
+      },
+      "V2-W2": {
+        "invalid-data": 82,
+        "none": 2,
+        "not-supported": 40
+      },
+      "V2-W4": {
+        "invalid-data": 82,
+        "none": 2,
+        "not-supported": 40
+      },
+      "V2-W8": {
+        "invalid-data": 82,
+        "none": 2,
+        "not-supported": 40
+      }
+    },
+    "O3": {
+      "V0": {
+        "cdc": 376
+      },
+      "V1": {
+        "slices": 376
+      },
+      "V2-W2": {
+        "slices": 376
+      },
+      "V2-W4": {
+        "slices": 376
+      },
+      "V2-W8": {
+        "slices": 376
+      }
+    },
+    "O4": {
+      "V0": {
+        "cdc": 310
+      },
+      "V1": {
+        "slices": 310
+      },
+      "V2-W2": {
+        "slices": 310
+      },
+      "V2-W4": {
+        "slices": 310
+      },
+      "V2-W8": {
+        "slices": 310
+      }
+    },
+    "O5": {
+      "V0": {
+        "cdc": 32
+      },
+      "V1": {
+        "cdc-fallback": 32
+      },
+      "V2-W2": {
+        "cdc-fallback": 32
+      },
+      "V2-W4": {
+        "cdc-fallback": 32
+      },
+      "V2-W8": {
+        "cdc-fallback": 32
+      }
+    },
+    "O6": {
+      "V0": {
+        "cdc": 352
+      },
+      "V1": {
+        "slices": 352
+      },
+      "V2-W2": {
+        "slices": 352
+      },
+      "V2-W4": {
+        "slices": 352
+      },
+      "V2-W8": {
+        "slices": 352
+      }
+    }
+  },
+  "failures": []
+}

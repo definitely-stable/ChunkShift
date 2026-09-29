@@ -1,0 +1,6188 @@
+{
+  "schema": "chunkshift.verify-lab-run.v2",
+  "experimentId": "CORE-VERIFY-002",
+  "runId": "CORE-VERIFY-002/RUN-20260929-14-56e49e2-win-x64",
+  "platform": "win-x64",
+  "commit": "56e49e2ba2886207e8158d949602128303056bf4",
+  "planFingerprint": "7cee96c990678ccd38cbf81d12b9aa44c62013a7d9de1f824caec830c641d965",
+  "smoke": false,
+  "environment": {
+    "osDescription": "Microsoft Windows 10.0.26100",
+    "osArchitecture": "X64",
+    "processArchitecture": "X64",
+    "frameworkDescription": ".NET 10.0.12",
+    "processorCount": 4,
+    "gitCommit": "cd9755f7145c8debd251b94b539420962252ee3d"
+  },
+  "totalMemoryBytes": 17174360064,
+  "workloads": [
+    {
+      "id": "S1",
+      "definition": "splitmix64 seed=0xC0FE0001 bytes=1073741824",
+      "bytes": 1073741824,
+      "files": 1,
+      "contentDigest": "57528a0b33b276292e435462e50f50ee8b6f5273edbb876678e6b4fe97eb7f38"
+    },
+    {
+      "id": "SL",
+      "definition": "splitmix64 seed=0xC0FE0020 bytes=6442450944",
+      "bytes": 6442450944,
+      "files": 1,
+      "contentDigest": "31840063cc1ddc9c57f52db15b4d7958a3dca506b0bec1ae1cd0a79fa8727829"
+    }
+  ],
+  "plan": [
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "samples": 10,
+      "configurations": [
+        {
+          "lane": "V0",
+          "concurrency": 1
+        },
+        {
+          "lane": "V1",
+          "concurrency": 1
+        },
+        {
+          "lane": "V2-W2",
+          "concurrency": 1
+        },
+        {
+          "lane": "V2-W4",
+          "concurrency": 1
+        },
+        {
+          "lane": "V2-W8",
+          "concurrency": 1
+        }
+      ]
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "samples": 10,
+      "configurations": [
+        {
+          "lane": "V0",
+          "concurrency": 1
+        },
+        {
+          "lane": "V1",
+          "concurrency": 1
+        },
+        {
+          "lane": "V2-W2",
+          "concurrency": 1
+        },
+        {
+          "lane": "V2-W4",
+          "concurrency": 1
+        },
+        {
+          "lane": "V2-W8",
+          "concurrency": 1
+        }
+      ]
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "samples": 10,
+      "configurations": [
+        {
+          "lane": "V0",
+          "concurrency": 1
+        },
+        {
+          "lane": "V1",
+          "concurrency": 1
+        }
+      ]
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "samples": 10,
+      "configurations": [
+        {
+          "lane": "V0",
+          "concurrency": 1
+        },
+        {
+          "lane": "V1",
+          "concurrency": 1
+        }
+      ]
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "samples": 5,
+      "configurations": [
+        {
+          "lane": "V0",
+          "concurrency": 1
+        },
+        {
+          "lane": "V1",
+          "concurrency": 1
+        },
+        {
+          "lane": "V2-W2",
+          "concurrency": 1
+        },
+        {
+          "lane": "V2-W4",
+          "concurrency": 1
+        },
+        {
+          "lane": "V2-W8",
+          "concurrency": 1
+        }
+      ]
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "samples": 5,
+      "configurations": [
+        {
+          "lane": "V0",
+          "concurrency": 1
+        },
+        {
+          "lane": "V1",
+          "concurrency": 1
+        }
+      ]
+    }
+  ],
+  "skipped": [
+    "cold: dropping the page cache is available on Linux only"
+  ],
+  "idlePeakWorkingSetBytes": 25665536,
+  "samples": [
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.7683005,
+        "cpuSeconds": 1.8125,
+        "allocatedBytes": 187528,
+        "peakWorkingSetBytes": 45838336,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.517453495573754,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.018,
+        "cpuSeconds": 1.015625,
+        "allocatedBytes": 2309944,
+        "peakWorkingSetBytes": 61448192,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.804405522957211,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.5661581,
+        "cpuSeconds": 1.0625,
+        "allocatedBytes": 2285176,
+        "peakWorkingSetBytes": 66146304,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.481788319126981,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.6357525,
+        "cpuSeconds": 1.671875,
+        "allocatedBytes": 2247368,
+        "peakWorkingSetBytes": 81772544,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.859122642168127,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.4930564,
+        "cpuSeconds": 1.25,
+        "allocatedBytes": 2248624,
+        "peakWorkingSetBytes": 111394816,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.508274324357389,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.8615498,
+        "cpuSeconds": 0.859375,
+        "allocatedBytes": 2310072,
+        "peakWorkingSetBytes": 61558784,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.766092639559562,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.6013197,
+        "cpuSeconds": 1.203125,
+        "allocatedBytes": 2262720,
+        "peakWorkingSetBytes": 66060288,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.706913020132897,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.459356,
+        "cpuSeconds": 1.25,
+        "allocatedBytes": 2250848,
+        "peakWorkingSetBytes": 81928192,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.9078664085079815,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.3603024,
+        "cpuSeconds": 1.3125,
+        "allocatedBytes": 2250056,
+        "peakWorkingSetBytes": 115478528,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.698817548182123,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.5484992,
+        "cpuSeconds": 1.5625,
+        "allocatedBytes": 187392,
+        "peakWorkingSetBytes": 46325760,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.028390270091776,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.4438756,
+        "cpuSeconds": 0.90625,
+        "allocatedBytes": 2263840,
+        "peakWorkingSetBytes": 70373376,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.024410709369906,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.3241532,
+        "cpuSeconds": 1.25,
+        "allocatedBytes": 2252392,
+        "peakWorkingSetBytes": 90275840,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.362939837765597,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.3721188,
+        "cpuSeconds": 1.359375,
+        "allocatedBytes": 2277176,
+        "peakWorkingSetBytes": 115605504,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.987247075809581,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.8891499,
+        "cpuSeconds": 1.953125,
+        "allocatedBytes": 187528,
+        "peakWorkingSetBytes": 46034944,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.028164784999444,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.9012806,
+        "cpuSeconds": 0.875,
+        "allocatedBytes": 2309440,
+        "peakWorkingSetBytes": 61747200,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.030484665272583,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.3675828,
+        "cpuSeconds": 1.328125,
+        "allocatedBytes": 2250888,
+        "peakWorkingSetBytes": 81956864,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.522161788314525,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.430839,
+        "cpuSeconds": 1.3125,
+        "allocatedBytes": 2253648,
+        "peakWorkingSetBytes": 119918592,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.818549014978225,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.5755644,
+        "cpuSeconds": 1.65625,
+        "allocatedBytes": 187528,
+        "peakWorkingSetBytes": 45641728,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.822669478526164,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.874165,
+        "cpuSeconds": 0.875,
+        "allocatedBytes": 2309240,
+        "peakWorkingSetBytes": 64065536,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.727032415631179,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.564928,
+        "cpuSeconds": 1.15625,
+        "allocatedBytes": 6458040,
+        "peakWorkingSetBytes": 70418432,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.597993072815263,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.4378956,
+        "cpuSeconds": 1.3125,
+        "allocatedBytes": 2251024,
+        "peakWorkingSetBytes": 115843072,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.9074877352859465,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.7074733,
+        "cpuSeconds": 1.734375,
+        "allocatedBytes": 187560,
+        "peakWorkingSetBytes": 45993984,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.891302105781095,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.8549043,
+        "cpuSeconds": 0.875,
+        "allocatedBytes": 2309392,
+        "peakWorkingSetBytes": 61353984,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.8122117399059965,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.486872,
+        "cpuSeconds": 0.984375,
+        "allocatedBytes": 2263048,
+        "peakWorkingSetBytes": 66453504,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.066907723566244,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.3803421,
+        "cpuSeconds": 1.265625,
+        "allocatedBytes": 2274440,
+        "peakWorkingSetBytes": 86126592,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.081543514347509,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 5,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.6120015,
+        "cpuSeconds": 1.625,
+        "allocatedBytes": 189592,
+        "peakWorkingSetBytes": 45752320,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.71985359138627,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 5,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.1553448,
+        "cpuSeconds": 1.15625,
+        "allocatedBytes": 2309424,
+        "peakWorkingSetBytes": 61501440,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.735988851861911,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 5,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.4756889,
+        "cpuSeconds": 0.921875,
+        "allocatedBytes": 6457960,
+        "peakWorkingSetBytes": 70266880,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.534227864419083,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 5,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.4672502,
+        "cpuSeconds": 1.734375,
+        "allocatedBytes": 2250936,
+        "peakWorkingSetBytes": 82182144,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.4582397230819835,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 5,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.3904019,
+        "cpuSeconds": 1.40625,
+        "allocatedBytes": 6446128,
+        "peakWorkingSetBytes": 120025088,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.274014357390715,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 6,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.8482869,
+        "cpuSeconds": 0.875,
+        "allocatedBytes": 2309848,
+        "peakWorkingSetBytes": 61673472,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.873918194267761,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 6,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.4722365,
+        "cpuSeconds": 0.921875,
+        "allocatedBytes": 2263192,
+        "peakWorkingSetBytes": 70549504,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.826867765573089,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 6,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.365966,
+        "cpuSeconds": 1.234375,
+        "allocatedBytes": 6446304,
+        "peakWorkingSetBytes": 86024192,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.742232974369927,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 6,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.3450697,
+        "cpuSeconds": 1.296875,
+        "allocatedBytes": 2251016,
+        "peakWorkingSetBytes": 124280832,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.771419467354411,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 6,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.6093398,
+        "cpuSeconds": 1.65625,
+        "allocatedBytes": 211968,
+        "peakWorkingSetBytes": 45723648,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.732306504649194,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 7,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.4815493,
+        "cpuSeconds": 0.984375,
+        "allocatedBytes": 2263840,
+        "peakWorkingSetBytes": 66256896,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.9067190563471526,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 7,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.3508898,
+        "cpuSeconds": 1.25,
+        "allocatedBytes": 2249864,
+        "peakWorkingSetBytes": 86147072,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.062753437851095,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 7,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.3471357,
+        "cpuSeconds": 1.296875,
+        "allocatedBytes": 2249720,
+        "peakWorkingSetBytes": 111546368,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.882013693407447,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 7,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.6115815,
+        "cpuSeconds": 1.703125,
+        "allocatedBytes": 187744,
+        "peakWorkingSetBytes": 45826048,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.903183808574341,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 7,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.9983024,
+        "cpuSeconds": 1,
+        "allocatedBytes": 2309088,
+        "peakWorkingSetBytes": 61804544,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.931089331988214,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 8,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.3414403,
+        "cpuSeconds": 1.296875,
+        "allocatedBytes": 2248248,
+        "peakWorkingSetBytes": 81829888,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.81708283543823,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 8,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.3731412,
+        "cpuSeconds": 1.328125,
+        "allocatedBytes": 2252072,
+        "peakWorkingSetBytes": 115748864,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.855580473182011,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 8,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.7202654,
+        "cpuSeconds": 1.765625,
+        "allocatedBytes": 187560,
+        "peakWorkingSetBytes": 45608960,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.498898323685506,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 8,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.8793283,
+        "cpuSeconds": 0.859375,
+        "allocatedBytes": 2309240,
+        "peakWorkingSetBytes": 57307136,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.9860733842402745,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 8,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.4741802,
+        "cpuSeconds": 0.921875,
+        "allocatedBytes": 2288048,
+        "peakWorkingSetBytes": 66633728,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.798461448289704,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 9,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.366268,
+        "cpuSeconds": 1.3125,
+        "allocatedBytes": 2251440,
+        "peakWorkingSetBytes": 119967744,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.8519305689010785,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 9,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.8389023,
+        "cpuSeconds": 1.9375,
+        "allocatedBytes": 187376,
+        "peakWorkingSetBytes": 46583808,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.894820499314166,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 9,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.8825962,
+        "cpuSeconds": 0.90625,
+        "allocatedBytes": 2309848,
+        "peakWorkingSetBytes": 61493248,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.708652949456935,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 9,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.4576597,
+        "cpuSeconds": 0.921875,
+        "allocatedBytes": 2265816,
+        "peakWorkingSetBytes": 66412544,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.450874394260261,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 9,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.3782428,
+        "cpuSeconds": 1.390625,
+        "allocatedBytes": 2249288,
+        "peakWorkingSetBytes": 81965056,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.7385259950231875,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3116377,
+        "cpuSeconds": 1.75,
+        "allocatedBytes": 2777368,
+        "peakWorkingSetBytes": 46120960,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.025305444636526,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3436913,
+        "cpuSeconds": 1.046875,
+        "allocatedBytes": 3684616,
+        "peakWorkingSetBytes": 59322368,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.014601034206102,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 6.1941004,
+        "cpuSeconds": 1.109375,
+        "allocatedBytes": 3508640,
+        "peakWorkingSetBytes": 66478080,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.03818208336666,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 3.1121358,
+        "cpuSeconds": 1.28125,
+        "allocatedBytes": 3513952,
+        "peakWorkingSetBytes": 87805952,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.158638952886166,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.5956026,
+        "cpuSeconds": 1.265625,
+        "allocatedBytes": 3486800,
+        "peakWorkingSetBytes": 117743616,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.80424674282421,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3480136,
+        "cpuSeconds": 1.015625,
+        "allocatedBytes": 3665832,
+        "peakWorkingSetBytes": 58937344,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.003765059550803,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 6.1992549,
+        "cpuSeconds": 1.03125,
+        "allocatedBytes": 3506880,
+        "peakWorkingSetBytes": 65531904,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.640304850929635,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 3.1066074,
+        "cpuSeconds": 1.265625,
+        "allocatedBytes": 3504848,
+        "peakWorkingSetBytes": 78974976,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.09348162251785,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.5923709,
+        "cpuSeconds": 1.984375,
+        "allocatedBytes": 3501368,
+        "peakWorkingSetBytes": 121671680,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.9134672820437775,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3098189,
+        "cpuSeconds": 1.59375,
+        "allocatedBytes": 2775688,
+        "peakWorkingSetBytes": 46301184,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.769922632931781,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 6.2128257,
+        "cpuSeconds": 1.328125,
+        "allocatedBytes": 3498168,
+        "peakWorkingSetBytes": 65568768,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.693140124389839,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 3.2283033,
+        "cpuSeconds": 1.53125,
+        "allocatedBytes": 3497192,
+        "peakWorkingSetBytes": 83345408,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.45363885207509,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.5924415,
+        "cpuSeconds": 1.609375,
+        "allocatedBytes": 3490624,
+        "peakWorkingSetBytes": 117182464,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.873422459388932,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3092157,
+        "cpuSeconds": 1.875,
+        "allocatedBytes": 2776192,
+        "peakWorkingSetBytes": 45953024,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.447019791831529,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3590968,
+        "cpuSeconds": 1.015625,
+        "allocatedBytes": 3659672,
+        "peakWorkingSetBytes": 60080128,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.2256706910865836,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 3.1045608,
+        "cpuSeconds": 1.65625,
+        "allocatedBytes": 7705152,
+        "peakWorkingSetBytes": 83165184,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.986201426000259,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.592741,
+        "cpuSeconds": 1.4375,
+        "allocatedBytes": 3494264,
+        "peakWorkingSetBytes": 121344000,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.02356121738334,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3179404,
+        "cpuSeconds": 1.4375,
+        "allocatedBytes": 2779384,
+        "peakWorkingSetBytes": 46100480,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.947634473425027,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3608642,
+        "cpuSeconds": 1.140625,
+        "allocatedBytes": 3662008,
+        "peakWorkingSetBytes": 60039168,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.042834777672738,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 6.2044102,
+        "cpuSeconds": 1.328125,
+        "allocatedBytes": 3512872,
+        "peakWorkingSetBytes": 66416640,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.817402347256101,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.6061441,
+        "cpuSeconds": 1.328125,
+        "allocatedBytes": 3523848,
+        "peakWorkingSetBytes": 117112832,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.937898133274538,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3136839,
+        "cpuSeconds": 1.59375,
+        "allocatedBytes": 2778376,
+        "peakWorkingSetBytes": 45707264,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.149680140229413,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3456233,
+        "cpuSeconds": 1.203125,
+        "allocatedBytes": 3660680,
+        "peakWorkingSetBytes": 59908096,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.2503030880994,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 6.1944906,
+        "cpuSeconds": 1.265625,
+        "allocatedBytes": 3506504,
+        "peakWorkingSetBytes": 70705152,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.917632030793597,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 3.1149661,
+        "cpuSeconds": 1.1875,
+        "allocatedBytes": 3532696,
+        "peakWorkingSetBytes": 83476480,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.802968494665475,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 5,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3203574,
+        "cpuSeconds": 2.015625,
+        "allocatedBytes": 2780728,
+        "peakWorkingSetBytes": 46149632,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.970492317728455,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 5,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3444269,
+        "cpuSeconds": 0.90625,
+        "allocatedBytes": 3663280,
+        "peakWorkingSetBytes": 55922688,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.006987140773205,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 5,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 6.2127394,
+        "cpuSeconds": 0.921875,
+        "allocatedBytes": 3528472,
+        "peakWorkingSetBytes": 62279680,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.075431214308,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 5,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 3.1133722,
+        "cpuSeconds": 0.953125,
+        "allocatedBytes": 3513776,
+        "peakWorkingSetBytes": 87658496,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.050089495149502,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 5,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.5961986,
+        "cpuSeconds": 1.3125,
+        "allocatedBytes": 3502064,
+        "peakWorkingSetBytes": 117227520,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.7003345238725585,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 6,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3488313,
+        "cpuSeconds": 1.296875,
+        "allocatedBytes": 3665216,
+        "peakWorkingSetBytes": 60018688,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.359673717587388,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 6,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 6.1912206,
+        "cpuSeconds": 1.234375,
+        "allocatedBytes": 3509896,
+        "peakWorkingSetBytes": 66048000,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.823562614197692,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 6,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 3.1138222,
+        "cpuSeconds": 1.578125,
+        "allocatedBytes": 3502192,
+        "peakWorkingSetBytes": 83374080,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.934687353249896,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 6,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.591021,
+        "cpuSeconds": 1.21875,
+        "allocatedBytes": 3500264,
+        "peakWorkingSetBytes": 116789248,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.905307076405977,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 6,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3163442,
+        "cpuSeconds": 1.796875,
+        "allocatedBytes": 2773000,
+        "peakWorkingSetBytes": 46092288,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.257840370725072,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 7,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 6.1916571,
+        "cpuSeconds": 1.078125,
+        "allocatedBytes": 3509376,
+        "peakWorkingSetBytes": 65892352,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.065548495548926,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 7,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 3.1143011,
+        "cpuSeconds": 0.921875,
+        "allocatedBytes": 7702192,
+        "peakWorkingSetBytes": 83542016,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.690254304634064,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 7,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.5854933,
+        "cpuSeconds": 1.421875,
+        "allocatedBytes": 3515864,
+        "peakWorkingSetBytes": 121389056,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.9807353521768825,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 7,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.8265955,
+        "cpuSeconds": 1.65625,
+        "allocatedBytes": 2774848,
+        "peakWorkingSetBytes": 46555136,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.260953474390423,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 7,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3519165,
+        "cpuSeconds": 1.109375,
+        "allocatedBytes": 3661000,
+        "peakWorkingSetBytes": 55959552,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.78712868975907,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 8,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 3.1106564,
+        "cpuSeconds": 1.46875,
+        "allocatedBytes": 3535640,
+        "peakWorkingSetBytes": 91889664,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.069106870730351,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 8,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.5960881,
+        "cpuSeconds": 1.703125,
+        "allocatedBytes": 3499208,
+        "peakWorkingSetBytes": 121507840,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.857098154553499,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 8,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3171494,
+        "cpuSeconds": 1.6875,
+        "allocatedBytes": 3037920,
+        "peakWorkingSetBytes": 46731264,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.518764216510783,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 8,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3481725,
+        "cpuSeconds": 1.015625,
+        "allocatedBytes": 3663200,
+        "peakWorkingSetBytes": 55906304,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.258345870934809,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 8,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 6.2131259,
+        "cpuSeconds": 1.265625,
+        "allocatedBytes": 3504824,
+        "peakWorkingSetBytes": 69885952,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.9259119008674945,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 9,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.6177641,
+        "cpuSeconds": 1.71875,
+        "allocatedBytes": 3500992,
+        "peakWorkingSetBytes": 116875264,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.616282868757183,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 9,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.5856298,
+        "cpuSeconds": 1.734375,
+        "allocatedBytes": 2784256,
+        "peakWorkingSetBytes": 46444544,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.881622493809319,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 9,
+      "order": 2,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 12.3457569,
+        "cpuSeconds": 0.984375,
+        "allocatedBytes": 3661856,
+        "peakWorkingSetBytes": 59936768,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.188967173942993,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 9,
+      "order": 3,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 6.191839,
+        "cpuSeconds": 1.078125,
+        "allocatedBytes": 3531232,
+        "peakWorkingSetBytes": 70344704,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.752972684418092,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 9,
+      "order": 4,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 3.1333626,
+        "cpuSeconds": 1.46875,
+        "allocatedBytes": 3509440,
+        "peakWorkingSetBytes": 78958592,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.569502409639442,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.8040713,
+        "cpuSeconds": 1.84375,
+        "allocatedBytes": 188200,
+        "peakWorkingSetBytes": 46149632,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.622155115544956,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.9293451,
+        "cpuSeconds": 0.921875,
+        "allocatedBytes": 2309200,
+        "peakWorkingSetBytes": 55570432,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.871223359432294,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.9301151,
+        "cpuSeconds": 0.921875,
+        "allocatedBytes": 6504152,
+        "peakWorkingSetBytes": 59555840,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.536015542480657,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.8580413,
+        "cpuSeconds": 1.890625,
+        "allocatedBytes": 187912,
+        "peakWorkingSetBytes": 45604864,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.6356514832686315,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.7947906,
+        "cpuSeconds": 1.859375,
+        "allocatedBytes": 187592,
+        "peakWorkingSetBytes": 45666304,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.4692035023271,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.9527142,
+        "cpuSeconds": 0.96875,
+        "allocatedBytes": 2311296,
+        "peakWorkingSetBytes": 59535360,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.980537970334493,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.9307387,
+        "cpuSeconds": 0.9375,
+        "allocatedBytes": 2309976,
+        "peakWorkingSetBytes": 59727872,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.793904930181589,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.8153128,
+        "cpuSeconds": 1.90625,
+        "allocatedBytes": 187912,
+        "peakWorkingSetBytes": 46936064,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.844228796199603,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.8500937,
+        "cpuSeconds": 1.890625,
+        "allocatedBytes": 187960,
+        "peakWorkingSetBytes": 46170112,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.499544746212363,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.9301985,
+        "cpuSeconds": 0.953125,
+        "allocatedBytes": 2309824,
+        "peakWorkingSetBytes": 59953152,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.891544838192601,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 5,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.9310329,
+        "cpuSeconds": 0.921875,
+        "allocatedBytes": 2309568,
+        "peakWorkingSetBytes": 59666432,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.809982074321414,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 5,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.8702199,
+        "cpuSeconds": 1.921875,
+        "allocatedBytes": 187912,
+        "peakWorkingSetBytes": 46546944,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.819033321606903,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 6,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.8668959,
+        "cpuSeconds": 1.875,
+        "allocatedBytes": 187744,
+        "peakWorkingSetBytes": 46186496,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.725409425502172,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 6,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.93126,
+        "cpuSeconds": 0.9375,
+        "allocatedBytes": 2309520,
+        "peakWorkingSetBytes": 59932672,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.155151460589944,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 7,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.9298254,
+        "cpuSeconds": 0.953125,
+        "allocatedBytes": 2309824,
+        "peakWorkingSetBytes": 59756544,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.769168369703121,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 7,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.8657325,
+        "cpuSeconds": 1.84375,
+        "allocatedBytes": 187728,
+        "peakWorkingSetBytes": 45133824,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.837929666981866,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 8,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.9413282,
+        "cpuSeconds": 1.765625,
+        "allocatedBytes": 187760,
+        "peakWorkingSetBytes": 46305280,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.822869942535614,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 8,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.0381954,
+        "cpuSeconds": 0.96875,
+        "allocatedBytes": 2310992,
+        "peakWorkingSetBytes": 59609088,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.881751104905101,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 9,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.0544658,
+        "cpuSeconds": 0.953125,
+        "allocatedBytes": 2310624,
+        "peakWorkingSetBytes": 59699200,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.816399017468036,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 9,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 2.0186305,
+        "cpuSeconds": 1.78125,
+        "allocatedBytes": 187976,
+        "peakWorkingSetBytes": 46284800,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.419879723330469,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.9492341,
+        "cpuSeconds": 2.0625,
+        "allocatedBytes": 449512,
+        "peakWorkingSetBytes": 45973504,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.778468118763659,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.0031477,
+        "cpuSeconds": 0.96875,
+        "allocatedBytes": 2310400,
+        "peakWorkingSetBytes": 57262080,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.657441524177225,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.0501212,
+        "cpuSeconds": 0.96875,
+        "allocatedBytes": 2309392,
+        "peakWorkingSetBytes": 57466880,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.460945756793797,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.9701484,
+        "cpuSeconds": 2.09375,
+        "allocatedBytes": 187560,
+        "peakWorkingSetBytes": 46264320,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.543197587678342,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.5747857,
+        "cpuSeconds": 1.828125,
+        "allocatedBytes": 187528,
+        "peakWorkingSetBytes": 45838336,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.995903317595318,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.8891338,
+        "cpuSeconds": 0.90625,
+        "allocatedBytes": 2308928,
+        "peakWorkingSetBytes": 61419520,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.937784767389949,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.0715649,
+        "cpuSeconds": 1.078125,
+        "allocatedBytes": 2309224,
+        "peakWorkingSetBytes": 61329408,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.842654631072212,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.6580494,
+        "cpuSeconds": 1.921875,
+        "allocatedBytes": 187376,
+        "peakWorkingSetBytes": 46587904,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.810290609750438,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.5445854,
+        "cpuSeconds": 1.921875,
+        "allocatedBytes": 187392,
+        "peakWorkingSetBytes": 45686784,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.918829032264162,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.0307508,
+        "cpuSeconds": 1.03125,
+        "allocatedBytes": 2311200,
+        "peakWorkingSetBytes": 61624320,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.779602705732561,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 5,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.820559,
+        "cpuSeconds": 0.8125,
+        "allocatedBytes": 2309000,
+        "peakWorkingSetBytes": 57462784,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.9515508681039515,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 5,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.5511419,
+        "cpuSeconds": 1.890625,
+        "allocatedBytes": 187528,
+        "peakWorkingSetBytes": 44929024,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.907819000743709,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 6,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.5979841,
+        "cpuSeconds": 2.03125,
+        "allocatedBytes": 187624,
+        "peakWorkingSetBytes": 45883392,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.765929873132081,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 6,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.831609,
+        "cpuSeconds": 0.828125,
+        "allocatedBytes": 2309240,
+        "peakWorkingSetBytes": 61566976,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 8.006077264608452,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 7,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 7.4151963,
+        "cpuSeconds": 1.265625,
+        "allocatedBytes": 2308936,
+        "peakWorkingSetBytes": 60239872,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.99628037944655,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 7,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.7855263,
+        "cpuSeconds": 2.109375,
+        "allocatedBytes": 187712,
+        "peakWorkingSetBytes": 46669824,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.521104311328614,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 8,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 2.1254138,
+        "cpuSeconds": 2.453125,
+        "allocatedBytes": 187528,
+        "peakWorkingSetBytes": 46182400,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 6.3988399138986924,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 8,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.8577039,
+        "cpuSeconds": 0.890625,
+        "allocatedBytes": 2310224,
+        "peakWorkingSetBytes": 61345792,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.276691451675286,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 9,
+      "order": 0,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 0.8415077,
+        "cpuSeconds": 0.84375,
+        "allocatedBytes": 2309240,
+        "peakWorkingSetBytes": 61579264,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.523847580199726,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 9,
+      "order": 1,
+      "measurement": {
+        "bytes": 1073741824,
+        "files": 1,
+        "wallSeconds": 1.8405521,
+        "cpuSeconds": 2.171875,
+        "allocatedBytes": 187528,
+        "peakWorkingSetBytes": 46059520,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "default",
+        "residency": "resident",
+        "probeGiBPerSecond": 7.378840509930705,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 0,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 29.5318547,
+        "cpuSeconds": 13.671875,
+        "allocatedBytes": 206648,
+        "peakWorkingSetBytes": 41758720,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.398226140207293,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 1,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 15.7426016,
+        "cpuSeconds": 6.171875,
+        "allocatedBytes": 12127432,
+        "peakWorkingSetBytes": 67719168,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.38847882164440667,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 2,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 15.7810874,
+        "cpuSeconds": 6.953125,
+        "allocatedBytes": 11843000,
+        "peakWorkingSetBytes": 76529664,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.3888253860744912,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 3,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 14.3915712,
+        "cpuSeconds": 6.8125,
+        "allocatedBytes": 11839688,
+        "peakWorkingSetBytes": 90877952,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.6734598402595198,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 4,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 14.8526596,
+        "cpuSeconds": 7.375,
+        "allocatedBytes": 11850288,
+        "peakWorkingSetBytes": 113496064,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.5315888770584921,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 0,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 15.7870466,
+        "cpuSeconds": 5.75,
+        "allocatedBytes": 12127904,
+        "peakWorkingSetBytes": 63315968,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.6038528349810063,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 1,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 14.7324967,
+        "cpuSeconds": 6.421875,
+        "allocatedBytes": 11844208,
+        "peakWorkingSetBytes": 72482816,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.47235826157151145,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 2,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 14.685472,
+        "cpuSeconds": 6.8125,
+        "allocatedBytes": 16035232,
+        "peakWorkingSetBytes": 83537920,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.5095158297823645,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 3,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 14.1266033,
+        "cpuSeconds": 7.515625,
+        "allocatedBytes": 16039864,
+        "peakWorkingSetBytes": 117706752,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.6011181426310475,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 4,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 26.4922603,
+        "cpuSeconds": 12.890625,
+        "allocatedBytes": 230232,
+        "peakWorkingSetBytes": 42319872,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.7381612905839677,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 0,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 14.4436531,
+        "cpuSeconds": 6.515625,
+        "allocatedBytes": 11844416,
+        "peakWorkingSetBytes": 76902400,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.4789251495751,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 1,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 14.593558,
+        "cpuSeconds": 7.46875,
+        "allocatedBytes": 11841816,
+        "peakWorkingSetBytes": 83476480,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.6172209830176628,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 2,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 14.9424218,
+        "cpuSeconds": 7.5,
+        "allocatedBytes": 11851456,
+        "peakWorkingSetBytes": 121606144,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.45761555226035017,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 3,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 27.064058,
+        "cpuSeconds": 12.046875,
+        "allocatedBytes": 207984,
+        "peakWorkingSetBytes": 42188800,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.8117837979634476,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 4,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 15.7923429,
+        "cpuSeconds": 5.78125,
+        "allocatedBytes": 12126992,
+        "peakWorkingSetBytes": 67735552,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.4843666286083376,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 0,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 15.0134083,
+        "cpuSeconds": 7.09375,
+        "allocatedBytes": 16036816,
+        "peakWorkingSetBytes": 87785472,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.6615418541473534,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 1,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 13.1881383,
+        "cpuSeconds": 7.265625,
+        "allocatedBytes": 11839096,
+        "peakWorkingSetBytes": 121241600,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.6128643058825336,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 2,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 28.1114291,
+        "cpuSeconds": 12.28125,
+        "allocatedBytes": 205552,
+        "peakWorkingSetBytes": 43212800,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.4653253025884732,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 3,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 13.5955491,
+        "cpuSeconds": 5.390625,
+        "allocatedBytes": 12127480,
+        "peakWorkingSetBytes": 67649536,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.632236565331861,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 4,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 15.5231011,
+        "cpuSeconds": 11.34375,
+        "allocatedBytes": 11843864,
+        "peakWorkingSetBytes": 72466432,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.6221733559231974,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 0,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 14.3493385,
+        "cpuSeconds": 7.3125,
+        "allocatedBytes": 11874264,
+        "peakWorkingSetBytes": 121450496,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.4885318363480805,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 1,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 27.4877803,
+        "cpuSeconds": 11.6875,
+        "allocatedBytes": 205736,
+        "peakWorkingSetBytes": 42348544,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.688335610851039,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 2,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 13.8634861,
+        "cpuSeconds": 5.75,
+        "allocatedBytes": 12126688,
+        "peakWorkingSetBytes": 67923968,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.5409498834973493,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 3,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 14.5107583,
+        "cpuSeconds": 6.28125,
+        "allocatedBytes": 11843168,
+        "peakWorkingSetBytes": 72364032,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.5426982176235726,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 4,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 14.8321999,
+        "cpuSeconds": 7.015625,
+        "allocatedBytes": 11841624,
+        "peakWorkingSetBytes": 87818240,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "spin-0",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.5295085857438743,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 0,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 27.462299,
+        "cpuSeconds": 12.96875,
+        "allocatedBytes": 205776,
+        "peakWorkingSetBytes": 42557440,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "default",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.6456116199272245,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 0,
+      "order": 1,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 15.7560986,
+        "cpuSeconds": 5.96875,
+        "allocatedBytes": 12127296,
+        "peakWorkingSetBytes": 67612672,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "default",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.47695472000064293,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 0,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 15.2803491,
+        "cpuSeconds": 6.53125,
+        "allocatedBytes": 12126896,
+        "peakWorkingSetBytes": 67387392,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "default",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.5969177559792241,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 1,
+      "order": 1,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 25.6460157,
+        "cpuSeconds": 13.375,
+        "allocatedBytes": 468088,
+        "peakWorkingSetBytes": 42483712,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "default",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.5503159833448614,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 0,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 28.6775124,
+        "cpuSeconds": 13.71875,
+        "allocatedBytes": 205736,
+        "peakWorkingSetBytes": 42192896,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "default",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.5513449408268576,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 2,
+      "order": 1,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 14.800726,
+        "cpuSeconds": 5.890625,
+        "allocatedBytes": 12127264,
+        "peakWorkingSetBytes": 63602688,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "default",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.5521463324353962,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 0,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 14.8550712,
+        "cpuSeconds": 5.703125,
+        "allocatedBytes": 12128544,
+        "peakWorkingSetBytes": 67731456,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "default",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.5064736374756847,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 3,
+      "order": 1,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 25.9876421,
+        "cpuSeconds": 13.546875,
+        "allocatedBytes": 207088,
+        "peakWorkingSetBytes": 41730048,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "default",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.5036642205942696,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 0,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 28.3585126,
+        "cpuSeconds": 14.15625,
+        "allocatedBytes": 205736,
+        "peakWorkingSetBytes": 42299392,
+        "valid": true,
+        "contentModes": {
+          "cdc": 1
+        },
+        "pool": "default",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.6278916226647995,
+        "residentFraction": null
+      },
+      "error": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "repetition": 4,
+      "order": 1,
+      "measurement": {
+        "bytes": 6442450944,
+        "files": 1,
+        "wallSeconds": 14.755538,
+        "cpuSeconds": 5.75,
+        "allocatedBytes": 12131448,
+        "peakWorkingSetBytes": 67923968,
+        "valid": true,
+        "contentModes": {
+          "slices": 1
+        },
+        "pool": "default",
+        "residency": "not-resident",
+        "probeGiBPerSecond": 0.5670723562393979,
+        "residentFraction": null
+      },
+      "error": null
+    }
+  ],
+  "aggregates": [
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "samples": 10,
+      "invalidSamples": 0,
+      "residency": "resident",
+      "residentSamples": 10,
+      "wallSeconds": {
+        "p50": 1.6597374,
+        "p95": 1.8891499,
+        "min": 1.5484992,
+        "max": 1.8891499
+      },
+      "cpuSeconds": {
+        "p50": 1.71875,
+        "p95": 1.953125,
+        "min": 1.5625,
+        "max": 1.953125
+      },
+      "giBPerSecond": {
+        "p50": 0.6030037562729205,
+        "p95": 0.6457865783850583,
+        "min": 0.5293386194499441,
+        "max": 0.6457865783850583
+      },
+      "giBPerCpuSecond": {
+        "p50": 0.5818662699396644,
+        "p95": 0.64,
+        "min": 0.512,
+        "max": 0.64
+      },
+      "effectiveCores": {
+        "p50": 1.0277582574133735,
+        "p95": 1.0568035187795342,
+        "min": 1.0080635781046108,
+        "max": 1.0568035187795342
+      },
+      "allocatedBytes": {
+        "p50": 187544,
+        "p95": 211968,
+        "min": 187376,
+        "max": 211968
+      },
+      "peakOverIdleBytes": {
+        "p50": 20166656,
+        "p95": 20918272,
+        "min": 19943424,
+        "max": 20918272
+      },
+      "probeGiBPerSecond": {
+        "p50": 7.85698579215363,
+        "p95": 8.028390270091776,
+        "min": 6.732306504649194,
+        "max": 8.028390270091776
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "samples": 10,
+      "invalidSamples": 0,
+      "residency": "resident",
+      "residentSamples": 10,
+      "wallSeconds": {
+        "p50": 0.8809622500000001,
+        "p95": 1.1553448,
+        "min": 0.8482869,
+        "max": 1.1553448
+      },
+      "cpuSeconds": {
+        "p50": 0.875,
+        "p95": 1.15625,
+        "min": 0.859375,
+        "max": 1.15625
+      },
+      "giBPerSecond": {
+        "p50": 1.135126323571026,
+        "p95": 1.1788464492378699,
+        "min": 0.8655424770163851,
+        "max": 1.1788464492378699
+      },
+      "giBPerCpuSecond": {
+        "p50": 1.1428571428571428,
+        "p95": 1.1636363636363636,
+        "min": 0.8648648648648649,
+        "max": 1.1636363636363636
+      },
+      "effectiveCores": {
+        "p50": 1.0008693431477833,
+        "p95": 1.031490643083136,
+        "min": 0.97084082360144,
+        "max": 1.031490643083136
+      },
+      "allocatedBytes": {
+        "p50": 2309432,
+        "p95": 2310072,
+        "min": 2309088,
+        "max": 2310072
+      },
+      "peakOverIdleBytes": {
+        "p50": 35864576,
+        "p95": 38400000,
+        "min": 31641600,
+        "max": 38400000
+      },
+      "probeGiBPerSecond": {
+        "p50": 7.751040745710736,
+        "p95": 8.030484665272583,
+        "min": 6.804405522957211,
+        "max": 8.030484665272583
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "samples": 10,
+      "invalidSamples": 0,
+      "residency": "resident",
+      "residentSamples": 10,
+      "wallSeconds": {
+        "p50": 0.4786191,
+        "p95": 0.6013197,
+        "min": 0.4438756,
+        "max": 0.6013197
+      },
+      "cpuSeconds": {
+        "p50": 0.953125,
+        "p95": 1.203125,
+        "min": 0.90625,
+        "max": 1.203125
+      },
+      "giBPerSecond": {
+        "p50": 2.0894224294231227,
+        "p95": 2.2528834655475545,
+        "min": 1.663008878638102,
+        "max": 2.2528834655475545
+      },
+      "giBPerCpuSecond": {
+        "p50": 1.05030938929244,
+        "p95": 1.103448275862069,
+        "min": 0.8311688311688312,
+        "max": 1.103448275862069
+      },
+      "effectiveCores": {
+        "p50": 2.0075658686414455,
+        "p95": 2.046720998074091,
+        "min": 1.876684268934773,
+        "max": 2.046720998074091
+      },
+      "allocatedBytes": {
+        "p50": 2264828,
+        "p95": 6458040,
+        "min": 2262720,
+        "max": 6458040
+      },
+      "peakOverIdleBytes": {
+        "p50": 40878080,
+        "p95": 44883968,
+        "min": 40394752,
+        "max": 44883968
+      },
+      "probeGiBPerSecond": {
+        "p50": 7.752687234211301,
+        "p95": 8.066907723566244,
+        "min": 7.450874394260261,
+        "max": 8.066907723566244
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "samples": 10,
+      "invalidSamples": 0,
+      "residency": "resident",
+      "residentSamples": 10,
+      "wallSeconds": {
+        "p50": 0.3729128,
+        "p95": 0.6357525,
+        "min": 0.3241532,
+        "max": 0.6357525
+      },
+      "cpuSeconds": {
+        "p50": 1.28125,
+        "p95": 1.734375,
+        "min": 1.234375,
+        "max": 1.734375
+      },
+      "giBPerSecond": {
+        "p50": 2.682139975675649,
+        "p95": 3.0849610616214806,
+        "min": 1.572939154781145,
+        "max": 3.0849610616214806
+      },
+      "giBPerCpuSecond": {
+        "p50": 0.7806038970697605,
+        "p95": 0.810126582278481,
+        "min": 0.5765765765765766,
+        "max": 0.810126582278481
+      },
+      "effectiveCores": {
+        "p50": 3.5877517607765332,
+        "p95": 3.8562013270268505,
+        "min": 2.629757649399727,
+        "max": 3.8562013270268505
+      },
+      "allocatedBytes": {
+        "p50": 2250868,
+        "p95": 6446304,
+        "min": 2247368,
+        "max": 6446304
+      },
+      "peakOverIdleBytes": {
+        "p50": 56408064,
+        "p95": 64610304,
+        "min": 56107008,
+        "max": 64610304
+      },
+      "probeGiBPerSecond": {
+        "p50": 7.7403794846965575,
+        "p95": 8.081543514347509,
+        "min": 6.9078664085079815,
+        "max": 8.081543514347509
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "samples": 10,
+      "invalidSamples": 0,
+      "residency": "resident",
+      "residentSamples": 10,
+      "wallSeconds": {
+        "p50": 0.37263,
+        "p95": 0.4930564,
+        "min": 0.3450697,
+        "max": 0.4930564
+      },
+      "cpuSeconds": {
+        "p50": 1.3125,
+        "p95": 1.40625,
+        "min": 1.25,
+        "max": 1.40625
+      },
+      "giBPerSecond": {
+        "p50": 2.6836322411814453,
+        "p95": 2.897965251657854,
+        "min": 2.0281655404939474,
+        "max": 2.897965251657854
+      },
+      "giBPerCpuSecond": {
+        "p50": 0.7619047619047619,
+        "p95": 0.8,
+        "min": 0.7111111111111111,
+        "max": 0.8
+      },
+      "effectiveCores": {
+        "p50": 3.5927494487402725,
+        "p95": 3.758298685743779,
+        "min": 2.5352069256174343,
+        "max": 3.758298685743779
+      },
+      "allocatedBytes": {
+        "p50": 2251232,
+        "p95": 6446128,
+        "min": 2248624,
+        "max": 6446128
+      },
+      "peakOverIdleBytes": {
+        "p50": 90130432,
+        "p95": 98615296,
+        "min": 85729280,
+        "max": 98615296
+      },
+      "probeGiBPerSecond": {
+        "p50": 7.835239791939651,
+        "p95": 7.987247075809581,
+        "min": 7.274014357390715,
+        "max": 7.987247075809581
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "samples": 10,
+      "invalidSamples": 0,
+      "residency": "resident",
+      "residentSamples": 10,
+      "wallSeconds": {
+        "p50": 12.3167468,
+        "p95": 12.8265955,
+        "min": 12.3092157,
+        "max": 12.8265955
+      },
+      "cpuSeconds": {
+        "p50": 1.7109375,
+        "p95": 2.015625,
+        "min": 1.4375,
+        "max": 2.015625
+      },
+      "giBPerSecond": {
+        "p50": 0.08119027023178338,
+        "p95": 0.08123994447509764,
+        "min": 0.07796301052761818,
+        "max": 0.08123994447509764
+      },
+      "giBPerCpuSecond": {
+        "p50": 0.5845845845845845,
+        "p95": 0.6956521739130435,
+        "min": 0.49612403100775193,
+        "max": 0.6956521739130435
+      },
+      "effectiveCores": {
+        "p50": 0.1374050393673863,
+        "p95": 0.16360117929695772,
+        "min": 0.11669970411611993,
+        "max": 0.16360117929695772
+      },
+      "allocatedBytes": {
+        "p50": 2777872,
+        "p95": 3037920,
+        "min": 2773000,
+        "max": 3037920
+      },
+      "peakOverIdleBytes": {
+        "p50": 20469760,
+        "p95": 21065728,
+        "min": 20041728,
+        "max": 21065728
+      },
+      "probeGiBPerSecond": {
+        "p50": 7.644343424721281,
+        "p95": 8.025305444636526,
+        "min": 7.149680140229413,
+        "max": 8.025305444636526
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "samples": 10,
+      "invalidSamples": 0,
+      "residency": "resident",
+      "residentSamples": 10,
+      "wallSeconds": {
+        "p50": 12.34809305,
+        "p95": 12.3608642,
+        "min": 12.3436913,
+        "max": 12.3608642
+      },
+      "cpuSeconds": {
+        "p50": 1.03125,
+        "p95": 1.296875,
+        "min": 0.90625,
+        "max": 1.296875
+      },
+      "giBPerSecond": {
+        "p50": 0.08098416459871095,
+        "p95": 0.08101304348076172,
+        "min": 0.08090049237819472,
+        "max": 0.08101304348076172
+      },
+      "giBPerCpuSecond": {
+        "p50": 0.9699196326061998,
+        "p95": 1.103448275862069,
+        "min": 0.7710843373493976,
+        "max": 1.103448275862069
+      },
+      "effectiveCores": {
+        "p50": 0.08353030063691219,
+        "p95": 0.10502005967155774,
+        "min": 0.07341369569777273,
+        "max": 0.10502005967155774
+      },
+      "allocatedBytes": {
+        "p50": 3662604,
+        "p95": 3684616,
+        "min": 3659672,
+        "max": 3684616
+      },
+      "peakOverIdleBytes": {
+        "p50": 33949696,
+        "p95": 34414592,
+        "min": 30240768,
+        "max": 34414592
+      },
+      "probeGiBPerSecond": {
+        "p50": 7.573401203673229,
+        "p95": 8.042834777672738,
+        "min": 7.188967173942993,
+        "max": 8.042834777672738
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "samples": 10,
+      "invalidSamples": 0,
+      "residency": "resident",
+      "residentSamples": 10,
+      "wallSeconds": {
+        "p50": 6.19687275,
+        "p95": 6.2131259,
+        "min": 6.1912206,
+        "max": 6.2131259
+      },
+      "cpuSeconds": {
+        "p50": 1.171875,
+        "p95": 1.328125,
+        "min": 0.921875,
+        "max": 1.328125
+      },
+      "giBPerSecond": {
+        "p50": 0.16137174154049377,
+        "p95": 0.16151903874980644,
+        "min": 0.1609495793413747,
+        "max": 0.16151903874980644
+      },
+      "giBPerCpuSecond": {
+        "p50": 0.8557675164913532,
+        "p95": 1.0847457627118644,
+        "min": 0.7529411764705882,
+        "max": 1.0847457627118644
+      },
+      "effectiveCores": {
+        "p50": 0.18923846958532856,
+        "p95": 0.21406144293941107,
+        "min": 0.1483846240194784,
+        "max": 0.21406144293941107
+      },
+      "allocatedBytes": {
+        "p50": 3509008,
+        "p95": 3531232,
+        "min": 3498168,
+        "max": 3531232
+      },
+      "peakOverIdleBytes": {
+        "p50": 40566784,
+        "p95": 45039616,
+        "min": 36614144,
+        "max": 45039616
+      },
+      "probeGiBPerSecond": {
+        "p50": 7.8705973224956445,
+        "p95": 8.075431214308,
+        "min": 6.817402347256101,
+        "max": 8.075431214308
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "samples": 10,
+      "invalidSamples": 0,
+      "residency": "resident",
+      "residentSamples": 10,
+      "wallSeconds": {
+        "p50": 3.1135972,
+        "p95": 3.2283033,
+        "min": 3.1045608,
+        "max": 3.2283033
+      },
+      "cpuSeconds": {
+        "p50": 1.375,
+        "p95": 1.65625,
+        "min": 0.921875,
+        "max": 1.65625
+      },
+      "giBPerSecond": {
+        "p50": 0.3211719246221187,
+        "p95": 0.32210675339326583,
+        "min": 0.30976023845095346,
+        "max": 0.32210675339326583
+      },
+      "giBPerCpuSecond": {
+        "p50": 0.730669434353918,
+        "p95": 1.0847457627118644,
+        "min": 0.6037735849056604,
+        "max": 1.0847457627118644
+      },
+      "effectiveCores": {
+        "p50": 0.4402201906544293,
+        "p95": 0.5334893103075965,
+        "min": 0.2960134458418295,
+        "max": 0.5334893103075965
+      },
+      "allocatedBytes": {
+        "p50": 3513864,
+        "p95": 7705152,
+        "min": 3497192,
+        "max": 7705152
+      },
+      "peakOverIdleBytes": {
+        "p50": 57759744,
+        "p95": 66224128,
+        "min": 53293056,
+        "max": 66224128
+      },
+      "probeGiBPerSecond": {
+        "p50": 7.960444389625078,
+        "p95": 8.158638952886166,
+        "min": 7.45363885207509,
+        "max": 8.158638952886166
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "throttled",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "samples": 10,
+      "invalidSamples": 0,
+      "residency": "resident",
+      "residentSamples": 10,
+      "wallSeconds": {
+        "p50": 1.5941718,
+        "p95": 1.6177641,
+        "min": 1.5854933,
+        "max": 1.6177641
+      },
+      "cpuSeconds": {
+        "p50": 1.4296875,
+        "p95": 1.984375,
+        "min": 1.21875,
+        "max": 1.984375
+      },
+      "giBPerSecond": {
+        "p50": 0.6272854691957228,
+        "p95": 0.6307185277919497,
+        "min": 0.6181370942772187,
+        "max": 0.6307185277919497
+      },
+      "giBPerCpuSecond": {
+        "p50": 0.6994744386048735,
+        "p95": 0.8205128205128205,
+        "min": 0.5039370078740157,
+        "max": 0.8205128205128205
+      },
+      "effectiveCores": {
+        "p50": 0.8996675411843231,
+        "p95": 1.2461763776265944,
+        "min": 0.7660175447087122,
+        "max": 1.2461763776265944
+      },
+      "allocatedBytes": {
+        "p50": 3500628,
+        "p95": 3523848,
+        "min": 3486800,
+        "max": 3523848
+      },
+      "peakOverIdleBytes": {
+        "p50": 91820032,
+        "p95": 96006144,
+        "min": 91123712,
+        "max": 96006144
+      },
+      "probeGiBPerSecond": {
+        "p50": 7.8893647678974546,
+        "p95": 8.02356121738334,
+        "min": 7.616282868757183,
+        "max": 8.02356121738334
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "samples": 10,
+      "invalidSamples": 0,
+      "residency": "resident",
+      "residentSamples": 10,
+      "wallSeconds": {
+        "p50": 1.8618869,
+        "p95": 2.0186305,
+        "min": 1.7947906,
+        "max": 2.0186305
+      },
+      "cpuSeconds": {
+        "p50": 1.8671875,
+        "p95": 1.921875,
+        "min": 1.765625,
+        "max": 1.921875
+      },
+      "giBPerSecond": {
+        "p50": 0.5370918427031238,
+        "p95": 0.5571680618340658,
+        "min": 0.49538536151118295,
+        "max": 0.5571680618340658
+      },
+      "giBPerCpuSecond": {
+        "p50": 0.5355742296918767,
+        "p95": 0.5663716814159292,
+        "min": 0.5203252032520326,
+        "max": 0.5663716814159292
+      },
+      "effectiveCores": {
+        "p50": 1.0197221433253876,
+        "p95": 1.0500945071284684,
+        "min": 0.8824051751917946,
+        "max": 1.0500945071284684
+      },
+      "allocatedBytes": {
+        "p50": 187912,
+        "p95": 188200,
+        "min": 187592,
+        "max": 188200
+      },
+      "peakOverIdleBytes": {
+        "p50": 20512768,
+        "p95": 21270528,
+        "min": 19468288,
+        "max": 21270528
+      },
+      "probeGiBPerSecond": {
+        "p50": 7.56084993087866,
+        "p95": 7.844228796199603,
+        "min": 6.419879723330469,
+        "max": 7.844228796199603
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "S1",
+      "suite": "sha256",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "samples": 10,
+      "invalidSamples": 0,
+      "residency": "resident",
+      "residentSamples": 10,
+      "wallSeconds": {
+        "p50": 0.9308858,
+        "p95": 1.0544658,
+        "min": 0.9293451,
+        "max": 1.0544658
+      },
+      "cpuSeconds": {
+        "p50": 0.9453125,
+        "p95": 0.96875,
+        "min": 0.921875,
+        "max": 0.96875
+      },
+      "giBPerSecond": {
+        "p50": 1.0742456539468161,
+        "p95": 1.0760265481574067,
+        "min": 0.9483474950064763,
+        "max": 1.0760265481574067
+      },
+      "giBPerCpuSecond": {
+        "p50": 1.0579234972677596,
+        "p95": 1.0847457627118644,
+        "min": 1.032258064516129,
+        "max": 1.0847457627118644
+      },
+      "effectiveCores": {
+        "p50": 0.999331286635403,
+        "p95": 1.025058037777845,
+        "min": 0.9038937061780477,
+        "max": 1.025058037777845
+      },
+      "allocatedBytes": {
+        "p50": 2309900,
+        "p95": 6504152,
+        "min": 2309200,
+        "max": 6504152
+      },
+      "peakOverIdleBytes": {
+        "p50": 34017280,
+        "p95": 34287616,
+        "min": 29904896,
+        "max": 34287616
+      },
+      "probeGiBPerSecond": {
+        "p50": 7.652591956091889,
+        "p95": 7.980537970334493,
+        "min": 6.809982074321414,
+        "max": 7.980537970334493
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "samples": 10,
+      "invalidSamples": 0,
+      "residency": "resident",
+      "residentSamples": 10,
+      "wallSeconds": {
+        "p50": 1.72178785,
+        "p95": 2.1254138,
+        "min": 1.5445854,
+        "max": 2.1254138
+      },
+      "cpuSeconds": {
+        "p50": 2.046875,
+        "p95": 2.453125,
+        "min": 1.828125,
+        "max": 2.453125
+      },
+      "giBPerSecond": {
+        "p50": 0.5815886487307887,
+        "p95": 0.6474229265665724,
+        "min": 0.47049661576489243,
+        "max": 0.6474229265665724
+      },
+      "giBPerCpuSecond": {
+        "p50": 0.4885780885780886,
+        "p95": 0.5470085470085471,
+        "min": 0.40764331210191085,
+        "max": 0.5470085470085471
+      },
+      "effectiveCores": {
+        "p50": 1.1704425089529165,
+        "p95": 1.2711327978795284,
+        "min": 1.0581078999182294,
+        "max": 1.2711327978795284
+      },
+      "allocatedBytes": {
+        "p50": 187528,
+        "p95": 449512,
+        "min": 187376,
+        "max": 449512
+      },
+      "peakOverIdleBytes": {
+        "p50": 20350976,
+        "p95": 21004288,
+        "min": 19263488,
+        "max": 21004288
+      },
+      "probeGiBPerSecond": {
+        "p50": 7.643517092230347,
+        "p95": 7.995903317595318,
+        "min": 6.3988399138986924,
+        "max": 7.995903317595318
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "S1",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "samples": 10,
+      "invalidSamples": 0,
+      "residency": "resident",
+      "residentSamples": 10,
+      "wallSeconds": {
+        "p50": 0.94614075,
+        "p95": 7.4151963,
+        "min": 0.820559,
+        "max": 7.4151963
+      },
+      "cpuSeconds": {
+        "p50": 0.9375,
+        "p95": 1.265625,
+        "min": 0.8125,
+        "max": 1.265625
+      },
+      "giBPerSecond": {
+        "p50": 1.0607761483402227,
+        "p95": 1.2186814110868323,
+        "min": 0.13485819653891024,
+        "max": 1.2186814110868323
+      },
+      "giBPerCpuSecond": {
+        "p50": 1.067853170189099,
+        "p95": 1.2307692307692308,
+        "min": 0.7901234567901234,
+        "max": 1.2307692307692308
+      },
+      "effectiveCores": {
+        "p50": 0.9981474191591108,
+        "p95": 1.0383828265209007,
+        "min": 0.17067990499455826,
+        "max": 1.0383828265209007
+      },
+      "allocatedBytes": {
+        "p50": 2309240,
+        "p95": 2311200,
+        "min": 2308928,
+        "max": 2311200
+      },
+      "peakOverIdleBytes": {
+        "p50": 35672064,
+        "p95": 35958784,
+        "min": 31596544,
+        "max": 35958784
+      },
+      "probeGiBPerSecond": {
+        "p50": 7.68325110563597,
+        "p95": 8.006077264608452,
+        "min": 6.460945756793797,
+        "max": 8.006077264608452
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V0",
+      "concurrency": 1,
+      "samples": 5,
+      "invalidSamples": 0,
+      "residency": "unverified-warm",
+      "residentSamples": 0,
+      "wallSeconds": {
+        "p50": 27.4877803,
+        "p95": 29.5318547,
+        "min": 26.4922603,
+        "max": 29.5318547
+      },
+      "cpuSeconds": {
+        "p50": 12.28125,
+        "p95": 13.671875,
+        "min": 11.6875,
+        "max": 13.671875
+      },
+      "giBPerSecond": {
+        "p50": 0.21827881096677712,
+        "p95": 0.22648124139109413,
+        "min": 0.2031704429319165,
+        "max": 0.22648124139109413
+      },
+      "giBPerCpuSecond": {
+        "p50": 0.48854961832061067,
+        "p95": 0.5133689839572193,
+        "min": 0.43885714285714283,
+        "max": 0.5133689839572193
+      },
+      "effectiveCores": {
+        "p50": 0.4451244894612626,
+        "p95": 0.48658079205117877,
+        "min": 0.4251889338623679,
+        "max": 0.48658079205117877
+      },
+      "allocatedBytes": {
+        "p50": 206648,
+        "p95": 230232,
+        "min": 205552,
+        "max": 230232
+      },
+      "peakOverIdleBytes": {
+        "p50": 16654336,
+        "p95": 17547264,
+        "min": 16093184,
+        "max": 17547264
+      },
+      "probeGiBPerSecond": {
+        "p50": 0.688335610851039,
+        "p95": 0.8117837979634476,
+        "min": 0.398226140207293,
+        "max": 0.8117837979634476
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V1",
+      "concurrency": 1,
+      "samples": 5,
+      "invalidSamples": 0,
+      "residency": "unverified-warm",
+      "residentSamples": 0,
+      "wallSeconds": {
+        "p50": 15.7426016,
+        "p95": 15.7923429,
+        "min": 13.5955491,
+        "max": 15.7923429
+      },
+      "cpuSeconds": {
+        "p50": 5.75,
+        "p95": 6.171875,
+        "min": 5.390625,
+        "max": 6.171875
+      },
+      "giBPerSecond": {
+        "p50": 0.38113141350156504,
+        "p95": 0.44132090258862733,
+        "min": 0.37993096008572613,
+        "max": 0.44132090258862733
+      },
+      "giBPerCpuSecond": {
+        "p50": 1.0434782608695652,
+        "p95": 1.1130434782608696,
+        "min": 0.9721518987341772,
+        "max": 1.1130434782608696
+      },
+      "effectiveCores": {
+        "p50": 0.3920492404508287,
+        "p95": 0.41475859379986685,
+        "min": 0.3642226532732221,
+        "max": 0.41475859379986685
+      },
+      "allocatedBytes": {
+        "p50": 12127432,
+        "p95": 12127904,
+        "min": 12126688,
+        "max": 12127904
+      },
+      "peakOverIdleBytes": {
+        "p50": 42053632,
+        "p95": 42258432,
+        "min": 37650432,
+        "max": 42258432
+      },
+      "probeGiBPerSecond": {
+        "p50": 0.5409498834973493,
+        "p95": 0.632236565331861,
+        "min": 0.38847882164440667,
+        "max": 0.632236565331861
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W2",
+      "concurrency": 1,
+      "samples": 5,
+      "invalidSamples": 0,
+      "residency": "unverified-warm",
+      "residentSamples": 0,
+      "wallSeconds": {
+        "p50": 14.7324967,
+        "p95": 15.7810874,
+        "min": 14.4436531,
+        "max": 15.7810874
+      },
+      "cpuSeconds": {
+        "p50": 6.515625,
+        "p95": 11.34375,
+        "min": 6.28125,
+        "max": 11.34375
+      },
+      "giBPerSecond": {
+        "p50": 0.40726294545852504,
+        "p95": 0.41540737363735214,
+        "min": 0.38020193716182066,
+        "max": 0.41540737363735214
+      },
+      "giBPerCpuSecond": {
+        "p50": 0.920863309352518,
+        "p95": 0.9552238805970149,
+        "min": 0.5289256198347108,
+        "max": 0.9552238805970149
+      },
+      "effectiveCores": {
+        "p50": 0.44059859905471405,
+        "p95": 0.7307657102097982,
+        "min": 0.4328684876516756,
+        "max": 0.7307657102097982
+      },
+      "allocatedBytes": {
+        "p50": 11843864,
+        "p95": 11844416,
+        "min": 11843000,
+        "max": 11844416
+      },
+      "peakOverIdleBytes": {
+        "p50": 46817280,
+        "p95": 51236864,
+        "min": 46698496,
+        "max": 51236864
+      },
+      "probeGiBPerSecond": {
+        "p50": 0.4789251495751,
+        "p95": 0.6221733559231974,
+        "min": 0.3888253860744912,
+        "max": 0.6221733559231974
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W4",
+      "concurrency": 1,
+      "samples": 5,
+      "invalidSamples": 0,
+      "residency": "unverified-warm",
+      "residentSamples": 0,
+      "wallSeconds": {
+        "p50": 14.685472,
+        "p95": 15.0134083,
+        "min": 14.3915712,
+        "max": 15.0134083
+      },
+      "cpuSeconds": {
+        "p50": 7.015625,
+        "p95": 7.46875,
+        "min": 6.8125,
+        "max": 7.46875
+      },
+      "giBPerSecond": {
+        "p50": 0.4085670518455246,
+        "p95": 0.4169106983954608,
+        "min": 0.3996427646612395,
+        "max": 0.4169106983954608
+      },
+      "giBPerCpuSecond": {
+        "p50": 0.8552338530066815,
+        "p95": 0.8807339449541285,
+        "min": 0.803347280334728,
+        "max": 0.8807339449541285
+      },
+      "effectiveCores": {
+        "p50": 0.4729996256320682,
+        "p95": 0.5117840351201537,
+        "min": 0.4638938401162727,
+        "max": 0.5117840351201537
+      },
+      "allocatedBytes": {
+        "p50": 11841816,
+        "p95": 16036816,
+        "min": 11839688,
+        "max": 16036816
+      },
+      "peakOverIdleBytes": {
+        "p50": 62119936,
+        "p95": 65212416,
+        "min": 57810944,
+        "max": 65212416
+      },
+      "probeGiBPerSecond": {
+        "p50": 0.6172209830176628,
+        "p95": 0.6734598402595198,
+        "min": 0.5095158297823645,
+        "max": 0.6734598402595198
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "spin-0",
+      "lane": "V2-W8",
+      "concurrency": 1,
+      "samples": 5,
+      "invalidSamples": 0,
+      "residency": "unverified-warm",
+      "residentSamples": 0,
+      "wallSeconds": {
+        "p50": 14.3493385,
+        "p95": 14.9424218,
+        "min": 13.1881383,
+        "max": 14.9424218
+      },
+      "cpuSeconds": {
+        "p50": 7.375,
+        "p95": 7.515625,
+        "min": 7.265625,
+        "max": 7.515625
+      },
+      "giBPerSecond": {
+        "p50": 0.4181377420290141,
+        "p95": 0.4549542826677818,
+        "min": 0.40154133515358265,
+        "max": 0.4549542826677818
+      },
+      "giBPerCpuSecond": {
+        "p50": 0.8135593220338984,
+        "p95": 0.8258064516129032,
+        "min": 0.7983367983367984,
+        "max": 0.8258064516129032
+      },
+      "effectiveCores": {
+        "p50": 0.5096053730978609,
+        "p95": 0.5509212016680171,
+        "min": 0.4965440667609456,
+        "max": 0.5509212016680171
+      },
+      "allocatedBytes": {
+        "p50": 11851456,
+        "p95": 16039864,
+        "min": 11839096,
+        "max": 16039864
+      },
+      "peakOverIdleBytes": {
+        "p50": 95576064,
+        "p95": 95940608,
+        "min": 87830528,
+        "max": 95940608
+      },
+      "probeGiBPerSecond": {
+        "p50": 0.5315888770584921,
+        "p95": 0.6128643058825336,
+        "min": 0.45761555226035017,
+        "max": 0.6128643058825336
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V0",
+      "concurrency": 1,
+      "samples": 5,
+      "invalidSamples": 0,
+      "residency": "unverified-warm",
+      "residentSamples": 0,
+      "wallSeconds": {
+        "p50": 27.462299,
+        "p95": 28.6775124,
+        "min": 25.6460157,
+        "max": 28.6775124
+      },
+      "cpuSeconds": {
+        "p50": 13.546875,
+        "p95": 14.15625,
+        "min": 12.96875,
+        "max": 14.15625
+      },
+      "giBPerSecond": {
+        "p50": 0.21848134418753506,
+        "p95": 0.23395446958257926,
+        "min": 0.20922316818525724,
+        "max": 0.23395446958257926
+      },
+      "giBPerCpuSecond": {
+        "p50": 0.4429065743944637,
+        "p95": 0.46265060240963857,
+        "min": 0.423841059602649,
+        "max": 0.46265060240963857
+      },
+      "effectiveCores": {
+        "p50": 0.49918873389713675,
+        "p95": 0.5215235051111663,
+        "min": 0.4722383220720159,
+        "max": 0.5215235051111663
+      },
+      "allocatedBytes": {
+        "p50": 205776,
+        "p95": 468088,
+        "min": 205736,
+        "max": 468088
+      },
+      "peakOverIdleBytes": {
+        "p50": 16633856,
+        "p95": 16891904,
+        "min": 16064512,
+        "max": 16891904
+      },
+      "probeGiBPerSecond": {
+        "p50": 0.5513449408268576,
+        "p95": 0.6456116199272245,
+        "min": 0.5036642205942696,
+        "max": 0.6456116199272245
+      },
+      "residentFraction": null
+    },
+    {
+      "workload": "SL",
+      "suite": "blake3",
+      "mode": "warm",
+      "pool": "default",
+      "lane": "V1",
+      "concurrency": 1,
+      "samples": 5,
+      "invalidSamples": 0,
+      "residency": "unverified-warm",
+      "residentSamples": 0,
+      "wallSeconds": {
+        "p50": 14.8550712,
+        "p95": 15.7560986,
+        "min": 14.755538,
+        "max": 15.7560986
+      },
+      "cpuSeconds": {
+        "p50": 5.890625,
+        "p95": 6.53125,
+        "min": 5.703125,
+        "max": 6.53125
+      },
+      "giBPerSecond": {
+        "p50": 0.4039024733856543,
+        "p95": 0.4066269898122319,
+        "min": 0.3808049284484676,
+        "max": 0.4066269898122319
+      },
+      "giBPerCpuSecond": {
+        "p50": 1.0185676392572944,
+        "p95": 1.0520547945205478,
+        "min": 0.9186602870813397,
+        "max": 1.0520547945205478
+      },
+      "effectiveCores": {
+        "p50": 0.38968419857005554,
+        "p95": 0.42742806183662385,
+        "min": 0.3788215694461318,
+        "max": 0.42742806183662385
+      },
+      "allocatedBytes": {
+        "p50": 12127296,
+        "p95": 12131448,
+        "min": 12126896,
+        "max": 12131448
+      },
+      "peakOverIdleBytes": {
+        "p50": 41947136,
+        "p95": 42258432,
+        "min": 37937152,
+        "max": 42258432
+      },
+      "probeGiBPerSecond": {
+        "p50": 0.5521463324353962,
+        "p95": 0.5969177559792241,
+        "min": 0.47695472000064293,
+        "max": 0.5969177559792241
+      },
+      "residentFraction": null
+    }
+  ]
+}
