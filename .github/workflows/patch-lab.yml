@@ -605,6 +605,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]
+          then
+            echo "PATCH-APPLY-003 decision evidence must run from main; got $GITHUB_REF" >&2
+            exit 2
+          fi
           run_id="PATCH-APPLY-003/RUN-$(date -u +%Y%m%d)-${{ github.run_number }}-${GITHUB_SHA::7}-${{ matrix.platform }}"
           lab="benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll"
           out="artifacts/patch-lab"
