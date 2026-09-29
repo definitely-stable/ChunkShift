@@ -1,0 +1,43 @@
+name: Verify lab fetch (one-shot)
+
+# One-shot: copies the raw evidence of the CORE-VERIFY-002 decision run into
+# this branch so that the compact dataset can be built from it. Removed by the
+# branch's last commit.
+on:
+  push:
+    branches: [perf/186-verify-002-runs]
+    paths: [.github/workflows/verify-lab-fetch.yml]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: perf/186-verify-002-runs
+
+      - name: Download evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          run-id: "36528577444"
+          github-token: ${{ github.token }}
+          pattern: verify-lab-*
+          path: verify-lab-raw
+          merge-multiple: true
+
+      - name: Commit evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          ls -la verify-lab-raw
+          git config user.name MrFr3di
+          git config user.email ynagi-wm@mail.ru
+          git add verify-lab-raw
+          git commit -m "Add the raw CORE-VERIFY-002 run evidence (temporary)"
+          git push origin HEAD:perf/186-verify-002-runs
