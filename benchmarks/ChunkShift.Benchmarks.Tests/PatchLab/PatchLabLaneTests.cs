@@ -9,9 +9,9 @@ public class PatchLabLaneTests
     {
         var expected = new Dictionary<string, PatchLabPolicy>(StringComparer.Ordinal)
         {
-            ["csp"] = new PatchLabPolicy(19, 4, 8, 256 * 1024),
-            ["csp-zstd"] = new PatchLabPolicy(19, 0, 8, 256 * 1024),
-            ["csp-raw"] = new PatchLabPolicy(0, 4, 8, 256 * 1024),
+            ["csp"] = new PatchLabPolicy(19, 4, 8, 256 * 1024, "prefix", 20, 20),
+            ["csp-zstd"] = new PatchLabPolicy(19, 0, 8, 256 * 1024, "prefix", 20, 20),
+            ["csp-raw"] = new PatchLabPolicy(0, 4, 8, 256 * 1024, "prefix", 20, 20),
         };
 
         foreach (int level in (int[])[9, 19])
@@ -35,6 +35,18 @@ public class PatchLabLaneTests
             Assert.True(PatchLabLane.TryDescribe(name, out PatchLabPolicy described), name);
             Assert.Equal(policy, described);
         }
+    }
+
+    [Fact]
+    public void DefaultLaneIsTheAdoptedEncoderLane()
+    {
+        // PATCH-ENC-003 adopted enc-L19-K4-C8-prefix-H20C20; the D lane of that
+        // experiment keeps the previous default.
+        Assert.True(PatchLabLane.TryDescribe("csp", out PatchLabPolicy csp));
+        Assert.True(PatchLabLane.TryDescribe("enc-L19-K4-C8-prefix-H20C20", out PatchLabPolicy adopted));
+        Assert.True(PatchLabLane.TryDescribe("enc-L19-K4-C8-copy", out PatchLabPolicy previous));
+        Assert.Equal(adopted, csp);
+        Assert.Equal(new PatchLabPolicy(19, 4, 8, 256 * 1024), previous);
     }
 
     [Theory]
