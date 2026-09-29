@@ -4,7 +4,12 @@ using System.Text.Json;
 
 namespace ChunkShift.Benchmarks.VerifyLab;
 
-/// <summary>What one sample process measured (docs/benchmarks/CORE-VERIFY-001-PROTOCOL.md section 6).</summary>
+/// <summary>
+/// What one sample process measured (docs/benchmarks/CORE-VERIFY-001-PROTOCOL.md
+/// section 6), with the pool setting the process saw and, for a pre-read mode,
+/// the residency of its files (docs/benchmarks/CORE-VERIFY-002-PROTOCOL.md
+/// sections 3 and 4.2).
+/// </summary>
 internal sealed record VerifyLabMeasurement(
     long Bytes,
     int Files,
@@ -13,15 +18,22 @@ internal sealed record VerifyLabMeasurement(
     long AllocatedBytes,
     long PeakWorkingSetBytes,
     bool Valid,
-    SortedDictionary<string, int> ContentModes);
+    SortedDictionary<string, int> ContentModes,
+    string Pool = VerifyLabOne.GatedPool,
+    string Residency = VerifyLabResidency.NotApplicable,
+    double? ProbeGiBPerSecond = null,
+    double? ResidentFraction = null);
 
 /// <summary>
 /// <c>verify-lab one</c>: one sample in a process of its own. The process
 /// verifies the warm-up file with the sample's lane for at least five rounds
 /// and three seconds, 200 ms apart, so that tiered compilation installs
 /// optimized code (the stabilization of docs/benchmarks/M0-LAB.md), applies the
-/// storage mode, then times the lane once over the workload (K files at a
-/// time for the many-file tree) and prints <c>sample=&lt;json&gt;</c>.
+/// storage mode and, after a pre-read, checks that the files are resident,
+/// then times the lane once over the workload (K files at a time for the
+/// many-file tree) and prints <c>sample=&lt;json&gt;</c>. The parent sets the
+/// pool's spin limit in the environment (<c>--pool</c> names the setting it
+/// chose); a process that does not see that setting fails.
 /// <c>--idle</c> prints the peak working set of a process that does nothing.
 /// </summary>
 internal static class VerifyLabOne
@@ -30,6 +42,15 @@ internal static class VerifyLabOne
     internal const double WarmupSeconds = 3;
     internal const int WarmupPauseMilliseconds = 200;
     internal const int MinimumThreads = 64;
+
+    /// <summary>The runtime setting that disables the pool workers' spin-wait.</summary>
+    internal const string SpinLimitVariable = "DOTNET_ThreadPool_UnfairSemaphoreSpinLimit";
+
+    /// <summary>The gated pool setting: <see cref="SpinLimitVariable"/> is <c>0</c>.</summary>
+    internal const string GatedPool = "spin-0";
+
+    /// <summary>The informative pool setting: <see cref="SpinLimitVariable"/> is absent.</summary>
+    internal const string DefaultPool = "default";
 
     private const int PrereadBytes = 1 << 20;
 
@@ -40,6 +61,8 @@ internal static class VerifyLabOne
             Report(new VerifyLabMeasurement(0, 0, 0, 0, 0, PeakWorkingSet(), Valid: true, []));
             return 0;
         }
+
+        string pool = CheckPool(options.Value("pool") ?? GatedPool, Environment.GetEnvironmentVariable(SpinLimitVariable));
 
         // Blocking reads of the cold mode and the many-file slots must not wait
         // for thread injection; every lane runs with the same pool floor.
@@ -73,6 +96,8 @@ internal static class VerifyLabOne
             await Task.Delay(WarmupPauseMilliseconds).ConfigureAwait(false);
         }
 
+        var residency = new VerifyLabResidencyReport(VerifyLabResidency.NotApplicable, null, null);
+
         if (mode is "warm" or "throttled")
         {
             foreach (VerifyLabWorkloadFile file in workload.Files)
@@ -80,6 +105,9 @@ internal static class VerifyLabOne
                 await PrereadAsync(file.Content).ConfigureAwait(false);
                 await PrereadAsync(Manifest(file, suite)).ConfigureAwait(false);
             }
+
+            residency = VerifyLabResidency.Check(
+                [.. workload.Files.SelectMany(file => new[] { file.Content, Manifest(file, suite) })]);
         }
 
         GC.Collect();
@@ -118,7 +146,11 @@ internal static class VerifyLabOne
             allocated,
             PeakWorkingSet(),
             valid,
-            modes));
+            modes,
+            pool,
+            residency.Status,
+            residency.ProbeGiBPerSecond,
+            residency.ResidentFraction));
         return valid ? 0 : 3;
     }
 
@@ -156,6 +188,26 @@ internal static class VerifyLabOne
 
         await Task.WhenAll(slots).ConfigureAwait(false);
         return verdicts;
+    }
+
+    /// <summary>
+    /// Checks that the process sees the pool setting its parent chose: the
+    /// spin limit <c>0</c> for <see cref="GatedPool"/>, no setting for
+    /// <see cref="DefaultPool"/>.
+    /// </summary>
+    internal static string CheckPool(string pool, string? spinLimit)
+    {
+        bool matches = pool switch
+        {
+            GatedPool => spinLimit == "0",
+            DefaultPool => spinLimit is null,
+            _ => throw new VerifyLabUsageException($"Unknown pool setting '{pool}'; expected {GatedPool} or {DefaultPool}."),
+        };
+
+        return matches
+            ? pool
+            : throw new InvalidOperationException(
+                $"The sample process was started for pool '{pool}' but sees {SpinLimitVariable}={spinLimit ?? "(unset)"}.");
     }
 
     internal static Task<VerifyLabVerdict> VerifyAsync(

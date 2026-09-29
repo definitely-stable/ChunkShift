@@ -18,36 +18,58 @@ internal sealed record VerifyLabStatistic(double P50, double P95, double Min, do
     }
 }
 
-/// <summary>The aggregates of one (workload, suite, mode, lane, K) over its valid samples.</summary>
+/// <summary>
+/// The aggregates of one (workload, suite, mode, pool, lane, K). In a pre-read
+/// mode they cover the resident samples when at least half of the samples are
+/// resident (<see cref="Residency"/> is <c>resident</c>); otherwise every valid
+/// sample, marked <c>unverified-warm</c>, which no rule reads
+/// (docs/benchmarks/CORE-VERIFY-002-PROTOCOL.md section 4.2). Cold samples are
+/// not checked (<c>n/a</c>).
+/// </summary>
 internal sealed record VerifyLabAggregate(
     string Workload,
     string Suite,
     string Mode,
+    string Pool,
     string Lane,
     int Concurrency,
     int Samples,
     int InvalidSamples,
+    string Residency,
+    int ResidentSamples,
     VerifyLabStatistic? WallSeconds,
     VerifyLabStatistic? CpuSeconds,
     VerifyLabStatistic? GiBPerSecond,
     VerifyLabStatistic? GiBPerCpuSecond,
     VerifyLabStatistic? EffectiveCores,
     VerifyLabStatistic? AllocatedBytes,
-    VerifyLabStatistic? PeakOverIdleBytes)
+    VerifyLabStatistic? PeakOverIdleBytes,
+    VerifyLabStatistic? ProbeGiBPerSecond,
+    VerifyLabStatistic? ResidentFraction)
 {
+    /// <summary>Too few resident samples: reported, but no rule reads the aggregate.</summary>
+    internal const string UnverifiedWarm = "unverified-warm";
+
     internal static double GiB(long bytes) => bytes / (double)(1L << 30);
 
     internal static VerifyLabAggregate[] Of(IEnumerable<VerifyLabSample> samples, long idlePeak) =>
     [
         .. samples
-            .GroupBy(static sample => (sample.Workload, sample.Suite, sample.Mode, sample.Lane, sample.Concurrency))
+            .GroupBy(static sample => (sample.Workload, sample.Suite, sample.Mode, sample.Pool, sample.Lane, sample.Concurrency))
             .Select(group =>
             {
-                VerifyLabMeasurement[] valid = [.. group
+                VerifyLabMeasurement[] all = [.. group
                     .Select(static sample => sample.Measurement)
                     .Where(static measurement => measurement is { Valid: true })
                     .Select(static measurement => measurement!)];
-                int invalid = group.Count() - valid.Length;
+                int planned = group.Count();
+                int invalid = planned - all.Length;
+                VerifyLabMeasurement[] resident = [.. all.Where(static m => m.Residency == VerifyLabResidency.Resident)];
+                bool preread = group.Key.Mode is "warm" or "throttled";
+                string residency = !preread
+                    ? VerifyLabResidency.NotApplicable
+                    : resident.Length * 2 >= planned ? VerifyLabResidency.Resident : UnverifiedWarm;
+                VerifyLabMeasurement[] valid = residency == VerifyLabResidency.Resident ? resident : all;
 
                 // Windows counts process CPU time in 15.6 ms ticks, so a short
                 // sample can read zero CPU; ratios over it are not finite and are
@@ -58,21 +80,32 @@ internal sealed record VerifyLabAggregate(
                     return values.Length == 0 ? null : VerifyLabStatistic.Of(values);
                 }
 
+                VerifyLabStatistic? Optional(Func<VerifyLabMeasurement, double?> metric)
+                {
+                    double[] values = [.. all.Select(metric).OfType<double>()];
+                    return values.Length == 0 ? null : VerifyLabStatistic.Of(values);
+                }
+
                 return new VerifyLabAggregate(
                     group.Key.Workload,
                     group.Key.Suite,
                     group.Key.Mode,
+                    group.Key.Pool,
                     group.Key.Lane,
                     group.Key.Concurrency,
                     valid.Length,
                     invalid,
+                    residency,
+                    resident.Length,
                     Statistic(static m => m.WallSeconds),
                     Statistic(static m => m.CpuSeconds),
                     Statistic(static m => GiB(m.Bytes) / m.WallSeconds),
                     Statistic(static m => GiB(m.Bytes) / m.CpuSeconds),
                     Statistic(static m => m.CpuSeconds / m.WallSeconds),
                     Statistic(static m => m.AllocatedBytes),
-                    Statistic(m => m.PeakWorkingSetBytes - idlePeak));
+                    Statistic(m => m.PeakWorkingSetBytes - idlePeak),
+                    Optional(static m => m.ProbeGiBPerSecond),
+                    Optional(static m => m.ResidentFraction));
             }),
     ];
 }
@@ -98,12 +131,14 @@ internal sealed record VerifyLabDecisionDocument(
 
 /// <summary>
 /// <c>verify-lab decide</c>: evaluates R1–R3 per platform and the decision of
-/// docs/benchmarks/CORE-VERIFY-001-PROTOCOL.md section 7 from the run
-/// documents and oracle reports of every platform.
+/// docs/benchmarks/CORE-VERIFY-002-PROTOCOL.md section 6 (CORE-VERIFY-001's
+/// rules with SL in the place of S10) from the run documents and oracle
+/// reports of every platform. The rules read the gated pool setting only, and
+/// an <c>unverified-warm</c> aggregate makes every rule that needs it missing.
 /// </summary>
 internal static class VerifyLabDecision
 {
-    internal const string Schema = "chunkshift.verify-lab-decision.v1";
+    internal const string Schema = "chunkshift.verify-lab-decision.v2";
     internal const string Holds = "holds";
     internal const string Fails = "fails";
     internal const string Missing = "missing";
@@ -190,17 +225,27 @@ internal static class VerifyLabDecision
                 : ("REJECT", string.Create(CultureInfo.InvariantCulture, $"R1 holds on {r1} of {platforms.Length} platforms"), platforms, [.. allAggregates]);
     }
 
-    /// <summary>R1: GiB per CPU-second of V1 over V0 at least 1.6 on S1 warm and S10 warm.</summary>
+    /// <summary>R1: GiB per CPU-second of V1 over V0 at least 1.6 on S1 warm and SL warm.</summary>
     internal static VerifyLabRule R1(VerifyLabAggregate[] aggregates)
     {
         var details = new List<string>();
         bool missing = false;
         bool holds = true;
 
-        foreach (string workload in new[] { "S1", "S10" })
+        foreach (string workload in new[] { "S1", VerifyLabWorkloads.Large })
         {
-            double? v0 = P50(aggregates, workload, "warm", "V0", 1, static a => a.GiBPerCpuSecond);
-            double? v1 = P50(aggregates, workload, "warm", "V1", 1, static a => a.GiBPerCpuSecond);
+            VerifyLabAggregate[] v0Lane = Select(aggregates, workload, "warm", static lane => lane == "V0", concurrency: 1);
+            VerifyLabAggregate[] v1Lane = Select(aggregates, workload, "warm", static lane => lane == "V1", concurrency: 1);
+
+            if (Unusable(v0Lane.Concat(v1Lane)) is string reason)
+            {
+                missing = true;
+                details.Add($"{workload} warm: {reason}");
+                continue;
+            }
+
+            double? v0 = v0Lane.FirstOrDefault()?.GiBPerCpuSecond?.P50;
+            double? v1 = v1Lane.FirstOrDefault()?.GiBPerCpuSecond?.P50;
 
             if (v0 is null || v1 is null)
             {
@@ -227,10 +272,19 @@ internal static class VerifyLabDecision
         bool missing = false;
         bool holds = true;
 
-        foreach ((string mode, string workload) in new[] { ("warm", "S10"), ("throttled", "S1") })
+        foreach ((string mode, string workload) in new[] { ("warm", VerifyLabWorkloads.Large), ("throttled", "S1") })
         {
-            double? v2 = Best(aggregates, workload, mode, lane => lane.StartsWith("V2-W", StringComparison.Ordinal), concurrency: 1);
-            double? files = Best(aggregates, "T", mode, static lane => lane == "V1", concurrency: null);
+            VerifyLabAggregate[] v2Lanes = Select(aggregates, workload, mode, static lane => lane.StartsWith("V2-W", StringComparison.Ordinal), concurrency: 1);
+            VerifyLabAggregate[] fileLanes = Select(aggregates, "T", mode, static lane => lane == "V1", concurrency: null);
+            double? v2 = Best(v2Lanes);
+            double? files = Best(fileLanes);
+
+            if (Unusable(v2Lanes.Concat(fileLanes)) is string reason)
+            {
+                missing = true;
+                details.Add($"{mode}: {reason}");
+                continue;
+            }
 
             if (v2 is null || files is null)
             {
@@ -255,8 +309,17 @@ internal static class VerifyLabDecision
 
         foreach (string mode in new[] { "warm", "throttled" })
         {
-            double? v2 = Best(aggregates, "T", mode, static lane => lane == "V2-W2", concurrency: null);
-            double? v1 = Best(aggregates, "T", mode, static lane => lane == "V1", concurrency: null);
+            VerifyLabAggregate[] v2Lanes = Select(aggregates, "T", mode, static lane => lane == "V2-W2", concurrency: null);
+            VerifyLabAggregate[] v1Lanes = Select(aggregates, "T", mode, static lane => lane == "V1", concurrency: null);
+            double? v2 = Best(v2Lanes);
+            double? v1 = Best(v1Lanes);
+
+            if (Unusable(v2Lanes.Concat(v1Lanes)) is string reason)
+            {
+                missing = true;
+                details.Add($"{mode}: {reason}");
+                continue;
+            }
 
             if (v2 is null || v1 is null)
             {
@@ -273,36 +336,36 @@ internal static class VerifyLabDecision
         return new VerifyLabRule("R3", missing ? Missing : holds ? Holds : Fails, string.Join("; ", details));
     }
 
-    private static double? P50(
-        VerifyLabAggregate[] aggregates,
-        string workload,
-        string mode,
-        string lane,
-        int concurrency,
-        Func<VerifyLabAggregate, VerifyLabStatistic?> metric) =>
-        aggregates
-            .Where(a => a.Workload == workload && a.Suite == "blake3" && a.Mode == mode && a.Lane == lane && a.Concurrency == concurrency)
-            .Select(a => metric(a)?.P50)
-            .FirstOrDefault();
-
-    private static double? Best(
+    /// <summary>The gated BLAKE3 aggregates of a (workload, mode) whose lane and K match.</summary>
+    private static VerifyLabAggregate[] Select(
         VerifyLabAggregate[] aggregates,
         string workload,
         string mode,
         Func<string, bool> lane,
-        int? concurrency)
+        int? concurrency) =>
+        [.. aggregates.Where(a =>
+            a.Workload == workload && a.Suite == "blake3" && a.Mode == mode && a.Pool == VerifyLabOne.GatedPool &&
+            lane(a.Lane) && (concurrency is null || a.Concurrency == concurrency))];
+
+    /// <summary>Why a rule cannot read these aggregates, or null when it can.</summary>
+    private static string? Unusable(IEnumerable<VerifyLabAggregate> aggregates)
     {
-        double[] values = [.. aggregates
-            .Where(a => a.Workload == workload && a.Suite == "blake3" && a.Mode == mode && lane(a.Lane) &&
-                        (concurrency is null || a.Concurrency == concurrency) && a.GiBPerSecond is not null)
-            .Select(static a => a.GiBPerSecond!.P50)];
+        string[] unverified = [.. aggregates
+            .Where(static a => a.Residency == VerifyLabAggregate.UnverifiedWarm)
+            .Select(static a => a.Concurrency == 1 ? a.Lane : string.Create(CultureInfo.InvariantCulture, $"{a.Lane} x{a.Concurrency}"))];
+        return unverified.Length == 0 ? null : $"missing ({VerifyLabAggregate.UnverifiedWarm}: {string.Join(", ", unverified)})";
+    }
+
+    private static double? Best(VerifyLabAggregate[] aggregates)
+    {
+        double[] values = [.. aggregates.Where(static a => a.GiBPerSecond is not null).Select(static a => a.GiBPerSecond!.P50)];
         return values.Length == 0 ? null : values.Max();
     }
 
     private static string Markdown(VerifyLabDecisionDocument document, VerifyLabRunDocument[] runs)
     {
         var text = new StringBuilder();
-        text.AppendLine(CultureInfo.InvariantCulture, $"# CORE-VERIFY-001 decision: {document.Decision}");
+        text.AppendLine(CultureInfo.InvariantCulture, $"# {document.ExperimentId} decision: {document.Decision}");
         text.AppendLine();
         text.AppendLine(document.Reason);
         text.AppendLine();
@@ -325,12 +388,12 @@ internal static class VerifyLabDecision
         }
 
         text.AppendLine();
-        text.AppendLine("| platform/workload | suite | mode | lane | K | n | p50 GiB/s | p50 GiB per CPU-s | p50 cores | p50 wall s | p95 wall s | p50 peak over idle MiB |");
-        text.AppendLine("|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|");
+        text.AppendLine("| platform/workload | suite | mode | pool | lane | K | n | residency (resident) | p50 GiB/s | p50 GiB per CPU-s | p50 cores | p50 wall s | p95 wall s | p50 peak over idle MiB | min probe GiB/s | min resident |");
+        text.AppendLine("|---|---|---|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|");
 
         foreach (VerifyLabAggregate a in document.Aggregates)
         {
-            text.AppendLine(CultureInfo.InvariantCulture, $"| {a.Workload} | {a.Suite} | {a.Mode} | {a.Lane} | {a.Concurrency} | {a.Samples}{(a.InvalidSamples > 0 ? $" ({a.InvalidSamples} invalid)" : string.Empty)} | {F(a.GiBPerSecond?.P50)} | {F(a.GiBPerCpuSecond?.P50)} | {F(a.EffectiveCores?.P50)} | {F(a.WallSeconds?.P50)} | {F(a.WallSeconds?.P95)} | {F(a.PeakOverIdleBytes?.P50 / (1 << 20))} |");
+            text.AppendLine(CultureInfo.InvariantCulture, $"| {a.Workload} | {a.Suite} | {a.Mode} | {a.Pool} | {a.Lane} | {a.Concurrency} | {a.Samples}{(a.InvalidSamples > 0 ? $" ({a.InvalidSamples} invalid)" : string.Empty)} | {a.Residency} ({a.ResidentSamples}) | {F(a.GiBPerSecond?.P50)} | {F(a.GiBPerCpuSecond?.P50)} | {F(a.EffectiveCores?.P50)} | {F(a.WallSeconds?.P50)} | {F(a.WallSeconds?.P95)} | {F(a.PeakOverIdleBytes?.P50 / (1 << 20))} | {F(a.ProbeGiBPerSecond?.Min)} | {F(a.ResidentFraction?.Min)} |");
         }
 
         text.AppendLine();
@@ -338,7 +401,7 @@ internal static class VerifyLabDecision
 
         foreach (VerifyLabRunDocument run in runs)
         {
-            text.AppendLine(CultureInfo.InvariantCulture, $"- {run.RunId ?? "(no RunId)"} ({run.Platform}), plan {run.PlanFingerprint}, commit {run.Commit ?? "(unknown)"}, {run.Samples.Length} samples");
+            text.AppendLine(CultureInfo.InvariantCulture, $"- {run.RunId ?? "(no RunId)"} ({run.Platform}), plan {run.PlanFingerprint}, commit {run.Commit ?? "(unknown)"}, {run.Samples.Length} samples, memory {run.TotalMemoryBytes} bytes, {string.Join(", ", run.Workloads.Select(static w => string.Create(CultureInfo.InvariantCulture, $"{w.Id} {w.Bytes} bytes")))}");
         }
 
         return text.ToString();
