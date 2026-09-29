@@ -198,6 +198,17 @@
       "evidence": "docs/research/results/CORE-VERIFY-002-EVIDENCE-20260929-001.md"
     },
     {
+      "id": "CORE-VERIFY-003",
+      "issues": [
+        186,
+        152
+      ],
+      "area": "core-api",
+      "status": "PLANNED",
+      "question": "CORE-VERIFY-002 rerun: one execution per platform, fail-closed provenance, Windows residency against an uncached read",
+      "protocol": "docs/benchmarks/CORE-VERIFY-003-PROTOCOL.md"
+    },
+    {
       "id": "CORE-BOUNDARY-001",
       "issues": [
         186,
