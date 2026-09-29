@@ -1,6 +1,6 @@
 # CORE-VERIFY-003 protocol (#186): CORE-VERIFY-002 with one execution per platform, fail-closed provenance and a Windows warm file checked against the runner's own disk
 
-Status: **frozen before measurement.** This note is merged before any run of the lanes below produces a decision dataset. Later edits may only add results links; a change to a lane, workload, calibration rung, oracle case, residency check, provenance check or rule is a new ExperimentId.
+Status: **frozen before measurement.** This note is merged before any run of the lanes below produces a decision dataset. Later edits may only add results links; a change to a lane, workload, calibration rung, oracle case, residency check, provenance check or rule is a new ExperimentId. Amended once before any measurement, on 2026-09-29, after the reviews of [#202](https://github.com/definitely-stable/ChunkShift/pull/202) and of the amendment itself ([#203](https://github.com/definitely-stable/ChunkShift/pull/203)); no lab or run of CORE-VERIFY-003 existed. The amendment changes §2 (the decision bullet), §3.1 (steps 4 and 7, and the time estimate), §3.2 (the gated fields), §3.3 (P2, P7, P8 and P9), §4.1 (the uncached-read contract), §4.2 (the positive control), §4.3 (the rung digests, frozen here), §4.4 (the reading of R3′), §5 (per-run fields), §6 (the rule at the threshold and the R2 margin), §7 (the gate of plan step 4 and of a public-API merge) and §9 (what the record gives); the lanes, the workloads and the thresholds 1.6 and 0.95 did not change. Any further change is a new ExperimentId.
 Issue: [#186](https://github.com/definitely-stable/ChunkShift/issues/186) (CORE-VERIFY-002 result comment of 2026-09-29, "What follows") · Parent: [#152](https://github.com/definitely-stable/ChunkShift/issues/152) · Predecessor: [CORE-VERIFY-002-PROTOCOL.md](CORE-VERIFY-002-PROTOCOL.md) and [CORE-VERIFY-002-EVIDENCE-20260929-001](../research/results/CORE-VERIFY-002-EVIDENCE-20260929-001.md) · Registry: [EXPERIMENT-INDEX.md](../research/EXPERIMENT-INDEX.md)
 
 | ExperimentId | Question |
@@ -33,7 +33,7 @@ Everything not named in §3–§5 is CORE-VERIFY-002 as frozen (which is CORE-VE
 - the pool settings: every gated sample process runs with `DOTNET_ThreadPool_UnfairSemaphoreSpinLimit=0` (`spin-0`) and reports what it saw, and V0/V1 on `S1` and `SL` warm also run with the default pool (`default`, informative) (CORE-VERIFY-002 §3);
 - the pre-read, the probe and the Linux `mincore` check, and the rule that an aggregate needs at least half of its planned samples `resident` (CORE-VERIFY-002 §4.2);
 - the measured commit: the pull request's head commit, which the run documents record;
-- the metrics and aggregates, and the form of R1–R3 and of the decision (CORE-VERIFY-002 §6).
+- the metrics and aggregates, the comparisons and thresholds of R1–R3, and the two-of-three form of the decision (CORE-VERIFY-002 §6). When a rule holds or fails at its threshold is new (§6.1).
 
 ## 3. Execution and provenance
 
@@ -44,10 +44,10 @@ Each platform runs **one hosted job**, and that job is the execution. In order, 
 1. checks out the measured commit (full history, which the corpus needs), sets up .NET and Python, frees disk space (Linux), and records the environment (§3.2);
 2. builds the lab and runs the full oracle;
 3. materializes the corpus and prepares `S1`, `SL` at rung 0 (§4.3), `T` and the warm-up file;
-4. on Windows, takes the first uncached reference block (§4.1);
+4. on Windows, takes the first uncached reference block (§4.1) and the first positive control (§4.2);
 5. calibrates the size of `SL` (§4.3);
 6. runs the single-file matrix (`S1`, `SL`), then the tree matrix (`T`), in the group order of §5;
-7. on Windows, takes the second uncached reference block (§4.1);
+7. on Windows, takes the second uncached reference block (§4.1) and the second positive control (§4.2);
 8. writes **one run document** that holds both matrices, and uploads it with the oracle report.
 
 `verify-lab decide` runs in a separate job after all three executions. It measures nothing.
@@ -63,7 +63,8 @@ Each platform runs **one hosted job**, and that job is the execution. In order, 
 The sum counts set-up, build and oracle twice; one job runs them once (about 3 minutes less). What CORE-VERIFY-003 adds, estimated from the same run's per-sample overhead (3.8–4.9 s per tree sample outside the timed section):
 
 - the `default` tree group of §4.4: 80 samples, about 6 min on Linux and 7.5 min on Windows;
-- on Windows, six uncached reads and the calibration of at most four rungs (§4.1, §4.3): at most 10 min with the 0.4–0.5 GiB/s disk of CORE-VERIFY-002.
+- on Windows, six uncached reads and the calibration of at most four rungs (§4.1, §4.3): at most 10 min with the 0.4–0.5 GiB/s disk of CORE-VERIFY-002;
+- on Windows, six positive-control trials on `S1` (§4.2): under 1 min.
 
 That is at most about 115 minutes per execution, against a job timeout of 350 minutes (the hosted limit is 360). A job that times out leaves an incomplete document, which the provenance check refuses (P6).
 
@@ -82,7 +83,7 @@ Every run document records, in addition to CORE-VERIFY-002's fields (OS, archite
 | storage | the block device under the work directory: name, model, rotational, transport, size, and the file system | the volume of the work directory and its physical disk: friendly name, media type, bus type, size, and the file system |
 | Actions identity | `GITHUB_RUN_ID`, `GITHUB_RUN_NUMBER`, `GITHUB_RUN_ATTEMPT`, `GITHUB_JOB`, the job's check-run id where the workflow can pass it, `RUNNER_NAME` (on hosted runners it carries the runner id), `RUNNER_OS`, `RUNNER_ARCH`, `ImageOS`, `ImageVersion` | the same |
 
-A field that cannot be read is recorded as `unavailable` with the reason. These fields are reported, not gated; only the workflow identity enters the provenance check (P3). The run document also records an **execution id**, a random identifier drawn once when `verify-lab run` starts, and the oracle report of the same job records the same RunId and execution id.
+A field that cannot be read is recorded as `unavailable` with the reason. These fields are reported, not gated; only the logical processor count (P2) and the workflow identity (P3) enter the provenance check. The run document also records an **execution id**, a random identifier drawn once when `verify-lab run` starts, and the oracle report of the same job records the same RunId and execution id.
 
 ### 3.3 Fail-closed provenance in `verify-lab decide`
 
@@ -91,16 +92,16 @@ A field that cannot be read is recorded as `unavailable` with the reason. These 
 | # | check |
 |---|---|
 | P1 | exactly three run documents and three oracle reports, one of each per platform in {linux-x64, linux-arm64, win-x64}; no other input |
-| P2 | per document: `experimentId = CORE-VERIFY-003`, the CORE-VERIFY-003 run schema, `smoke = false`, a full commit SHA; the same commit in every document and equal to the commit `decide` was given |
+| P2 | per document: `experimentId = CORE-VERIFY-003`, the CORE-VERIFY-003 run schema, `smoke = false`, a full commit SHA; the same commit in every document and equal to the commit `decide` was given; the recorded logical processor count is 4 (the four-vCPU runners of §2, on which W, K and the thresholds were set) |
 | P3 | per document: the RunId matches §9 with the document's commit and platform; the three RunIds and the three execution ids are distinct; `GITHUB_RUN_ID` and `GITHUB_RUN_NUMBER` are recorded and equal in all three, `NNN` equals the run number, and `GITHUB_RUN_ATTEMPT` is 1 |
 | P4 | per document: one execution, holding both matrices of its platform (single-file and tree groups) |
 | P5 | per document: the plan equals the plan `decide` rebuilds from §5 for that platform (win-x64: without the cold groups, and `cold` is the only skipped mode), and the plan fingerprint that `decide` recomputes from the document's plan, workloads and calibration result and its own lab constants equals the recorded one |
 | P6 | per document: every planned (group, lane, K, repetition) sample appears exactly once, in the rotation order of §5, with a measurement or an error |
-| P7 | workloads: `S1` and `T` bytes, file counts and content digests equal the CORE-VERIFY-002 values of §2 in every document; `SL` is seed `0xC0FE0020` at a rung of §4.3 equal to the document's calibration result, and its digest equals the digest the lab pins for that rung |
-| P8 | oracles: each report is full (not quick), carries the RunId, execution id, commit and platform of the document of its platform, and the three reports have equal case and vector counts |
-| P9 | calibration and reference: every document holds its calibration trials (§4.3); the win-x64 document holds both uncached reference blocks (or the recorded reason a read failed), and its Windows threshold equals the one `decide` recomputes from them (§4.2); the Linux documents hold no reference block |
+| P7 | workloads: `S1` and `T` bytes, file counts and content digests equal the CORE-VERIFY-002 values of §2 in every document (for `S1`, the full values of the §4.3 table); `SL` is seed `0xC0FE0020` at a rung of §4.3 equal to the document's calibration result, and its SHA-256 and content digest equal the values this note freezes for that size in §4.3, not a constant of the lab; an `SL` size without a row there fails |
+| P8 | oracles: each report is full (not quick), carries the RunId, execution id, commit and platform of the document of its platform, and has exactly 1,208 cases and 62 CSM vectors, the counts of all six CORE-VERIFY-002 reports (not merely counts equal across the three reports) |
+| P9 | calibration and reference: every document holds its calibration trials (§4.3); the win-x64 document holds both uncached reference blocks (or the recorded reason a read failed), and its Windows threshold equals the one `decide` recomputes from them (§4.2); the win-x64 document holds both positive controls, three trials each with probe, threshold, outcome and final-threshold verdict, and the outcomes and verdicts `decide` recomputes equal the recorded ones (§4.2); the Linux documents hold no reference block and no positive control |
 
-An invalid sample (CORE-VERIFY-001 §6) and a failed but well-formed oracle report are not provenance failures: the first is reported as before, the second gives `NO-DECISION` for its own reason (§6). `decision.json` and `decision.md` carry the check table in every case.
+A positive control that fails is not a provenance failure: `decide` then treats every pre-read verdict of win-x64 as `unverified` and records the reason (§4.2). An invalid sample (CORE-VERIFY-001 §6) and a failed but well-formed oracle report are not provenance failures: the first is reported as before, the second gives `NO-DECISION` for its own reason (§6). `decision.json` and `decision.md` carry the check table in every case.
 
 Smoke runs are checked against their own expectations (`smoke = true`, one platform) and produce `SMOKE`, never a decision.
 
@@ -108,12 +109,21 @@ Smoke runs are checked against their own expectations (`smoke = true`, one platf
 
 ### 4.1 An uncached reference read on Windows
 
-On win-x64 the execution measures its own disk. An **uncached read** opens the `SL` file with `FILE_FLAG_NO_BUFFERING` and reads it sequentially from start to end with synchronous 1 MiB reads into a sector-aligned buffer. Its throughput is defined like the probe's: bytes read over the time spent inside the read calls. A read with `FILE_FLAG_NO_BUFFERING` bypasses the file cache whether or not the file is resident, so it measures the storage path of the same file on the same runner.
+On win-x64 the execution measures its own disk. An **uncached read** reads the `SL` file once, sequentially from start to end, under this contract:
+
+1. **Open.** The file is opened for synchronous reading (`GENERIC_READ`, `FILE_SHARE_READ`, `OPEN_EXISTING`) with `FILE_FLAG_NO_BUFFERING` as the only `FILE_FLAG_*` value: no `FILE_FLAG_SEQUENTIAL_SCAN`, `FILE_FLAG_WRITE_THROUGH`, `FILE_FLAG_RANDOM_ACCESS` or `FILE_FLAG_OVERLAPPED`.
+2. **Alignment.** `A = max(LogicalBytesPerSector, PhysicalBytesPerSectorForPerformance)`, both from `GetFileInformationByHandleEx` with `FileStorageInfo` (`FILE_STORAGE_INFO`) on the same handle. The device's buffer alignment `D = AlignmentRequirement + 1` comes from `GetFileInformationByHandleEx` with `FileAlignmentInfo` (`FILE_ALIGNMENT_INFO`) on the same handle; `AlignmentRequirement` is a mask, so `0x1FF` means 512 bytes ([MS-FSCC, FileAlignmentInformation](https://learn.microsoft.com/openspecs/windows_protocols/ms-fscc/9b0b9971-85aa-4651-8438-f1c4298bcb0d)).
+3. **Buffer.** One 1 MiB buffer from `NativeMemory.AlignedAlloc` with alignment `max(A, D, 4096)`, used for every read of the pass and freed after it. A managed `byte[]` is not used.
+4. **Checks before the first read.** `1 MiB % A = 0` (so `A` is a power of two no larger than 1 MiB), `file length % A = 0`, and `D` is a power of two no larger than 1 MiB. Every rung of §4.3 is a whole number of GiB, so both hold for any such `A`, and the last read ends exactly at the end of the file: there is no tail to handle.
+5. **Reads.** Synchronous reads of 1 MiB at offsets 0, 1 MiB, 2 MiB, … (`RandomAccess.Read` on the handle) until the offset equals the file length. Every read must return exactly 1 MiB; a read that returns fewer bytes (including 0) before that offset is an error. Throughput is defined like the probe's: bytes read over the time spent inside the read calls; the open, the alignment query and the allocation are not timed.
+6. **Failure.** If `A` or `D` cannot be obtained, a check of step 4 fails, or the open or any read fails, the uncached read is **unsuccessful**: the run document records it with the reason and it gives no throughput. §4.2 decides what follows (no successful read: `unverified`).
+
+`FILE_FLAG_NO_BUFFERING` bypasses the operating system's file cache whether or not the file is resident in it, so the read measures the storage path of the same file on the same runner. It does not bypass caching below the operating system: the device, its controller, or the host behind a virtual disk ([File buffering](https://learn.microsoft.com/windows/win32/fileio/file-buffering)). Such a cache can only make an uncached read faster; that raises `U` and the threshold of §4.2, the conservative direction for a `resident` verdict, and the positive control of §4.2 checks that the threshold stays reachable. The run document records `A`, both sector sizes, the raw `AlignmentRequirement`, `D` and the outcome of every read.
 
 - **Block 1:** three uncached reads of `SL` at rung 0, after `prepare` and before the calibration.
 - **Block 2:** three uncached reads of the calibrated `SL`, after the last sample of the execution.
 
-`U` is the **maximum** throughput over the six reads. The reads are reported (each read, and the ratio of every Windows probe to `U`); they are not samples of the matrix and enter no rule except through §4.2.
+`U` is the **maximum** throughput over the successful reads of the six. The reads are reported (each read, and the ratio of every Windows probe to `U`); they are not samples of the matrix and enter no rule except through §4.2.
 
 Linux takes no uncached reference: `mincore` checks residency directly there, and the `cold` mode already measures the disk.
 
@@ -124,7 +134,7 @@ The Windows row of CORE-VERIFY-002 §4.2 becomes:
 | platform | `resident` | `not-resident` | `unverified` |
 |---|---|---|---|
 | Linux | `mincore` resident fraction ≥ 0.99 (unchanged) | fraction < 0.99 | `mincore` could not be called |
-| Windows | probe ≥ **max(1.5 GiB/s, 3 × `U`)** | probe below that | the probe failed, or no uncached read succeeded |
+| Windows | probe ≥ **max(1.5 GiB/s, 3 × `U`)** | probe below that | the probe failed, no uncached read succeeded, or a positive control failed (below) |
 | other | — | — | always |
 
 The sample process records its probe; the Windows verdicts are computed from the document's probes and `U` once block 2 is taken. `decide` recomputes them and uses its own values (P9).
@@ -133,11 +143,30 @@ The sample process records its probe; the Windows verdicts are computed from the
 
 The aggregate rule is unchanged: in a pre-read mode, the rules read the `resident` samples, and only if at least half of the planned samples are `resident` (5 of 10, 3 of 5); otherwise the aggregate is `unverified-warm` and every rule that needs it is `missing`.
 
+**Positive control (win-x64).** A threshold that rises with `U` must still be reachable by a file that is certainly cached; otherwise every rung and every `SL` sample would read as `not-resident` because the classifier does not separate, not because the file did not fit. Three fresh processes each pre-read `S1` and its BLAKE3 manifest exactly as a sample of `S1` warm does, and run the probe on them:
+
+- **control 1**, right after block 1 and before the calibration, judged against the threshold from block 1, `max(1.5 GiB/s, 3 × U₁)` with `U₁` the maximum of block 1, which is the threshold the calibration uses;
+- **control 2**, right after block 2, judged against the final threshold (`U` over both blocks).
+
+A trial passes when its probe is at or above the threshold it is judged against (control 1: the block-1 threshold; control 2: the final threshold); a failed probe, or a threshold that cannot be computed because no read of the blocks taken so far succeeded, fails it. The run document and the record also give the verdict of all six probes against the final threshold. That verdict is diagnostic: it shows whether block 2 made the final classifier stricter than the one control 1 validated, and gates nothing. If any of the six trials fails, every pre-read verdict of win-x64 (calibration trials and samples) becomes `unverified`, and the run document and the record give the reason and the six probes with their thresholds. The execution still runs its whole plan: the control changes no group, rung or order. `S1` is the control because it was the certainly cached class of CORE-VERIFY-002 on `windows-2025` (all 140 pre-read `S1` probes `resident`, 6.40–8.16 GiB/s): with a disk like that run's the control passes by a wide margin, and it fails only where `3 × U` approaches a cached read, which is the case it exists to catch. Linux takes no positive control: `mincore` reads residency directly.
+
 ### 4.3 `SL` sized by calibration
 
 A fixed smaller `SL` would be a guess: CORE-VERIFY-002 shows that 6 GiB did not stay cached on a 16 GiB `windows-2025` runner, not how much does. So each execution chooses the size of `SL`, **before its first sample**, by a procedure frozen here.
 
-**Rungs.** Rung 0 is CORE-VERIFY-002's size, `min(10 GiB, round(0.4 × M / 1 GiB) GiB)`, at least 1 GiB (6 GiB on the 16 GiB runners). The further rungs are 4, 3 and 2 GiB, those below rung 0, in that order. At rung `r` the `SL` content is the first `r` bytes of the SplitMix64 stream of seed `0xC0FE0020` (a prefix of rung 0's content), with its BLAKE3 manifest written for that length. The lab pins the content digest of every rung (P7). The smallest rung keeps `SL` at twice `S1` or more.
+**Rungs.** Rung 0 is CORE-VERIFY-002's size, `min(10 GiB, round(0.4 × M / 1 GiB) GiB)`, at least 1 GiB (6 GiB on the 16 GiB runners). The further rungs are 4, 3 and 2 GiB, those below rung 0, in that order. At rung `r` the `SL` content is the first `r` bytes of the SplitMix64 stream of seed `0xC0FE0020` (a prefix of rung 0's content), with its BLAKE3 manifest written for that length. The smallest rung keeps `SL` at twice `S1` or more.
+
+**Rung digests (frozen).** P7 compares every document with this table:
+
+| content | seed | bytes | SHA-256 of the file | content digest |
+|---|---|---:|---|---|
+| `S1` (CORE-VERIFY-002, check) | `0xC0FE0001` | 1,073,741,824 | `520974e9a85c4c750a84cfd334198364abe8e0824ab2a07f12e653dee66f62bc` | `57528a0b33b276292e435462e50f50ee8b6f5273edbb876678e6b4fe97eb7f38` |
+| `SL` 6 GiB (rung 0 at 16 GiB; CORE-VERIFY-002, check) | `0xC0FE0020` | 6,442,450,944 | `7092431e212dc83737fe47f3884ce42dd2340721ebbc9d692b57830790ca6a81` | `31840063cc1ddc9c57f52db15b4d7958a3dca506b0bec1ae1cd0a79fa8727829` |
+| `SL` 4 GiB | `0xC0FE0020` | 4,294,967,296 | `19499664f610176860a4d9a1549f39326c0fce6b4f153e2c5ad8928a0b5086a0` | `64215c570be3270760cfeb9db775bd339336014f59e02e297db80bf22967e950` |
+| `SL` 3 GiB | `0xC0FE0020` | 3,221,225,472 | `ef82401f27709a2b0d8f266327f06da59294196510f68a160b5fea0a1eb6cfe4` | `5ae878aa7a9101f10e589d84992254241dcccd24af043349ba2ff0f8ee3ef6f9` |
+| `SL` 2 GiB | `0xC0FE0020` | 2,147,483,648 | `7e632a36ea61fe9239ebb243fae34bcd9762a7e56a5650a1269b68ef879a7bab` | `44e7c60929cdd70a415816f891e93e077b915dd8013e1fbb009bb86e1916a8bf` |
+
+The content digest is the workload digest of the run document: SHA-256 of the UTF-8 text `<SHA-256 hex> <bytes>\n` of the one file (`VerifyLabRun.Summarize`). The values were computed before the amendment by two independent paths that agree on every row: the lab's own generator (`verify-lab prepare`, which calls `VerifyLabWorkloads.GenerateAsync`, run once per size), and a separate SplitMix64 implementation in Python with numpy, written from the algorithm of `DeterministicPrng`. Both paths first reproduced the two digests CORE-VERIFY-002 recorded (the check rows). P7 checks against this table, not against a constant the lab produced. The table covers the hosted runners' rung 0 of 6 GiB; an `SL` of any other size has no row and fails P7.
 
 **Procedure.** For each rung, from rung 0 down: three fresh processes each pre-read the rung's file and manifest exactly as a sample does and run the §4.2 residency check (on Windows with `U` from block 1, the only block taken so far). The first rung at which all three are `resident` becomes `SL` for the whole execution: warm, cold and `default` groups alike. If no rung passes, `SL` is 2 GiB and the record says so; the per-sample checks then decide as always, and the rules that need `SL` warm are most likely `missing`.
 
@@ -153,10 +182,10 @@ V1 × K and V2-W2 × K also run on `T` warm with the `default` pool, for K = 1, 
 
 The reading is fixed in advance. For each platform, R3′ is the R3 warm ratio computed on the `default` group (best V2-W2 × K / best V1 × K). On a platform where R3 warm fails:
 
-- R3′ ≥ 0.95: the record states that the failure goes with the `spin-0` setting on that runner, because both groups ran on the same VM in the same execution;
-- R3′ < 0.95: the record states that the pool setting does not explain the failure.
+- R3′ ≥ 0.95: the record states that the failure does not reproduce with the `default` pool in this execution. That is consistent with sensitivity to the pool setting, not proof of it: the two groups run one after the other in a job of about two hours, so frequency, thermal state or host contention can differ between them;
+- R3′ < 0.95: the record states that the pool setting alone does not explain the failure.
 
-Either statement is informative and changes no rule.
+"Fails" is R3 warm failing under §6.1. R3′ is read from its point estimate, and the record gives its interval (computed as in §6.1) next to it. Where R3 warm is indeterminate, the record gives R3 and R3′ with their intervals and makes neither statement. The pool settings are not interleaved within a repetition: that would change the tree matrix and its order for an informative lane, and the non-causal reading above does not need it. Either statement is informative and changes no rule.
 
 ## 5. Matrix
 
@@ -172,42 +201,71 @@ Either statement is informative and changes no rule.
 
 The groups run in the order of the table, mode by mode as listed. `SL` is not run throttled; Windows has no cold mode. Within a (workload, suite, mode, pool) group, repetition r runs the lanes in table order rotated by r, as before.
 
-**Per-sample fields:** those of CORE-VERIFY-002. **Per-run fields added:** the environment of §3.2, the execution id, the start and end time of every group, the calibration trials and the chosen `SL` size (§4.3), and on Windows the six uncached reads, `U` and the threshold (§4.1–§4.2).
+**Per-sample fields:** those of CORE-VERIFY-002. **Per-run fields added:** the environment of §3.2, the execution id, the start and end time of every group, the calibration trials and the chosen `SL` size (§4.3), and on Windows the six uncached reads with `A` and their outcomes, `U`, the threshold and the six positive-control trials (§4.1–§4.2).
 
 ## 6. Decision rules
 
-Evaluated per platform on the BLAKE3 lanes of the `spin-0` matrix, over the samples §4.2 lets in, and only after P1–P9 pass; ratios use p50 values. The rules are CORE-VERIFY-002 §6, with `SL` of the size §4.3 chose:
+Evaluated per platform on the BLAKE3 lanes of the `spin-0` matrix, over the samples §4.2 admits, and only after P1–P9 pass. The comparisons and thresholds are CORE-VERIFY-002 §6, with `SL` of the size §4.3 chose; whether a rule holds or fails is decided by the interval rule of §6.1:
 
-- **R1 (per core):** on `S1` warm and on `SL` warm, `GiB per CPU-second (V1) / GiB per CPU-second (V0) ≥ 1.6`.
-- **R2 (intra-file beats file-level parallelism):** in `warm` mode and in `throttled` mode, the best V2 (maximum GiB/s over W) on the largest single file of the mode (`SL` warm, `S1` throttled) is strictly faster than the best V1 × K (maximum aggregate GiB/s over K) on `T` in the same mode. Both operands come from the platform's one run document.
-- **R3 (multi-file guard, #152):** in `warm` mode and in `throttled` mode, the maximum aggregate GiB/s of V2-W2 × K on `T` is at least 0.95 × that of V1 × K.
+- **R1 (per core):** on `S1` warm and on `SL` warm, `GiB per CPU-second (V1) / GiB per CPU-second (V0) ≥ 1.6`, on p50 values.
+- **R2 (intra-file beats file-level parallelism):** in `warm` mode and in `throttled` mode, the best V2 (maximum p50 GiB/s over W) on the largest single file of the mode (`SL` warm, `S1` throttled) is strictly faster than the best V1 × K (maximum p50 aggregate GiB/s over K) on `T` in the same mode. Both operands come from the platform's one run document.
+- **R3 (multi-file guard, #152):** in `warm` mode and in `throttled` mode, the maximum p50 aggregate GiB/s of V2-W2 × K on `T` is at least 0.95 × that of V1 × K.
 
-Decision, as in CORE-VERIFY-001 and CORE-VERIFY-002:
+### 6.1 The rule at the threshold
+
+CORE-VERIFY-002 evaluated each rule once, on p50 point estimates. Its linux-arm64 R1 on `S1` was 1.600068 against 1.6, a margin of 0.0043 %, far inside the variation between hosted runners: the same performance could have landed on either side, and one such bit can decide between ADOPT and DEFER. So each comparison gets an interval from a paired block bootstrap, and only an interval clear of the threshold decides.
+
+- **Blocks.** A block is one repetition index `r` of a (workload, suite, mode, pool) group: the samples of every lane, and every K, that ran in repetition `r` (§5).
+- **Common eligible blocks.** Admission is decided per comparison, not per lane. The lanes a comparison reads are: for R1, V0 and V1 of the workload; for R2, every V2-W (W = 2, 4, 8) on the single-file side and every V1 × K (K = 1, 2, 4, 8) on the tree side; for R3, every V1 × K and every V2-W2 × K. A block is eligible for the comparison (for R2, for its side) when every lane it reads has a sample in that block that §4.2 admits: valid (CORE-VERIFY-001 §6) and, in a pre-read mode, `resident`. A comparison needs at least half of the planned repetitions as eligible blocks (5 of 10, 3 of 5; for R2 on each side); with fewer it is `missing`, like an `unverified-warm` aggregate (which still makes its rule `missing`, as before). A replicate draws `m` block indices with replacement from the comparison's `m` eligible blocks, so every lane has a sample in every drawn block, and the ratio is paired: its lanes come from the same repetitions. A block drawn twice contributes its samples twice. A replicate computes its statistic like the point estimate: p50 of each lane over the drawn blocks (the mean of the two middle values for an even count), then the best over W or K, then the ratio. Without this, lanes admitted on different repetitions (for example V0 resident in repetitions 0–2 and V1 in 2–4, each 3 of 5) would give an unpaired ratio.
+- **Replicates.** B = 10,000 per comparison. The indices come from the lab's SplitMix64 generator (`DeterministicPrng`) seeded with `0xC0FE0B03`, a fresh generator for every comparison; each index is `NextInt32(m)`, and within a replicate the single-file group's indices are drawn before the tree group's. The same documents therefore give the same intervals on every evaluation, and `decide` recomputes them.
+- **Interval.** Two-sided 95 % percentile interval: of the B replicate values in ascending order, the lower bound is the ⌈0.025 · B⌉-th (the 250th) and the upper bound the ⌈0.975 · B⌉-th (the 9,750th). The record gives, for each comparison, its eligible blocks, the ratio over them (each block once) and the interval.
+
+| rule | comparison (per platform) | resampling | holds | fails |
+|---|---|---|---|---|
+| R1 | `S1` warm and `SL` warm, each: V1 / V0, p50 GiB per CPU-second | the common eligible blocks of V0 and V1 in the group of the workload | lower bound ≥ 1.6 | upper bound < 1.6 |
+| R2 | warm (`SL` against `T`) and throttled (`S1` against `T`), each: best V2 / best V1 × K | the single-file side and the tree side independently, each over its own common eligible blocks (they are different groups with different repetition counts) | lower bound > 1 | upper bound < 1 |
+| R3 | warm and throttled, each: best V2-W2 × K / best V1 × K on `T` | the common eligible blocks of all eight lanes in the `T` group of the mode | lower bound ≥ 0.95 | upper bound < 0.95 |
+
+Otherwise a comparison is **indeterminate**. A rule is `missing` on a platform if any of its comparisons is `missing` (as before); otherwise it fails if any comparison fails, holds if every comparison holds, and is **indeterminate** in the remaining cases. An indeterminate rule neither holds nor fails.
+
+Decision:
 
 - **ADOPT**: R1, R2 and R3 hold on at least two of the three platforms.
-- **DEFER**: R1 holds on at least two platforms, but the ADOPT condition fails.
 - **REJECT**: R1 fails on at least two platforms.
+- **DEFER**: otherwise.
 
-`NO-DECISION` when a provenance check fails (§3.3), or when an oracle fails on any platform, until the cause is fixed and rerun under a new RunId. A rule that is `missing` does not hold. The `cold` mode, the SHA-256 lane, the `default` pool lanes (including §4.4), V0 × K, the uncached reads, the calibration trials, and the CPU, memory, allocation and residency figures are reported, not gated.
+ADOPT needs R1 to hold on two platforms and REJECT needs it to fail on two, so at most one of them applies. CORE-VERIFY-002 defined DEFER as "R1 holds on at least two platforms, but the ADOPT condition fails"; with an indeterminate outcome that would leave cases with no decision, so DEFER is now the remainder: an R1 that cannot be told from its threshold defers, in either direction.
+
+**Point-estimate verdict (reported, not gating).** `decide` also evaluates R1–R3 and the decision exactly as CORE-VERIFY-001 and CORE-VERIFY-002 did, on the p50 point estimates of each lane's admitted samples, and reports it next to the gated result so that the three experiments can be compared. It does not gate; where the two differ, the record gives both and the interval rule decides.
+
+**R2 is phase-confounded.** Both R2 operands come from one VM, but from two phases of the execution: the single-file matrix, then the tree matrix, tens of minutes later (§3.1, §5). The bootstrap resamples repetitions within each phase and cannot see a level shift of the whole host between the phases, so a stable change in frequency or contention can move R2 while both sides stay narrow. The groups are not interleaved and no anchor lane is added, because that would change the topology of §3.1 and the matrix of §5. §6 therefore decides R2 as stated, and R2 counts as same-runner but phase-confounded. The gate of plan step 4 (§7) needs a margin on top of that: on at least two platforms where R1, R2 and R3 hold, the lower bound of both R2 comparisons (warm and throttled) is at least **1.25**. That leaves room for a whole-phase shift of 20 % against V2 (1 / 0.8). The 20 % is a frozen allowance, not a measured bound on drift. The record gives the start and end time of both operand groups of every R2 comparison.
+
+**One execution per platform.** Blocks are repetitions within one execution on one VM, so the interval measures stability within that execution. It does not measure how a ratio moves between hosted VMs, which is what separated CORE-VERIFY-001 from CORE-VERIFY-002 (V1 on `S1` warm: 3.03 against 1.30 GiB/s on linux-x64). §7 therefore adds a condition downstream of this experiment: no public-API pull request of #186 merges until an independent confirmatory execution reproduces the result.
+
+**Five repetitions.** On `SL` the interval is coarse. A resample of five blocks has only 126 distinct compositions (of three blocks, the fewest allowed, only 10); with five eligible blocks a lane's replicate p50 is always one of its five observed values, and it is its smallest observed value in about 5.8 % of the replicates (and its largest in as many), so the ends of the interval sit at or near the extreme repetitions. With so few blocks the percentile interval is also likely to cover less than its nominal 95 %. It is therefore a frozen stability rule, not a calibrated confidence statement: it keeps a sub-percent margin such as 1.600068 from deciding, and on `SL` it in effect asks that the comparison stay on one side of its threshold across nearly all resamples of its blocks. The sample counts stay as they are (§2); a rule that stays indeterminate because of them gives DEFER, and the record says so.
+
+`NO-DECISION` when a provenance check fails (§3.3), or when an oracle fails on any platform, until the cause is fixed and rerun under a new RunId. A rule that is `missing` or indeterminate does not hold. The point-estimate verdict, the `cold` mode, the SHA-256 lane, the `default` pool lanes (including §4.4), V0 × K, the uncached reads, the positive controls, the calibration trials, and the CPU, memory, allocation and residency figures are reported, not gated.
 
 ## 7. Relation to the DEFER of CORE-VERIFY-002 (fixed in advance)
 
 | CORE-VERIFY-003 decision | effect on CORE-VERIFY-002 | what follows |
 |---|---|---|
-| ADOPT | **overturns** it | CORE-VERIFY-002 becomes `SUPERSEDED` by this record. The public-shape discussion of #186 (plan step 4) opens on this record's evidence: named consumer, `PublicAPI.Unshipped.txt`, package validation, NativeAOT smoke, #137 oracle. No API is added by this experiment. |
+| ADOPT, limitation 4 settled (below) and the R2 margin met (§6.1) | **overturns** it | CORE-VERIFY-002 becomes `SUPERSEDED` by this record. The public-shape discussion of #186 (plan step 4) opens on this record's evidence: named consumer, `PublicAPI.Unshipped.txt`, package validation, NativeAOT smoke, #137 oracle. No API is added by this experiment. |
+| ADOPT, limitation 4 not settled | **overturns** it | CORE-VERIFY-002 becomes `SUPERSEDED` by this record, but the public-shape discussion does not open: #186 records that it waits for Windows evidence of the warm large file, which needs a separate experiment under a new ExperimentId. No API is added. |
+| ADOPT, limitation 4 settled, R2 margin not met | **overturns** it | CORE-VERIFY-002 becomes `SUPERSEDED` by this record, but the public-shape discussion does not open: #186 records that it waits for a confirmatory experiment, under a new ExperimentId, with the R2 groups interleaved. No API is added. |
 | DEFER | **confirms** it | CORE-VERIFY-002 stays DEFER, and this record is added as its confirmation. No public shape is discussed; the lanes stay lab code, and #186 records which rules carry the DEFER now. |
 | REJECT | **overturns** it (the other way) | CORE-VERIFY-002 becomes `SUPERSEDED` by this record; integrity-only verification is not worth a public shape on this evidence. The lanes stay lab code. |
 | NO-DECISION | neither | CORE-VERIFY-002's DEFER stands until a valid run. |
 
-CORE-VERIFY-001 stays `SUPERSEDED` whatever the outcome. **Only ADOPT** opens the #186 public-shape discussion (plan step 4); an ADOPT is ADOPT by §6 even if one platform is `missing`, and the record says which.
+CORE-VERIFY-001 stays `SUPERSEDED` whatever the outcome. The performance decision stays two of three (§6), for continuity with CORE-VERIFY-001 and CORE-VERIFY-002, and the record says which platforms carry it. Permission to open the #186 public-shape discussion (plan step 4) is separate: it needs **ADOPT, limitation 4 settled and the R2 margin of §6.1 met**. If both conditions fail, #186 records both waits. Even when plan step 4 opens, the interval of §6.1 covers one execution only, so no public-API pull request of #186 merges until an independent confirmatory execution reproduces ADOPT with the limitation 4 and R2 margin conditions met. That execution is a new workflow run of this frozen protocol, with new RunIds and its own record. Without that gate, an ADOPT carried by the two Linux platforms could open the discussion while the Windows gap that motivated this experiment stayed open. The gate sits here rather than in §6 so that the decision rule stays the one CORE-VERIFY-001 and CORE-VERIFY-002 used.
 
 Independently of the decision, the record states for each limitation of CORE-VERIFY-002 (§1) whether it is settled:
 
 1. **RunId per execution:** settled when P1–P4 pass.
 2. **R2 on one runner:** settled on each platform where R2 is evaluated from its one document; the record names the job and runner behind it.
 3. **Provenance in the evaluator:** settled when `decide` evaluated the rules after P1–P9 passed.
-4. **Windows warm large file:** settled when win-x64 has at least one successful uncached read, its `SL` warm aggregates are `resident` under §4.2, and R1 and R2 have been evaluated there, holding or failing. The record gives the calibrated size, `U`, the threshold and the probe distribution with its margin. If the aggregates are `unverified-warm`, the limitation stays open and win-x64 R1/R2 count as `missing`, not as failed.
-5. **x64 R3:** the record gives R3 and R3′ per platform and the statement of §4.4 wherever R3 fails. If R3 holds on linux-x64, the record says so and the §4.4 statement is not needed.
+4. **Windows warm large file:** settled when win-x64 has at least one successful uncached read (§4.1), all six positive-control trials pass against the thresholds they were judged against (§4.2), its `SL` warm aggregates are `resident` under §4.2, and R1 and R2 have been evaluated there under §6.1: holding, failing or indeterminate, not `missing`. The record gives the calibrated size, `U`, the threshold and the probe distribution with its margin. If the aggregates are `unverified-warm`, the limitation stays open and win-x64 R1/R2 count as `missing`, not as failed.
+5. **x64 R3:** the record gives R3 and R3′ per platform, each with its point estimate and interval, and the statement of §4.4 wherever R3 fails. If R3 holds on linux-x64, the record says so and the §4.4 statement is not needed.
 
 ## 8. Not decided here
 
@@ -221,6 +279,6 @@ Everything CORE-VERIFY-002 §8 leaves open stays open: the public shape, the man
 
 Each platform execution gets one RunId `CORE-VERIFY-003/RUN-YYYYMMDD-NNN-<commit>-<platform>`: the UTC date the execution starts, `NNN` the workflow run number, `<commit>` the first seven characters of the measured commit, and platform `linux-x64`, `linux-arm64` or `win-x64`. It keeps its raw run document and oracle report as a CI artifact.
 
-The compact committed dataset goes under `docs/research/results/data/CORE-VERIFY-003-YYYYMMDD/`: `samples.csv` with every sample, `runs.json` with the metadata of the three run documents (including §3.2, the calibration and the uncached reads), `decision.json` and `decision.md` as `decide` wrote them in CI (with the provenance table), and the three oracle reports. Before it is committed, every column of `samples.csv` is compared with the raw documents, row by row.
+The compact committed dataset goes under `docs/research/results/data/CORE-VERIFY-003-YYYYMMDD/`: `samples.csv` with every sample, `runs.json` with the metadata of the three run documents (including §3.2, the calibration, the uncached reads and the positive controls), `decision.json` and `decision.md` as `decide` wrote them in CI (with the provenance table, every comparison's point estimate and interval, and the point-estimate verdict), and the three oracle reports. Before it is committed, every column of `samples.csv` is compared with the raw documents, row by row.
 
-The result record `docs/research/results/CORE-VERIFY-003-EVIDENCE-YYYYMMDD-NNN.md` follows `RESULT-TEMPLATE.md`. It evaluates §6 against this note, applies §7, gives the provenance table, the environment of each execution, the calibration and the uncached reads, the §4.4 reading, and every `not-resident` and `unverified` sample. The index row, the registry entry and #186 link it.
+The result record `docs/research/results/CORE-VERIFY-003-EVIDENCE-YYYYMMDD-NNN.md` follows `RESULT-TEMPLATE.md`. It evaluates §6 against this note, gives the point-estimate verdict next to it (§6.1), applies §7, gives the provenance table, the environment of each execution, the calibration, the uncached reads and the positive controls, the §4.4 reading, and every `not-resident` and `unverified` sample. The index row, the registry entry and #186 link it.
