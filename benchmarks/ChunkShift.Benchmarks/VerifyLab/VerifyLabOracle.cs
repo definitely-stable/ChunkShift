@@ -15,7 +15,7 @@ namespace ChunkShift.Benchmarks.VerifyLab;
 /// </summary>
 internal static class VerifyLabOracle
 {
-    internal const string Schema = "chunkshift.verify-lab-oracle.v1";
+    internal const string Schema = "chunkshift.verify-lab-oracle.v2";
 
     private const int O6RecordBytes = 64 * 1024;
 
@@ -547,10 +547,26 @@ internal static class VerifyLabOracle
         haystack.AsSpan().LastIndexOf(needle);
 }
 
-/// <summary>The oracle's report: counts per case class, lane and content mode, and every failure.</summary>
+/// <summary>
+/// The oracle's report: counts per case class, lane and content mode, and every
+/// failure. <c>verify-lab run</c> binds the report of its job to the execution
+/// by recording the RunId, execution id, commit and platform in it
+/// (docs/benchmarks/CORE-VERIFY-003-PROTOCOL.md section 3.2); the oracle
+/// leaves them null.
+/// </summary>
 internal sealed class VerifyLabOracleReport(string schema, bool quick)
 {
     public string Schema { get; } = schema;
+
+    public string ExperimentId { get; } = VerifyLabRun.ExperimentId;
+
+    public string? RunId { get; set; }
+
+    public string? ExecutionId { get; set; }
+
+    public string? Commit { get; set; }
+
+    public string? Platform { get; set; }
 
     public bool Quick { get; } = quick;
 

@@ -16,13 +16,14 @@ public sealed class VerifyLabDecisionTests
                 "S1/sha256/warm/spin-0/10/2", "S1/blake3/warm/default/10/2",
                 "SL/blake3/warm/spin-0/5/5", "SL/blake3/cold/spin-0/5/5", "SL/blake3/warm/default/5/2",
                 "T/blake3/warm/spin-0/10/12", "T/blake3/cold/spin-0/10/12", "T/blake3/throttled/spin-0/10/12",
+                "T/blake3/warm/default/10/8",
             ],
             plan.Select(static group => $"{group.Workload}/{group.Suite}/{group.Mode}/{group.Pool}/{group.Samples}/{group.Configurations.Length}"));
         Assert.Equal(["V0", "V1"], plan[4].Configurations.Select(static configuration => configuration.Lane));
         Assert.Equal(
             ["V0", "V1", "V2-W2", "V2-W4", "V2-W8"],
             plan[0].Configurations.Select(static configuration => configuration.Lane));
-        Assert.Contains(plan[^1].Configurations, static configuration => configuration is { Lane: "V2-W2", Concurrency: 8 });
+        Assert.Contains(plan[^2].Configurations, static configuration => configuration is { Lane: "V2-W2", Concurrency: 8 });
         Assert.Throws<VerifyLabUsageException>(() => VerifyLabRun.Plan(["S10"], ["warm"], samples: null));
         Assert.DoesNotContain(
             VerifyLabRun.Plan(["S1", "SL"], ["cold", "throttled"], samples: null),

@@ -24,8 +24,8 @@ internal sealed record VerifyLabWorkloadsDocument(string Schema, bool Smoke, Ver
 
 /// <summary>
 /// <c>verify-lab prepare</c>: generates the S1 file, the warm-up file, the
-/// large file SL sized to the machine's memory
-/// (docs/benchmarks/CORE-VERIFY-002-PROTOCOL.md section 4.1) and the many-file
+/// large file SL at rung 0 of the calibration ladder
+/// (docs/benchmarks/CORE-VERIFY-003-PROTOCOL.md section 4.3) and the many-file
 /// tree T with their manifests (docs/benchmarks/CORE-VERIFY-001-PROTOCOL.md
 /// section 4), and writes <c>&lt;dir&gt;/workloads.json</c>.
 /// </summary>
@@ -47,14 +47,14 @@ internal static class VerifyLabWorkloads
     private const int BlockBytes = 1 << 20;
 
     /// <summary>
-    /// The generated workloads: id, full size, smoke size, seed and suites. A
-    /// full size of 0 is SL's, which <see cref="LargeBytes"/> computes.
+    /// The generated workloads: id, full size, smoke size, seed and suites. SL's
+    /// sizes of 0 are rung 0 of <see cref="VerifyLabCalibration.Rungs"/>.
     /// </summary>
     internal static readonly (string Id, long Bytes, long SmokeBytes, ulong Seed, string[] Suites)[] Generated =
     [
         (Warmup, 64L << 20, 8L << 20, 0xC0FE_0000, ["blake3", "sha256"]),
         ("S1", 1L << 30, 16L << 20, 0xC0FE_0001, ["blake3", "sha256"]),
-        (Large, 0, 48L << 20, 0xC0FE_0020, ["blake3"]),
+        (Large, 0, 0, VerifyLabCalibration.LargeSeed, ["blake3"]),
     ];
 
     /// <summary>The machine's memory as .NET reports it (the cgroup limit where one applies).</summary>
@@ -86,24 +86,12 @@ internal static class VerifyLabWorkloads
                 continue;
             }
 
-            long size = smoke ? smokeBytes : id == Large ? LargeBytes(memory) : bytes;
-            string content = Path.Combine(directory, id.ToLowerInvariant() + ".bin");
-            string sha256 = await GenerateAsync(content, size, seed).ConfigureAwait(false);
-            var manifests = new SortedDictionary<string, string>(StringComparer.Ordinal);
-
-            foreach (string suite in suites)
-            {
-                string manifest = Path.Combine(directory, $"{id.ToLowerInvariant()}.{suite}.csm");
-                await CreateManifestAsync(content, manifest, suite).ConfigureAwait(false);
-                manifests[suite] = manifest;
-            }
-
-            workloads.Add(new VerifyLabWorkload(
-                id,
-                string.Create(CultureInfo.InvariantCulture, $"splitmix64 seed=0x{seed:X} bytes={size}"),
-                size,
-                [new VerifyLabWorkloadFile(content, size, sha256, manifests)]));
-            Console.Error.WriteLine($"verify-lab prepare {id}: {size} bytes, sha256 {sha256}, memory {memory} bytes");
+            // SL is prepared at rung 0 of the calibration ladder
+            // (docs/benchmarks/CORE-VERIFY-003-PROTOCOL.md section 4.3).
+            long size = id == Large ? VerifyLabCalibration.Rungs(memory, smoke)[0] : smoke ? smokeBytes : bytes;
+            VerifyLabWorkload workload = await CreateAsync(directory, id, id.ToLowerInvariant(), size, seed, suites).ConfigureAwait(false);
+            workloads.Add(workload);
+            Console.Error.WriteLine($"verify-lab prepare {id}: {size} bytes, sha256 {workload.Files[0].Sha256}, memory {memory} bytes");
         }
 
         if (requested.Contains("T"))
@@ -117,6 +105,55 @@ internal static class VerifyLabWorkloads
             Path.Combine(directory, DocumentName),
             new VerifyLabWorkloadsDocument(Schema, smoke, [.. workloads]));
         return 0;
+    }
+
+    /// <summary>
+    /// Generates one SplitMix64 file <c>&lt;name&gt;.bin</c> of
+    /// <paramref name="bytes"/> bytes with a manifest per suite.
+    /// </summary>
+    internal static async Task<VerifyLabWorkload> CreateAsync(
+        string directory,
+        string id,
+        string name,
+        long bytes,
+        ulong seed,
+        string[] suites)
+    {
+        string content = Path.Combine(directory, name + ".bin");
+        string sha256 = await GenerateAsync(content, bytes, seed).ConfigureAwait(false);
+        var manifests = new SortedDictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (string suite in suites)
+        {
+            string manifest = Path.Combine(directory, $"{name}.{suite}.csm");
+            await CreateManifestAsync(content, manifest, suite).ConfigureAwait(false);
+            manifests[suite] = manifest;
+        }
+
+        return new VerifyLabWorkload(
+            id,
+            string.Create(CultureInfo.InvariantCulture, $"splitmix64 seed=0x{seed:X} bytes={bytes}"),
+            bytes,
+            [new VerifyLabWorkloadFile(content, bytes, sha256, manifests)]);
+    }
+
+    /// <summary>SL at <paramref name="bytes"/>: a prefix of rung 0's stream, with its BLAKE3 manifest.</summary>
+    internal static Task<VerifyLabWorkload> CreateLargeAsync(string directory, long bytes) =>
+        CreateAsync(
+            directory,
+            Large,
+            string.Create(CultureInfo.InvariantCulture, $"sl-{bytes}"),
+            bytes,
+            VerifyLabCalibration.LargeSeed,
+            ["blake3"]);
+
+    /// <summary>Replaces SL in <c>&lt;dir&gt;/workloads.json</c> with the calibrated size.</summary>
+    internal static void ReplaceLarge(string directory, VerifyLabWorkload large)
+    {
+        VerifyLabWorkloadsDocument document = Load(directory);
+        VerifyLabRunner.WriteJson(
+            Path.Combine(Path.GetFullPath(directory), DocumentName),
+            document with { Workloads = [.. document.Workloads.Select(workload => workload.Id == Large ? large : workload)] });
     }
 
     internal static VerifyLabWorkloadsDocument Load(string directory)

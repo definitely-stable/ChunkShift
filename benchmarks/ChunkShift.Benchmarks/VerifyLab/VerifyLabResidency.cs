@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
@@ -8,11 +9,46 @@ namespace ChunkShift.Benchmarks.VerifyLab;
 internal sealed record VerifyLabResidencyReport(string Status, double? ProbeGiBPerSecond, double? ResidentFraction);
 
 /// <summary>
+/// One positive-control trial on win-x64 (docs/benchmarks/CORE-VERIFY-003-PROTOCOL.md
+/// section 4.2): a fresh process pre-read S1 and its manifest and probed them.
+/// <see cref="Threshold"/> is the threshold the trial is judged against
+/// (control 1: block 1; control 2: final), <see cref="Passed"/> its outcome, and
+/// <see cref="PassesFinal"/> the diagnostic verdict against the final threshold.
+/// </summary>
+internal sealed record VerifyLabControlTrial(
+    int Control,
+    int Trial,
+    double? ProbeGiBPerSecond,
+    string? Error,
+    double? Threshold,
+    bool Passed,
+    bool PassesFinal);
+
+/// <summary>
+/// The Windows reference of sections 4.1 and 4.2: the six uncached reads,
+/// <c>U₁</c> (block 1) and <c>U</c> (both blocks) with their thresholds, the six
+/// positive-control trials, and why pre-read verdicts are unverified, if they are.
+/// </summary>
+internal sealed record VerifyLabReference(
+    VerifyLabUncachedRead[] Reads,
+    double? BlockOneMaximum,
+    double? BlockOneThreshold,
+    double? Maximum,
+    double? Threshold,
+    VerifyLabControlTrial[] Controls,
+    bool ControlsPassed,
+    string? UnverifiedReason);
+
+/// <summary>
 /// The residency check of docs/benchmarks/CORE-VERIFY-002-PROTOCOL.md section
-/// 4.2. A probe pass reads every file with synchronous 1 MiB reads and times
-/// only the read calls; on Linux, <c>mincore</c> over a read-only mapping
+/// 4.2 with the Windows row of docs/benchmarks/CORE-VERIFY-003-PROTOCOL.md
+/// section 4.2. A probe pass reads every file with synchronous 1 MiB reads and
+/// times only the read calls; on Linux, <c>mincore</c> over a read-only mapping
 /// reports the resident fraction of the files' pages. Linux decides by
-/// <c>mincore</c>, Windows by the probe; other platforms are unverified.
+/// <c>mincore</c> in the sample process. On Windows the sample process records
+/// its probe as <see cref="Pending"/>, and the verdict is computed from the
+/// probe and the uncached reads once block 2 is taken: resident when the probe
+/// is at least <c>max(1.5 GiB/s, 3 × U)</c>. Other platforms are unverified.
 /// </summary>
 internal static class VerifyLabResidency
 {
@@ -21,8 +57,20 @@ internal static class VerifyLabResidency
     internal const string Unverified = "unverified";
     internal const string NotApplicable = "n/a";
 
+    /// <summary>A Windows probe whose verdict waits for the uncached reads.</summary>
+    internal const string Pending = "pending";
+
     internal const double ResidentFractionThreshold = 0.99;
+
+    /// <summary>The Windows floor: a probe below it is never resident.</summary>
     internal const double ProbeThresholdGiBPerSecond = 1.5;
+
+    /// <summary>A resident Windows probe is at least this many times the fastest uncached read.</summary>
+    internal const double ReferenceMultiplier = 3;
+
+    /// <summary>Three positive-control trials after each reference block.</summary>
+    internal const int ControlTrials = 3;
+
     internal const int ProbeReadBytes = 1 << 20;
 
     private const int MincorePages = 1 << 18;
@@ -31,14 +79,83 @@ internal static class VerifyLabResidency
     {
         double? probe = Attempt(() => Probe(paths));
         double? fraction = OperatingSystem.IsLinux() ? Attempt(() => ResidentFraction(paths)) : null;
-        return new VerifyLabResidencyReport(
-            Classify(OperatingSystem.IsLinux(), OperatingSystem.IsWindows(), fraction, probe),
-            probe,
-            fraction);
+        string status = OperatingSystem.IsWindows()
+            ? probe is null ? Unverified : Pending
+            : Classify(OperatingSystem.IsLinux(), windows: false, fraction, probe);
+        return new VerifyLabResidencyReport(status, probe, fraction);
+    }
+
+    /// <summary>
+    /// The Windows threshold <c>max(1.5 GiB/s, 3 × U)</c>, or null when no
+    /// uncached read succeeded (<paramref name="maximum"/> is null).
+    /// </summary>
+    internal static double? WindowsThreshold(double? maximum) =>
+        maximum is double u ? Math.Max(ProbeThresholdGiBPerSecond, ReferenceMultiplier * u) : null;
+
+    /// <summary>
+    /// The verdict of a Windows probe: unverified when the probe failed, no
+    /// uncached read succeeded (no threshold) or a positive control failed;
+    /// otherwise resident at or above the threshold.
+    /// </summary>
+    internal static string WindowsVerdict(double? probeGiBPerSecond, double? threshold, bool controlsPassed) =>
+        !controlsPassed || probeGiBPerSecond is not double probe || threshold is not double bar
+            ? Unverified
+            : probe >= bar ? Resident : NotResident;
+
+    /// <summary>
+    /// Section 4.2 over the six uncached reads and the six positive-control
+    /// probes: <c>U₁</c>, <c>U</c>, both thresholds, every trial's outcome
+    /// against the threshold it is judged against and its verdict against
+    /// the final threshold. <c>verify-lab run</c> records the result and
+    /// <c>verify-lab decide</c> recomputes it (P9).
+    /// </summary>
+    internal static VerifyLabReference Evaluate(
+        VerifyLabUncachedRead[] reads,
+        IEnumerable<(int Control, int Trial, double? Probe, string? Error)> probes)
+    {
+        double? blockOne = VerifyLabUncached.Maximum(reads.Where(static read => read.Block == 1));
+        double? maximum = VerifyLabUncached.Maximum(reads);
+        double? blockOneThreshold = WindowsThreshold(blockOne);
+        double? threshold = WindowsThreshold(maximum);
+        VerifyLabControlTrial[] controls =
+        [
+            .. probes.Select(probe =>
+            {
+                double? judged = probe.Control == 1 ? blockOneThreshold : threshold;
+                return new VerifyLabControlTrial(
+                    probe.Control,
+                    probe.Trial,
+                    probe.Probe,
+                    probe.Error,
+                    judged,
+                    Passed: probe.Probe is double p1 && judged is double t1 && p1 >= t1,
+                    PassesFinal: probe.Probe is double p2 && threshold is double t2 && p2 >= t2);
+            }),
+        ];
+        bool complete = controls.Count(static trial => trial.Control == 1) == ControlTrials &&
+            controls.Count(static trial => trial.Control == 2) == ControlTrials;
+        bool passed = complete && controls.All(static trial => trial.Passed);
+        string? reason = maximum is null
+            ? "no uncached read succeeded"
+            : !complete
+                ? "the positive controls are incomplete"
+                : !passed
+                    ? "a positive-control trial failed: " + string.Join(", ", controls
+                        .Where(static trial => !trial.Passed)
+                        .Select(static trial => string.Create(
+                            CultureInfo.InvariantCulture,
+                            $"control {trial.Control} trial {trial.Trial} probe {trial.ProbeGiBPerSecond?.ToString("F3", CultureInfo.InvariantCulture) ?? "failed"} GiB/s against {trial.Threshold?.ToString("F3", CultureInfo.InvariantCulture) ?? "no threshold"}")))
+                    : null;
+        return new VerifyLabReference(reads, blockOne, blockOneThreshold, maximum, threshold, controls, passed, reason);
     }
 
     /// <summary>The residency status of section 4.2 from what could be measured.</summary>
-    internal static string Classify(bool linux, bool windows, double? residentFraction, double? probeGiBPerSecond)
+    internal static string Classify(
+        bool linux,
+        bool windows,
+        double? residentFraction,
+        double? probeGiBPerSecond,
+        double windowsThreshold = ProbeThresholdGiBPerSecond)
     {
         if (linux)
         {
@@ -51,7 +168,7 @@ internal static class VerifyLabResidency
         {
             return probeGiBPerSecond is not double probe
                 ? Unverified
-                : probe >= ProbeThresholdGiBPerSecond ? Resident : NotResident;
+                : probe >= windowsThreshold ? Resident : NotResident;
         }
 
         return Unverified;

@@ -35,6 +35,10 @@ internal sealed record VerifyLabMeasurement(
 /// pool's spin limit in the environment (<c>--pool</c> names the setting it
 /// chose); a process that does not see that setting fails.
 /// <c>--idle</c> prints the peak working set of a process that does nothing.
+/// <c>--residency --files &lt;a,b,…&gt;</c> pre-reads the files as a sample does
+/// and prints <c>residency=&lt;json&gt;</c>: a calibration trial or a
+/// positive-control trial (docs/benchmarks/CORE-VERIFY-003-PROTOCOL.md
+/// sections 4.2 and 4.3).
 /// </summary>
 internal static class VerifyLabOne
 {
@@ -59,6 +63,19 @@ internal static class VerifyLabOne
         if (options.Flag("idle"))
         {
             Report(new VerifyLabMeasurement(0, 0, 0, 0, 0, PeakWorkingSet(), Valid: true, []));
+            return 0;
+        }
+
+        if (options.Flag("residency"))
+        {
+            string[] files = options.List("files") ?? throw new VerifyLabUsageException("--files is required with --residency.");
+
+            foreach (string file in files)
+            {
+                await PrereadAsync(file).ConfigureAwait(false);
+            }
+
+            Console.Out.WriteLine("residency=" + JsonSerializer.Serialize(VerifyLabResidency.Check(files), VerifyLabRunner.CompactJsonOptions));
             return 0;
         }
 
@@ -267,6 +284,18 @@ internal static class VerifyLabOne
 
     private static void Report(VerifyLabMeasurement measurement) =>
         Console.Out.WriteLine("sample=" + JsonSerializer.Serialize(measurement, VerifyLabRunner.CompactJsonOptions));
+
+    internal static VerifyLabResidencyReport ParseResidency(string stdout)
+    {
+        string? line = stdout
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .LastOrDefault(static line => line.StartsWith("residency=", StringComparison.Ordinal));
+
+        return line is null
+            ? throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"The residency process reported nothing: {stdout.Trim()}"))
+            : JsonSerializer.Deserialize<VerifyLabResidencyReport>(line["residency=".Length..], VerifyLabRunner.CompactJsonOptions)
+                ?? throw new InvalidDataException("Could not parse the residency report.");
+    }
 
     internal static VerifyLabMeasurement Parse(string stdout)
     {
