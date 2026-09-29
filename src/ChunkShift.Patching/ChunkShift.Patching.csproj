@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <IsAotCompatible>true</IsAotCompatible>
-    <!-- D8: the refPrefix encoder candidate (PATCH-ENC-003) uses the low-level zstd API. -->
+    <!-- D8: the default encoder hands dictionaries to zstd as a raw prefix (PATCH-ENC-003), which needs the low-level zstd API. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <EnablePackageValidation>true</EnablePackageValidation>
     <PackageId>ChunkShift.Patching</PackageId>
