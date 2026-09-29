@@ -77,7 +77,8 @@ internal static class PatchLabRunner
         RuntimeInformation.ProcessArchitecture.ToString(),
         RuntimeInformation.FrameworkDescription,
         System.Environment.ProcessorCount,
-        System.Environment.GetEnvironmentVariable("GITHUB_SHA"));
+        System.Environment.GetEnvironmentVariable("GITHUB_SHA"),
+        EnvironmentSnapshot.CaptureProcessorDescription());
 
     /// <summary>Gets the median of a sample, or zero when the sample is empty.</summary>
     internal static double Median(IEnumerable<double> values)
