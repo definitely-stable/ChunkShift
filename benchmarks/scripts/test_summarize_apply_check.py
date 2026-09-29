@@ -25,9 +25,12 @@ MIB = 1024 * 1024
 RESAMPLES = 200
 
 ENVIRONMENTS = {
-    "linux-x64": {"osDescription": "Ubuntu 24.04.5 LTS", "osArchitecture": "X64", "gitCommit": COMMIT},
-    "linux-arm64": {"osDescription": "Ubuntu 24.04.5 LTS", "osArchitecture": "Arm64", "gitCommit": COMMIT},
-    "win-x64": {"osDescription": "Microsoft Windows 10.0.26100", "osArchitecture": "X64", "gitCommit": COMMIT},
+    "linux-x64": {"osDescription": "Ubuntu 24.04.5 LTS", "osArchitecture": "X64",
+                  "processorCount": 4, "processorDescription": "Test x64 CPU", "gitCommit": COMMIT},
+    "linux-arm64": {"osDescription": "Ubuntu 24.04.5 LTS", "osArchitecture": "Arm64",
+                    "processorCount": 4, "processorDescription": "Test arm64 CPU", "gitCommit": COMMIT},
+    "win-x64": {"osDescription": "Microsoft Windows 10.0.26100", "osArchitecture": "X64",
+                "processorCount": 4, "processorDescription": "Test Windows CPU", "gitCommit": COMMIT},
 }
 
 FILES = [(f"file-{index}", (index + 1) * 512 * 1024) for index in range(8)]
@@ -56,10 +59,14 @@ class Fixture:
         repetitions: int = 10,
         memory_excess: int = 40 * MIB,
         environment: dict | None = None,
+        repetition_overlap_factors: list[float] | None = None,
+        last_file_overlap_factor: float | None = None,
+        experiment: str = summary.EXPERIMENT,
     ) -> Path:
         directory = self.root / name
         directory.mkdir()
         env = environment or ENVIRONMENTS[name]
+        run_id = f"{experiment}/RUN-20260929-001-{COMMIT[:7]}-{name}"
         for repetition in range(repetitions):
             files = []
             for index, (path, size) in enumerate(FILES):
@@ -71,7 +78,15 @@ class Fixture:
                     "runs": {
                         "off": [cost(off, cpu), cost(off, cpu)],
                         "seq": [cost(off * seq_factor, cpu * seq_factor)] * 2,
-                        "overlap": [cost(off * overlap_factor, cpu * 1.2)] * 2,
+                        "overlap": [cost(
+                            off * (
+                                last_file_overlap_factor
+                                if last_file_overlap_factor is not None and index == len(FILES) - 1
+                                else repetition_overlap_factors[repetition]
+                                if repetition_overlap_factors is not None
+                                else overlap_factor
+                            ),
+                            cpu * 1.2)] * 2,
                     },
                     "decomposition": {
                         "csmParse": cost(0.001, 0.001), "reread": cost(0.002, 0.001),
@@ -81,7 +96,7 @@ class Fixture:
                 })
             self._write(directory / f"time-{repetition}.json", {
                 "kind": "time", "repetition": repetition, "outputsVerified": True, "environment": env,
-                "runId": f"PATCH-APPLY-002/RUN-20260928-001-0123456-{name}", "files": files,
+                "runId": run_id, "files": files,
             })
             passes = []
             for level in (1, 2, 4, 8):
@@ -90,15 +105,17 @@ class Fixture:
                         passes.append({"concurrency": level, "lane": lane, "pass": number,
                                        "wallSeconds": 10.0 / level * factor, "cpuSeconds": 10.0 * factor})
             self._write(directory / f"concurrent-{repetition}.json", {
-                "kind": "concurrent", "repetition": repetition, "environment": env, "passes": passes,
+                "kind": "concurrent", "repetition": repetition, "environment": env,
+                "runId": run_id, "passes": passes,
             })
         self._write(directory / "memory.json", {
-            "kind": "memory", "environment": env, "idleBaselineBytes": 30 * MIB, "memoryEnvironment": {},
+            "kind": "memory", "environment": env, "runId": run_id,
+            "idleBaselineBytes": 30 * MIB, "memoryEnvironment": {},
             "files": [{"family": "fam", "path": "big", "targetSize": 4 * MIB,
                        "applyPeakBytes": {"off": 60 * MIB, "seq": 62 * MIB, "overlap": 30 * MIB + memory_excess}}],
         })
         self._write(directory / "prepare.json", {
-            "kind": "prepare", "environment": env,
+            "kind": "prepare", "environment": env, "runId": run_id,
             "files": [{"family": "fam", "path": "a", "targetSize": 10000, "sameOffsetBytes": 5000,
                        "alignedBytes": 4096}],
         })
@@ -201,6 +218,30 @@ class StatisticTests(unittest.TestCase):
         self.assertEqual(first["platforms"][0]["timeStatistics"], second["platforms"][0]["timeStatistics"])
 
 
+    def test_decision_ci_resamples_repetition_blocks_not_files(self):
+        fixture = Fixture(self)
+        directory = fixture.platform(
+            "linux-x64",
+            repetition_overlap_factors=[1.00] * 5 + [1.20] * 5,
+        )
+        document = fixture.summarize(directory)
+        stat = document["platforms"][0]["timeStatistics"]["lanes"]["overlap"]["wallMedianOfRatios"]
+
+        self.assertEqual(stat["resamplingUnit"], "paired-repetition-block")
+        self.assertLess(stat["ciLow"], stat["median"])
+        self.assertGreater(stat["ciHigh"], stat["median"])
+
+    def test_corpus_sum_conflict_defers_instead_of_adopting(self):
+        fixture = Fixture(self)
+        document = fixture.summarize(
+            fixture.platform("linux-x64", last_file_overlap_factor=1.30),
+            fixture.platform("linux-arm64", last_file_overlap_factor=1.30),
+        )
+
+        self.assertEqual(document["rules"]["rule1"]["verdict"], "DEFER")
+        self.assertTrue(document["rules"]["rule1"]["platforms"]["linux-x64"]["companionConflict"])
+
+
 class InputTests(unittest.TestCase):
     def test_corpus_lock_mismatch_is_an_error(self):
         fixture = Fixture(self)
@@ -217,6 +258,22 @@ class InputTests(unittest.TestCase):
         with self.assertRaises(summary.SummaryError):
             fixture.summarize(directory)
 
+    def test_wrong_experiment_run_id_is_an_error(self):
+        fixture = Fixture(self)
+        directory = fixture.platform("linux-x64", experiment="PATCH-APPLY-002")
+        with self.assertRaises(summary.SummaryError):
+            fixture.summarize(directory)
+
+    def test_require_all_platforms_is_fail_closed(self):
+        fixture = Fixture(self)
+        with self.assertRaises(summary.SummaryError):
+            summary.summarize(
+                [fixture.platform("linux-x64"), fixture.platform("linux-arm64")],
+                fixture.lock,
+                resamples=RESAMPLES,
+                require_all_platforms=True,
+            )
+
     def test_main_writes_json_and_markdown(self):
         fixture = Fixture(self)
         directory = fixture.platform("linux-x64")
@@ -227,7 +284,7 @@ class InputTests(unittest.TestCase):
                                  "--output", str(output), "--markdown", str(markdown)])
 
         self.assertEqual(code, 0)
-        self.assertEqual(json.loads(output.read_text(encoding="utf-8"))["experiment"], "PATCH-APPLY-002")
+        self.assertEqual(json.loads(output.read_text(encoding="utf-8"))["experiment"], "PATCH-APPLY-003")
         text = markdown.read_text(encoding="utf-8")
         self.assertIn("## linux-x64", text)
         self.assertIn("| overlap |", text)
