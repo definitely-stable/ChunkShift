@@ -252,6 +252,18 @@ class StatisticTests(unittest.TestCase):
         self.assertTrue(document["rules"]["rule1"]["platforms"]["linux-x64"]["companionConflict"])
 
 
+    def test_two_clean_platforms_can_adopt_when_the_third_is_conflicted(self):
+        fixture = Fixture(self)
+        document = fixture.summarize(
+            fixture.platform("linux-x64"),
+            fixture.platform("linux-arm64"),
+            fixture.platform("win-x64", last_file_overlap_factor=1.30),
+        )
+
+        self.assertEqual(document["rules"]["rule1"]["verdict"], "ADOPT")
+        self.assertTrue(document["rules"]["rule1"]["platforms"]["win-x64"]["companionConflict"])
+
+
 class InputTests(unittest.TestCase):
     def test_corpus_lock_mismatch_is_an_error(self):
         fixture = Fixture(self)
