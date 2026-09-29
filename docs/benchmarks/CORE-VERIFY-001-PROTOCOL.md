@@ -131,3 +131,5 @@ An oracle failure (§3) on any platform means no decision until it is fixed and 
 ## 9. Records
 
 Each platform run gets a RunId `CORE-VERIFY-001/RUN-YYYYMMDD-NNN-<commit>-<platform>` with platform `linux-x64`, `linux-arm64` or `win-x64`, and keeps its raw per-sample JSON and the oracle report (CI artifact, plus a compact committed dataset under `docs/research/results/data/`). The result record `docs/research/results/CORE-VERIFY-001-EVIDENCE-YYYYMMDD-NNN.md` follows `RESULT-TEMPLATE.md` and evaluates §7 against this note; the index row, the registry entry and #186 link it.
+
+Results (2026-09-29, commit `5ff9db9`): ADOPT — [CORE-VERIFY-001-EVIDENCE-20260929-001](../research/results/CORE-VERIFY-001-EVIDENCE-20260929-001.md).

@@ -179,7 +179,7 @@
         152
       ],
       "area": "core-api",
-      "status": "PLANNED",
+      "status": "ADOPT",
       "question": "integrity-only verification guided by the manifest"
     },
     {

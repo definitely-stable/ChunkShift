@@ -24,7 +24,7 @@ This table is the human-readable research index. Machine-readable experiment def
 | CORE011-FUZZ-002 | Core 0.1.1 | #137 | Periodic/low-entropy adversarial matrix | PLANNED | — |
 | CORE011-SCAN-007 | Core 0.1.1 | #153, #152, #137 | Exact speculative parallel cutting of a seekable source (a shared cut position resynchronizes every later cut) | PLANNED | — |
 | CORE011-JIT-001 | Core 0.1.1 | #153, #152 | Tiers, PGO and NativeAOT for short-lived processes: time to first chunk and steady state | PLANNED | — |
-| CORE-VERIFY-001 | Core API (additive) | #186, #152 | Integrity-only verification guided by the manifest: slice by record lengths, hash, parallel by record range | PLANNED | — |
+| CORE-VERIFY-001 | Core API (additive) | #186, #152 | Integrity-only verification guided by the manifest: slice by record lengths, hash, parallel by record range | ADOPT | [CORE-VERIFY-001-EVIDENCE-20260929-001](results/CORE-VERIFY-001-EVIDENCE-20260929-001.md) |
 | CORE-BOUNDARY-001 | Core API (additive) | #186, #135, #182, #150 | Hash-free boundary scanning at the shipped profile's exact cuts | PLANNED | — |
 | CORE-SOURCE-001 | Core API (additive) | #186, #153 | `ReadOnlyMemory<byte>` and file-handle scan sources | PLANNED | — |
 | CDC-FUTURE-001 | Future CDC | #136, #14 | RepMaxCDC matched-mean/parallel evidence | PLANNED | — |
