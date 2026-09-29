@@ -179,8 +179,11 @@
         152
       ],
       "area": "core-api",
-      "status": "ADOPT",
-      "question": "integrity-only verification guided by the manifest"
+      "status": "SUPERSEDED",
+      "question": "integrity-only verification guided by the manifest",
+      "protocol": "docs/benchmarks/CORE-VERIFY-001-PROTOCOL.md",
+      "evidence": "docs/research/results/CORE-VERIFY-001-EVIDENCE-20260929-001.md",
+      "supersededBy": "docs/research/results/CORE-VERIFY-002-EVIDENCE-20260929-001.md"
     },
     {
       "id": "CORE-VERIFY-002",
@@ -189,8 +192,10 @@
         152
       ],
       "area": "core-api",
-      "status": "PLANNED",
-      "question": "CORE-VERIFY-001 confirmatory run: no pool spinning, cache-sized warm file"
+      "status": "DEFER",
+      "question": "CORE-VERIFY-001 confirmatory run: no pool spinning, cache-sized warm file",
+      "protocol": "docs/benchmarks/CORE-VERIFY-002-PROTOCOL.md",
+      "evidence": "docs/research/results/CORE-VERIFY-002-EVIDENCE-20260929-001.md"
     },
     {
       "id": "CORE-BOUNDARY-001",
