@@ -83,3 +83,4 @@ A result record must show all three statistics and their exact unrounded values.
 ## 5. Result
 
 - [PATCH-APPLY-003-EVIDENCE-20260929-001](../research/results/PATCH-APPLY-003-EVIDENCE-20260929-001.md)
+- [PATCH-APPLY-003-EVIDENCE-20260930-001](../research/results/PATCH-APPLY-003-EVIDENCE-20260930-001.md)

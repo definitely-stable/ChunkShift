@@ -1,0 +1,5 @@
+d10c15915fe29b97c615ccddd8048816a00308e56486f4ef7677dc76da87e151  PATCH-APPLY-003-compact-linux-x64.json
+9c9d7f00c8a4f1bf9be86672cdb9dc4f0e8016e124d6d12d8edf3e09eaabfab1  PATCH-APPLY-003-compact-linux-arm64.json
+7f46ede0973c30f65198a6ec591341a122fc8e3e3b11a5e0a686c4bb21f367a6  PATCH-APPLY-003-compact-win-x64.json
+89f660860c87c3de1e410966d01adfecdd3c5f3782096624470c79baa4144b95  apply-check-verdict.json
+be6e679b2586f71ad8d9ed82fcbd3199a9cba801e339d0174baf7a8c9e473261  PATCH-APPLY-003-repetitions.jsonl
