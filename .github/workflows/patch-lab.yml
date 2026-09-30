@@ -600,7 +600,9 @@ jobs:
 
       # PATCH-APPLY-003: patches are created once and not timed; every
       # repetition is its own process; all three platforms belong to one
-      # workflow dispatch and exact commit.
+      # workflow dispatch and exact commit. The lanes are off, overlap and
+      # boundary: rule 2 is evaluated again on the boundary-only check, and
+      # rule 1 comes from the verdict of the rule-1 run (--prior-verdict).
       - name: Run apply-check lanes
         shell: bash
         run: |
@@ -641,7 +643,8 @@ jobs:
             --corpus-lock docs/benchmarks/patch-corpus/corpus-lock.json \
             --output "artifacts/patch-lab/apply-check-verdict-${{ matrix.platform }}.json" \
             --markdown "artifacts/patch-lab/apply-check-summary-${{ matrix.platform }}.md" \
-            --compact-dir "$compact"
+            --compact-dir "$compact" \
+            --prior-verdict docs/research/results/data/PATCH-APPLY-003-20260929-001/apply-check-verdict.json
           cat "artifacts/patch-lab/apply-check-summary-${{ matrix.platform }}.md"
           compact_file="$compact/PATCH-APPLY-003-compact-${{ matrix.platform }}.json"
           "$python" - "$compact_file" <<'PY'
@@ -738,6 +741,7 @@ jobs:
             --output artifacts/patch-lab/apply-check-verdict.json \
             --markdown artifacts/patch-lab/apply-check-summary.md \
             --compact-dir artifacts/patch-lab/compact \
+            --prior-verdict docs/research/results/data/PATCH-APPLY-003-20260929-001/apply-check-verdict.json \
             --require-all-platforms
           cat artifacts/patch-lab/apply-check-summary.md >> "$GITHUB_STEP_SUMMARY"
           sha256sum artifacts/patch-lab/compact/PATCH-APPLY-003-compact-*.json

@@ -14,6 +14,12 @@ rules of section 6:
           concurrent applies exceeds 25 % on at least two platforms
   rule 3  #168 option 1 reopens if rule 1 rejects A2, or later if rule 2 still holds after A1a
 
+The lanes come from the evidence. Lanes off, seq, overlap are the rule-1 run:
+all three rules are evaluated from it. Lanes off, overlap, boundary are the run
+that evaluates rule 2 again on the built A1a (lane boundary): rule 1 is taken
+from the verdict of the rule-1 run (--prior-verdict), which must have required
+A1a, rule 2 reads lane boundary, and rule 3 follows.
+
 A rule whose inputs are missing reports "not evaluated", never a pass. Ratios
 are printed in percent with two decimals.
 
@@ -21,11 +27,13 @@ Usage:
   summarize_apply_check.py PLATFORM_DIR [PLATFORM_DIR ...]
       --corpus-lock docs/benchmarks/patch-corpus/corpus-lock.json
       --output verdict.json --markdown summary.md
+      [--prior-verdict apply-check-verdict.json]
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import random
 import statistics
@@ -36,8 +44,9 @@ SCHEMA = "chunkshift.patch-lab-apply-check.v1"
 SUMMARY_SCHEMA = "chunkshift.patch-lab-apply-check-summary.v1"
 EXPERIMENT = "PATCH-APPLY-003"
 
-LANES = ("off", "seq", "overlap")
-CHECK_LANES = ("seq", "overlap")
+RULE1_LANES = ("off", "seq", "overlap")
+BOUNDARY_LANES = ("off", "overlap", "boundary")
+LANE_SETS = (RULE1_LANES, BOUNDARY_LANES)
 PLATFORMS = ("linux-x64", "linux-arm64", "win-x64")
 
 REPETITIONS = 10
@@ -56,6 +65,14 @@ COMPONENTS = ("csmParse", "reread", "boundary", "hash", "manifestId", "check")
 
 NOT_EVALUATED = "not evaluated"
 MIB = 1024 * 1024
+
+
+def check_lanes(lanes: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(lane for lane in lanes if lane != "off")
+
+
+def rule2_lane(lanes: tuple[str, ...]) -> str:
+    return "boundary" if lanes == BOUNDARY_LANES else "overlap"
 
 
 class SummaryError(Exception):
@@ -216,6 +233,7 @@ def read_platform(directory: Path, pairs_sha256: str) -> dict:
     return {
         "directory": str(directory),
         "platform": platform,
+        "lanes": platform_lanes(directory, time_docs, concurrent_docs, memory),
         "gitCommit": commit,
         "runIds": [run_id],
         "processorCount": int(next(iter(processors))),
@@ -227,6 +245,31 @@ def read_platform(directory: Path, pairs_sha256: str) -> dict:
         "memory": memory,
         "prepare": prepare,
     }
+
+
+def platform_lanes(directory: Path, time_docs: dict[int, dict], concurrent_docs: dict[int, dict],
+                   memory: dict | None) -> tuple[str, ...]:
+    """The lane set every time, concurrent and memory record of a platform names."""
+    seen: set[frozenset] = set()
+    for document in time_docs.values():
+        for record in document.get("files") or []:
+            seen.add(frozenset((record.get("runs") or {}).keys()))
+    for document in concurrent_docs.values():
+        levels: dict[int, set[str]] = {}
+        for entry in document.get("passes") or []:
+            levels.setdefault(int(entry["concurrency"]), set()).add(entry["lane"])
+        seen.update(frozenset(lanes) for lanes in levels.values())
+    for record in (memory or {}).get("files") or []:
+        seen.add(frozenset((record.get("applyPeakBytes") or {}).keys()))
+    if not seen:
+        return RULE1_LANES
+    if len(seen) != 1:
+        raise SummaryError(f"{directory}: mixed lane sets {sorted(sorted(lanes) for lanes in seen)}")
+    names = next(iter(seen))
+    for lanes in LANE_SETS:
+        if names == frozenset(lanes):
+            return lanes
+    raise SummaryError(f"{directory}: unknown lane set {sorted(names)}")
 
 
 # --- statistics ----------------------------------------------------------------
@@ -297,7 +340,8 @@ def _block_interval(per_file: dict, keys: list[tuple], lane: str, metric: str,
     }
 
 
-def time_statistics(time_docs: dict[int, dict], repetitions: int, rng: random.Random, resamples: int) -> dict:
+def time_statistics(time_docs: dict[int, dict], repetitions: int, rng: random.Random, resamples: int,
+                    lanes: tuple[str, ...] = RULE1_LANES) -> dict:
     expected = set(range(repetitions))
     present = set(time_docs)
     complete = present == expected
@@ -315,10 +359,10 @@ def time_statistics(time_docs: dict[int, dict], repetitions: int, rng: random.Ra
             key = file_key(record)
             keys.add(key)
             sizes[key] = int(record["targetSize"])
-            entry = per_file.setdefault(key, {"wall": {lane: [] for lane in LANES},
-                                              "cpu": {lane: [] for lane in LANES},
+            entry = per_file.setdefault(key, {"wall": {lane: [] for lane in lanes},
+                                              "cpu": {lane: [] for lane in lanes},
                                               "components": {name: {"wall": [], "cpu": []} for name in COMPONENTS}})
-            for lane in LANES:
+            for lane in lanes:
                 runs = (record.get("runs") or {}).get(lane) or []
                 if len(runs) != 2:
                     raise SummaryError(f"repetition {repetition}: {key} has {len(runs)} runs of lane {lane}")
@@ -337,7 +381,7 @@ def time_statistics(time_docs: dict[int, dict], repetitions: int, rng: random.Ra
     keys = sorted(per_file)
     values = {
         key: {
-            metric: {lane: median(per_file[key][metric][lane]) for lane in LANES}
+            metric: {lane: median(per_file[key][metric][lane]) for lane in lanes}
             for metric in ("wall", "cpu")
         }
         for key in keys
@@ -362,7 +406,7 @@ def time_statistics(time_docs: dict[int, dict], repetitions: int, rng: random.Ra
     }
 
     if complete:
-        for lane in CHECK_LANES:
+        for lane in check_lanes(lanes):
             file_ratios = [values[key]["wall"][lane] / values[key]["wall"]["off"] - 1
                            for key in keys if values[key]["wall"]["off"] > 0]
             result["lanes"][lane] = {
@@ -383,7 +427,7 @@ def time_statistics(time_docs: dict[int, dict], repetitions: int, rng: random.Ra
         result["reason"] = f"expected repetitions 0..{repetitions - 1}, found {sorted(present)}"
 
     result["totals"] = {
-        metric: {lane: sum(values[key][metric][lane] for key in keys) for lane in LANES}
+        metric: {lane: sum(values[key][metric][lane] for key in keys) for lane in lanes}
         for metric in ("wall", "cpu")
     }
 
@@ -404,7 +448,8 @@ def time_statistics(time_docs: dict[int, dict], repetitions: int, rng: random.Ra
     return result
 
 
-def concurrent_statistics(docs: dict[int, dict], repetitions: int, rng: random.Random, resamples: int) -> dict:
+def concurrent_statistics(docs: dict[int, dict], repetitions: int, rng: random.Random, resamples: int,
+                          lanes: tuple[str, ...] = RULE1_LANES) -> dict:
     if not docs:
         return {"complete": False, "reason": "no concurrent files"}
 
@@ -415,22 +460,22 @@ def concurrent_statistics(docs: dict[int, dict], repetitions: int, rng: random.R
         grouped: dict[int, dict[str, list[dict]]] = {}
         for entry in passes:
             grouped.setdefault(int(entry["concurrency"]), {}).setdefault(entry["lane"], []).append(entry)
-        for level, lanes in grouped.items():
-            for lane in LANES:
-                runs = lanes.get(lane) or []
+        for level, passes_by_lane in grouped.items():
+            for lane in lanes:
+                runs = passes_by_lane.get(lane) or []
                 if len(runs) != 2:
                     raise SummaryError(f"concurrent repetition {repetition}, c={level}: {len(runs)} passes of {lane}")
-            record = by_level.setdefault(level, {"wall": {lane: [] for lane in LANES},
-                                                 "cpu": {lane: [] for lane in LANES}})
-            for lane in LANES:
-                record["wall"][lane].append(sum(float(run["wallSeconds"]) for run in lanes[lane]) / 2)
-                record["cpu"][lane].append(sum(float(run["cpuSeconds"]) for run in lanes[lane]) / 2)
+            record = by_level.setdefault(level, {"wall": {lane: [] for lane in lanes},
+                                                 "cpu": {lane: [] for lane in lanes}})
+            for lane in lanes:
+                record["wall"][lane].append(sum(float(run["wallSeconds"]) for run in passes_by_lane[lane]) / 2)
+                record["cpu"][lane].append(sum(float(run["cpuSeconds"]) for run in passes_by_lane[lane]) / 2)
 
     levels = {}
     for level in sorted(by_level):
         record = by_level[level]
         levels[str(level)] = {}
-        for lane in CHECK_LANES:
+        for lane in check_lanes(lanes):
             cpu = [lane_value / off - 1 for lane_value, off in zip(record["cpu"][lane], record["cpu"]["off"]) if off > 0]
             wall = [lane_value / off - 1 for lane_value, off in zip(record["wall"][lane], record["wall"]["off"]) if off > 0]
             levels[str(level)][lane] = {
@@ -438,7 +483,7 @@ def concurrent_statistics(docs: dict[int, dict], repetitions: int, rng: random.R
                 "wallOverhead": ratio_stat(wall, rng, resamples),
             }
         levels[str(level)]["medianSeconds"] = {
-            metric: {lane: median(record[metric][lane]) for lane in LANES} for metric in ("wall", "cpu")
+            metric: {lane: median(record[metric][lane]) for lane in lanes} for metric in ("wall", "cpu")
         }
     compact = []
     for repetition in sorted(docs):
@@ -450,12 +495,12 @@ def concurrent_statistics(docs: dict[int, dict], repetitions: int, rng: random.R
             "levels": {
                 str(level): {
                     lane: {
-                        "wallSeconds": sum(float(run["wallSeconds"]) for run in lanes[lane]) / len(lanes[lane]),
-                        "cpuSeconds": sum(float(run["cpuSeconds"]) for run in lanes[lane]) / len(lanes[lane]),
+                        "wallSeconds": sum(float(run["wallSeconds"]) for run in passes_by_lane[lane]) / len(passes_by_lane[lane]),
+                        "cpuSeconds": sum(float(run["cpuSeconds"]) for run in passes_by_lane[lane]) / len(passes_by_lane[lane]),
                     }
-                    for lane in LANES
+                    for lane in lanes
                 }
-                for level, lanes in sorted(grouped.items())
+                for level, passes_by_lane in sorted(grouped.items())
             },
         })
     return {
@@ -467,7 +512,7 @@ def concurrent_statistics(docs: dict[int, dict], repetitions: int, rng: random.R
     }
 
 
-def memory_statistics(document: dict | None) -> dict:
+def memory_statistics(document: dict | None, lanes: tuple[str, ...] = RULE1_LANES) -> dict:
     if document is None:
         return {"verdict": None, "reason": "no memory file"}
     baseline = int(document.get("idleBaselineBytes") or 0)
@@ -475,13 +520,13 @@ def memory_statistics(document: dict | None) -> dict:
     if baseline <= 0 or not records:
         return {"verdict": None, "reason": "memory file has no records or baseline"}
     worst = {}
-    for lane in LANES:
+    for lane in lanes:
         excess = [(int(record["applyPeakBytes"][lane]) - baseline, record) for record in records]
         value, record = max(excess, key=lambda item: item[0])
         worst[lane] = {"excessBytes": value, "path": record["path"], "family": record["family"]}
     within = worst["overlap"]["excessBytes"] <= MEMORY_LIMIT_BYTES
     environment = document.get("memoryEnvironment") or {}
-    return {
+    result = {
         "idleBaselineBytes": baseline,
         "records": len(records),
         "worst": worst,
@@ -495,12 +540,17 @@ def memory_statistics(document: dict | None) -> dict:
                 "targetSize": int(record["targetSize"]),
                 "excessBytes": {
                     lane: int(record["applyPeakBytes"][lane]) - baseline
-                    for lane in LANES
+                    for lane in lanes
                 },
             }
             for record in records
         ],
     }
+    if "boundary" in lanes:
+        # Record only: no frozen rule bounds the boundary lane's memory.
+        result["boundaryWithinBound"] = (
+            None if environment else worst["boundary"]["excessBytes"] <= MEMORY_LIMIT_BYTES)
+    return result
 
 
 def alignment_statistics(document: dict | None) -> dict | None:
@@ -520,7 +570,36 @@ def alignment_statistics(document: dict | None) -> dict | None:
 # --- rules -----------------------------------------------------------------------
 
 
-def evaluate(platforms: list[dict]) -> dict:
+def load_prior_verdict(path: Path) -> dict:
+    """The rules of the rule-1 run, which a boundary run carries forward."""
+    try:
+        data = path.read_bytes()
+    except OSError as error:
+        raise SummaryError(f"{path}: {error}") from error
+    document = load_json(path)
+    if document.get("schema") != SUMMARY_SCHEMA or document.get("experiment") != EXPERIMENT:
+        raise SummaryError(f"{path}: not a {EXPERIMENT} summary")
+    rules = document.get("rules") or {}
+    rule1 = (rules.get("rule1") or {}).get("verdict")
+    rule2 = (rules.get("rule2") or {}).get("verdict")
+    if not isinstance(rule1, str) or not isinstance(rule2, str):
+        raise SummaryError(f"{path}: no rule 1 or rule 2 verdict")
+    platforms = document.get("platforms") or []
+    for platform in platforms:
+        if tuple(platform.get("lanes") or RULE1_LANES) != RULE1_LANES:
+            raise SummaryError(f"{path}: the prior verdict is not a rule-1 run")
+    return {
+        "sha256": hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest(),
+        "rule1": rule1,
+        "rule2": rule2,
+        "gitCommits": sorted({platform.get("gitCommit") or "" for platform in platforms}),
+        "runIds": sorted(run_id for platform in platforms for run_id in platform.get("runIds") or []),
+    }
+
+
+def evaluate(platforms: list[dict], lanes: tuple[str, ...] = RULE1_LANES, prior: dict | None = None) -> dict:
+    if lanes == BOUNDARY_LANES:
+        return evaluate_boundary(platforms, prior)
     rule1_platforms = {}
     rule2_platforms = {}
     for platform in platforms:
@@ -549,22 +628,7 @@ def evaluate(platforms: list[dict]) -> dict:
                 "memoryWithinBound": memory.get("verdict"),
             }
 
-        concurrent = platform["concurrentStatistics"]
-        if platform["processorCount"] > RULE2_CONCURRENCY:
-            rule2_platforms[name] = {
-                "exceeds": None,
-                "reason": (
-                    f"processorCount {platform['processorCount']} exceeds the frozen "
-                    f"c={RULE2_CONCURRENCY} saturation point"
-                ),
-            }
-        else:
-            level = (concurrent.get("levels") or {}).get(str(RULE2_CONCURRENCY), {}) if concurrent.get("complete") else {}
-            cpu = (level.get("overlap") or {}).get("cpuOverhead")
-            if cpu is None:
-                rule2_platforms[name] = {"exceeds": None, "reason": concurrent.get("reason") or "incomplete concurrent data"}
-            else:
-                rule2_platforms[name] = {"median": cpu["median"], "exceeds": cpu["median"] > CPU_OVERHEAD_MAX}
+        rule2_platforms[name] = rule2_platform(platform, "overlap")
 
     met = [name for name, entry in rule1_platforms.items()
            if entry["wallBoundMet"] is True and entry.get("companionConflict") is False]
@@ -589,14 +653,7 @@ def evaluate(platforms: list[dict]) -> dict:
     else:
         rule1 = NOT_EVALUATED
 
-    exceeds = [name for name, entry in rule2_platforms.items() if entry["exceeds"] is True]
-    within = [name for name, entry in rule2_platforms.items() if entry["exceeds"] is False]
-    if len(exceeds) >= PLATFORMS_REQUIRED:
-        rule2 = "A1a required"
-    elif len(within) >= PLATFORMS_REQUIRED:
-        rule2 = "A1a not required"
-    else:
-        rule2 = NOT_EVALUATED
+    rule2 = rule2_count(rule2_platforms, "A1a required", "A1a not required")
 
     if rule1 == "REJECT":
         rule3 = "option 1 reopens"
@@ -610,18 +667,86 @@ def evaluate(platforms: list[dict]) -> dict:
     return {
         "rule1": {"verdict": rule1, "boundFraction": WALL_OVERHEAD_MAX, "platforms": rule1_platforms},
         "rule2": {"verdict": rule2, "boundFraction": CPU_OVERHEAD_MAX, "concurrency": RULE2_CONCURRENCY,
-                  "platforms": rule2_platforms},
+                  "lane": "overlap", "platforms": rule2_platforms},
+        "rule3": {"verdict": rule3},
+    }
+
+
+def rule2_platform(platform: dict, lane: str) -> dict:
+    """Median CPU overhead of lane at c = 8, read only where c = 8 saturates the runner."""
+    if platform["processorCount"] > RULE2_CONCURRENCY:
+        return {
+            "exceeds": None,
+            "reason": (
+                f"processorCount {platform['processorCount']} exceeds the frozen "
+                f"c={RULE2_CONCURRENCY} saturation point"
+            ),
+        }
+    concurrent = platform["concurrentStatistics"]
+    level = (concurrent.get("levels") or {}).get(str(RULE2_CONCURRENCY), {}) if concurrent.get("complete") else {}
+    cpu = (level.get(lane) or {}).get("cpuOverhead")
+    if cpu is None:
+        return {"exceeds": None, "reason": concurrent.get("reason") or "incomplete concurrent data"}
+    return {"median": cpu["median"], "exceeds": cpu["median"] > CPU_OVERHEAD_MAX}
+
+
+def rule2_count(rule2_platforms: dict, holds: str, does_not_hold: str) -> str:
+    exceeds = [name for name, entry in rule2_platforms.items() if entry["exceeds"] is True]
+    within = [name for name, entry in rule2_platforms.items() if entry["exceeds"] is False]
+    if len(exceeds) >= PLATFORMS_REQUIRED:
+        return holds
+    if len(within) >= PLATFORMS_REQUIRED:
+        return does_not_hold
+    return NOT_EVALUATED
+
+
+def evaluate_boundary(platforms: list[dict], prior: dict | None) -> dict:
+    """Rule 2 again on the built A1a (lane boundary), rule 1 from the rule-1 run."""
+    rule2_platforms = {platform["platform"]: rule2_platform(platform, "boundary") for platform in platforms}
+    rule2 = rule2_count(rule2_platforms, "holds after A1a", "does not hold after A1a")
+
+    if prior is None:
+        rule1 = NOT_EVALUATED
+        rule1_reason = "no prior verdict of the rule-1 run"
+    elif prior["rule2"] != "A1a required":
+        rule1 = prior["rule1"]
+        rule1_reason = f"the rule-1 run did not require A1a (rule 2: {prior['rule2']})"
+    else:
+        rule1 = prior["rule1"]
+        rule1_reason = None
+
+    if rule1 == "REJECT":
+        rule3 = "option 1 reopens"
+    elif rule1 == "ADOPT" and rule1_reason is None and rule2 == "holds after A1a":
+        rule3 = "option 1 reopens"
+    elif rule1 == "ADOPT" and rule1_reason is None and rule2 == "does not hold after A1a":
+        rule3 = "option 3 stands (close #168)"
+    else:
+        rule3 = NOT_EVALUATED
+
+    rule1_entry = {"verdict": rule1, "boundFraction": WALL_OVERHEAD_MAX, "source": "prior verdict"}
+    if prior is not None:
+        rule1_entry["prior"] = prior
+    if rule1_reason is not None:
+        rule1_entry["reason"] = rule1_reason
+    return {
+        "rule1": rule1_entry,
+        "rule2": {"verdict": rule2, "boundFraction": CPU_OVERHEAD_MAX, "concurrency": RULE2_CONCURRENCY,
+                  "lane": "boundary", "platforms": rule2_platforms},
         "rule3": {"verdict": rule3},
     }
 
 
 def summarize(platform_dirs: list[Path], lock_path: Path, repetitions: int = REPETITIONS,
-              resamples: int = BOOTSTRAP_RESAMPLES, require_all_platforms: bool = False) -> dict:
+              resamples: int = BOOTSTRAP_RESAMPLES, require_all_platforms: bool = False,
+              prior_verdict: Path | None = None) -> dict:
     pairs_sha256 = load_lock(lock_path)
+    prior = load_prior_verdict(prior_verdict) if prior_verdict is not None else None
     platforms = []
     seen = set()
     commits = set()
     workflow_run_numbers = set()
+    lane_sets = set()
     for directory in platform_dirs:
         platform = read_platform(directory, pairs_sha256)
         if platform["platform"] in seen:
@@ -629,10 +754,15 @@ def summarize(platform_dirs: list[Path], lock_path: Path, repetitions: int = REP
         seen.add(platform["platform"])
         commits.add(platform["gitCommit"])
         workflow_run_numbers.add(platform["workflowRunNumber"])
+        lanes = platform["lanes"]
+        lane_sets.add(lanes)
+        if len(lane_sets) != 1:
+            raise SummaryError(f"mixed lane sets across platforms {sorted(lane_sets)}")
         rng = random.Random(BOOTSTRAP_SEED)
-        platform["timeStatistics"] = time_statistics(platform.pop("time"), repetitions, rng, resamples)
-        platform["concurrentStatistics"] = concurrent_statistics(platform.pop("concurrent"), repetitions, rng, resamples)
-        platform["memoryStatistics"] = memory_statistics(platform.pop("memory"))
+        platform["timeStatistics"] = time_statistics(platform.pop("time"), repetitions, rng, resamples, lanes)
+        platform["concurrentStatistics"] = concurrent_statistics(
+            platform.pop("concurrent"), repetitions, rng, resamples, lanes)
+        platform["memoryStatistics"] = memory_statistics(platform.pop("memory"), lanes)
         platform["alignment"] = alignment_statistics(platform.pop("prepare"))
         platforms.append(platform)
 
@@ -643,6 +773,9 @@ def summarize(platform_dirs: list[Path], lock_path: Path, repetitions: int = REP
             f"mixed evidence across workflow dispatches, run numbers {sorted(workflow_run_numbers)}")
     if require_all_platforms and seen != set(PLATFORMS):
         raise SummaryError(f"expected platforms {list(PLATFORMS)}, found {sorted(seen)}")
+    lanes = next(iter(lane_sets)) if lane_sets else RULE1_LANES
+    if prior is not None and lanes != BOUNDARY_LANES:
+        raise SummaryError("--prior-verdict applies only to a boundary run (lanes off, overlap, boundary)")
 
     return {
         "schema": SUMMARY_SCHEMA,
@@ -656,7 +789,7 @@ def summarize(platform_dirs: list[Path], lock_path: Path, repetitions: int = REP
             "fileBootstrap": "diagnostic-only",
         },
         "platforms": sorted(platforms, key=lambda platform: PLATFORMS.index(platform["platform"])),
-        "rules": evaluate(platforms),
+        "rules": evaluate(platforms, lanes, prior),
     }
 
 
@@ -701,17 +834,24 @@ def interval(stat: dict | None, key: str = "median") -> str:
 def write_markdown(document: dict) -> str:
     lines = [f"# {EXPERIMENT} summary", ""]
     rules = document["rules"]
+    rule1 = rules["rule1"]
+    rule1_source = ""
+    if rule1.get("source") == "prior verdict":
+        prior = rule1.get("prior") or {}
+        rule1_source = (f" (from the rule-1 run, verdict sha256 {prior.get('sha256', '—')}"
+                        f"{'; ' + rule1['reason'] if rule1.get('reason') else ''})")
     lines += [
         f"- Rule 1 (A2, wall overhead upper CI bound <= {percent(WALL_OVERHEAD_MAX)} on "
-        f"{PLATFORMS_REQUIRED} platforms): **{rules['rule1']['verdict']}**",
-        f"- Rule 2 (CPU overhead at c = {RULE2_CONCURRENCY} > {percent(CPU_OVERHEAD_MAX)} on "
-        f"{PLATFORMS_REQUIRED} platforms): **{rules['rule2']['verdict']}**",
+        f"{PLATFORMS_REQUIRED} platforms): **{rule1['verdict']}**{rule1_source}",
+        f"- Rule 2 (CPU overhead of lane {rules['rule2'].get('lane', 'overlap')} at c = {RULE2_CONCURRENCY} > "
+        f"{percent(CPU_OVERHEAD_MAX)} on {PLATFORMS_REQUIRED} platforms): **{rules['rule2']['verdict']}**",
         f"- Rule 3 (#168): **{rules['rule3']['verdict']}**",
         "",
     ]
 
     for platform in document["platforms"]:
         time = platform["timeStatistics"]
+        lanes = tuple(platform.get("lanes") or RULE1_LANES)
         lines += [f"## {platform['platform']}", "",
                   f"Commit `{platform['gitCommit']}`; RunIds: {', '.join(platform['runIds']) or '—'}; "
                   f"CPU: {platform['processorDescription']} ({platform['processorCount']} logical); "
@@ -720,16 +860,17 @@ def write_markdown(document: dict) -> str:
             lines += ["| lane | wall, median of ratios [95 % CI] | wall, corpus sum | wall, files >= 1 MiB | "
                       "CPU, median of ratios | CPU, corpus sum |",
                       "| --- | ---: | ---: | ---: | ---: | ---: |"]
-            for lane in CHECK_LANES:
+            for lane in check_lanes(lanes):
                 stats = time["lanes"][lane]
                 lines.append(
                     f"| {lane} | {interval(stats['wallMedianOfRatios'])} | {interval(stats['wallCorpusSum'], 'value')} | "
                     f"{interval(stats['wallLargeFilesMedianOfRatios'])} | {interval(stats['cpuMedianOfRatios'])} | "
                     f"{interval(stats['cpuCorpusSum'], 'value')} |")
             totals = time["totals"]
-            lines += ["", "| totals (sum of per-file medians) | off | seq | overlap |", "| --- | ---: | ---: | ---: |"]
+            lines += ["", "| totals (sum of per-file medians) | " + " | ".join(lanes) + " |",
+                      "| --- |" + " ---: |" * len(lanes)]
             for metric in ("wall", "cpu"):
-                lines.append(f"| {metric} s | " + " | ".join(f"{totals[metric][lane]:.2f}" for lane in LANES) + " |")
+                lines.append(f"| {metric} s | " + " | ".join(f"{totals[metric][lane]:.2f}" for lane in lanes) + " |")
             components = time["decomposition"]
             lines += ["", "| check component | wall s | CPU s | share of check wall |", "| --- | ---: | ---: | ---: |"]
             for name in (*COMPONENTS, "residual"):
@@ -738,16 +879,19 @@ def write_markdown(document: dict) -> str:
                              f"{percent(component.get('shareOfCheckWall'))} |")
         concurrent = platform["concurrentStatistics"]
         if concurrent.get("levels"):
-            lines += ["", "| concurrency | seq CPU overhead | overlap CPU overhead | overlap wall overhead |",
-                      "| ---: | ---: | ---: | ---: |"]
+            checked = check_lanes(lanes)
+            lines += ["", "| concurrency | " + " | ".join(f"{lane} CPU overhead" for lane in checked) + " | " +
+                      " | ".join(f"{lane} wall overhead" for lane in checked) + " |",
+                      "| ---: |" + " ---: |" * (2 * len(checked))]
             for level, record in concurrent["levels"].items():
-                lines.append(f"| {level} | {interval(record['seq']['cpuOverhead'])} | "
-                             f"{interval(record['overlap']['cpuOverhead'])} | {interval(record['overlap']['wallOverhead'])} |")
+                lines.append(f"| {level} | " +
+                             " | ".join(interval(record[lane]["cpuOverhead"]) for lane in checked) + " | " +
+                             " | ".join(interval(record[lane]["wallOverhead"]) for lane in checked) + " |")
         memory = platform["memoryStatistics"]
         if memory.get("worst"):
             lines += ["", f"Memory (idle {memory['idleBaselineBytes'] / MIB:.1f} MiB, {memory['records']} files): " +
                       ", ".join(f"{lane} worst +{memory['worst'][lane]['excessBytes'] / MIB:.1f} MiB"
-                                for lane in LANES)]
+                                for lane in lanes)]
         alignment = platform.get("alignment")
         if alignment:
             corpus = alignment["corpus"]
@@ -766,13 +910,16 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--markdown", type=Path)
     parser.add_argument("--compact-dir", type=Path)
     parser.add_argument("--require-all-platforms", action="store_true")
+    parser.add_argument("--prior-verdict", type=Path,
+                        help="verdict JSON of the rule-1 run; required to evaluate rule 3 of a boundary run")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
-        document = summarize(args.platforms, args.corpus_lock, require_all_platforms=args.require_all_platforms)
+        document = summarize(args.platforms, args.corpus_lock, require_all_platforms=args.require_all_platforms,
+                             prior_verdict=args.prior_verdict)
     except SummaryError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1

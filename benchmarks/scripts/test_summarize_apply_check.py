@@ -8,6 +8,7 @@ Run with:
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import json
 import sys
@@ -63,6 +64,8 @@ class Fixture:
         last_file_overlap_factor: float | None = None,
         experiment: str = summary.EXPERIMENT,
         workflow_run_number: str = "001",
+        lanes: tuple[str, ...] = summary.RULE1_LANES,
+        boundary_cpu_factor: float = 1.10,
     ) -> Path:
         directory = self.root / name
         directory.mkdir()
@@ -76,9 +79,10 @@ class Fixture:
                 files.append({
                     "family": "fam", "base": "1", "target": "2", "path": path, "targetSize": size,
                     "targetChunks": 4,
-                    "runs": {
+                    "runs": {lane: runs for lane, runs in {
                         "off": [cost(off, cpu), cost(off, cpu)],
                         "seq": [cost(off * seq_factor, cpu * seq_factor)] * 2,
+                        "boundary": [cost(off * 1.02, cpu * 1.05)] * 2,
                         "overlap": [cost(
                             off * (
                                 last_file_overlap_factor
@@ -88,7 +92,7 @@ class Fixture:
                                 else overlap_factor
                             ),
                             cpu * 1.2)] * 2,
-                    },
+                    }.items() if lane in lanes},
                     "decomposition": {
                         "csmParse": cost(0.001, 0.001), "reread": cost(0.002, 0.001),
                         "boundary": cost(0.003, 0.003), "hash": cost(0.004, 0.004),
@@ -101,7 +105,8 @@ class Fixture:
             })
             passes = []
             for level in (1, 2, 4, 8):
-                for lane, factor in (("off", 1.0), ("seq", 1.3), ("overlap", concurrent_cpu_factor)):
+                factors = {"off": 1.0, "seq": 1.3, "overlap": concurrent_cpu_factor, "boundary": boundary_cpu_factor}
+                for lane, factor in ((lane, factors[lane]) for lane in lanes):
                     for number in range(2):
                         passes.append({"concurrency": level, "lane": lane, "pass": number,
                                        "wallSeconds": 10.0 / level * factor, "cpuSeconds": 10.0 * factor})
@@ -113,7 +118,9 @@ class Fixture:
             "kind": "memory", "environment": env, "runId": run_id,
             "idleBaselineBytes": 30 * MIB, "memoryEnvironment": {},
             "files": [{"family": "fam", "path": "big", "targetSize": 4 * MIB,
-                       "applyPeakBytes": {"off": 60 * MIB, "seq": 62 * MIB, "overlap": 30 * MIB + memory_excess}}],
+                       "applyPeakBytes": {lane: peak for lane, peak in {
+                           "off": 60 * MIB, "seq": 62 * MIB, "overlap": 30 * MIB + memory_excess,
+                           "boundary": 61 * MIB}.items() if lane in lanes}}],
         })
         self._write(directory / "prepare.json", {
             "kind": "prepare", "environment": env, "runId": run_id,
@@ -127,8 +134,21 @@ class Fixture:
         document = {"schema": summary.SCHEMA, "corpusPairsSha256": PAIRS_SHA256, **document}
         path.write_text(json.dumps(document), encoding="utf-8")
 
-    def summarize(self, *directories: Path) -> dict:
-        return summary.summarize(list(directories), self.lock, resamples=RESAMPLES)
+    def summarize(self, *directories: Path, prior_verdict: Path | None = None) -> dict:
+        return summary.summarize(list(directories), self.lock, resamples=RESAMPLES, prior_verdict=prior_verdict)
+
+    def prior(self, rule1: str = "ADOPT", rule2: str = "A1a required", lanes: list[str] | None = None) -> Path:
+        """A verdict of the rule-1 run, as the summarizer writes it."""
+        path = self.root / f"prior-{rule1}-{rule2}.json".replace(" ", "-")
+        platform = {"platform": "linux-x64", "gitCommit": "f" * 40,
+                    "runIds": ["PATCH-APPLY-003/RUN-20260929-19-fffffff-linux-x64"]}
+        if lanes is not None:
+            platform["lanes"] = lanes
+        path.write_text(json.dumps({
+            "schema": summary.SUMMARY_SCHEMA, "experiment": summary.EXPERIMENT, "platforms": [platform],
+            "rules": {"rule1": {"verdict": rule1}, "rule2": {"verdict": rule2}, "rule3": {"verdict": "pending A1a"}},
+        }), encoding="utf-8")
+        return path
 
 
 class RuleTests(unittest.TestCase):
@@ -199,6 +219,143 @@ class RuleTests(unittest.TestCase):
         entry = document["rules"]["rule2"]["platforms"]["linux-x64"]
         self.assertIsNone(entry["exceeds"])
         self.assertIn("exceeds the frozen c=8", entry["reason"])
+
+
+class BoundaryRunTests(unittest.TestCase):
+    """Rule 2 evaluated again on lane boundary, rule 1 carried from the rule-1 run."""
+
+    def boundary(self, fixture: Fixture, name: str, factor: float) -> Path:
+        return fixture.platform(name, lanes=summary.BOUNDARY_LANES, boundary_cpu_factor=factor)
+
+    def test_lanes_come_from_the_evidence(self):
+        fixture = Fixture(self)
+        document = fixture.summarize(self.boundary(fixture, "linux-x64", 1.1), prior_verdict=fixture.prior())
+        platform = document["platforms"][0]
+
+        self.assertEqual(tuple(platform["lanes"]), summary.BOUNDARY_LANES)
+        self.assertEqual(sorted(platform["timeStatistics"]["lanes"]), ["boundary", "overlap"])
+        self.assertEqual(sorted(platform["concurrentStatistics"]["levels"]["8"]), ["boundary", "medianSeconds", "overlap"])
+        self.assertEqual(document["rules"]["rule2"]["lane"], "boundary")
+
+    def test_boundary_within_the_bound_on_two_platforms_closes_168(self):
+        fixture = Fixture(self)
+        document = fixture.summarize(
+            self.boundary(fixture, "linux-x64", 1.10),
+            self.boundary(fixture, "linux-arm64", 1.20),
+            self.boundary(fixture, "win-x64", 1.40),
+            prior_verdict=fixture.prior(),
+        )
+        rules = document["rules"]
+
+        self.assertEqual(rules["rule1"]["verdict"], "ADOPT")
+        self.assertEqual(rules["rule1"]["source"], "prior verdict")
+        self.assertEqual(rules["rule2"]["verdict"], "does not hold after A1a")
+        self.assertAlmostEqual(rules["rule2"]["platforms"]["linux-arm64"]["median"], 0.20)
+        self.assertTrue(rules["rule2"]["platforms"]["win-x64"]["exceeds"])
+        self.assertEqual(rules["rule3"]["verdict"], "option 3 stands (close #168)")
+
+    def test_rule2_reads_boundary_not_overlap(self):
+        fixture = Fixture(self)
+        document = fixture.summarize(
+            fixture.platform("linux-x64", lanes=summary.BOUNDARY_LANES, concurrent_cpu_factor=1.5),
+            fixture.platform("linux-arm64", lanes=summary.BOUNDARY_LANES, concurrent_cpu_factor=1.5),
+            prior_verdict=fixture.prior(),
+        )
+        self.assertEqual(document["rules"]["rule2"]["verdict"], "does not hold after A1a")
+
+    def test_boundary_above_the_bound_on_two_platforms_reopens_option_1(self):
+        fixture = Fixture(self)
+        document = fixture.summarize(
+            self.boundary(fixture, "linux-x64", 1.30),
+            self.boundary(fixture, "linux-arm64", 1.30),
+            self.boundary(fixture, "win-x64", 1.10),
+            prior_verdict=fixture.prior(),
+        )
+        self.assertEqual(document["rules"]["rule2"]["verdict"], "holds after A1a")
+        self.assertEqual(document["rules"]["rule3"]["verdict"], "option 1 reopens")
+
+    def test_one_platform_each_way_is_not_evaluated(self):
+        fixture = Fixture(self)
+        document = fixture.summarize(
+            self.boundary(fixture, "linux-x64", 1.30),
+            self.boundary(fixture, "linux-arm64", 1.10),
+            prior_verdict=fixture.prior(),
+        )
+        self.assertEqual(document["rules"]["rule2"]["verdict"], summary.NOT_EVALUATED)
+        self.assertEqual(document["rules"]["rule3"]["verdict"], summary.NOT_EVALUATED)
+
+    def test_more_than_eight_processors_are_not_evaluated(self):
+        fixture = Fixture(self)
+        env = dict(ENVIRONMENTS["linux-x64"], processorCount=16)
+        document = fixture.summarize(
+            fixture.platform("linux-x64", lanes=summary.BOUNDARY_LANES, environment=env),
+            self.boundary(fixture, "linux-arm64", 1.10),
+            prior_verdict=fixture.prior(),
+        )
+        self.assertIsNone(document["rules"]["rule2"]["platforms"]["linux-x64"]["exceeds"])
+        self.assertEqual(document["rules"]["rule2"]["verdict"], summary.NOT_EVALUATED)
+
+    def test_without_a_prior_verdict_rule3_is_not_evaluated(self):
+        fixture = Fixture(self)
+        document = fixture.summarize(
+            self.boundary(fixture, "linux-x64", 1.10),
+            self.boundary(fixture, "linux-arm64", 1.10),
+        )
+        self.assertEqual(document["rules"]["rule1"]["verdict"], summary.NOT_EVALUATED)
+        self.assertEqual(document["rules"]["rule2"]["verdict"], "does not hold after A1a")
+        self.assertEqual(document["rules"]["rule3"]["verdict"], summary.NOT_EVALUATED)
+
+    def test_a_prior_that_did_not_require_a1a_is_not_evaluated(self):
+        fixture = Fixture(self)
+        document = fixture.summarize(
+            self.boundary(fixture, "linux-x64", 1.10),
+            self.boundary(fixture, "linux-arm64", 1.10),
+            prior_verdict=fixture.prior(rule2="A1a not required"),
+        )
+        self.assertIn("did not require A1a", document["rules"]["rule1"]["reason"])
+        self.assertEqual(document["rules"]["rule3"]["verdict"], summary.NOT_EVALUATED)
+
+    def test_prior_verdict_records_its_digest_and_runs(self):
+        fixture = Fixture(self)
+        prior = fixture.prior()
+        document = fixture.summarize(self.boundary(fixture, "linux-x64", 1.10), prior_verdict=prior)
+        recorded = document["rules"]["rule1"]["prior"]
+
+        self.assertEqual(recorded["sha256"], hashlib.sha256(prior.read_bytes()).hexdigest())
+        self.assertEqual(recorded["runIds"], ["PATCH-APPLY-003/RUN-20260929-19-fffffff-linux-x64"])
+
+    def test_prior_verdict_of_a_boundary_run_is_rejected(self):
+        fixture = Fixture(self)
+        with self.assertRaises(summary.SummaryError):
+            fixture.summarize(self.boundary(fixture, "linux-x64", 1.10),
+                              prior_verdict=fixture.prior(lanes=list(summary.BOUNDARY_LANES)))
+
+    def test_prior_verdict_on_a_rule1_run_is_an_error(self):
+        fixture = Fixture(self)
+        with self.assertRaises(summary.SummaryError):
+            fixture.summarize(fixture.platform("linux-x64"), prior_verdict=fixture.prior())
+
+    def test_mixed_lane_sets_are_an_error(self):
+        fixture = Fixture(self)
+        with self.assertRaises(summary.SummaryError):
+            fixture.summarize(fixture.platform("linux-x64"), self.boundary(fixture, "linux-arm64", 1.10))
+
+    def test_boundary_memory_is_recorded(self):
+        fixture = Fixture(self)
+        document = fixture.summarize(self.boundary(fixture, "linux-x64", 1.10), prior_verdict=fixture.prior())
+        memory = document["platforms"][0]["memoryStatistics"]
+
+        self.assertEqual(memory["worst"]["boundary"]["excessBytes"], 31 * MIB)
+        self.assertTrue(memory["boundaryWithinBound"])
+
+    def test_markdown_names_the_boundary_lane(self):
+        fixture = Fixture(self)
+        document = fixture.summarize(self.boundary(fixture, "linux-x64", 1.10), prior_verdict=fixture.prior())
+        text = summary.write_markdown(document)
+
+        self.assertIn("CPU overhead of lane boundary at c = 8", text)
+        self.assertIn("| boundary |", text)
+        self.assertIn("from the rule-1 run", text)
 
 
 class StatisticTests(unittest.TestCase):
