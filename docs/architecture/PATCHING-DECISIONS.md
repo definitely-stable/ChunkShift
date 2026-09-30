@@ -169,8 +169,9 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
   - rule 1: ADOPT A2. The upper 95 % bound of the per-file wall overhead of `overlap` over `off` is 4.36 % (linux-x64), 5.78 % (linux-arm64) and 2.36 % (win-x64); the corpus-sum and ≥ 1 MiB companions are at most 4.20 %; every output is identical, and the worst `overlap` peak is +44.6 MiB over idle.
   - rule 2: A1a required. At eight concurrent applies the overlapped check still costs 36.74 % (linux-x64) and 26.63 % (linux-arm64) of apply CPU, above 25 % (win-x64: 19.97 %). Overlap hides wall time, not CPU.
   - rule 3: #168 stays open with option 3 in force until rule 2 is evaluated on A1a (lane `boundary`).
+- **Result (A2 default):** `CspApplier.DefaultChunkingCheck` is `Overlapped`, so the public apply methods run the overlapped check. The 125 CSP vectors, the P6 failure-point matrix, the short-read set and the apply-fuzz set run in every mode, and the fuzz set compares `Overlapped` with `Sequential` on every case.
 - **Reopen if:** the paired protocol of #182 shows, on at least two platforms, either a wall-time overhead with an upper 95 % CI bound above 10 % of apply after A2, or a CPU overhead above 25 % of apply CPU in the many-file concurrent lane after A2 + A1a. An options type then exposes the switch and also carries progress reporting.
-- **Status:** default confirmed; #168 decided for option 3; A2 adopted by `PATCH-APPLY-003`, the default switch to `Overlapped` follows in its own pull request; A1a is next (rule 2).
+- **Status:** default confirmed; #168 decided for option 3; A2 confirmed as the apply default (`PATCH-APPLY-003`); A1a is next (rule 2).
 
 ## 5. Encoder policy
 

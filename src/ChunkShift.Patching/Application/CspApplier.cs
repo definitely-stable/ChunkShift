@@ -29,9 +29,10 @@ namespace ChunkShift.Patching.Application;
 internal static class CspApplier
 {
     /// <summary>
-    /// The re-chunk check of the public apply methods (PATCHING-DECISIONS D13).
+    /// The re-chunk check of the public apply methods (PATCHING-DECISIONS D13):
+    /// overlapped with the reconstruction, adopted by <c>PATCH-APPLY-003</c>.
     /// </summary>
-    internal const ChunkingCheck DefaultChunkingCheck = ChunkingCheck.Sequential;
+    internal const ChunkingCheck DefaultChunkingCheck = ChunkingCheck.Overlapped;
 
     private const int ManifestBatchEntries = 256;
 
