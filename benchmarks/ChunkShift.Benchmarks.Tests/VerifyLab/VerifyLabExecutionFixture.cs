@@ -98,7 +98,10 @@ internal static class VerifyLabExecutionFixture
                 : new VerifyLabCalibrationTrial(0, large, trial, VerifyLabResidency.Resident, 5.0, 1.0, null, null)),
         ];
         (long chosen, bool passed) = VerifyLabCalibration.Choose(rungs, trials, smoke);
-        var calibration = new VerifyLabCalibrationResult(rungs, trials, chosen, passed);
+        VerifyLabCalibrationResult calibration = VerifyLabCalibration.Finalize(
+            new VerifyLabCalibrationResult(rungs, trials, chosen, passed),
+            windows,
+            reference?.ControlsPassed ?? true);
 
         var samples = new List<VerifyLabSample>();
         var times = new List<VerifyLabGroupTime>();

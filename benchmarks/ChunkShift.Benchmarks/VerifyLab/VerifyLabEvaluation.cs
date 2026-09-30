@@ -13,6 +13,7 @@ internal sealed record VerifyLabResidencySummary(
     long LargeBytes,
     bool CalibrationPassed,
     int CalibrationTrials,
+    int CalibrationTrialsUnverified,
     int SuccessfulReads,
     double? BlockOneMaximum,
     double? BlockOneThreshold,
@@ -247,6 +248,7 @@ internal static class VerifyLabEvaluation
             run.Calibration?.LargeBytes ?? 0,
             run.Calibration?.Passed ?? false,
             run.Calibration?.Trials.Length ?? 0,
+            run.Calibration?.Trials.Count(static trial => trial.FinalResidency == VerifyLabResidency.Unverified) ?? 0,
             reference?.Reads.Count(static read => read.Successful) ?? 0,
             reference?.BlockOneMaximum,
             reference?.BlockOneThreshold,
@@ -564,7 +566,7 @@ internal static class VerifyLabEvaluation
             foreach (VerifyLabPlatformResult platform in document.Platforms)
             {
                 VerifyLabResidencySummary r = platform.Residency;
-                text.AppendLine(CultureInfo.InvariantCulture, $"| {platform.Platform} | {r.LargeBytes} | {(r.CalibrationPassed ? "passed" : "no rung passed")} ({r.CalibrationTrials} trials) | {VerifyLabDecision.F(r.Maximum)} | {VerifyLabDecision.F(r.Threshold)} | {(r.ControlsPassed is bool passed ? passed ? "passed" : "FAILED" : "n/a")} | {VerifyLabDecision.F(r.LargeWarmProbeMinimum)}–{VerifyLabDecision.F(r.LargeWarmProbeMaximum)} ({VerifyLabDecision.F(r.LargeWarmProbeMinimumOverU)}–{VerifyLabDecision.F(r.LargeWarmProbeMaximumOverU)}) | {r.Resident} / {r.NotResident} / {r.Unverified} | {r.RecordedVerdictsChanged} |");
+                text.AppendLine(CultureInfo.InvariantCulture, $"| {platform.Platform} | {r.LargeBytes} | {(r.CalibrationPassed ? "passed" : "no rung passed")} ({r.CalibrationTrials} trials{(r.CalibrationTrialsUnverified > 0 ? $", {r.CalibrationTrialsUnverified} final verdicts unverified" : string.Empty)}) | {VerifyLabDecision.F(r.Maximum)} | {VerifyLabDecision.F(r.Threshold)} | {(r.ControlsPassed is bool passed ? passed ? "passed" : "FAILED" : "n/a")} | {VerifyLabDecision.F(r.LargeWarmProbeMinimum)}–{VerifyLabDecision.F(r.LargeWarmProbeMaximum)} ({VerifyLabDecision.F(r.LargeWarmProbeMinimumOverU)}–{VerifyLabDecision.F(r.LargeWarmProbeMaximumOverU)}) | {r.Resident} / {r.NotResident} / {r.Unverified} | {r.RecordedVerdictsChanged} |");
             }
 
             foreach (VerifyLabPlatformResult platform in document.Platforms.Where(static p => p.Residency.Controls.Length > 0 || p.Residency.NotResidentOrUnverified.Length > 0))

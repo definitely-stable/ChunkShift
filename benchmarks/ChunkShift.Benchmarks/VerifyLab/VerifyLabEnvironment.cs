@@ -40,11 +40,17 @@ internal static class VerifyLabEnvironment
     /// <summary>The workflow passes the job's check-run id in this variable where it can.</summary>
     internal const string CheckRunIdVariable = "CHECK_RUN_ID";
 
-    /// <summary>The Actions variables of section 3.2, in the order the protocol lists them.</summary>
+    /// <summary>
+    /// The Actions variables of section 3.2, in the order the protocol lists
+    /// them, then the event and refs of the workflow run (reported only).
+    /// </summary>
     internal static readonly string[] ActionsVariables =
     [
         "GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ATTEMPT", "GITHUB_JOB", CheckRunIdVariable,
         "RUNNER_NAME", "RUNNER_OS", "RUNNER_ARCH", "ImageOS", "ImageVersion",
+
+        // Reported, not gated: which event and ref started the workflow run.
+        "GITHUB_EVENT_NAME", "GITHUB_REF", "GITHUB_HEAD_REF",
     ];
 
     private static readonly string[] ArmFields = ["CPU implementer", "CPU part", "CPU variant", "CPU revision"];

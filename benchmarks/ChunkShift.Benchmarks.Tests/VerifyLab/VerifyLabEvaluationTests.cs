@@ -108,6 +108,8 @@ public sealed class VerifyLabEvaluationTests
         Assert.False(windows.Residency.ControlsPassed);
         Assert.Equal(windows.Residency.PrereadSamples, windows.Residency.Unverified);
         Assert.Equal(windows.Residency.PrereadSamples, windows.Residency.ProbesOverU.Length);
+        Assert.Equal(3, windows.Residency.CalibrationTrialsUnverified);
+        Assert.True(windows.Residency.CalibrationPassed);
         Assert.Contains("x U", windows.Residency.ProbesOverU[0], StringComparison.Ordinal);
         Assert.Empty(document.Platforms.Single(static p => p.Platform == "linux-x64").Residency.ProbesOverU);
         Assert.False(document.Gate!.Limitation4Settled);

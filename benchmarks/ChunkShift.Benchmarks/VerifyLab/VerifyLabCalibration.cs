@@ -5,7 +5,16 @@ namespace ChunkShift.Benchmarks.VerifyLab;
 /// <summary>A content the protocol freezes: seed, bytes, SHA-256 of the file and content digest.</summary>
 internal sealed record VerifyLabFrozenContent(string Id, ulong Seed, long Bytes, string Sha256, string ContentDigest);
 
-/// <summary>One calibration trial: a fresh process pre-read a rung's file and manifest and checked residency.</summary>
+/// <summary>
+/// One calibration trial: a fresh process pre-read a rung's file and manifest
+/// and checked residency. <see cref="Residency"/> is the verdict at the time
+/// (on Windows against the block-1 threshold), which chooses the rung;
+/// <see cref="FinalResidency"/> is the verdict the evidence carries: on
+/// win-x64 it is <c>unverified</c> when a positive control failed
+/// (docs/benchmarks/CORE-VERIFY-003-PROTOCOL.md section 4.2), which changes
+/// no rung; elsewhere it equals <see cref="Residency"/>. It is null until the
+/// positive controls are complete.
+/// </summary>
 internal sealed record VerifyLabCalibrationTrial(
     int Rung,
     long Bytes,
@@ -14,7 +23,8 @@ internal sealed record VerifyLabCalibrationTrial(
     double? ProbeGiBPerSecond,
     double? ResidentFraction,
     double? Threshold,
-    string? Error);
+    string? Error,
+    string? FinalResidency = null);
 
 /// <summary>
 /// The calibration of SL (docs/benchmarks/CORE-VERIFY-003-PROTOCOL.md section
@@ -125,6 +135,22 @@ internal static class VerifyLabCalibration
     internal static bool Stops(long[] rungs, int rung, IReadOnlyList<VerifyLabCalibrationTrial> trials) =>
         rung == rungs.Length - 1 ||
         trials.Count(trial => trial.Rung == rung && trial.Residency == VerifyLabResidency.Resident) == TrialsPerRung;
+
+    /// <summary>
+    /// The final verdict of a calibration trial (section 4.2): on win-x64,
+    /// <c>unverified</c> unless every positive-control trial passed; elsewhere
+    /// the verdict at the time. The rung chosen from the verdicts at the time
+    /// does not change.
+    /// </summary>
+    internal static string FinalResidency(VerifyLabCalibrationTrial trial, bool windows, bool controlsPassed) =>
+        windows && !controlsPassed ? VerifyLabResidency.Unverified : trial.Residency;
+
+    /// <summary>Sets the final verdict of every trial.</summary>
+    internal static VerifyLabCalibrationResult Finalize(VerifyLabCalibrationResult calibration, bool windows, bool controlsPassed) =>
+        calibration with
+        {
+            Trials = [.. calibration.Trials.Select(trial => trial with { FinalResidency = FinalResidency(trial, windows, controlsPassed) })],
+        };
 
     /// <summary>The workload definition text of SL at <paramref name="bytes"/>.</summary>
     internal static string LargeDefinition(long bytes) =>

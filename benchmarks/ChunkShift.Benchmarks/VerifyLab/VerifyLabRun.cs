@@ -161,6 +161,14 @@ internal static class VerifyLabRun
 
         // Step 5: the calibration of SL.
         VerifyLabCalibrationResult calibration = await CalibrateAsync(directory, memory, smoke, rungZero, windows, blockOneThreshold).ConfigureAwait(false);
+
+        // Linux has no positive control: a trial's final verdict is its verdict.
+        // On Windows it is set once both positive controls are taken.
+        if (!windows)
+        {
+            calibration = VerifyLabCalibration.Finalize(calibration, windows: false, controlsPassed: true);
+        }
+
         workloads = VerifyLabWorkloads.Load(directory);
         VerifyLabWorkloadSummary[] summaries = [.. plan
             .Select(static group => group.Workload)
@@ -272,6 +280,7 @@ internal static class VerifyLabRun
             Console.Error.WriteLine(string.Create(
                 CultureInfo.InvariantCulture,
                 $"verify-lab reference: U = {reference.Maximum?.ToString("F3", CultureInfo.InvariantCulture) ?? "none"} GiB/s, threshold {reference.Threshold?.ToString("F3", CultureInfo.InvariantCulture) ?? "none"} GiB/s, positive controls {(reference.ControlsPassed ? "passed" : "FAILED: " + reference.UnverifiedReason)}"));
+            calibration = VerifyLabCalibration.Finalize(calibration, windows: true, reference.ControlsPassed);
             VerifyLabSample[] final = [.. results.Select(sample => FinalizeWindows(sample, reference))];
             results.Clear();
             results.AddRange(final);

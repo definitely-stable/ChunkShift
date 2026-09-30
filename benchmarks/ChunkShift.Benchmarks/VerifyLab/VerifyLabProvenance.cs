@@ -548,7 +548,7 @@ internal static partial class VerifyLabProvenance
                 continue;
             }
 
-            CalibrationFailures(run, calibration, windows, recomputed?.BlockOneThreshold, smoke, failures);
+            CalibrationFailures(run, calibration, windows, recomputed?.BlockOneThreshold, recomputed?.ControlsPassed ?? false, smoke, failures);
         }
 
         return failures;
@@ -649,6 +649,7 @@ internal static partial class VerifyLabProvenance
         VerifyLabCalibrationResult calibration,
         bool windows,
         double? blockOneThreshold,
+        bool controlsPassed,
         bool smoke,
         List<string> failures)
     {
@@ -693,6 +694,14 @@ internal static partial class VerifyLabProvenance
             if (trial.Residency != verdict || trial.Threshold != (windows ? blockOneThreshold : null))
             {
                 failures.Add(string.Create(CultureInfo.InvariantCulture, $"{at}: calibration rung {trial.Rung} trial {trial.Trial} records {trial.Residency}, recomputed {verdict}"));
+            }
+
+            // Section 4.2: a failed positive control makes the trial's final verdict unverified (the rung stays).
+            string final = VerifyLabCalibration.FinalResidency(trial with { Residency = verdict }, windows, controlsPassed);
+
+            if (trial.FinalResidency != final)
+            {
+                failures.Add(string.Create(CultureInfo.InvariantCulture, $"{at}: calibration rung {trial.Rung} trial {trial.Trial} records the final verdict {trial.FinalResidency ?? "none"}, recomputed {final}"));
             }
         }
 

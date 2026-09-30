@@ -190,6 +190,16 @@ public sealed class VerifyLabProvenanceTests
         }), oracles);
         AssertFails("P9", With(runs, "linux-x64", static run => run with { Calibration = run.Calibration! with { Rungs = [6L << 30, 4L << 30] } }), oracles);
         AssertFails("P9", With(runs, "linux-x64", static run => run with { Calibration = run.Calibration! with { Passed = false } }), oracles);
+
+        // The final verdict of a calibration trial is recomputed too.
+        AssertFails("P9", With(runs, "linux-x64", static run => run with
+        {
+            Calibration = run.Calibration! with { Trials = [run.Calibration.Trials[0] with { FinalResidency = null }, .. run.Calibration.Trials[1..]] },
+        }), oracles);
+        AssertFails("P9", With(runs, "win-x64", static run => run with
+        {
+            Calibration = run.Calibration! with { Trials = [run.Calibration.Trials[0] with { FinalResidency = VerifyLabResidency.Unverified }, .. run.Calibration.Trials[1..]] },
+        }), oracles);
     }
 
     [Fact]
@@ -201,7 +211,23 @@ public sealed class VerifyLabProvenanceTests
         VerifyLabCheck[] checks = VerifyLabProvenance.Check(runs, oracles, Commit, smoke: false);
 
         Assert.All(checks, static check => Assert.True(check.Passed, $"{check.Id}: {check.Detail}"));
-        Assert.False(runs.Single(static run => run.Document!.Platform == "win-x64").Document!.Reference!.ControlsPassed);
+        VerifyLabRunDocument windows = runs.Single(static run => run.Document!.Platform == "win-x64").Document!;
+        Assert.False(windows.Reference!.ControlsPassed);
+
+        // Section 4.2: the calibration keeps its rung, but every trial's final verdict is unverified.
+        Assert.All(windows.Calibration!.Trials, static trial =>
+        {
+            Assert.Equal(VerifyLabResidency.Resident, trial.Residency);
+            Assert.Equal(VerifyLabResidency.Unverified, trial.FinalResidency);
+        });
+        Assert.Equal(6L << 30, windows.Calibration.LargeBytes);
+
+        // A document whose final verdicts ignore the failed control is refused.
+        VerifyLabInput<VerifyLabRunDocument>[] ignored = With(runs, "win-x64", static run => run with
+        {
+            Calibration = run.Calibration! with { Trials = [.. run.Calibration.Trials.Select(static trial => trial with { FinalResidency = trial.Residency })] },
+        });
+        Assert.False(VerifyLabProvenance.Check(ignored, oracles, Commit, smoke: false).Single(static check => check.Id == "P9").Passed);
     }
 
     [Fact]
