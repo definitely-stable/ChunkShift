@@ -164,8 +164,13 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
   2. A1a only if CPU still matters: an internal boundary-only check for the shipped profile, cross-checked against `ChunkScanner`.
 
   Both keep Patching on the shipped Core 0.1.0 surface (D2).
+- **Result (#201):** an internal `ChunkingCheck` switch (`Off`, `Sequential`, `Overlapped`) replaces the on/off flag. `Overlapped` copies every verified chunk, in target order, into a bounded `System.IO.Pipelines` pipe that a concurrent `ChunkManifest.VerifyAsync` reads. The default stayed `Sequential` until the measurement.
+- **Evidence (A2):** *measurement* — `PATCH-APPLY-003` ([PATCH-APPLY-003-EVIDENCE-20260929-001](../research/results/PATCH-APPLY-003-EVIDENCE-20260929-001.md), `d62a2f1`, workflow run 36550787928), the PATCH-APPLY-002 check lanes with win-x64 on a GitHub runner:
+  - rule 1: ADOPT A2. The upper 95 % bound of the per-file wall overhead of `overlap` over `off` is 4.36 % (linux-x64), 5.78 % (linux-arm64) and 2.36 % (win-x64); the corpus-sum and ≥ 1 MiB companions are at most 4.20 %; every output is identical, and the worst `overlap` peak is +44.6 MiB over idle.
+  - rule 2: A1a required. At eight concurrent applies the overlapped check still costs 36.74 % (linux-x64) and 26.63 % (linux-arm64) of apply CPU, above 25 % (win-x64: 19.97 %). Overlap hides wall time, not CPU.
+  - rule 3: #168 stays open with option 3 in force until rule 2 is evaluated on A1a (lane `boundary`).
 - **Reopen if:** the paired protocol of #182 shows, on at least two platforms, either a wall-time overhead with an upper 95 % CI bound above 10 % of apply after A2, or a CPU overhead above 25 % of apply CPU in the many-file concurrent lane after A2 + A1a. An options type then exposes the switch and also carries progress reporting.
-- **Status:** default confirmed; #168 decided for option 3; the cheaper check waits for `PATCH-APPLY-002`.
+- **Status:** default confirmed; #168 decided for option 3; A2 adopted by `PATCH-APPLY-003`, the default switch to `Overlapped` follows in its own pull request; A1a is next (rule 2).
 
 ## 5. Encoder policy
 

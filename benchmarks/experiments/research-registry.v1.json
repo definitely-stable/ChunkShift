@@ -376,7 +376,7 @@
         7
       ],
       "area": "patching",
-      "status": "PLANNED",
+      "status": "ADOPT",
       "question": "PATCH-APPLY-002 check lanes with win-x64 on a GitHub runner (D13)"
     },
     {
