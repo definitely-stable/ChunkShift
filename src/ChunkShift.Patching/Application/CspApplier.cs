@@ -30,9 +30,10 @@ internal static class CspApplier
 {
     /// <summary>
     /// The re-chunk check of the public apply methods (PATCHING-DECISIONS D13):
-    /// overlapped with the reconstruction, adopted by <c>PATCH-APPLY-003</c>.
+    /// boundary-only for the stable Core profile and overlapped for any other
+    /// registered profile, adopted by <c>PATCH-APPLY-003</c>.
     /// </summary>
-    internal const ChunkingCheck DefaultChunkingCheck = ChunkingCheck.Overlapped;
+    internal const ChunkingCheck DefaultChunkingCheck = ChunkingCheck.Boundary;
 
     private const int ManifestBatchEntries = 256;
 
