@@ -144,7 +144,9 @@ class SummarizeCreateThroughputTests(unittest.TestCase):
         self.assertEqual("h3", verdict["workers"]["family"])
         self.assertEqual("ADOPT", verdict["workers"]["decision"])
         self.assertEqual(2, verdict["workers"]["adoptedWorkers"])
-        self.assertEqual("h2", verdict["otherFamily"]["family"])
+        # h2-w2 qualifies too; at equal W, H3 comes first.
+        self.assertEqual("h3-w2", verdict["workers"]["adoptedExecution"])
+        self.assertTrue(verdict["workers"]["families"]["h2"]["table"][1]["qualifies"])
         self.assertAlmostEqual(1.6, verdict["platforms"]["linux-x64"]["h3-w2"]["speedup"])
         self.assertAlmostEqual(1.0, verdict["platforms"]["win-x64"]["h3-w1"]["speedup"])
         self.assertTrue(verdict["h0DigestsEqualAcrossPlatforms"])
@@ -159,11 +161,11 @@ class SummarizeCreateThroughputTests(unittest.TestCase):
         self.assertFalse(verdict["bytes"]["h3-w1"]["win-x64"]["identical"])
         self.assertEqual(1, len(verdict["bytes"]["h3-w1"]["win-x64"]["mismatches"]))
         self.assertTrue(verdict["bytes"]["h3-w1"]["linux-x64"]["identical"])
-        first = verdict["workers"]["table"][0]
+        first = verdict["workers"]["families"]["h3"]["table"][0]
         self.assertEqual("REJECT (bytes)", first["status"])
         self.assertFalse(first["qualifies"])
         self.assertEqual("ADOPT", verdict["workers"]["decision"])
-        self.assertEqual(2, verdict["workers"]["adoptedWorkers"])
+        self.assertEqual("h3-w2", verdict["workers"]["adoptedExecution"])
 
     def test_h1_read_ratio_below_two_rejects_and_uses_h2(self):
         fixture = Fixture(self)
@@ -172,9 +174,10 @@ class SummarizeCreateThroughputTests(unittest.TestCase):
         self.assertEqual(0, code)
         self.assertEqual("REJECT", verdict["h1"]["decision"])
         self.assertAlmostEqual(1.5, verdict["h1"]["readRatio"], places=2)
-        self.assertEqual("h2", verdict["workers"]["family"])
-        self.assertEqual(2, verdict["workers"]["adoptedWorkers"])
-        self.assertEqual("h3", verdict["otherFamily"]["family"])
+        self.assertEqual("h2-w2", verdict["workers"]["adoptedExecution"])
+        self.assertFalse(verdict["workers"]["h3Eligible"])
+        self.assertEqual("not eligible (H1 not adopted)",
+                         verdict["workers"]["families"]["h3"]["table"][1]["status"])
 
     def test_h1_regression_rejects(self):
         fixture = Fixture(self)
@@ -182,6 +185,31 @@ class SummarizeCreateThroughputTests(unittest.TestCase):
         _, verdict = fixture.decide()
         self.assertEqual("REJECT", verdict["h1"]["decision"])
         self.assertFalse(verdict["h1"]["noRegression"]["win-x64"])
+
+    def test_h1_slower_than_the_h0_mean_is_a_regression(self):
+        fixture = Fixture(self)
+        # h0 lanes 10 s and 11 s per file: mean 10.5 s, H1 at 10.8 s is below
+        # the slower lane but above the mean.
+        fixture.build(seconds=fast_w2() | {("linux-x64", "h1"): 10.8}, h0_last=11.0)
+        _, verdict = fixture.decide()
+        self.assertEqual("REJECT", verdict["h1"]["decision"])
+        self.assertFalse(verdict["h1"]["noRegression"]["linux-x64"])
+        self.assertTrue(verdict["h1"]["noRegression"]["win-x64"])
+
+    def test_h1_over_its_memory_bound_rejects(self):
+        fixture = Fixture(self)
+        fixture.build(seconds=fast_w2(), peaks={("win-x64", "h1"): 65.0})
+        _, verdict = fixture.decide()
+        self.assertEqual("REJECT", verdict["h1"]["decision"])
+        self.assertFalse(verdict["h1"]["memoryMet"]["win-x64"])
+        self.assertEqual("h2-w2", verdict["workers"]["adoptedExecution"])
+
+    def test_h1_without_memory_evidence_is_incomplete(self):
+        fixture = Fixture(self)
+        fixture.build(seconds=fast_w2(), with_memory=False)
+        _, verdict = fixture.decide()
+        self.assertEqual("INCOMPLETE", verdict["h1"]["decision"])
+        self.assertFalse(verdict["workers"]["h3Eligible"])
 
     def test_h0_lanes_differing_by_thirty_percent_is_invalid(self):
         fixture = Fixture(self)
@@ -197,11 +225,14 @@ class SummarizeCreateThroughputTests(unittest.TestCase):
         fixture.build(seconds={"h3-w2": 5.0, "h3-w4": 5.0, "h3-w8": 5.0},
                       peaks={("linux-arm64", "h3-w2"): 100.0})
         _, verdict = fixture.decide()
-        rows = {row["execution"]: row for row in verdict["workers"]["table"]}
+        rows = {row["execution"]: row for row in verdict["workers"]["families"]["h3"]["table"]}
         self.assertFalse(rows["h3-w2"]["memoryMet"]["linux-arm64"])
         self.assertFalse(rows["h3-w2"]["qualifies"])
         self.assertTrue(rows["h3-w4"]["qualifies"])
-        self.assertEqual(4, verdict["workers"]["adoptedWorkers"])
+        # H1 adopted and h3-w2 over its bound: the qualifying h2-w2 is not
+        # discarded, and W = 2 beats h3-w4.
+        self.assertEqual("ADOPT", verdict["h1"]["decision"])
+        self.assertEqual("h2-w2", verdict["workers"]["adoptedExecution"])
         self.assertEqual(96, verdict["platforms"]["win-x64"]["h3-w2"]["memoryBoundMiB"])
 
     def test_memory_not_measured_is_incomplete(self):

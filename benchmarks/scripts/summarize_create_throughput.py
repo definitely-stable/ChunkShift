@@ -277,11 +277,11 @@ def compare_bytes(reference: dict, document: dict) -> dict:
     return {"identical": not mismatches, "mismatches": mismatches}
 
 
-def evaluate_family(family: str, platforms: dict, bytes_result: dict, present: list[str]) -> dict:
+def evaluate_family(family: str, platforms: dict, bytes_result: dict, present: list[str],
+                    eligible: bool = True) -> dict:
+    """Rows of one worker family (protocol section 7 rule 3); no decision."""
     complete = all(p in present for p in PLATFORMS)
     table = []
-    adopted = None
-    incomplete = False
     for workers in WORKER_COUNTS:
         execution = f"{family}-w{workers}"
         speedups = {p: platforms[p][execution]["speedup"] for p in present}
@@ -290,14 +290,15 @@ def evaluate_family(family: str, platforms: dict, bytes_result: dict, present: l
         fast = sum(1 for s in speedups.values() if s >= SPEEDUP_MIN)
         memory_ok = complete and all(memory_met.get(p) is True for p in PLATFORMS)
         row_complete = complete and all(memory_met.get(p) is not None for p in PLATFORMS)
-        qualifies = complete and bytes_ok and fast >= PLATFORMS_WITH_SPEEDUP and memory_ok
+        qualifies = eligible and complete and bytes_ok and fast >= PLATFORMS_WITH_SPEEDUP and memory_ok
         if not bytes_ok:
             status = "REJECT (bytes)"
+        elif not eligible:
+            status = "not eligible (H1 not adopted)"
         elif qualifies:
             status = "qualifies"
         elif not row_complete:
             status = "incomplete"
-            incomplete = True
         else:
             status = "does not qualify"
         table.append({
@@ -310,32 +311,62 @@ def evaluate_family(family: str, platforms: dict, bytes_result: dict, present: l
             "qualifies": qualifies,
             "status": status,
         })
-        if qualifies and adopted is None:
-            adopted = workers
+    return {"family": family, "eligible": eligible, "table": table}
+
+
+def decide_workers(platforms: dict, bytes_result: dict, present: list[str], h1_adopted: bool) -> dict:
+    """Protocol section 7 rule 3: both families; H3 eligible only with H1 adopted;
+    the smallest qualifying W, H3 before H2 at equal W."""
+    families = {
+        "h3": evaluate_family("h3", platforms, bytes_result, present, eligible=h1_adopted),
+        "h2": evaluate_family("h2", platforms, bytes_result, present),
+    }
+    adopted = None
+    for index, workers in enumerate(WORKER_COUNTS):
+        for family in ("h3", "h2"):
+            row = families[family]["table"][index]
+            if row["qualifies"]:
+                adopted = row
+                break
+        if adopted is not None:
+            break
+    incomplete = any(row["status"] == "incomplete"
+                     for block in families.values() if block["eligible"] for row in block["table"])
     if adopted is not None:
         decision = "ADOPT"
     elif incomplete:
         decision = "INCOMPLETE"
     else:
         decision = "REJECT"
-    return {"family": family, "decision": decision, "adoptedWorkers": adopted, "table": table}
+    return {
+        "decision": decision,
+        "adoptedExecution": adopted["execution"] if adopted else None,
+        "adoptedWorkers": adopted["workers"] if adopted else None,
+        "family": adopted["execution"].split("-")[0] if adopted else None,
+        "h3Eligible": h1_adopted,
+        "families": families,
+    }
 
 
 def decide_h1(platforms: dict, bytes_result: dict, present: list[str]) -> dict:
+    """Protocol section 7 rule 2: bytes, read ratio, T(H1) <= mean T(H0) with no
+    tolerance, and the W = 1 memory bound, on all three platforms."""
     ratios: dict[str, float | None] = {}
     regression: dict[str, bool] = {}
+    memory: dict[str, bool | None] = {}
     for p in present:
         h0, h1 = platforms[p]["h0"], platforms[p]["h1"]
         r0, r1 = h0["baseBytesRead"], h1["baseBytesRead"]
         ratios[p] = (r0 / r1) if r1 > 0 else (None if r0 > 0 else 0.0)
-        regression[p] = h1["createSeconds"] <= max(h0["h0Seconds"])
+        regression[p] = h1["createSeconds"] <= h0["createSeconds"]
+        memory[p] = h1["memoryMet"]
     chosen = "linux-x64" if "linux-x64" in present else present[0]
     ratio = ratios[chosen]
     ratio_ok = ratio is None or ratio >= READ_RATIO_MIN
     bytes_ok = all(bytes_result["h1"][p]["identical"] for p in present)
-    complete = all(p in present for p in PLATFORMS)
-    good = bytes_ok and ratio_ok and all(regression.values())
-    if not good:
+    complete = all(p in present for p in PLATFORMS) and all(memory.get(p) is not None for p in PLATFORMS)
+    failed = not bytes_ok or not ratio_ok or not all(regression.values()) or any(m is False for m in memory.values())
+    if failed:
         decision = "REJECT"
     elif complete:
         decision = "ADOPT"
@@ -347,6 +378,7 @@ def decide_h1(platforms: dict, bytes_result: dict, present: list[str]) -> dict:
         "readRatioPlatform": chosen,
         "readRatios": ratios,
         "noRegression": regression,
+        "memoryMet": memory,
         "bytesIdentical": bytes_ok,
     }
 
@@ -387,13 +419,14 @@ def render_markdown(verdict: dict) -> str:
                              + "; ".join(result["mismatches"]))
     h1 = verdict["h1"]
     ratios = ", ".join(f"{p}={'inf' if r is None else format(r, '.2f')}" for p, r in sorted(h1["readRatios"].items()))
-    lines.append(f"- H1: {h1['decision']} (read ratio {ratios}; no regression {h1['noRegression']})")
-    for label, key in (("Workers", "workers"), ("Other family (reported, not decided)", "otherFamily")):
-        block = verdict[key]
-        adopted = block["adoptedWorkers"]
-        lines.append(f"- {label}: family {block['family']}: {block['decision']}"
-                     + (f" (W={adopted})" if adopted is not None else ""))
-        for row in block["table"]:
+    lines.append(f"- H1: {h1['decision']} (read ratio {ratios}; no regression {h1['noRegression']}; "
+                 f"memory {h1['memoryMet']})")
+    workers = verdict["workers"]
+    adopted = workers["adoptedExecution"]
+    lines.append(f"- Workers: {workers['decision']}" + (f" ({adopted})" if adopted else "")
+                 + f"; H3 eligible: {str(workers['h3Eligible']).lower()}")
+    for family in ("h3", "h2"):
+        for row in workers["families"][family]["table"]:
             speeds = ", ".join(f"{p}={s:.2f}" for p, s in sorted(row["speedups"].items()))
             lines.append(f"  - {row['execution']}: {row['status']}; speedup {speeds}; "
                          f"memory {row['memoryMet']}")
@@ -422,7 +455,6 @@ def decide_command(arguments: argparse.Namespace) -> int:
         "bytes": {},
         "h1": None,
         "workers": None,
-        "otherFamily": None,
         "h0DigestsEqualAcrossPlatforms": None,
     }
     for p in present:
@@ -449,11 +481,8 @@ def decide_command(arguments: argparse.Namespace) -> int:
         verdict["platforms"] = platforms
         verdict["bytes"] = bytes_result
         verdict["h1"] = decide_h1(platforms, bytes_result, present)
-        family = "h3" if verdict["h1"]["decision"] == "ADOPT" else "h2"
-        other = "h2" if family == "h3" else "h3"
-        verdict["workers"] = evaluate_family(family, platforms, bytes_result, present)
-        verdict["otherFamily"] = evaluate_family(other, platforms, bytes_result, present)
-        verdict["otherFamily"]["label"] = "reported, not decided"
+        verdict["workers"] = decide_workers(
+            platforms, bytes_result, present, verdict["h1"]["decision"] == "ADOPT")
         digests = {platforms[p]["h0"]["patchesSha256"] for p in present}
         verdict["h0DigestsEqualAcrossPlatforms"] = len(digests) == 1
 
