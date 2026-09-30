@@ -51,8 +51,13 @@ Dataset: [data/PATCH-APPLY-003-20260929-001/](data/PATCH-APPLY-003-20260929-001/
 
 - `PATCH-APPLY-003-compact-{linux-x64,linux-arm64,win-x64}.json`: the compact samples of §3 (per file and lane the medians over the ten repetitions, per repetition and c the many-file values, per file the memory excess over idle), byte for byte as the summary job wrote them.
 - `apply-check-verdict.json`: the summary job's verdict, byte for byte.
-- `SHA256SUMS` of those four files.
-- `recompute.py` (standard library, Python ≥ 3.12): checks `SHA256SUMS`, recomputes from the compact files every point estimate of rule 1 and its companions, the CPU statistics, the concurrency statistics with their bootstrap intervals and the memory maxima, requires each to equal the verdict JSON exactly, and applies rules 1–3.
+- `PATCH-APPLY-003-rule1-wall.jsonl`: what rule 1 consumes that the compact files do not hold. For every platform, file and repetition it has the two measured wall times of each lane, and for every repetition the output-identity bit (`outputsVerified`). It was written by `build_rule1_wall.py` from the 30 raw time documents of the three platform artifacts; the build is deterministic.
+- `SHA256SUMS` of those five data files.
+- `recompute.py` (standard library, Python ≥ 3.12). It checks `SHA256SUMS`, then recomputes from the committed files:
+  - every point estimate of rule 1 and its companions, the CPU statistics, the concurrency statistics with their bootstrap intervals and the memory maxima, from the compact files;
+  - the per-file medians of the compact files, and the paired repetition-block bootstrap of §2.1 (10,000 resamples, seed 20260928, the summarizer's random stream) for the primary statistic and both companions of lane `overlap`, from the per-repetition wall times.
+
+  Each value must equal the verdict JSON exactly; the script then applies rules 1–3 to the recomputed values. The block bootstrap takes a few minutes.
 
 The raw CI artifacts (the 22 result JSON files of each platform) expire on 2026-12-28:
 
@@ -68,6 +73,13 @@ The raw CI artifacts (the 22 result JSON files of each platform) expire on 2026-
 ```text
 gh workflow run patch-lab.yml --ref main -f lanes=apply-check
 python3 docs/research/results/data/PATCH-APPLY-003-20260929-001/recompute.py
+```
+
+`PATCH-APPLY-003-rule1-wall.jsonl` from the raw platform artifacts:
+
+```text
+python3 docs/research/results/data/PATCH-APPLY-003-20260929-001/build_rule1_wall.py \
+  apply-check-linux-x64 apply-check-linux-arm64 apply-check-win-x64 --output PATCH-APPLY-003-rule1-wall.jsonl
 ```
 
 From the raw artifacts, with the summarizer and corpus lock of `d62a2f1` (unchanged on `main` when this record was written):
@@ -99,7 +111,7 @@ Python 3.12 or later is required for bit-identical sums: from 3.12 on, `sum()` o
 | 3 | The per-platform summaries in the artifacts match the ones printed in the job logs, and each platform section of the summary job's `apply-check-summary.md` equals its platform job's summary (win-x64 after CRLF → LF). The summary job's verdict for each platform equals the platform job's verdict except the input directory path. |
 | 4 | `summarize_apply_check.py` from `main`, rerun locally (CPython 3.13) over each platform's raw documents, reproduces that platform's compact file and summary byte for byte (win-x64 after CRLF → LF), and its verdict JSON equal to the job's except the input directory path. |
 | 5 | The same rerun over all three platforms with `--require-all-platforms` reproduces the three committed compact files and `apply-check-summary.md` byte for byte, and `apply-check-verdict.json` equal to the committed one except the input directory paths; this reproduces the rule-1 intervals, which the compact files cannot. |
-| 6 | `recompute.py` over the committed files: every recomputed value equals the verdict JSON. |
+| 6 | `recompute.py` over the committed files: every recomputed value equals the verdict JSON, including the rule-1 intervals rebuilt from `PATCH-APPLY-003-rule1-wall.jsonl` (for example the primary upper bounds 0.04357439642477509, 0.057781649245064015 and 0.023575193663555847). |
 
 ## Results
 
@@ -180,7 +192,7 @@ None. No run of `PATCH-APPLY-003` was invalid or discarded; run 36550787928 is t
 - The CPU median of per-file ratios rests on 12 (linux-x64), 24 (linux-arm64) and 13 (win-x64) files above the 20 ms floor.
 - With eight applies in flight, the overlapped check adds 11.80 % [6.38 %, 14.29 %] of wall time on linux-arm64 (2.84 % and 2.95 % elsewhere). Rule 1 reads the per-file lane, not this one, and CPU saturation at c = 8 is what rule 2 measures.
 - The c = 1 CPU intervals are wide (up to 60 points); at c = 8, the level rule 2 reads, they are 4–10 points wide.
-- The compact files hold medians over repetitions, not per-repetition values, so `recompute.py` reads the rule-1 intervals from the verdict JSON; check 5 reproduced them from the raw artifacts, which expire on 2026-12-28.
+- The raw artifacts expire on 2026-12-28. Every quantity that decides rules 1–3 stays recomputable from the committed files: the rule-1 intervals from `PATCH-APPLY-003-rule1-wall.jsonl`, the rest from the compact files. The per-file CPU intervals and the check decomposition, which no rule reads, need the raw artifacts.
 - Shared runners, one dispatch; the paired, rotated, repeated design of PATCH-APPLY-002 §5 is what absorbs runner noise.
 
 ## Decision

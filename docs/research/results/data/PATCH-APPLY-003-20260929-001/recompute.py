@@ -16,13 +16,19 @@ files this script recomputes:
     benchmarks/scripts/summarize_apply_check.py;
   - the worst memory excess over idle per lane.
 
-Every value must equal the verdict JSON exactly. The upper CI bound of rule 1
-is the paired repetition-block bootstrap of section 2.1; it needs the
-per-repetition values of every file, which the compact files do not hold, so
-it is read from the verdict JSON (the raw artifacts reproduce it with the
-summarizer). Rules 1-3 are then applied as frozen. Standard library only;
-Python 3.12 or later, whose compensated float sum() the summarizer used
-(CPython 3.14 in the workflow), so the corpus sums agree to the last bit.
+From PATCH-APPLY-003-rule1-wall.jsonl (the two measured wall times of every
+lane, file and repetition, and the output-identity bit of every repetition) it
+rebuilds the per-file medians of the compact files and the paired
+repetition-block bootstrap of section 2.1 for the three rule-1 statistics of
+lane overlap: the primary median of per-file ratios, the corpus sum and the
+median over files of at least 1 MiB, drawing from the same random stream as the
+summarizer.
+
+Every value must equal the verdict JSON exactly. Rules 1-3 are then applied as
+frozen from the recomputed values. Standard library only; Python 3.12 or
+later, whose compensated float sum() the summarizer used (CPython 3.14 in the
+workflow), so the sums agree to the last bit. The block bootstrap takes a few
+minutes.
 """
 
 import hashlib
@@ -49,7 +55,8 @@ CPU_MAX = 0.25
 RULE2_C = 8
 MEMORY_LIMIT = 64 * 1024 * 1024
 REQUIRED = 2
-TIME_INTERVALS = 5  # wall ratios, wall sum, wall >= 1 MiB, CPU ratios, CPU sum
+RULE1_FILE = f"{EXPERIMENT}-rule1-wall.jsonl"
+RULE1_STATS = ("wallMedianOfRatios", "wallCorpusSum", "wallLargeFilesMedianOfRatios")
 
 if sys.version_info < (3, 12):
     sys.exit("Python 3.12 or later is required: the summarizer's float sum() is compensated from 3.12 on")
@@ -129,6 +136,63 @@ def ratio_stat(values, rng):
             "ciHigh": percentile(estimates, 0.975), "count": len(values)}
 
 
+def load_rule1_wall():
+    lines = (HERE / RULE1_FILE).read_text(encoding="utf-8").splitlines()
+    header = json.loads(lines[0])
+    records = {}
+    for line in lines[1:]:
+        record = json.loads(line)
+        records.setdefault(record["platform"], []).append(record)
+    return header, records
+
+
+def repetition_values(record, lane):
+    """The value of a lane in one repetition is the mean of its two runs (PATCH-APPLY-002 section 5)."""
+    return [sum(runs) / 2 for runs in record["wallSeconds"][lane]]
+
+
+def block_point(per_file, lane, indices, minimum_size=None, corpus_sum=False):
+    ratios, pairs = [], []
+    for size, values in per_file:
+        if minimum_size is not None and size < minimum_size:
+            continue
+        off = statistics.median([values["off"][index] for index in indices])
+        value = statistics.median([values[lane][index] for index in indices])
+        if off <= 0:
+            continue
+        ratios.append(value / off - 1)
+        pairs.append((value, off))
+    if corpus_sum:
+        denominator = sum(off for _, off in pairs)
+        return (sum(value for value, _ in pairs) / denominator - 1) if denominator > 0 else None
+    return statistics.median(ratios) if ratios else None
+
+
+def block_interval(per_file, lane, rng, **options):
+    """Paired repetition-block percentile bootstrap (PATCH-APPLY-003 section 2.1)."""
+    indices = list(range(REPETITIONS))
+    point = block_point(per_file, lane, indices, **options)
+    estimates = []
+    for _ in range(RESAMPLES):
+        estimate = block_point(per_file, lane, rng.choices(indices, k=REPETITIONS), **options)
+        if estimate is not None:
+            estimates.append(estimate)
+    estimates.sort()
+    return point, percentile(estimates, 0.025), percentile(estimates, 0.975)
+
+
+RULE1_OPTIONS = {
+    "wallMedianOfRatios": {},
+    "wallCorpusSum": {"corpus_sum": True},
+    "wallLargeFilesMedianOfRatios": {"minimum_size": LARGE},
+}
+
+rule1_header, rule1_records = load_rule1_wall()
+check("rule-1 file schema", rule1_header["schema"], "chunkshift.patch-apply-003-rule1-wall.v1")
+check("rule-1 file commit", rule1_header["gitCommit"], COMMIT)
+check("rule-1 file corpus", rule1_header["corpusPairsSha256"], PAIRS_SHA256)
+check("rule-1 file platforms", sorted(rule1_header["platforms"]), sorted(PLATFORMS))
+
 rows = {}
 for platform in PLATFORMS:
     compact = json.loads((HERE / f"{EXPERIMENT}-compact-{platform}.json").read_text(encoding="utf-8"))
@@ -166,6 +230,41 @@ for platform in PLATFORMS:
         for lane in LANES:
             total = sum(record[f"{metric}MedianSeconds"][lane] for record in files)
             check(f"{platform} total {metric} {lane}", total, time["totals"][metric][lane])
+
+    # Rule 1 from the per-repetition wall times: the same files, sizes and
+    # medians as the compact file, every output verified, then the block
+    # bootstrap. The summarizer's Random(SEED) of this platform first draws the
+    # five seq intervals, then the overlap ones in the order of STATS.
+    header = rule1_header["platforms"][platform]
+    check(f"{platform} rule-1 RunId", [header["runId"]], compact["runIds"])
+    check(f"{platform} rule-1 outputsVerified", header["outputsVerified"], [True] * REPETITIONS)
+    wall_records = rule1_records.get(platform, [])
+    check(f"{platform} rule-1 files", [(r["family"], r["base"], r["target"], r["path"], r["targetSize"])
+                                       for r in wall_records],
+          [(*key, r["targetSize"]) for key, r in zip(keys, files)])
+    per_file = []
+    for record, compact_record in zip(wall_records, files):
+        values = {lane: repetition_values(record, lane) for lane in LANES}
+        for lane in LANES:
+            if len(values[lane]) != REPETITIONS:
+                failures.append(f"{platform} {record['path']}: {len(values[lane])} repetitions of {lane}")
+            elif statistics.median(values[lane]) != compact_record["wallMedianSeconds"][lane]:
+                failures.append(f"{platform} {record['path']}: {lane} median differs from the compact file")
+        per_file.append((record["targetSize"], values))
+    rng = random.Random(SEED)
+    for name, _, _ in STATS:
+        if point["seq", name][0] is not None:
+            for _ in range(RESAMPLES):
+                rng.choices(range(REPETITIONS), k=REPETITIONS)
+    for name in RULE1_STATS:
+        value, low, high = block_interval(per_file, "overlap", rng, **RULE1_OPTIONS[name])
+        stat = time["lanes"]["overlap"][name]
+        key = "value" if name == "wallCorpusSum" else "median"
+        check(f"{platform} overlap {name} (block bootstrap)", value, stat[key])
+        check(f"{platform} overlap {name} ciLow", low, stat["ciLow"])
+        check(f"{platform} overlap {name} ciHigh", high, stat["ciHigh"])
+        point["overlap", name] = (value, low, high, point["overlap", name][3])
+        print(f"{platform} overlap {name}: {value!r} [{low!r}, {high!r}] rebuilt from {RULE1_FILE}")
 
     # Concurrent lane: the summarizer draws every interval of this platform
     # from one Random(SEED): first the ten time intervals, repetition-block
@@ -210,7 +309,7 @@ for platform in PLATFORMS:
     rows[platform] = {
         "processors": (compact["processorCount"], compact["processorDescription"]),
         "point": point, "levels": level_stats, "memory": worst, "memoryOk": memory_ok,
-        "outputs": time["outputsVerified"] is True,
+        "outputs": time["outputsVerified"] is True and header["outputsVerified"] == [True] * REPETITIONS,
     }
 
 
@@ -227,7 +326,7 @@ for platform in PLATFORMS:
     met = high <= WALL_MAX
     conflict = met and (corpus_sum > WALL_MAX or large > WALL_MAX)
     rule1[platform] = (met, conflict)
-    print(f"  {platform:11} primary median {primary!r}, upper 95 % bound {high!r} "
+    print(f"  {platform:11} primary median {primary!r}, upper 95 % bound {high!r} (rebuilt) "
           f"({'<=' if met else '>'} 10 %)")
     print(f"  {'':11} corpus sum {corpus_sum!r}; files >= 1 MiB median {large!r}"
           f"{'  -> conflicted' if conflict else ''}")
