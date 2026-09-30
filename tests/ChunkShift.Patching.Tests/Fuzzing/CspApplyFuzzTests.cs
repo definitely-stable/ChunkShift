@@ -262,9 +262,9 @@ public sealed class CspApplyFuzzTests : IDisposable
     /// after a real asynchronous hop is not charged to this iteration.
     /// </summary>
     /// <summary>
-    /// Applies the case again with the sequential check when the default is
-    /// overlapped, and the other way round, and returns a problem when the
-    /// outcome differs.
+    /// Applies the case again with every other way of running the re-chunk
+    /// check except none, and returns a problem when an outcome differs from
+    /// the default's.
     /// </summary>
     private static string? CompareOtherCheck(
         CorpusEntry entry,
@@ -272,21 +272,29 @@ public sealed class CspApplyFuzzTests : IDisposable
         string destinationDirectory,
         string expected)
     {
-        ChunkingCheck other = CspApplier.DefaultChunkingCheck == ChunkingCheck.Overlapped
-            ? ChunkingCheck.Sequential
-            : ChunkingCheck.Overlapped;
-        string otherDirectory = Path.Combine(destinationDirectory, "other");
-        Directory.CreateDirectory(otherDirectory);
-        string otherDestination = Path.Combine(otherDirectory, "output.bin");
+        foreach (ChunkingCheck other in Enum.GetValues<ChunkingCheck>())
+        {
+            if (other == ChunkingCheck.Off || other == CspApplier.DefaultChunkingCheck)
+            {
+                continue;
+            }
 
-        (PatchApplyResult? result, Exception? failure, _) =
-            Apply(entry, patch, otherDestination, other);
-        string actual = Outcome(result, failure, otherDestination);
-        Directory.Delete(otherDirectory, recursive: true);
+            string otherDirectory = Path.Combine(destinationDirectory, "other");
+            Directory.CreateDirectory(otherDirectory);
+            string otherDestination = Path.Combine(otherDirectory, "output.bin");
 
-        return string.Equals(expected, actual, StringComparison.Ordinal)
-            ? null
-            : $"the {other} re-chunk check reached {actual}, the default {expected}";
+            (PatchApplyResult? result, Exception? failure, _) =
+                Apply(entry, patch, otherDestination, other);
+            string actual = Outcome(result, failure, otherDestination);
+            Directory.Delete(otherDirectory, recursive: true);
+
+            if (!string.Equals(expected, actual, StringComparison.Ordinal))
+            {
+                return $"the {other} re-chunk check reached {actual}, the default {expected}";
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Renders an outcome for comparison: exception type, failures or output digest.</summary>

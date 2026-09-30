@@ -9,8 +9,9 @@ namespace ChunkShift.Patching.Tests.Application;
 /// <summary>
 /// The optional re-chunk verification of PATCHING-DECISIONS D13: it runs when
 /// this build registers the embedded profile, is skipped for an unregistered
-/// one, and the internal switch turns it off or overlaps it with the
-/// reconstruction (<c>PATCH-APPLY-002</c> lane A2) without changing a verdict.
+/// one, and the internal switch turns it off, overlaps it with the
+/// reconstruction (<c>PATCH-APPLY-002</c> lane A2) or checks only the
+/// boundaries (lane A1a) without changing a verdict.
 /// </summary>
 public sealed class ApplyChunkingCheckTests : IDisposable
 {
@@ -147,8 +148,39 @@ public sealed class ApplyChunkingCheckTests : IDisposable
         Assert.Equal([destination], Directory.GetFiles(_directory));
     }
 
-    [Fact]
-    public async Task ReconstructionFailure_TakesPrecedenceOverTheOverlappedCheck()
+    [Theory]
+    [MemberData(nameof(Checks))]
+    public async Task StableProfileWithAnotherFingerprint_FailsTheSameInEveryMode(string checkName)
+    {
+        // The boundary check reproduces only the pinned fingerprint. A
+        // manifest that names the stable profile with another fingerprint
+        // fails the embedded CSM's profile semantics before any re-chunk
+        // check runs, so every mode reports the same failure.
+        ChunkingCheck check = Enum.Parse<ChunkingCheck>(checkName);
+        byte[] content = CspBytes.CreateXorShiftBytes(640 * 1024, 0x5EED6003u);
+        byte[] canonical = await CreationTestSupport.CreateManifestAsync(content, HashSuiteIds.Sha256V1);
+        List<ChunkInfo> records = await CreationTestSupport.ReadRecordsAsync(canonical);
+        var otherFingerprint = new ProfileFingerprint(Hash256.FromBytes(new byte[32]));
+        byte[] manifest = await RecutManifests.WriteAsync(
+            content,
+            [.. records.Select(static record => record.Length)],
+            HashSuiteIds.Sha256V1,
+            BoundaryChunkingCheck.ProfileId,
+            otherFingerprint);
+        byte[] patch = await CreateSelfContainedAsync(manifest, content);
+        string destination = Path.Combine(_directory, "fingerprint.bin");
+
+        PatchApplyResult result = await ApplySelfContainedAsync(patch, destination, check);
+
+        Assert.False(result.IsApplied);
+        Assert.Equal(PatchApplyFailure.ProfileSemantics, result.Failures);
+        Assert.Empty(Directory.GetFileSystemEntries(_directory));
+    }
+
+    [Theory]
+    [InlineData(nameof(ChunkingCheck.Overlapped))]
+    [InlineData(nameof(ChunkingCheck.Boundary))]
+    public async Task ReconstructionFailure_TakesPrecedenceOverTheCheck(string checkName)
     {
         // The recut manifest would fail the check, but a corrupt payload
         // fails the reconstruction first, and D21 reports that failure alone.
@@ -173,7 +205,7 @@ public sealed class ApplyChunkingCheckTests : IDisposable
         PatchApplyResult result = await ApplySelfContainedAsync(
             corrupted,
             destination,
-            ChunkingCheck.Overlapped);
+            Enum.Parse<ChunkingCheck>(checkName));
 
         Assert.Equal(PatchApplyFailure.PayloadChunk, result.Failures);
         Assert.Empty(Directory.GetFileSystemEntries(_directory));

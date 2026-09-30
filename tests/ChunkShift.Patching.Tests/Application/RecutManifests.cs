@@ -37,6 +37,37 @@ internal static class RecutManifests
         var cuts = new List<int> { records[0].Length / 2, records[0].Length - (records[0].Length / 2) };
         cuts.AddRange(records.Skip(1).Select(static record => record.Length));
 
+        byte[] recut = await WriteAsync(
+            content,
+            cuts,
+            hashSuite,
+            verified.Manifest.ProfileId,
+            verified.Manifest.ProfileFingerprint);
+
+        // The manifest is well formed and of the registered profile; only
+        // re-chunking the content tells it apart.
+        Assert.True((await ChunkManifest.VerifyManifestAsync(
+            new MemoryStream(recut, writable: false))).IsValid);
+        Assert.Equal(
+            ManifestVerificationFailure.Content,
+            (await ChunkManifest.VerifyAsync(
+                new MemoryStream(content, writable: false),
+                new MemoryStream(recut, writable: false))).Failures);
+
+        return recut;
+    }
+
+    /// <summary>
+    /// Writes a manifest of <paramref name="content"/> with the given record
+    /// lengths, profile and fingerprint; every record hashes to its content.
+    /// </summary>
+    internal static async Task<byte[]> WriteAsync(
+        byte[] content,
+        IReadOnlyList<int> cuts,
+        HashSuiteId hashSuite,
+        ChunkingProfileId profileId,
+        ProfileFingerprint fingerprint)
+    {
         Type session = typeof(ChunkManifest).Assembly.GetType(
             "ChunkShift.Manifest.CsmEncoderSession",
             throwOnError: true)!;
@@ -47,8 +78,8 @@ internal static class RecutManifests
             [
                 destination,
                 hashSuite,
-                verified.Manifest.ProfileId,
-                verified.Manifest.ProfileFingerprint,
+                profileId,
+                fingerprint,
                 false,
                 CancellationToken.None,
             ])!;
@@ -77,18 +108,6 @@ internal static class RecutManifests
             ((IDisposable)encoder).Dispose();
         }
 
-        byte[] recut = destination.ToArray();
-
-        // The manifest is well formed and of the registered profile; only
-        // re-chunking the content tells it apart.
-        Assert.True((await ChunkManifest.VerifyManifestAsync(
-            new MemoryStream(recut, writable: false))).IsValid);
-        Assert.Equal(
-            ManifestVerificationFailure.Content,
-            (await ChunkManifest.VerifyAsync(
-                new MemoryStream(content, writable: false),
-                new MemoryStream(recut, writable: false))).Failures);
-
-        return recut;
+        return destination.ToArray();
     }
 }
