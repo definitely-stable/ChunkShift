@@ -177,8 +177,9 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
   - rule 2 does not hold after A1a. At eight concurrent applies the boundary-only check costs 13.39 % (linux-x64), 7.79 % (linux-arm64) and 8.02 % (win-x64) of apply CPU, at most 25 % on all three platforms; `overlap` in the same run costs 25.53 %, 25.03 % and 24.32 %.
   - every output is identical, and the boundary lane's worst memory peak is within 1.2 MiB of `off`.
   - rule 3: option 1 of #168 does not reopen; #168 closes with option 3.
+- **Result (A1a default):** `CspApplier.DefaultChunkingCheck` is `Boundary`, so the public apply methods run the boundary-only check for `fastcdc.gear.chunkshift.v1.64k` with its Core 0.1.0 `ProfileFingerprint`, and the overlapped check for any other registered profile. An unregistered profile is still skipped. The 125 CSP vectors, the P6 failure-point matrix, the short-read set and the apply-fuzz set run in every mode, and the fuzz set compares `Boundary` with `Sequential` and `Overlapped` on every case. The Patching package smoke gives the same evidence over the packed and the published Core 0.1.0, and under NativeAOT as under JIT.
 - **Reopen if:** the paired protocol of #182 shows, on at least two platforms, either a wall-time overhead with an upper 95 % CI bound above 10 % of apply after A2, or a CPU overhead above 25 % of apply CPU in the many-file concurrent lane after A2 + A1a. An options type then exposes the switch and also carries progress reporting.
-- **Status:** default confirmed; #168 decided for option 3; A2 confirmed as the apply default (`PATCH-APPLY-003`); A1a built, and rule 2 does not hold on it (lane `boundary`); the boundary-only check as the apply default follows.
+- **Status:** default confirmed; #168 decided for option 3; the boundary-only check (A1a) confirmed as the apply default, with the overlapped check (A2) for any other registered profile (`PATCH-APPLY-003`); #168 closed with option 3.
 
 ## 5. Encoder policy
 
