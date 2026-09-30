@@ -80,7 +80,9 @@ At one commit of `main` after this note and the lab lanes are merged, over the w
 - **Throughput run:** `lanes=create-throughput`, the executions in the order `h0 h1 h2-w1 h2-w2 h2-w4 h2-w8 h3-w1 h3-w2 h3-w4 h3-w8 h0`, all three platforms in one dispatch. One process per execution; files are created one at a time, so only the pipeline's workers run in parallel. The first H0 lane applies each patch once and checks the target SHA-256; the other lanes are checked through the byte oracle.
 - **Memory runs:** `lanes=create-memory` with the same executions (one H0), every file of at least 1 MiB, each create in a child process, and the idle baseline; the same three platforms.
 
-A run is invalid, and repeated once, when a job fails or when the two H0 lanes of one platform differ in total create time by more than 25 %. The record lists every invalid run.
+Both groups run in **one dispatch** (`lanes=create-throughput,create-memory`), so every throughput and memory document of a platform carries the same RunId and commit. The evaluator (`summarize_create_throughput.py decide --require-all-platforms --require-memory`) accepts memory evidence only from that RunId and commit, and only when it covers exactly the throughput run's files of at least 1 MiB.
+
+A run is invalid, and repeated once, when a job fails, when a platform or a memory lane is missing, or when the two H0 lanes of one platform differ in total create time by more than 25 %. The record lists every invalid run. A dispatch of only one group is exploratory.
 
 ## 6. Metrics
 
