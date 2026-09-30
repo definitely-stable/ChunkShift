@@ -40,11 +40,11 @@ public class PatchLabApplyCheckTests
         PatchLabApplyCheckTimeResult timeResult = Read<PatchLabApplyCheckTimeResult>(time);
         Assert.Equal("time", timeResult.Kind);
         Assert.Equal(4, timeResult.Repetition);
-        Assert.Equal(["seq", "overlap", "off", "seq", "overlap", "off"], timeResult.LaneOrder);
+        Assert.Equal(["overlap", "boundary", "off", "overlap", "boundary", "off"], timeResult.LaneOrder);
         Assert.Equal("warm", timeResult.CacheState);
         Assert.True(timeResult.OutputsVerified);
         PatchLabApplyCheckFile timed = Assert.Single(timeResult.Files);
-        Assert.Equal(["off", "overlap", "seq"], timed.Runs.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal(["boundary", "off", "overlap"], timed.Runs.Keys.Order(StringComparer.Ordinal));
         Assert.All(timed.Runs.Values, runs => Assert.Equal(2, runs.Length));
         Assert.True(timed.Decomposition.Check.WallSeconds > 0);
         Assert.Equal(file.TargetChunks, timed.TargetChunks);
@@ -57,15 +57,15 @@ public class PatchLabApplyCheckTests
             [.. Enumerable.Repeat(1, 6), .. Enumerable.Repeat(2, 6)],
             concurrentResult.Passes.Select(static pass => pass.Concurrency));
         Assert.Equal(
-            ["overlap", "off", "seq", "overlap", "off", "seq"],
+            ["boundary", "off", "overlap", "boundary", "off", "overlap"],
             concurrentResult.Passes.Take(6).Select(static pass => pass.Lane));
     }
 
     [Theory]
-    [InlineData(0, "off seq overlap off seq overlap")]
-    [InlineData(1, "seq overlap off seq overlap off")]
-    [InlineData(2, "overlap off seq overlap off seq")]
-    [InlineData(9, "off seq overlap off seq overlap")]
+    [InlineData(0, "off overlap boundary off overlap boundary")]
+    [InlineData(1, "overlap boundary off overlap boundary off")]
+    [InlineData(2, "boundary off overlap boundary off overlap")]
+    [InlineData(9, "off overlap boundary off overlap boundary")]
     public void LaneOrderRotatesWithTheRepetition(int repetition, string expected)
     {
         Assert.Equal(expected.Split(' '), PatchLabApplyCheck.LaneOrder(repetition));
@@ -109,12 +109,22 @@ public class PatchLabApplyCheckTests
         Assert.Throws<PatchLabUsageException>(() => PatchLabApplyCheck.Concurrency(value));
     }
 
+    [Theory]
+    [InlineData("off")]
+    [InlineData("seq")]
+    [InlineData("overlap")]
+    [InlineData("boundary")]
+    public void EveryLaneNameParses(string lane)
+    {
+        Assert.True(PatchLabApplyCheck.TryParseLane(lane, out _));
+    }
+
     [Fact]
     public void UnknownActionOrLaneIsAUsageError()
     {
         Assert.Equal(2, PatchLabRunner.Run(["apply-check", "sideways"]));
         Assert.Equal(2, PatchLabRunner.Run(["apply-check"]));
-        Assert.False(PatchLabApplyCheck.TryParseLane("boundary", out _));
+        Assert.False(PatchLabApplyCheck.TryParseLane("sideways", out _));
     }
 
     private static T Read<T>(string path) =>

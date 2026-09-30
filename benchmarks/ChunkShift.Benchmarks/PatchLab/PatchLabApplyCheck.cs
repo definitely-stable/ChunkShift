@@ -13,7 +13,10 @@ namespace ChunkShift.Benchmarks.PatchLab;
 
 /// <summary>
 /// <c>patch-lab apply-check</c>: the lanes of <c>PATCH-APPLY-002</c>
-/// (docs/benchmarks/PATCH-APPLY-002-PROTOCOL.md) over the frozen patch corpus.
+/// (docs/benchmarks/PATCH-APPLY-002-PROTOCOL.md) over the frozen patch corpus,
+/// as run by <c>PATCH-APPLY-003</c>. Rule 1 was decided on <c>off seq overlap</c>;
+/// rule 2 is evaluated again on the boundary-only check, so the lanes are now
+/// <c>off overlap boundary</c> (no rule reads <c>seq</c>).
 /// <code>
 /// patch-lab apply-check prepare    --corpus &lt;root&gt; [--work &lt;dir&gt;] [--output &lt;file&gt;] [--families &lt;id,...&gt;] [--workers &lt;n&gt;] [--run-id &lt;id&gt;]
 /// patch-lab apply-check time       --corpus &lt;root&gt; [--work &lt;dir&gt;] --repetition &lt;r&gt; --output &lt;file&gt; [--families &lt;id,...&gt;] [--warmup-files &lt;n&gt;] [--run-id &lt;id&gt;]
@@ -32,8 +35,8 @@ internal static class PatchLabApplyCheck
     private const long DefaultMemoryMinBytes = 1024 * 1024;
     private const int BlockBytes = 4096;
 
-    /// <summary>The protocol's lanes, in their base order.</summary>
-    internal static IReadOnlyList<string> LaneNames { get; } = ["off", "seq", "overlap"];
+    /// <summary>The measured lanes, in their base order.</summary>
+    internal static IReadOnlyList<string> LaneNames { get; } = ["off", "overlap", "boundary"];
 
     private static readonly int[] DefaultConcurrency = [1, 2, 4, 8];
 
@@ -69,6 +72,9 @@ internal static class PatchLabApplyCheck
                 return true;
             case "overlap":
                 check = ChunkingCheck.Overlapped;
+                return true;
+            case "boundary":
+                check = ChunkingCheck.Boundary;
                 return true;
             default:
                 check = ChunkingCheck.Sequential;
@@ -676,7 +682,7 @@ internal static class PatchLabApplyCheck
                     peaks));
 
                 Console.Error.WriteLine(Invariant(
-                    $"apply-check memory {item.Pair.Family} {item.File.Path}: off {peaks["off"]} B, seq {peaks["seq"]} B, overlap {peaks["overlap"]} B"));
+                    $"apply-check memory {item.Pair.Family} {item.File.Path}: {string.Join(", ", LaneNames.Select(lane => Invariant($"{lane} {peaks[lane]} B")))}"));
             }
 
             PatchLabRunner.WriteJson(output, new PatchLabApplyCheckMemoryResult(

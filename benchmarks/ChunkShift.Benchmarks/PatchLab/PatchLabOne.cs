@@ -98,7 +98,7 @@ internal static class PatchLabOne
 
     /// <remarks>
     /// <c>--patch</c> names an existing patch; <c>--check</c> selects the
-    /// re-chunk check (<c>off</c>, <c>seq</c> or <c>overlap</c>, default
+    /// re-chunk check (<c>off</c>, <c>seq</c>, <c>overlap</c> or <c>boundary</c>, default
     /// <c>seq</c>).
     /// </remarks>
     private static async Task<int> ApplyAsync(string[] args)
@@ -119,7 +119,7 @@ internal static class PatchLabOne
 
         if (!PatchLabApplyCheck.TryParseLane(lane, out ChunkingCheck check))
         {
-            throw new PatchLabUsageException($"Unknown --check '{lane}'; expected off, seq or overlap.");
+            throw new PatchLabUsageException($"Unknown --check '{lane}'; expected off, seq, overlap or boundary.");
         }
 
         string workDirectory = PatchLabCorpus.ResolveWorkDirectory(
