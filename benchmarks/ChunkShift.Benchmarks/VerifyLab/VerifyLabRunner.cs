@@ -5,17 +5,20 @@ using System.Text.Json.Serialization;
 namespace ChunkShift.Benchmarks.VerifyLab;
 
 /// <summary>
-/// <c>verify-lab</c> mode: CORE-VERIFY-002 (docs/benchmarks/CORE-VERIFY-002-PROTOCOL.md),
-/// the confirmatory run of CORE-VERIFY-001 (docs/benchmarks/CORE-VERIFY-001-PROTOCOL.md).
+/// <c>verify-lab</c> mode: CORE-VERIFY-003 (docs/benchmarks/CORE-VERIFY-003-PROTOCOL.md),
+/// the rerun of CORE-VERIFY-002 (docs/benchmarks/CORE-VERIFY-002-PROTOCOL.md) with
+/// one execution per platform, fail-closed provenance and a Windows warm file
+/// checked against the runner's own uncached read.
 /// <code>
 /// verify-lab oracle --output &lt;file.json&gt; [--fixtures &lt;dir&gt;] [--quick] [--scratch &lt;dir&gt;]
 /// verify-lab prepare --dir &lt;dir&gt; [--workloads S1,SL,T] [--corpus &lt;root&gt;] [--work &lt;dir&gt;] [--smoke]
-/// verify-lab run --dir &lt;dir&gt; --workloads &lt;S1,SL|T&gt; --output &lt;file.json&gt; --run-id &lt;id&gt; --platform &lt;name&gt; [--commit &lt;sha&gt;] [--modes warm,cold,throttled] [--samples &lt;n&gt;]
+/// verify-lab run --dir &lt;dir&gt; --oracle &lt;oracle.json&gt; --output &lt;run.json&gt; --platform &lt;name&gt; [--commit &lt;sha&gt;] [--run-id &lt;id&gt;] [--samples &lt;n&gt;]
 /// verify-lab one --dir &lt;dir&gt; --workload &lt;id&gt; --suite &lt;blake3|sha256&gt; --mode &lt;warm|cold|throttled&gt; [--pool &lt;spin-0|default&gt;] --lane &lt;V0|V1|V2-Wn&gt; [--concurrency &lt;k&gt;]
 /// verify-lab one --idle
-/// verify-lab decide --runs &lt;file.json,...&gt; --oracles &lt;file.json,...&gt; --output &lt;file.json&gt; [--markdown &lt;file.md&gt;]
+/// verify-lab one --residency --files &lt;content,manifest&gt;
+/// verify-lab decide --runs &lt;file.json,...&gt; --oracles &lt;file.json,...&gt; --commit &lt;sha&gt; --output &lt;file.json&gt; [--markdown &lt;file.md&gt;] [--smoke]
 /// </code>
-/// Failed runs exit with 1, usage errors with 2.
+/// Failed runs and failed provenance exit with 1, usage errors with 2.
 /// </summary>
 internal static class VerifyLabRunner
 {
@@ -48,7 +51,7 @@ internal static class VerifyLabRunner
                 "prepare" => VerifyLabWorkloads.PrepareAsync(options).GetAwaiter().GetResult(),
                 "run" => VerifyLabRun.Execute(options),
                 "one" => VerifyLabOne.ExecuteAsync(options).GetAwaiter().GetResult(),
-                "decide" => VerifyLabDecision.Execute(options),
+                "decide" => VerifyLabEvaluation.Execute(options),
                 _ => throw new VerifyLabUsageException($"Unknown verify-lab mode '{args[0]}'."),
             };
         }
@@ -121,7 +124,7 @@ internal sealed class VerifyLabUsageException(string message) : Exception(messag
 /// <summary><c>--name value</c> options and <c>--flag</c> switches.</summary>
 internal sealed class VerifyLabOptions
 {
-    private static readonly HashSet<string> Flags = new(StringComparer.Ordinal) { "quick", "smoke", "idle" };
+    private static readonly HashSet<string> Flags = new(StringComparer.Ordinal) { "quick", "smoke", "idle", "residency" };
 
     private readonly Dictionary<string, string?> _values;
 

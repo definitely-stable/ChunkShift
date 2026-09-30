@@ -107,7 +107,7 @@ internal static class Program
         Console.WriteLine("  patch-lab apply-check <prepare|time|concurrent|memory> --corpus <root> [--work <dir>] [--output <file.json>] [--repetition <r>] [--run-id <id>]");
         Console.WriteLine("  verify-lab oracle --output <file.json> [--fixtures <dir>] [--quick] [--scratch <dir>]");
         Console.WriteLine("  verify-lab prepare --dir <dir> [--workloads S1,SL,T] [--corpus <root>] [--work <dir>] [--smoke]");
-        Console.WriteLine("  verify-lab run --dir <dir> --workloads <ids> --output <file.json> --platform <name> [--run-id <id>] [--commit <sha>] [--modes warm,cold,throttled] [--samples <n>]");
-        Console.WriteLine("  verify-lab decide --runs <file.json,...> --oracles <file.json,...> --output <file.json> [--markdown <file.md>]");
+        Console.WriteLine("  verify-lab run --dir <dir> --oracle <oracle.json> --output <run.json> --platform <name> [--commit <sha>] [--run-id <id>] [--samples <n>]");
+        Console.WriteLine("  verify-lab decide --runs <file.json,...> --oracles <file.json,...> --commit <sha> --output <file.json> [--markdown <file.md>] [--smoke]");
     }
 }
