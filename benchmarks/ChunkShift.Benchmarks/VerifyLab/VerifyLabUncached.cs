@@ -126,12 +126,20 @@ internal static class VerifyLabUncached
     /// </summary>
     internal static VerifyLabUncachedRead Read(string path, int block, int read)
     {
-        long fileBytes = new FileInfo(path).Length;
         var failed = new VerifyLabUncachedRead(
-            block, read, fileBytes, Successful: false, "the uncached read is defined on Windows only",
+            block, read, 0, Successful: false, "the uncached read is defined on Windows only",
             null, null, null, null, null, null, 0, null, null);
 
-        return OperatingSystem.IsWindows() ? ReadWindows(path, failed) : failed;
+        try
+        {
+            failed = failed with { FileBytes = new FileInfo(path).Length };
+            return OperatingSystem.IsWindows() ? ReadWindows(path, failed) : failed;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or OutOfMemoryException)
+        {
+            // Section 4.1 step 6: a read that fails is recorded with its reason, not thrown.
+            return failed with { Successful = false, Reason = $"{exception.GetType().Name}: {exception.Message}", GiBPerSecond = null, Seconds = null };
+        }
     }
 
     [SupportedOSPlatform("windows")]
@@ -210,7 +218,7 @@ internal static class VerifyLabUncached
                         GiBPerSecond = VerifyLabAggregate.GiB(bytes) / seconds,
                     };
         }
-        catch (IOException exception)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
             return failed with { Reason = $"a read failed: {exception.Message}" };
         }

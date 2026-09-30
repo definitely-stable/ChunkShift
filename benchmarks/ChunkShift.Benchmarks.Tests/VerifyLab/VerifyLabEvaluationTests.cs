@@ -107,6 +107,9 @@ public sealed class VerifyLabEvaluationTests
         Assert.Equal(VerifyLabBootstrap.Missing, windows.Status("R2"));
         Assert.False(windows.Residency.ControlsPassed);
         Assert.Equal(windows.Residency.PrereadSamples, windows.Residency.Unverified);
+        Assert.Equal(windows.Residency.PrereadSamples, windows.Residency.ProbesOverU.Length);
+        Assert.Contains("x U", windows.Residency.ProbesOverU[0], StringComparison.Ordinal);
+        Assert.Empty(document.Platforms.Single(static p => p.Platform == "linux-x64").Residency.ProbesOverU);
         Assert.False(document.Gate!.Limitation4Settled);
         Assert.False(document.Gate.PlanStep4Opens);
         Assert.Contains("Windows evidence", document.Gate.Effect, StringComparison.Ordinal);

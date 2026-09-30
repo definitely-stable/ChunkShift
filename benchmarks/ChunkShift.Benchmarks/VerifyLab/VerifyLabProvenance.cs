@@ -576,6 +576,14 @@ internal static partial class VerifyLabProvenance
             {
                 failures.Add($"{at}: an uncached read of block {block} has neither a throughput nor the reason it failed");
             }
+
+            foreach (VerifyLabUncachedRead read in reads.Where(static read => read.Successful))
+            {
+                if (AlignmentFailure(read) is string failure)
+                {
+                    failures.Add(string.Create(CultureInfo.InvariantCulture, $"{at}: uncached block {block} read {read.Read} is recorded as successful, but {failure}"));
+                }
+            }
         }
 
         if (reference.Reads.Length != 2 * VerifyLabUncached.ReadsPerBlock)
@@ -610,6 +618,30 @@ internal static partial class VerifyLabProvenance
         }
 
         return recomputed;
+    }
+
+    /// <summary>
+    /// Why a read recorded as successful does not meet the contract of section
+    /// 4.1: its raw sector sizes and alignment requirement, the A, D and buffer
+    /// alignment derived from them, the step-4 checks, and a whole file read.
+    /// </summary>
+    internal static string? AlignmentFailure(VerifyLabUncachedRead read)
+    {
+        if (read.LogicalBytesPerSector is not long logical || read.PhysicalBytesPerSectorForPerformance is not long physical ||
+            read.AlignmentRequirement is not long requirement || logical <= 0 || physical <= 0)
+        {
+            return "its sector sizes or alignment requirement are missing or not positive";
+        }
+
+        VerifyLabAlignment checks = VerifyLabUncached.CheckAlignment(logical, physical, requirement, read.FileBytes);
+
+        return checks.Error is not null
+            ? checks.Error
+            : read.SectorAlignment != checks.SectorAlignment || read.DeviceAlignment != checks.DeviceAlignment || read.BufferAlignment != checks.BufferAlignment
+                ? string.Create(CultureInfo.InvariantCulture, $"its A, D or buffer alignment ({read.SectorAlignment}, {read.DeviceAlignment}, {read.BufferAlignment}) differ from {checks.SectorAlignment}, {checks.DeviceAlignment}, {checks.BufferAlignment}")
+                : read.BytesRead != read.FileBytes || read.Seconds is not double seconds || !(seconds > 0)
+                    ? string.Create(CultureInfo.InvariantCulture, $"it read {read.BytesRead} of {read.FileBytes} bytes in {read.Seconds?.ToString(CultureInfo.InvariantCulture) ?? "no"} seconds")
+                    : null;
     }
 
     private static void CalibrationFailures(

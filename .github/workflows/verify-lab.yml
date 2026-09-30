@@ -71,11 +71,14 @@ jobs:
           out=artifacts/verify-lab
           work="$RUNNER_TEMP/verify-lab"
           mkdir -p "$out"
-          lab oracle --quick --fixtures tests/ChunkShift.Tests/Fixtures/CsmV1 --output "$out/oracle-${{ matrix.platform }}.json"
+          # A failed oracle does not stop the execution: decide reports it for its own reason (section 3.3).
+          oracle=0
+          lab oracle --quick --fixtures tests/ChunkShift.Tests/Fixtures/CsmV1 --output "$out/oracle-${{ matrix.platform }}.json" || oracle=$?
           lab prepare --dir "$work" --smoke
           lab run --dir "$work" --oracle "$out/oracle-${{ matrix.platform }}.json" \
             --platform "${{ matrix.platform }}" --commit "$HEAD_SHA" \
             --output "$out/run-${{ matrix.platform }}.json"
+          exit $oracle
 
       - name: Upload smoke output
         if: always()
@@ -215,14 +218,19 @@ jobs:
           dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
           dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
 
+      # A failed oracle does not stop the execution: its report is bound and
+      # uploaded, decide gives NO-DECISION for its own reason (section 3.3),
+      # and the Execute step fails the job at the end.
       - name: Oracle
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p artifacts/verify-lab
+          status=0
           dotnet benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll verify-lab oracle \
             --fixtures tests/ChunkShift.Tests/Fixtures/CsmV1 \
-            --output "artifacts/verify-lab/oracle-${{ matrix.platform }}.json"
+            --output "artifacts/verify-lab/oracle-${{ matrix.platform }}.json" || status=$?
+          echo "ORACLE_STATUS=$status" >> "$GITHUB_ENV"
 
       # Step 3: the corpus, S1, SL at rung 0, T and the warm-up file.
       - name: Materialize corpus
@@ -255,6 +263,11 @@ jobs:
             --dir "$RUNNER_TEMP/verify-lab" --oracle "artifacts/verify-lab/oracle-${{ matrix.platform }}.json" \
             --platform "${{ matrix.platform }}" --commit "$HEAD_SHA" \
             --output "artifacts/verify-lab/run-${{ matrix.platform }}.json"
+          if [ "$ORACLE_STATUS" != "0" ]
+          then
+            echo "The oracle failed (exit $ORACLE_STATUS)."
+            exit 1
+          fi
 
       - name: Upload evidence
         if: always()

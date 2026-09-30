@@ -31,7 +31,8 @@ internal sealed record VerifyLabResidencySummary(
     double? LargeWarmProbeMaximum,
     double? LargeWarmProbeMinimumOverU,
     double? LargeWarmProbeMaximumOverU,
-    string[] NotResidentOrUnverified);
+    string[] NotResidentOrUnverified,
+    string[] ProbesOverU);
 
 /// <summary>One platform's result: the interval rules, R3′ and its reading, and the residency.</summary>
 internal sealed record VerifyLabPlatformResult(
@@ -268,7 +269,16 @@ internal static class VerifyLabEvaluation
                 .Where(static sample => sample.Measurement!.Residency != VerifyLabResidency.Resident)
                 .Select(static sample => string.Create(
                     CultureInfo.InvariantCulture,
-                    $"{sample.Workload}/{sample.Suite}/{sample.Mode}/{sample.Pool} {sample.Lane} x{sample.Concurrency} r{sample.Repetition}: {sample.Measurement!.Residency}, probe {VerifyLabDecision.F(sample.Measurement.ProbeGiBPerSecond)} GiB/s{(sample.Measurement.ResidentFraction is double fraction ? $", {fraction:P1} resident" : string.Empty)}"))]);
+                    $"{sample.Workload}/{sample.Suite}/{sample.Mode}/{sample.Pool} {sample.Lane} x{sample.Concurrency} r{sample.Repetition}: {sample.Measurement!.Residency}, probe {VerifyLabDecision.F(sample.Measurement.ProbeGiBPerSecond)} GiB/s{(sample.Measurement.ResidentFraction is double fraction ? $", {fraction:P1} resident" : string.Empty)}"))],
+
+            // Section 4.1: the ratio of every Windows probe to U.
+            u is not double referenceU
+                ? []
+                : [.. preread
+                    .Where(static sample => sample.Measurement!.ProbeGiBPerSecond is not null)
+                    .Select(sample => string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"{sample.Workload}/{sample.Suite}/{sample.Mode}/{sample.Pool} {sample.Lane} x{sample.Concurrency} r{sample.Repetition}: probe {sample.Measurement!.ProbeGiBPerSecond:F3} GiB/s = {sample.Measurement.ProbeGiBPerSecond / referenceU:F3} x U"))]);
 
         var result = new VerifyLabPlatformResult(
             run.Platform,
@@ -417,7 +427,13 @@ internal static class VerifyLabEvaluation
     {
         try
         {
-            return new VerifyLabInput<T>(path, VerifyLabRunner.ReadJson<T>(path), null);
+            T document = VerifyLabRunner.ReadJson<T>(path);
+
+            // A run document without its arrays cannot be checked; P1 refuses it as unreadable.
+            return document is VerifyLabRunDocument run &&
+                (run.Plan is null || run.Samples is null || run.Workloads is null || run.Skipped is null || run.Environment is null)
+                ? new VerifyLabInput<T>(path, null, "the run document lacks its plan, samples, workloads, skipped modes or environment")
+                : new VerifyLabInput<T>(path, document, null);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidDataException or NotSupportedException)
         {

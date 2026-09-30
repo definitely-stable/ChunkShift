@@ -161,6 +161,14 @@ public sealed class VerifyLabProvenanceTests
         (VerifyLabInput<VerifyLabRunDocument>[] runs, VerifyLabInput<VerifyLabOracleSummary>[] oracles) = Valid();
 
         AssertFails("P9", With(runs, "win-x64", static run => run with { Reference = null }), oracles);
+
+        // A read recorded as successful must carry the alignment contract of section 4.1.
+        AssertFails("P9", Reference(runs, static r => r with { Reads = [r.Reads[0] with { SectorAlignment = 512 }, .. r.Reads[1..]] }), oracles);
+        AssertFails("P9", Reference(runs, static r => r with { Reads = [r.Reads[0] with { DeviceAlignment = 4096 }, .. r.Reads[1..]] }), oracles);
+        AssertFails("P9", Reference(runs, static r => r with { Reads = [r.Reads[0] with { BufferAlignment = 512 }, .. r.Reads[1..]] }), oracles);
+        AssertFails("P9", Reference(runs, static r => r with { Reads = [r.Reads[0] with { LogicalBytesPerSector = null }, .. r.Reads[1..]] }), oracles);
+        AssertFails("P9", Reference(runs, static r => r with { Reads = [r.Reads[0] with { AlignmentRequirement = 0x2FF, DeviceAlignment = 768 }, .. r.Reads[1..]] }), oracles);
+        AssertFails("P9", Reference(runs, static r => r with { Reads = [r.Reads[0] with { BytesRead = 1 << 20 }, .. r.Reads[1..]] }), oracles);
         AssertFails("P9", With(runs, "linux-x64", static run => run with { Reference = WindowsLike(run).Reference }), oracles);
         AssertFails("P9", Reference(runs, static r => r with { Threshold = r.Threshold + 0.1 }), oracles);
         AssertFails("P9", Reference(runs, static r => r with { Maximum = 9 }), oracles);

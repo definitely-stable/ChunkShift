@@ -207,6 +207,11 @@ public sealed class VerifyLabExecutionTests
                 Assert.Null(read.GiBPerSecond);
                 Assert.NotNull(read.Reason);
             }
+
+            // A read that cannot even find its file is recorded as unsuccessful, not thrown (section 4.1 step 6).
+            VerifyLabUncachedRead missing = VerifyLabUncached.Read(Path.Combine(directory, "missing.bin"), block: 2, read: 1);
+            Assert.False(missing.Successful);
+            Assert.Contains("FileNotFoundException", missing.Reason, StringComparison.Ordinal);
         }
         finally
         {
