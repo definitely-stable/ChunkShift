@@ -100,14 +100,21 @@ Aggregates per lane and platform: `T` = total create wall seconds over the corpu
 The thresholds are those of #181, unchanged.
 
 1. **Bytes.** A lane whose patch differs from H0's on any file of any platform is **REJECT**.
-2. **H1.** H1 is **ADOPT** when rule 1 holds, `R(H0) / R(H1) ≥ 2`, and on every platform `T(H1)` does not exceed the larger of the two H0 lanes (no wall-time regression). Otherwise H1 is **REJECT**.
-3. **Workers.** The worker family is H3 when H1 is adopted and H2 otherwise. The family **ADOPTs** the smallest W ∈ {1, 2, 4, 8} whose lane meets all of:
+2. **H1.** H1 is **ADOPT** when all of these hold:
+   - rule 1 on all three platforms;
+   - `R(H0) / R(H1) ≥ 2`;
+   - no wall-time regression on every platform: `T(H1, p) ≤ T(H0, p)`, where `T(H0, p)` is the mean of the two H0 lanes. There is no tolerance: #181 names none, and this protocol adds no threshold. The 25 % H0 spread of §5 decides only whether a run is valid; it is not a margin for H1;
+   - the §3.3 memory bound for W = 1, `M(H1, p) ≤ 64 MiB`, on all three platforms.
+
+   A failed condition → **REJECT**. When every measured condition holds but a platform or the H1 memory run is missing → **INCOMPLETE** (not ADOPT).
+3. **Workers.** Both families are evaluated; H3 is eligible only when H1 is ADOPT, because H3 carries the H1 cache and the cache is adopted on its own evidence. An eligible lane **qualifies** when it meets all of:
    - `T(H0) / T(lane) ≥ 1.5` on at least two of linux-x64, linux-arm64 and win-x64;
    - rule 1 on all three platforms;
-   - the §3.3 memory bound on all three platforms.
-   No such W → the workers are **REJECT**, and the default stays sequential.
+   - the §3.3 memory bound on all three platforms (a missing memory run is not met).
 
-The other family is reported, not decided. An adopted lane becomes the internal default of `CspPatchBuilder` in its own PR, which runs the Patching package smoke under JIT and NativeAOT, the committed CSP vectors, `generate.py --verify`, `decode.py` over the created scenario patches and the frame fuzz corpus (`decode.py --compare-frames`), and updates D15 and D17. Encoder bytes do not change, so no vector changes.
+   The workers **ADOPT** the qualifying lane with the smallest W ∈ {1, 2, 4, 8}; at equal W, H3 before H2 (with H1 adopted, H3 is the default plus workers). No qualifying lane → the workers are **REJECT**, and the default stays sequential. When a platform or a memory run is missing and no lane qualifies → **INCOMPLETE**.
+
+H3 lanes are reported even when not eligible. An adopted lane becomes the internal default of `CspPatchBuilder` in its own PR, which runs the Patching package smoke under JIT and NativeAOT, the committed CSP vectors, `generate.py --verify`, `decode.py` over the created scenario patches and the frame fuzz corpus (`decode.py --compare-frames`), and updates D15 and D17. Encoder bytes do not change, so no vector changes.
 
 ## 8. Records
 
