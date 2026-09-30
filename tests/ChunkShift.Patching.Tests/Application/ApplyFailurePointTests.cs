@@ -108,9 +108,11 @@ public sealed class ApplyFailurePointTests : IDisposable
     [InlineData(1, nameof(ChunkingCheck.Off))]
     [InlineData(1, nameof(ChunkingCheck.Sequential))]
     [InlineData(1, nameof(ChunkingCheck.Overlapped))]
+    [InlineData(1, nameof(ChunkingCheck.Boundary))]
     [InlineData(5, nameof(ChunkingCheck.Off))]
     [InlineData(5, nameof(ChunkingCheck.Sequential))]
     [InlineData(5, nameof(ChunkingCheck.Overlapped))]
+    [InlineData(5, nameof(ChunkingCheck.Boundary))]
     public async Task CancelledBaseRead_KeepsTheDestination(int readsBeforeCancel, string checkName)
     {
         ChunkingCheck check = Enum.Parse<ChunkingCheck>(checkName);

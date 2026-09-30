@@ -59,9 +59,12 @@ internal static class CspApplier
         // The overlapped check reads the embedded CSM while the reconstruction
         // reads payload entries, and both reposition the caller's patch stream.
         // Each then reads through a view of its own, and the views take turns.
-        using SemaphoreSlim? patchGate = chunkingCheck == ChunkingCheck.Overlapped
-            ? new SemaphoreSlim(1, 1)
-            : null;
+        // The boundary check falls back to it for any other profile, which is
+        // known only once the patch is open.
+        using SemaphoreSlim? patchGate =
+            chunkingCheck is ChunkingCheck.Overlapped or ChunkingCheck.Boundary
+                ? new SemaphoreSlim(1, 1)
+                : null;
         long patchStart = patch.Position;
         Stream patchSource = patchGate is null
             ? patch
@@ -90,6 +93,15 @@ internal static class CspApplier
         {
             return new PatchApplyResult(MapFailures(reader.Failures), target);
         }
+
+        if (chunkingCheck == ChunkingCheck.Boundary && !BoundaryChunkingCheck.AppliesTo(target))
+        {
+            chunkingCheck = ChunkingCheck.Overlapped;
+        }
+
+        BoundaryChunkingCheck? boundary = chunkingCheck == ChunkingCheck.Boundary
+            ? new BoundaryChunkingCheck()
+            : null;
 
         var baseLocator = new Dictionary<ChunkId, ChunkInfo>();
         Stream? baseStream = null;
@@ -149,13 +161,13 @@ internal static class CspApplier
 
         // Disposed before the pending file: whatever ends the apply, the check
         // is cancelled and awaited first.
-        await using OverlappedChunkingCheck? overlapped = checkPatch is null
+        await using OverlappedChunkingCheck? overlapped = chunkingCheck != ChunkingCheck.Overlapped
             ? null
             : OverlappedChunkingCheck.Start(
                 (content, token) => CheckChunkingAsync(
                     content,
                     new BoundedReadStream(
-                        checkPatch,
+                        checkPatch!,
                         checked(patchStart + reader.TargetManifestOffset),
                         reader.TargetManifestLength),
                     token),
@@ -167,6 +179,7 @@ internal static class CspApplier
             baseLocator,
             baseStream,
             overlapped,
+            boundary,
             cancellationToken).ConfigureAwait(false);
 
         if (failure != PatchApplyFailure.None)
@@ -194,6 +207,7 @@ internal static class CspApplier
                 overlapped!,
                 pending,
                 cancellationToken).ConfigureAwait(false),
+            ChunkingCheck.Boundary => boundary!.Complete(),
             _ => throw new ArgumentOutOfRangeException(nameof(chunkingCheck)),
         };
 
@@ -208,9 +222,11 @@ internal static class CspApplier
 
     /// <summary>
     /// D21 step 5: resolves every target record in order, writing the verified
-    /// bytes to <paramref name="output"/> and, when a check overlaps the
-    /// reconstruction, to <paramref name="overlapped"/>, stopping at the first
-    /// failure.
+    /// bytes to <paramref name="output"/> and, when a check runs with the
+    /// reconstruction, to <paramref name="overlapped"/> or
+    /// <paramref name="boundary"/>, stopping at the first failure. A boundary
+    /// mismatch does not stop it: D21 reports it only after the
+    /// reconstruction and the length passed.
     /// </summary>
     private static async Task<PatchApplyFailure> ResolveTargetAsync(
         CspReader reader,
@@ -218,6 +234,7 @@ internal static class CspApplier
         Dictionary<ChunkId, ChunkInfo> baseLocator,
         Stream? baseStream,
         OverlappedChunkingCheck? overlapped,
+        BoundaryChunkingCheck? boundary,
         CancellationToken cancellationToken)
     {
         HashSuiteId hashSuite = reader.TargetManifest.Manifest.HashSuite;
@@ -394,6 +411,8 @@ internal static class CspApplier
                             .WriteAsync(chunk, cancellationToken)
                             .ConfigureAwait(false);
                     }
+
+                    boundary?.Append(chunk.Span);
 
                     writeOffset = checked(writeOffset + chunk.Length);
                 }

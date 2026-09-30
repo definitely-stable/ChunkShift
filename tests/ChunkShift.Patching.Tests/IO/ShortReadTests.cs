@@ -42,9 +42,9 @@ public sealed class ShortReadTests : IDisposable
     }
 
     /// <summary>
-    /// Gets every scenario with the sequential and the overlapped re-chunk
-    /// check; the overlapped check reads the patch concurrently with the
-    /// reconstruction.
+    /// Gets every scenario with the sequential, the overlapped and the
+    /// boundary re-chunk check; the overlapped check reads the patch
+    /// concurrently with the reconstruction.
     /// </summary>
     public static TheoryData<string, string> ScenarioChecks
     {
@@ -56,6 +56,7 @@ public sealed class ShortReadTests : IDisposable
             {
                 cases.Add(scenario.Name, nameof(ChunkingCheck.Sequential));
                 cases.Add(scenario.Name, nameof(ChunkingCheck.Overlapped));
+                cases.Add(scenario.Name, nameof(ChunkingCheck.Boundary));
             }
 
             return cases;
@@ -72,6 +73,7 @@ public sealed class ShortReadTests : IDisposable
             {
                 names.Add(vector.Name, nameof(ChunkingCheck.Sequential));
                 names.Add(vector.Name, nameof(ChunkingCheck.Overlapped));
+                names.Add(vector.Name, nameof(ChunkingCheck.Boundary));
             }
 
             return names;
