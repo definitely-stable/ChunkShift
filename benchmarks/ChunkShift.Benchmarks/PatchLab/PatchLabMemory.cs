@@ -75,6 +75,11 @@ internal static class PatchLabMemory
                         "--lane", options.Lane,
                     ];
 
+                    if (options.Execution is not null)
+                    {
+                        selection = [.. selection, "--execution", options.Execution];
+                    }
+
                     string patchPath = Path.Combine(directory, Invariant($"patch-{index}.csp"));
                     long createPeakBytes = RunChild([.. selection, "--patch", patchPath], $"create of {file.Path}");
                     string outputPath = Path.Combine(directory, Invariant($"output-{index}"));
@@ -116,7 +121,8 @@ internal static class PatchLabMemory
                 PatchLabRunner.Snapshot(),
                 MemoryEnvironment(),
                 idleBaselineBytes,
-                [.. files]));
+                [.. files],
+                options.Execution));
 
             return 0;
         }

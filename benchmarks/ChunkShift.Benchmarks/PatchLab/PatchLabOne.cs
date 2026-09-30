@@ -55,6 +55,7 @@ internal static class PatchLabOne
         }
 
         CspEncoderPolicy policy = PatchLabLane.Parse(PatchLabArguments.Value(args, "--lane") ?? "csp");
+        CspCreateExecution execution = PatchLabExecution.Parse(PatchLabArguments.Value(args, "--execution") ?? "h0");
 
         string workDirectory = PatchLabCorpus.ResolveWorkDirectory(
             corpusRoot,
@@ -88,6 +89,7 @@ internal static class PatchLabOne
                     targetContent,
                     destination,
                     policy,
+                    execution,
                     CancellationToken.None)
                 .ConfigureAwait(false);
         }

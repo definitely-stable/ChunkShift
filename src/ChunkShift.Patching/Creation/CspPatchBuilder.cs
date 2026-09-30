@@ -21,12 +21,20 @@ namespace ChunkShift.Patching.Creation;
 /// written forward-only.
 /// </para>
 /// <para>
+/// How the payload pass runs is a <see cref="CspCreateExecution"/>
+/// (docs/benchmarks/PATCH-ENC-004-PROTOCOL.md): sequentially, optionally
+/// through a cache of at most one candidate window of base chunks, or with
+/// bounded encode workers whose entries are written in first-occurrence
+/// order. Every execution writes the same patch bytes; the workers add at
+/// most their window of entries and one encoder each.
+/// </para>
+/// <para>
 /// Argument validation is the public caller's job. No stream is disposed; only
 /// the target manifest (back to where it was found) and the base content (for
 /// dictionary chunks) are repositioned.
 /// </para>
 /// </remarks>
-internal static class CspPatchBuilder
+internal static partial class CspPatchBuilder
 {
     private const int ManifestBatchEntries = 256;
 
@@ -41,6 +49,29 @@ internal static class CspPatchBuilder
     /// <paramref name="baseContent"/> both <see langword="null"/> it is
     /// self-contained.
     /// </summary>
+    internal static Task<PatchInfo> CreateAsync(
+        Stream? baseManifest,
+        Stream? baseContent,
+        Stream targetManifest,
+        Stream targetContent,
+        Stream destination,
+        CspEncoderPolicy policy,
+        CancellationToken cancellationToken) =>
+        CreateAsync(
+            baseManifest,
+            baseContent,
+            targetManifest,
+            targetContent,
+            destination,
+            policy,
+            CspCreateExecution.Sequential,
+            cancellationToken);
+
+    /// <summary>
+    /// Creates a patch with an explicit <paramref name="execution"/>. Every
+    /// execution writes the same patch bytes as
+    /// <see cref="CspCreateExecution.Sequential"/> (PATCH-ENC-004).
+    /// </summary>
     internal static async Task<PatchInfo> CreateAsync(
         Stream? baseManifest,
         Stream? baseContent,
@@ -48,9 +79,11 @@ internal static class CspPatchBuilder
         Stream targetContent,
         Stream destination,
         CspEncoderPolicy policy,
+        CspCreateExecution execution,
         CancellationToken cancellationToken)
     {
         ValidatePolicy(policy);
+        ValidateExecution(execution);
 
         var baseRecords = new List<BaseRecord>();
         var baseIds = new HashSet<ChunkId>();
@@ -111,16 +144,35 @@ internal static class CspPatchBuilder
         }
 
         targetManifest.Position = targetStart;
-        await WritePayloadAsync(
-            writer,
-            baseRecords,
-            baseIds,
-            baseContent,
-            targetManifest,
-            targetContent,
-            target.HashSuite,
-            policy,
-            cancellationToken).ConfigureAwait(false);
+
+        if (execution.WorkerCount == 0)
+        {
+            await WritePayloadAsync(
+                writer,
+                baseRecords,
+                baseIds,
+                baseContent,
+                targetManifest,
+                targetContent,
+                target.HashSuite,
+                policy,
+                execution,
+                cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await WritePayloadInParallelAsync(
+                writer,
+                baseRecords,
+                baseIds,
+                baseContent,
+                targetManifest,
+                targetContent,
+                target.HashSuite,
+                policy,
+                execution,
+                cancellationToken).ConfigureAwait(false);
+        }
 
         CspWriteResult result = await writer
             .CompleteAsync(cancellationToken)
@@ -186,7 +238,7 @@ internal static class CspPatchBuilder
     /// <summary>
     /// Verifies every target record against its <see cref="ChunkId"/> and emits
     /// one payload entry per distinct identity the base does not hold, in target
-    /// first-occurrence order.
+    /// first-occurrence order, one entry at a time.
     /// </summary>
     private static async Task WritePayloadAsync(
         CspWriter writer,
@@ -197,22 +249,120 @@ internal static class CspPatchBuilder
         Stream targetContent,
         HashSuiteId hashSuite,
         CspEncoderPolicy policy,
+        CspCreateExecution execution,
+        CancellationToken cancellationToken)
+    {
+        // Level zero is raw-only: no encoder is created and the stored forms
+        // are never compared with the raw bytes.
+        using CspPayloadEncoder? encoder = CreateEncoder(policy);
+
+        var entryBuffers = new EntryBuffers();
+        CreateBufferPool? pool = null;
+        BaseCandidateCache? cache = null;
+        BaseChunkSource? source = null;
+
+        if (baseContent is not null && UsesDictionaries(policy))
+        {
+            if (execution.UseBaseCandidateCache)
+            {
+                pool = new CreateBufferPool(policy.MaxCandidates + policy.DictionaryChunks + 8);
+                cache = new BaseCandidateCache(baseRecords, baseContent, policy, pool, window: null, execution.Statistics);
+            }
+            else
+            {
+                source = new StreamBaseChunkSource(baseRecords, baseContent, gate: null);
+            }
+        }
+
+        try
+        {
+            await ReadTargetEntriesAsync(
+                baseIds,
+                targetManifest,
+                targetContent,
+                hashSuite,
+                new TargetChunkBuffer(pool: null),
+                progress: null,
+                async (chunk, bytes, _) =>
+                {
+                    EntryChoice choice;
+
+                    if (cache is null)
+                    {
+                        choice = await ChooseEntryAsync(
+                            encoder,
+                            baseRecords,
+                            source,
+                            chunk.Offset,
+                            bytes,
+                            hashSuite,
+                            policy,
+                            entryBuffers,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        // The window is released before the entry is written:
+                        // the chosen dictionary was verified from the entry
+                        // buffers, which hold a copy.
+                        using BaseWindow window = await cache
+                            .PrepareAsync(chunk.Offset, cancellationToken)
+                            .ConfigureAwait(false);
+                        choice = await ChooseEntryAsync(
+                            encoder,
+                            baseRecords,
+                            window,
+                            chunk.Offset,
+                            bytes,
+                            hashSuite,
+                            policy,
+                            entryBuffers,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
+                    // The writer copies or writes the stored bytes before it
+                    // returns, so the next chunk may reuse the entry buffers.
+                    await writer.AddPayloadEntryAsync(
+                        new CspPayloadEntry(
+                            chunk.Id,
+                            checked((ulong)chunk.Index),
+                            choice.Encoding,
+                            choice.DictionaryChunkIds),
+                        choice.Stored,
+                        cancellationToken).ConfigureAwait(false);
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            cache?.Dispose();
+
+            if (pool is not null)
+            {
+                execution.Statistics?.RecordOutstandingBuffers(pool.Outstanding);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reads the target manifest and content in lockstep, verifies every record
+    /// against its <see cref="ChunkId"/> and calls <paramref name="onEntry"/> for
+    /// each distinct identity the base does not hold, in target first-occurrence
+    /// order, then requires the content to end with the manifest. The bytes
+    /// passed to <paramref name="onEntry"/> live in <paramref name="buffer"/>
+    /// and are valid until it returns unless it detaches them.
+    /// </summary>
+    private static async Task ReadTargetEntriesAsync(
+        HashSet<ChunkId> baseIds,
+        Stream targetManifest,
+        Stream targetContent,
+        HashSuiteId hashSuite,
+        TargetChunkBuffer buffer,
+        TargetProgress? progress,
+        Func<ChunkInfo, ReadOnlyMemory<byte>, TargetChunkBuffer, ValueTask> onEntry,
         CancellationToken cancellationToken)
     {
         var emitted = new HashSet<ChunkId>();
-
-        // Level zero is raw-only: no encoder is created and the stored forms
-        // are never compared with the raw bytes.
-        using CspPayloadEncoder? encoder = policy.Level == 0
-            ? null
-            : new CspPayloadEncoder(
-                policy.Level,
-                policy.DictionaryLoad,
-                policy.DictionaryHashLog,
-                policy.DictionaryChainLog);
-
-        byte[] chunkBuffer = [];
-        var entryBuffers = new EntryBuffers();
 
         await using ManifestReader reader = await ManifestReader
             .OpenAsync(targetManifest, cancellationToken)
@@ -229,12 +379,12 @@ internal static class CspPatchBuilder
             {
                 ChunkInfo chunk = batch[index];
 
-                if (chunkBuffer.Length < chunk.Length)
+                if (progress is not null)
                 {
-                    chunkBuffer = new byte[chunk.Length];
+                    progress.Index = chunk.Index;
                 }
 
-                Memory<byte> bytes = chunkBuffer.AsMemory(0, chunk.Length);
+                Memory<byte> bytes = buffer.Get(chunk.Length);
                 await ReadExactlyAsync(
                     targetContent,
                     bytes,
@@ -263,28 +413,13 @@ internal static class CspPatchBuilder
                         "(CSP-V1-CANDIDATE section 8, MaximumPayloadEntries).");
                 }
 
-                EntryChoice choice = await ChooseEntryAsync(
-                    encoder,
-                    baseRecords,
-                    baseContent,
-                    chunk.Offset,
-                    bytes,
-                    hashSuite,
-                    policy,
-                    entryBuffers,
-                    cancellationToken).ConfigureAwait(false);
-
-                // The writer copies or writes the stored bytes before it
-                // returns, so the next chunk may reuse the entry buffers.
-                await writer.AddPayloadEntryAsync(
-                    new CspPayloadEntry(
-                        chunk.Id,
-                        checked((ulong)chunk.Index),
-                        choice.Encoding,
-                        choice.DictionaryChunkIds),
-                    choice.Stored,
-                    cancellationToken).ConfigureAwait(false);
+                await onEntry(chunk, bytes, buffer).ConfigureAwait(false);
             }
+        }
+
+        if (progress is not null)
+        {
+            progress.Index = long.MaxValue;
         }
 
         byte[] probe = new byte[1];
@@ -304,6 +439,19 @@ internal static class CspPatchBuilder
         }
     }
 
+    private static CspPayloadEncoder? CreateEncoder(CspEncoderPolicy policy) =>
+        policy.Level == 0
+            ? null
+            : new CspPayloadEncoder(
+                policy.Level,
+                policy.DictionaryLoad,
+                policy.DictionaryHashLog,
+                policy.DictionaryChainLog);
+
+    /// <summary>Gets whether any entry may try a dictionary, and so read the base.</summary>
+    private static bool UsesDictionaries(CspEncoderPolicy policy) =>
+        policy.Level != 0 && policy.DictionaryChunks != 0;
+
     /// <summary>
     /// Chooses the lowest-cost stored form of one target chunk among raw, zstd
     /// without a dictionary and zstd against each dictionary candidate, where a
@@ -316,7 +464,7 @@ internal static class CspPatchBuilder
     private static async Task<EntryChoice> ChooseEntryAsync(
         CspPayloadEncoder? encoder,
         List<BaseRecord> baseRecords,
-        Stream? baseContent,
+        BaseChunkSource? baseChunks,
         long targetOffset,
         ReadOnlyMemory<byte> bytes,
         HashSuiteId hashSuite,
@@ -341,7 +489,7 @@ internal static class CspPatchBuilder
             bestCost = frame.Length;
         }
 
-        if (policy.DictionaryChunks == 0 || baseContent is null)
+        if (policy.DictionaryChunks == 0 || baseChunks is null)
         {
             return best;
         }
@@ -353,35 +501,17 @@ internal static class CspPatchBuilder
 
         foreach (int start in FindCandidateStarts(baseRecords, targetOffset, policy))
         {
-            int count = Math.Min(policy.DictionaryChunks, baseRecords.Count - start);
-            long length = 0;
-
-            for (int index = start; index < start + count; index++)
-            {
-                length += baseRecords[index].Length;
-            }
-
-            if (length > CspDictionary.MaximumBytes)
+            if (!TryMeasureCandidate(baseRecords, start, policy, out int count, out int length))
             {
                 continue;
             }
 
             // Every candidate is read into the same buffer; the best one so far
             // is kept by swapping buffers, not by allocating one per candidate.
-            Memory<byte> dictionary = buffers.Candidate.AsMemory(0, (int)length);
-            int offset = 0;
-
-            for (int index = start; index < start + count; index++)
-            {
-                BaseRecord record = baseRecords[index];
-                baseContent.Position = record.Offset;
-                await ReadExactlyAsync(
-                    baseContent,
-                    dictionary.Slice(offset, record.Length),
-                    "The base content ended before the base manifest's declared length.",
-                    cancellationToken).ConfigureAwait(false);
-                offset += record.Length;
-            }
+            Memory<byte> dictionary = buffers.Candidate.AsMemory(0, length);
+            await baseChunks
+                .ReadAsync(start, count, dictionary, cancellationToken)
+                .ConfigureAwait(false);
 
             if (!CspDictionary.IsUsable(dictionary.Span))
             {
@@ -429,6 +559,31 @@ internal static class CspPatchBuilder
         }
 
         return best with { DictionaryChunkIds = dictionaryIds };
+    }
+
+    /// <summary>
+    /// Measures the candidate that starts at base record <paramref name="start"/>:
+    /// up to <see cref="CspEncoderPolicy.DictionaryChunks"/> records, and
+    /// <see langword="false"/> when they exceed the CSP dictionary bound, in which
+    /// case the candidate is skipped before any of it is read.
+    /// </summary>
+    private static bool TryMeasureCandidate(
+        List<BaseRecord> records,
+        int start,
+        CspEncoderPolicy policy,
+        out int count,
+        out int length)
+    {
+        count = Math.Min(policy.DictionaryChunks, records.Count - start);
+        long total = 0;
+
+        for (int index = start; index < start + count; index++)
+        {
+            total += records[index].Length;
+        }
+
+        length = total > CspDictionary.MaximumBytes ? 0 : (int)total;
+        return total <= CspDictionary.MaximumBytes;
     }
 
     /// <summary>
@@ -532,6 +687,15 @@ internal static class CspPatchBuilder
 
         ValidateTableLog(policy.DictionaryHashLog);
         ValidateTableLog(policy.DictionaryChainLog);
+    }
+
+    private static void ValidateExecution(CspCreateExecution execution)
+    {
+        ArgumentNullException.ThrowIfNull(execution);
+        ArgumentOutOfRangeException.ThrowIfNegative(execution.WorkerCount);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            execution.WorkerCount,
+            CspCreateExecution.MaximumWorkerCount);
     }
 
     // Zero means zstd's choice; otherwise zstd's 64-bit bounds of hashLog and

@@ -8,12 +8,16 @@ name: Patch lab
 # Linux x64, Linux ARM64 and Windows x64. lanes=encoder creates the whole
 # corpus with each encoder-lanes policy in turn, in one job per architecture,
 # so their create times are compared within a job (PATCH-ENC-003).
+# lanes=create-throughput creates the whole corpus once per create execution
+# (h0, h1, h2-w{n}, h3-w{n}), one file at a time, on Linux x64, Linux ARM64
+# and Windows x64; lanes=create-memory measures the create peak of each
+# execution (PATCH-ENC-004, docs/benchmarks/PATCH-ENC-004-PROTOCOL.md).
 # None of these groups is part of "all".
 on:
   workflow_dispatch:
     inputs:
       lanes:
-        description: "all, or a comma list of job groups: csp-lanes, sweep, references, memory, encoder, apply-check"
+        description: "all, or a comma list of job groups: csp-lanes, sweep, references, memory, encoder, apply-check, create-throughput, create-memory"
         required: false
         default: all
         type: string
@@ -31,6 +35,11 @@ on:
         description: "encoder group only: space-separated patch-lab lane names, created in this order"
         required: false
         default: ""
+        type: string
+      executions:
+        description: "create-throughput and create-memory groups: space-separated create executions, run in this order (create-memory skips a repeated one)"
+        required: false
+        default: "h0 h1 h2-w1 h2-w2 h2-w4 h2-w8 h3-w1 h3-w2 h3-w4 h3-w8 h0"
         type: string
       experiment-id:
         description: "memory and encoder groups: the ExperimentId of the RunIds"
@@ -539,6 +548,232 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  create-throughput:
+    name: patch-lab-create-throughput (${{ matrix.platform }})
+    if: contains(inputs.lanes, 'create-throughput')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux-x64
+          - os: ubuntu-24.04-arm
+            platform: linux-arm64
+          - os: windows-2025
+            platform: win-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Restore corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python=python3
+          command -v python3 >/dev/null || python=python
+          "$python" benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$HOME/patch-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download --lock
+
+      - name: Build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      # PATCH-ENC-004 section 5: one process per execution, one file at a
+      # time, the default encoder policy. The first h0 lane applies every
+      # patch once against the target SHA-256; the other lanes are checked
+      # by the byte oracle (patch SHA-256 equal to the first h0's). The
+      # inputs reach the script only through the environment and are
+      # checked before use.
+      - name: Run create executions
+        shell: bash
+        env:
+          EXECUTIONS: ${{ inputs.executions }}
+          EXPERIMENT_ID: ${{ inputs.experiment-id }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$EXPERIMENT_ID" =~ ^[A-Z0-9-]+$ ]]
+          then
+            echo "experiment-id: rejected '$EXPERIMENT_ID'" >&2
+            exit 2
+          fi
+          python=python3
+          command -v python3 >/dev/null || python=python
+          lab="benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll"
+          run_id="$EXPERIMENT_ID/RUN-$(date -u +%Y%m%d)-${{ github.run_number }}-${GITHUB_SHA::7}-${{ matrix.platform }}"
+          mkdir -p artifacts/patch-lab
+          outputs=()
+          position=0
+          applied=0
+          for execution in $EXECUTIONS
+          do
+            if [[ ! "$execution" =~ ^h[0-3](-w[1-8])?$ ]]
+            then
+              echo "executions: rejected '$execution'" >&2
+              exit 2
+            fi
+            position=$((position + 1))
+            apply=(--no-apply)
+            if [[ "$execution" == "h0" && "$applied" == "0" ]]
+            then
+              apply=(--apply-repeats 1)
+              applied=1
+            fi
+            output="artifacts/patch-lab/create-throughput-$position-$execution-${{ matrix.platform }}.json"
+            dotnet "$lab" patch-lab run \
+              --corpus "$HOME/patch-corpus" \
+              --lane csp \
+              --execution "$execution" \
+              --workers 1 "${apply[@]}" \
+              --output "$output" \
+              --run-id "$run_id"
+            outputs+=("$output")
+          done
+          "$python" benchmarks/scripts/summarize_create_throughput.py print "${outputs[@]}"
+
+      # The name does not end in -x64/-arm64, so the pre-freeze summary does
+      # not merge these runs.
+      - name: Upload create-throughput evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-lab-create-throughput-${{ matrix.platform }}-runs
+          path: artifacts/patch-lab
+          if-no-files-found: error
+          retention-days: 90
+
+  create-memory:
+    name: patch-lab-create-memory (${{ matrix.platform }})
+    if: contains(inputs.lanes, 'create-memory')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux-x64
+          - os: ubuntu-24.04-arm
+            platform: linux-arm64
+          - os: windows-2025
+            platform: win-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Restore corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python=python3
+          command -v python3 >/dev/null || python=python
+          "$python" benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$HOME/patch-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download --lock
+
+      - name: Build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      # Every file of at least 1 MiB is created in a child process of its
+      # own, per execution, with the idle baseline (PATCH-ENC-004 section 5).
+      - name: Run create memory lanes
+        shell: bash
+        env:
+          EXECUTIONS: ${{ inputs.executions }}
+          EXPERIMENT_ID: ${{ inputs.experiment-id }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$EXPERIMENT_ID" =~ ^[A-Z0-9-]+$ ]]
+          then
+            echo "experiment-id: rejected '$EXPERIMENT_ID'" >&2
+            exit 2
+          fi
+          python=python3
+          command -v python3 >/dev/null || python=python
+          lab="benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll"
+          run_id="$EXPERIMENT_ID/RUN-$(date -u +%Y%m%d)-${{ github.run_number }}-${GITHUB_SHA::7}-${{ matrix.platform }}"
+          mkdir -p artifacts/patch-lab
+          done_list=" "
+          for execution in $EXECUTIONS
+          do
+            if [[ ! "$execution" =~ ^h[0-3](-w[1-8])?$ ]]
+            then
+              echo "executions: rejected '$execution'" >&2
+              exit 2
+            fi
+            if [[ "$done_list" == *" $execution "* ]]
+            then
+              continue
+            fi
+            done_list="$done_list$execution "
+            output="artifacts/patch-lab/create-memory-$execution-${{ matrix.platform }}.json"
+            dotnet "$lab" patch-lab memory \
+              --corpus "$HOME/patch-corpus" \
+              --lane csp \
+              --execution "$execution" \
+              --output "$output" \
+              --run-id "$run_id"
+            "$python" benchmarks/scripts/print_patch_lab_memory.py "$output"
+          done
+
+      - name: Upload create-memory evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-lab-create-memory-${{ matrix.platform }}-runs
+          path: artifacts/patch-lab
+          if-no-files-found: error
+          retention-days: 90
+
   apply-check:
     name: patch-lab-apply-check (${{ matrix.platform }})
     if: contains(inputs.lanes, 'apply-check')
@@ -665,7 +900,7 @@ jobs:
 
   summary:
     name: patch-lab-summary
-    needs: [csp-lanes, sweep, references, memory, encoder, apply-check]
+    needs: [csp-lanes, sweep, references, memory, encoder, apply-check, create-throughput, create-memory]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -745,6 +980,29 @@ jobs:
             --require-all-platforms
           cat artifacts/patch-lab/apply-check-summary.md >> "$GITHUB_STEP_SUMMARY"
           sha256sum artifacts/patch-lab/compact/PATCH-APPLY-003-compact-*.json
+
+      - name: Download PATCH-ENC-004 evidence
+        if: always() && (contains(inputs.lanes, 'create-throughput') || contains(inputs.lanes, 'create-memory'))
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: patch-lab-create-*-runs
+          path: create-evidence
+
+      # The evaluator applies the frozen rule of PATCH-ENC-004 section 7;
+      # without all three platforms and the memory lanes it reports the
+      # workers as INCOMPLETE rather than deciding them.
+      - name: Summarize PATCH-ENC-004 evidence
+        if: always() && (contains(inputs.lanes, 'create-throughput') || contains(inputs.lanes, 'create-memory'))
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p create-evidence artifacts/patch-lab
+          python3 benchmarks/scripts/summarize_create_throughput.py decide create-evidence \
+            --corpus-lock docs/benchmarks/patch-corpus/corpus-lock.json \
+            --output artifacts/patch-lab/create-throughput-verdict.json \
+            --markdown artifacts/patch-lab/create-throughput-summary.md
+          cat artifacts/patch-lab/create-throughput-summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload patch lab summary
         if: always()
