@@ -1,7 +1,7 @@
 # Experiment index
 
 Status: Active registry
-Last reviewed: 2026-09-29
+Last reviewed: 2026-09-30
 
 This table is the human-readable research index. Machine-readable experiment definitions may also live under `benchmarks/experiments/`.
 
@@ -40,7 +40,7 @@ This table is the human-readable research index. Machine-readable experiment def
 | PATCH-APPLY-001 | Patching | #7 | Apply cost: CPU/wall, peak memory, temp disk, re-chunk check on/off (D13), writer peak memory (D17) | ADOPT | [PATCH-APPLY-001-EVIDENCE-20260928-001](results/PATCH-APPLY-001-EVIDENCE-20260928-001.md), [PATCH-APPLY-001-EVIDENCE-20260928-002](results/PATCH-APPLY-001-EVIDENCE-20260928-002.md), [PATCH-APPLY-001-EVIDENCE-20260928-003](results/PATCH-APPLY-001-EVIDENCE-20260928-003.md), [PATCH-APPLY-001-EVIDENCE-20260929-001](results/PATCH-APPLY-001-EVIDENCE-20260929-001.md) |
 | PATCH-PREFREEZE-001 | Patching | #7 | CSP v1 pre-freeze evidence on a frozen multi-product corpus: CSP vs full target vs xdelta3, end-to-end at 50 Mbit/s and 1 Gbit/s (CSP §10.2) | ADOPT | [PATCH-PREFREEZE-001-EVIDENCE-20260928-001](results/PATCH-PREFREEZE-001-EVIDENCE-20260928-001.md) |
 | PATCH-ENC-003 | Patching | #7, #179 | Dictionary loading mode (`Copy`/`Attach`/`Prefix`) and hash/chain caps vs the create peak memory (D8, D17) | ADOPT | [PATCH-ENC-003-EVIDENCE-20260929-001](results/PATCH-ENC-003-EVIDENCE-20260929-001.md) (frozen protocol: [PATCH-ENC-003-PROTOCOL](../benchmarks/PATCH-ENC-003-PROTOCOL.md)) |
-| PATCH-ENC-004 | Patching | #181, #7 | Same-bytes create throughput: base-window cache and bounded parallel encoding with ordered writes | PLANNED | — |
+| PATCH-ENC-004 | Patching | #181, #7 | Same-bytes create throughput: base-window cache and bounded parallel encoding with ordered writes | PLANNED | — (frozen protocol: [PATCH-ENC-004-PROTOCOL](../benchmarks/PATCH-ENC-004-PROTOCOL.md)) |
 | PATCH-ENC-005 | Patching | #181, #7, #151 | Dictionary-candidate search: cheap ranking, resemblance sketches, early exit, level ladder (D15) | PLANNED | — |
 | PATCH-APPLY-002 | Patching | #182, #168, #7 | Apply pipeline and a cheaper re-chunk check: boundary-only, overlapped, preallocation, coalesced reads (D13) | PLANNED | — (check lanes run as PATCH-APPLY-003) |
 | PATCH-APPLY-003 | Patching | #182, #168, #7 | The PATCH-APPLY-002 check lanes (off, sequential, overlapped; boundary-only if needed) with win-x64 on a GitHub runner (D13) | ADOPT | [PATCH-APPLY-003-EVIDENCE-20260929-001](results/PATCH-APPLY-003-EVIDENCE-20260929-001.md) (A2 adopted; rule 2 requires A1a); [PATCH-APPLY-003-EVIDENCE-20260930-001](results/PATCH-APPLY-003-EVIDENCE-20260930-001.md) (lane `boundary`: rule 2 does not hold after A1a, #168 closes with option 3); frozen protocol: [PATCH-APPLY-003-PROTOCOL](../benchmarks/PATCH-APPLY-003-PROTOCOL.md) |
