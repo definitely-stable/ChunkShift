@@ -989,19 +989,36 @@ jobs:
           pattern: patch-lab-create-*-runs
           path: create-evidence
 
-      # The evaluator applies the frozen rule of PATCH-ENC-004 section 7;
-      # without all three platforms and the memory lanes it reports the
-      # workers as INCOMPLETE rather than deciding them.
+      # The evaluator applies the frozen rule of PATCH-ENC-004 section 7. A
+      # dispatch of both groups is decision-grade: every job must have
+      # succeeded and the evaluator requires all three platforms and every
+      # memory lane, so a failed job or a missing artifact fails this step
+      # (protocol section 5). Any other dispatch is labelled exploratory.
       - name: Summarize PATCH-ENC-004 evidence
         if: always() && (contains(inputs.lanes, 'create-throughput') || contains(inputs.lanes, 'create-memory'))
         shell: bash
+        env:
+          DECISION: ${{ contains(inputs.lanes, 'create-throughput') && contains(inputs.lanes, 'create-memory') }}
+          THROUGHPUT_RESULT: ${{ needs.create-throughput.result }}
+          MEMORY_RESULT: ${{ needs.create-memory.result }}
         run: |
           set -euo pipefail
           mkdir -p create-evidence artifacts/patch-lab
+          flags=()
+          if [[ "$DECISION" == "true" ]]
+          then
+            if [[ "$THROUGHPUT_RESULT" != "success" || "$MEMORY_RESULT" != "success" ]]
+            then
+              echo "PATCH-ENC-004 decision run invalid: create-throughput $THROUGHPUT_RESULT, create-memory $MEMORY_RESULT" >&2
+              exit 1
+            fi
+            flags=(--require-all-platforms --require-memory)
+          fi
           python3 benchmarks/scripts/summarize_create_throughput.py decide create-evidence \
             --corpus-lock docs/benchmarks/patch-corpus/corpus-lock.json \
             --output artifacts/patch-lab/create-throughput-verdict.json \
-            --markdown artifacts/patch-lab/create-throughput-summary.md
+            --markdown artifacts/patch-lab/create-throughput-summary.md \
+            "${flags[@]}"
           cat artifacts/patch-lab/create-throughput-summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload patch lab summary

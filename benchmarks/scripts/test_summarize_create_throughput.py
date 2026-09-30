@@ -63,14 +63,18 @@ def throughput(platform: str, execution: str, seconds: float, reads: int,
     }
 
 
-def memory(platform: str, execution: str, peak_mib: float) -> dict:
+def memory(platform: str, execution: str, peak_mib: float, commit: str = COMMIT,
+           run_id: str | None = None, files=FILES) -> dict:
     return {
         "schema": "chunkshift.patch-lab-memory.v1",
-        "runId": f"PATCH-ENC-004/RUN-20261001-42-abc1234-{platform}",
+        "runId": run_id or f"PATCH-ENC-004/RUN-20261001-42-abc1234-{platform}",
         "lane": "csp", "execution": execution, "corpusPairsSha256": PAIRS_SHA256,
+        "environment": {"gitCommit": commit},
         "idleBaselineBytes": 100 * MIB,
-        "files": [{"family": "fam", "base": "a", "target": "b", "path": "x.bin", "targetSize": 2 * MIB,
-                   "createPeakBytes": int((100 + peak_mib) * MIB), "applyPeakBytes": 0}],
+        "files": [{"family": family, "base": base, "target": target, "path": path, "targetSize": 2 * MIB,
+                   "createPeakBytes": int((100 + (peak_mib if index == 0 else 1.0)) * MIB),
+                   "applyPeakBytes": 0}
+                  for index, (family, base, target, path) in enumerate(files)],
     }
 
 
@@ -90,7 +94,7 @@ class Fixture:
         return path
 
     def build(self, platforms=PLATFORMS, seconds=None, reads=None, h0_last=10.0,
-              mismatch=None, with_memory=True, peaks=None):
+              mismatch=None, with_memory=True, peaks=None, memory_overrides=None):
         """seconds/reads/peaks: {(platform, execution) or execution: value} overrides."""
         def pick(table, platform, execution, default):
             table = table or {}
@@ -111,7 +115,9 @@ class Fixture:
             if with_memory:
                 for execution in EXECUTIONS:
                     peak = pick(peaks, platform, execution, 30.0)
-                    self.write(f"create-memory-{execution}-{platform}.json", memory(platform, execution, peak))
+                    extra = (memory_overrides or {}).get((platform, execution), {})
+                    self.write(f"create-memory-{execution}-{platform}.json",
+                               memory(platform, execution, peak, **extra))
 
     def decide(self, *extra: str):
         output, markdown = self.root / "verdict.json", self.root / "summary.md"
@@ -266,6 +272,47 @@ class SummarizeCreateThroughputTests(unittest.TestCase):
         joined = "\n".join(verdict["invalidReasons"])
         self.assertIn("corpusPairsSha256", joined)
         self.assertIn("win-x64 h2-w2", joined)
+
+    def test_memory_from_another_commit_is_invalid(self):
+        fixture = Fixture(self)
+        fixture.build(memory_overrides={("win-x64", "h2-w2"): {"commit": "f" * 40}})
+        code, verdict = fixture.decide()
+        self.assertEqual(1, code)
+        self.assertTrue(any("win-x64 h2-w2 memory: gitCommit" in r for r in verdict["invalidReasons"]))
+
+    def test_memory_from_another_dispatch_is_invalid(self):
+        fixture = Fixture(self)
+        fixture.build(memory_overrides={
+            ("linux-arm64", "h1"): {"run_id": "PATCH-ENC-004/RUN-20261001-41-abc1234-linux-arm64"}})
+        code, verdict = fixture.decide()
+        self.assertEqual(1, code)
+        self.assertTrue(any("linux-arm64 h1 memory: runId" in r for r in verdict["invalidReasons"]))
+
+    def test_memory_missing_the_worst_file_is_invalid(self):
+        fixture = Fixture(self)
+        fixture.build(memory_overrides={("linux-x64", "h3-w4"): {"files": FILES[1:]}})
+        code, verdict = fixture.decide()
+        self.assertEqual(1, code)
+        self.assertTrue(any("linux-x64 h3-w4 memory: missing files" in r for r in verdict["invalidReasons"]))
+
+    def test_decision_grade_needs_every_platform_and_memory_lane(self):
+        fixture = Fixture(self)
+        fixture.build(seconds=fast_w2())
+        code, verdict = fixture.decide()
+        self.assertEqual(0, code)
+        self.assertFalse(verdict["decisionGrade"])
+        self.assertIn("Exploratory", (fixture.root / "summary.md").read_text(encoding="utf-8"))
+        code, verdict = fixture.decide("--require-all-platforms", "--require-memory")
+        self.assertEqual(0, code)
+        self.assertTrue(verdict["decisionGrade"])
+
+    def test_required_memory_missing_is_invalid(self):
+        fixture = Fixture(self)
+        fixture.build(seconds=fast_w2(), with_memory=False)
+        code, verdict = fixture.decide("--require-all-platforms", "--require-memory")
+        self.assertEqual(1, code)
+        self.assertTrue(any("no memory documents" in r for r in verdict["invalidReasons"]))
+        self.assertFalse(verdict["decisionGrade"])
 
     def test_print_command_output(self):
         fixture = Fixture(self)

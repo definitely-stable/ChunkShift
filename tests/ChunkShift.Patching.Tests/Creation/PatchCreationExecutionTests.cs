@@ -334,6 +334,56 @@ public sealed class PatchCreationExecutionTests
         Assert.Contains("base content", h0.Message, StringComparison.Ordinal);
     }
 
+    // The manifest reader returns records in batches of 256 and reads the
+    // next section only on the next call. With exactly 256 records, H0
+    // chooses record 255, and meets its failing base read, before it reads
+    // the manifest's TRAILER. With that entry's worker delayed, the producer
+    // reaches the failing TRAILER first; the failure after the last record
+    // must still lose to the entry's own.
+    [Theory]
+    [MemberData(nameof(Executions))]
+    public async Task ManifestFailureAtTheBatchBoundary_LosesToTheLastEntrysFailure(string executionName)
+    {
+        const int Records = 256;
+        byte[] source = CspBytes.CreateXorShiftBytes(24 * 1024 * Kibibyte, 0x5EED6015u);
+        List<ChunkInfo> sourceRecords = await CreationTestSupport.ReadRecordsAsync(
+            await CreationTestSupport.CreateManifestAsync(source, HashSuiteIds.Sha256V1));
+        Assert.True(sourceRecords.Count > Records);
+
+        // A prefix that ends on a cut has the same first cuts; changing its
+        // last byte keeps them, so both sides have exactly 256 records.
+        ChunkInfo last = sourceRecords[Records - 1];
+        byte[] baseContent = source[..checked((int)(last.Offset + last.Length))];
+        byte[] targetContent = (byte[])baseContent.Clone();
+        targetContent[^1] ^= 0x5A;
+        (byte[] baseManifest, byte[] targetManifest) =
+            await CreationExecutions.ManifestsAsync(baseContent, targetContent, HashSuiteIds.Sha256V1);
+        Assert.Equal(Records, (await CreationTestSupport.ReadRecordsAsync(targetManifest)).Count);
+
+        Task<byte[]> Create(CspCreateExecution execution) => CreationExecutions.CreateAsync(
+            new MemoryStream(baseManifest, writable: false),
+            new ObservedReadStream(baseContent, failAtOffset: last.Offset + 10),
+            new TailFailingStream(targetManifest, failFromPass: 3),
+            new MemoryStream(targetContent, writable: false),
+            CspEncoderPolicy.Default,
+            execution);
+
+        IOException expected = await Assert.ThrowsAsync<IOException>(
+            () => Create(CspCreateExecution.Sequential));
+        Assert.Equal("Injected base read failure.", expected.Message);
+
+        var statistics = new CspCreateStatistics();
+        IOException actual = await Assert.ThrowsAsync<IOException>(() => Create(
+            CreationExecutions.Parse(executionName) with
+            {
+                Statistics = statistics,
+                WorkerDelay = static (_, cancellationToken) => new ValueTask(Task.Delay(100, cancellationToken)),
+            }));
+
+        Assert.Equal(expected.Message, actual.Message);
+        AssertNothingLeaked(statistics);
+    }
+
     [Theory]
     [MemberData(nameof(Executions))]
     public async Task ThrowingBaseStream_PropagatesItsException(string executionName)
@@ -468,6 +518,70 @@ public sealed class PatchCreationExecutionTests
         Assert.Equal(0, statistics.ResidualEntries);
         Assert.Equal(0, statistics.ResidualBytes);
         Assert.Equal(0, statistics.OutstandingBuffers);
+    }
+
+    /// <summary>
+    /// Seekable read-only stream whose reads of its last 64 bytes (the CSM
+    /// TRAILER) throw an <see cref="IOException"/> from its
+    /// <paramref name="failFromPass"/>-th pass on, where a pass starts
+    /// whenever the position is set to zero.
+    /// </summary>
+    private sealed class TailFailingStream(byte[] content, int failFromPass)
+        : MemoryStream(content, writable: false)
+    {
+        private int _passes = 1;
+
+        public override long Position
+        {
+            get => base.Position;
+            set
+            {
+                if (value == 0)
+                {
+                    _passes++;
+                }
+
+                base.Position = value;
+            }
+        }
+
+        public override int Read(Span<byte> buffer)
+        {
+            ThrowAtTail(buffer.Length);
+            return base.Read(buffer);
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            ThrowAtTail(count);
+            return base.Read(buffer, offset, count);
+        }
+
+        public override ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            ThrowAtTail(buffer.Length);
+            return base.ReadAsync(buffer, cancellationToken);
+        }
+
+        public override Task<int> ReadAsync(
+            byte[] buffer,
+            int offset,
+            int count,
+            CancellationToken cancellationToken)
+        {
+            ThrowAtTail(count);
+            return base.ReadAsync(buffer, offset, count, cancellationToken);
+        }
+
+        private void ThrowAtTail(int count)
+        {
+            if (_passes >= failFromPass && count > 0 && base.Position + count > Length - 64)
+            {
+                throw new IOException("Injected target manifest failure at its tail.");
+            }
+        }
     }
 
     /// <summary>Cancels its token once it has served a number of reads.</summary>

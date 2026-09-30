@@ -403,6 +403,7 @@ internal static partial class CspPatchBuilder
 
                 if (baseIds.Contains(chunk.Id) || !emitted.Add(chunk.Id))
                 {
+                    Advance(progress, chunk);
                     continue;
                 }
 
@@ -414,6 +415,7 @@ internal static partial class CspPatchBuilder
                 }
 
                 await onEntry(chunk, bytes, buffer).ConfigureAwait(false);
+                Advance(progress, chunk);
             }
         }
 
@@ -436,6 +438,17 @@ internal static partial class CspPatchBuilder
         {
             throw new InvalidDataException(
                 "The target content is longer than the target manifest describes.");
+        }
+    }
+
+    // Once a record is handled, a later failure (the next manifest batch, the
+    // next record) comes after it in target order, even when it happens
+    // before that record's entry is encoded.
+    private static void Advance(TargetProgress? progress, ChunkInfo chunk)
+    {
+        if (progress is not null)
+        {
+            progress.Index = chunk.Index + 1;
         }
     }
 

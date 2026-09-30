@@ -11,7 +11,10 @@ Implements the frozen decision rule of docs/benchmarks/PATCH-ENC-004-PROTOCOL.md
 
   summarize_create_throughput.py decide <dir-or-file> [...]
       --corpus-lock <path> --output <verdict.json> --markdown <summary.md>
-      [--require-all-platforms]
+      [--require-all-platforms] [--require-memory]
+      With both flags the run is decision-grade (protocol section 5): every
+      platform and every memory lane must be present. Without them the output
+      is labelled exploratory.
       Collects every throughput and memory (chunkshift.patch-lab-memory.v1)
       document, validates the run, computes the metrics and writes the verdict
       and a Markdown summary (also printed). Exit code: 0 valid run, 1 invalid
@@ -39,6 +42,7 @@ EXECUTIONS = (
 )
 WORKER_COUNTS = (1, 2, 4, 8)
 MIB = 1024 * 1024
+MEMORY_MIN_BYTES = MIB
 H0_SPREAD_LIMIT = 0.25
 READ_RATIO_MIN = 2.0
 SPEEDUP_MIN = 1.5
@@ -145,7 +149,8 @@ def collect(inputs: list[str]) -> tuple[list[tuple[Path, dict]], list[tuple[Path
     return throughput, memory, problems
 
 
-def validate(throughput, memory, pairs_sha256: str, require_all: bool) -> tuple[list[str], dict, dict]:
+def validate(throughput, memory, pairs_sha256: str, require_all: bool,
+             require_memory: bool = False) -> tuple[list[str], dict, dict]:
     """Return (reasons, throughput by platform/execution, memory by platform/execution)."""
     reasons: list[str] = []
     by_lane: dict[str, dict[str, list[dict]]] = {}
@@ -218,12 +223,48 @@ def validate(throughput, memory, pairs_sha256: str, require_all: bool) -> tuple[
             if platform not in by_lane:
                 reasons.append(f"platform {platform} is missing")
 
+    if require_memory:
+        for platform in sorted(by_lane):
+            if platform not in memory_lane:
+                reasons.append(f"{platform}: no memory documents")
+
     for platform, lanes in sorted(memory_lane.items()):
         for execution in EXECUTIONS:
             found = len(lanes.get(execution, []))
             if found != 1:
                 reasons.append(f"{platform} {execution}: {found} memory documents, expected 1")
+        reasons.extend(join_memory(platform, lanes, by_lane.get(platform, {})))
     return reasons, by_lane, memory_lane
+
+
+def join_memory(platform: str, lanes: dict, throughput_lanes: dict) -> list[str]:
+    """Memory evidence counts only for the run it belongs to: the same RunId
+    and commit as the platform's throughput lanes, and exactly the throughput
+    files of at least 1 MiB (the memory lane's --min-bytes)."""
+    h0 = sorted(throughput_lanes.get("h0", []), key=lambda d: d.get("startedUtc") or "")
+    if not h0:
+        return [f"{platform}: memory documents without throughput documents"]
+    reference = h0[0]
+    run_id = reference.get("runId")
+    commit = (reference.get("environment") or {}).get("gitCommit")
+    expected = {file_key(item) for item in reference["files"] if item["targetSize"] >= MEMORY_MIN_BYTES}
+    reasons = []
+    for execution, documents in sorted(lanes.items()):
+        for document in documents:
+            label = f"{platform} {execution} memory"
+            if document.get("runId") != run_id:
+                reasons.append(f"{label}: runId {document.get('runId')!r} is not the throughput run {run_id!r}")
+            memory_commit = (document.get("environment") or {}).get("gitCommit")
+            if memory_commit != commit:
+                reasons.append(f"{label}: gitCommit {memory_commit!r} is not the throughput commit {commit!r}")
+            actual = {file_key(item) for item in document.get("files", [])}
+            missing, extra = sorted(expected - actual), sorted(actual - expected)
+            if missing:
+                reasons.append(f"{label}: missing files of at least 1 MiB: {missing[:3]}"
+                               + (f" and {len(missing) - 3} more" if len(missing) > 3 else ""))
+            if extra:
+                reasons.append(f"{label}: files not in the throughput run: {extra[:3]}")
+    return reasons
 
 
 def memory_peak_mib(document: dict) -> float | None:
@@ -385,6 +426,9 @@ def decide_h1(platforms: dict, bytes_result: dict, present: list[str]) -> dict:
 
 def render_markdown(verdict: dict) -> str:
     lines = ["# PATCH-ENC-004 create throughput", ""]
+    if not verdict.get("decisionGrade"):
+        lines += ["**Exploratory: not decision data** (run without --require-all-platforms "
+                  "--require-memory, or invalid).", ""]
     lines.append(f"- commit: `{verdict['commit']}`")
     lines.append(f"- corpusPairsSha256: `{verdict['corpusPairsSha256']}`")
     lines.append(f"- valid: {str(verdict['valid']).lower()}")
@@ -438,7 +482,8 @@ def decide_command(arguments: argparse.Namespace) -> int:
     lock = json.loads(Path(arguments.corpus_lock).read_text(encoding="utf-8"))
     pairs = lock["pairsSha256"]
     throughput, memory, problems = collect(arguments.inputs)
-    reasons, by_lane, memory_lane = validate(throughput, memory, pairs, arguments.require_all_platforms)
+    reasons, by_lane, memory_lane = validate(
+        throughput, memory, pairs, arguments.require_all_platforms, arguments.require_memory)
     reasons = problems + reasons
     present = [p for p in PLATFORMS if p in by_lane]
     commits = sorted({(d.get("environment") or {}).get("gitCommit") for lanes in by_lane.values()
@@ -450,6 +495,7 @@ def decide_command(arguments: argparse.Namespace) -> int:
         "runIds": {},
         "corpusPairsSha256": pairs,
         "valid": not reasons,
+        "decisionGrade": not reasons and arguments.require_all_platforms and arguments.require_memory,
         "invalidReasons": reasons,
         "platforms": {},
         "bytes": {},
@@ -504,6 +550,7 @@ def main(argv: list[str]) -> int:
     decider.add_argument("--output", required=True)
     decider.add_argument("--markdown", required=True)
     decider.add_argument("--require-all-platforms", action="store_true")
+    decider.add_argument("--require-memory", action="store_true")
     arguments = parser.parse_args(argv)
     if arguments.command == "print":
         return print_command(arguments.files)
