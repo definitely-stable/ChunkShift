@@ -358,9 +358,18 @@ To isolate the deflate transform from the raw diff algorithm, freeze Puffin's pa
 
 An arbitrary embedded-deflate case enters the Puffin size lane only if its exact source/target deflate extent lists were emitted and hashed by the pre-size classifier; those lists are then passed explicitly and stored in the compact evidence. Otherwise it remains inventory-only. No case may become eligible because Puffin happened to produce a small patch.
 
-Run Puffin only on this predeclared supported subset, verify RECON by target SHA-256, and compare against **bsdiff4 on the identical subset**. The descriptive deflate-attribution delta is:
+Run Puffin only on this predeclared supported subset and verify RECON by target SHA-256.
 
-puffin_gain_over_bsdiff = B_bsdiff_same_subset - B_puffin_same_subset
+To isolate the puff/huff transform from the raw binary-diff backend, build AOSP bsdiff from the **same Android 17.0.0_r1 release**, commit 6bbcf65f3b25bd09fc39d8166070f9adea325089. Use its BSDF2 writer with the same compressor set Puffin passes to libbsdiff:
+
+    bsdiff --format bsdf2 --type bz2:brotli OLD NEW RAWPATCH
+    bspatch OLD RAWPATCH RAWRECON
+
+Verify RAWRECON by target SHA-256. The primary descriptive transform-attribution metric on the identical frozen subset is then:
+
+puff_transform_gain = B_aosp_bsdiff_bsdf2_same_subset - B_puffin_same_subset
+
+This is materially cleaner than subtracting Python bsdiff4 because Puffin itself invokes AOSP libbsdiff with BZ2+Brotli compressors. Python bsdiff4 remains a continuity/generic reference and is still reported on the identical subset, but **puffin vs bsdiff4 is not labeled a causal deflate-transform gain**.
 
 Also report CSP, zstd-patch-from and other references on exactly that subset. No Puffin result directly passes the 15% RFC gate. A large G5 result opens a separately identified follow-up experiment that must define a CSP-costed, bounded reversible container/stream codec before an RFC can be considered.
 
@@ -373,6 +382,7 @@ Every executable/package is pinned by immutable version/tag/commit and is also h
 | CSP H0 | ChunkShift e967aeb6d4d467e94c5ac20f85e70ba0035d998d; production policy in §2 | production builder, H2-W2 when ≥2 CPUs |
 | zstd patch-from | zstd v1.5.7, commit f8745da6ff1ad1e7bab384bd1f9d742439278e99 | zstd -19 --long=31 -q --patch-from=OLD NEW -o PATCH; decode zstd -d --long=31 -q --patch-from=OLD PATCH -o NEW |
 | bsdiff | Python bsdiff4==1.2.6; source distribution SHA-256 2ab57d01a78b39e29e5accc9cfead4130982ded9dccbc4261bd0e9c51d6b751d | bsdiff4.diff(base,target) / bsdiff4.patch(base,patch); installed artifact SHA-256 recorded |
+| AOSP bsdiff control | Android 17.0.0_r1, commit 6bbcf65f3b25bd09fc39d8166070f9adea325089 | bsdiff --format bsdf2 --type bz2:brotli OLD NEW PATCH; apply bspatch OLD PATCH NEW; G5 identical-subset same-backend control |
 | xdelta3 modern | xdelta v3.2.0, commit ff322e592383227b0d65ddfde7e0e5bbc504dc15 | xdelta3 -e -9 -f -s OLD NEW PATCH; inverse -d -f -s OLD |
 | xdelta3 legacy continuity | xdelta3 v3.0.11, commit 81aebf78ae67c29f528088d65743643e5355e3d3 | same mode; descriptive continuity with PATCH-PREFREEZE only |
 | HDiffPatch memory | v5.1.3, commit 3b9dca715ca492873bf2c49e22e5d5b7d2a78620 | create: hdiffz -m-4 -SD -d -f -p-1 -c-zstd-21-24 OLD NEW PATCH; apply: hpatchz -s-8m -f OLD PATCH NEW |
@@ -539,6 +549,7 @@ The remaining action before decision work is human freeze-review and merge of th
 - Zstandard v1.5.7: <https://github.com/facebook/zstd/releases/tag/v1.5.7> and <https://github.com/facebook/zstd/wiki/Zstandard-as-a-patching-engine>.
 - Xdelta: <https://github.com/jmacd/xdelta/releases/tag/v3.2.0>; legacy continuity <https://github.com/jmacd/xdelta-gpl/releases/tag/v3.0.11>.
 - bsdiff4 1.2.6: <https://pypi.org/project/bsdiff4/1.2.6/>.
+- AOSP bsdiff Android 17.0.0_r1: <https://android.googlesource.com/platform/external/bsdiff/+/refs/tags/android-17.0.0_r1>.
 - HDiffPatch v5.1.3: <https://github.com/sisong/HDiffPatch/releases/tag/v5.1.3> and project CLI documentation.
 - XZ Utils BCJ: <https://github.com/tukaani-project/xz/releases/tag/v5.8.4> and liblzma BCJ API documentation.
 - Chromium Zucchini: <https://chromium.googlesource.com/chromium/src/components/zucchini/>; pinned component commit 667ffb4e19970939936af2e7a169175ae4c1da5b.
