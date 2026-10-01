@@ -1,10 +1,10 @@
 # PATCH-GAP-001 protocol: decompose the remaining CSP size gap
 
-Status: **FREEZE-READY DRAFT — review and merge this protocol before any decision-bearing run.**  
+Status: **BLOCKED DRAFT — #216 / PATCH-ENC-005 must be freeze-reviewed and merged first; then this protocol must pin/reconcile that merged producer contract before PATCH-GAP-001 can freeze.**  
 Issue: [#183](https://github.com/definitely-stable/ChunkShift/issues/183) · Parent: [#7](https://github.com/definitely-stable/ChunkShift/issues/7)  
 ExperimentId: PATCH-GAP-001  
 Protocol baseline commit: e967aeb6d4d467e94c5ac20f85e70ba0035d998d  
-Related candidate-policy protocol: [PR #216](https://github.com/definitely-stable/ChunkShift/pull/216) / PATCH-ENC-005.  
+Related candidate-policy protocol: [PR #216](https://github.com/definitely-stable/ChunkShift/pull/216) / PATCH-ENC-005. Current review snapshot: `cc18cf5fb4c887c5d81662f7cded6e6e57f960bf`; this SHA is **not** a frozen dependency.  
 Tree/update-set research is owned by [#184](https://github.com/definitely-stable/ChunkShift/issues/184), not this experiment.
 
 ## 1. Question and decision boundary
@@ -65,7 +65,7 @@ PATCH-ENC-004 is already adopted on this baseline. CspCreateExecution.Default is
 - no base-candidate cache;
 - four in-flight entries and 4 MiB window bytes per worker.
 
-Changing worker topology is not a GAP factor. Byte lanes must be byte-identical to the production H2-W2 baseline; runtime comparisons use the same production topology unless the lane is explicitly an external reference tool.
+Changing worker topology is not a GAP factor. **Only H0 is required to reproduce the production H2-W2 patch bytes/digest.** A GAP factor lane is expected to change its synthetic/physical bytes when the factor has an effect; it must instead be deterministic under its own frozen semantics, reconstruct the exact target, and use the same H2-W2 create execution topology for production-real CSP comparisons unless the lane is explicitly an external reference tool.
 
 ### 2.3 CSP framing and normative costs
 
@@ -104,9 +104,11 @@ Use the existing frozen PATCH corpus and no other inputs for the primary decisio
 - source-assets SHA-256: 3ae2e55108051700a07425896e01b1703683cd896ed4f54e4a6c652fe55bda3e;
 - 12 version pairs, 1,893 changed files, 857,713,581 changed target bytes.
 
-Calibration is the frozen .NET ASP.NET Core Windows x64 plus .NET Runtime Linux ARM64 families. Holdout is the frozen Node Windows x64, Node Linux x64, tzdata and ChunkShift-source families. Family membership cannot move after results are known.
+Calibration is the frozen .NET ASP.NET Core Windows x64 plus .NET Runtime Linux ARM64 families. The corpus field historically named `holdout` is the frozen Node Windows x64, Node Linux x64, tzdata and ChunkShift-source families. Family membership cannot move after results are known.
 
-All threshold selection, lane pruning and optional parameter choice happens on calibration only. Holdout is opened once to confirm the already-frozen choice. A failed holdout confirmation is a negative result, not a reason to retune.
+**The historical `holdout` label does not mean an untouched statistical holdout.** PATCH-PREFREEZE and PATCH-ENC-002/003/004 have already published behavior on this partition, and those results informed the present research program. PATCH-GAP therefore treats it as a **fixed evaluation split** for the #183 corpus-specific RFC rule, not as independent generalization evidence. Below, `holdout`/H refers to that frozen evaluation split solely to stay compatible with the corpus schema and #183 wording.
+
+All lane selection, pruning and optional parameter choice for PATCH-GAP happens on calibration only. The fixed evaluation split is then evaluated once for each preselected reporting lane and is never used to retune that lane. A failed evaluation is a negative result. A claim of out-of-corpus generalization would require a separately predeclared fresh confirmation corpus under a new protocol/evidence identity.
 
 G4 and G5 use deterministic subset classifiers frozen below. The first post-merge GAP action is an **inventory-only** pass: it materializes canonically sorted G4/G5 subset manifests, records calibration/holdout SHA-256 values and commits those manifests before any G4/G5 size codec is invoked. Subsequent factor/reference runs consume those exact manifests; they do not re-decide membership. A classifier change after the inventory commit requires a protocol revision/new evidence identity. Subset membership may depend on file structure or parser support, but never on resulting patch size.
 
@@ -127,7 +129,7 @@ Every lane records, where meaningful:
 - exact reconstruction result and target SHA-256;
 - the exact property/cost relaxed by the lane.
 
-Per-file aggregation is authoritative. A single large file cannot be hidden behind family averages.
+The whole-split byte **sum** is authoritative for the §11 gate, so large files intentionally carry their byte weight. Per-file rows and concentration statistics are mandatory to make dominance visible; family means or an unweighted mean of per-file ratios may not replace the byte-sum decision metric.
 
 ## 5. G1 — dictionary/history budget
 
@@ -142,14 +144,14 @@ G1 keeps the production candidate-start set: at most eight starts inside ±256 K
 | lane | max refs | byte budget | zstd window cap | purpose |
 | --- | ---: | ---: | ---: | --- |
 | G1-H0 | 4 | 1,048,576 | 1,048,576 | exact production control |
-| G1-R128-B1 | 128 | 1,048,576 | 1,048,576 | isolate the 4-reference ceiling at the current byte/window budget |
-| G1-R128-B4 | 128 | 4,194,304 | 8,388,608 (windowLog=23) | 4 MiB history envelope |
-| G1-R128-B8 | 128 | 8,388,608 | 16,777,216 (windowLog=24) | 8 MiB history envelope |
-| G1-R128-B32 | 128 | 33,554,432 | 67,108,864 (windowLog=26) | 32 MiB history envelope |
+| G1-B1-R64 | 64 | 1,048,576 | 1,048,576 | isolate the 4-reference ceiling at the current byte/window budget |
+| G1-B4-R256 | 256 | 4,194,304 | 8,388,608 (windowLog=23) | 4 MiB history envelope |
+| G1-B8-R512 | 512 | 8,388,608 | 16,777,216 (windowLog=24) | 8 MiB history envelope |
+| G1-B32-R2048 | 2,048 | 33,554,432 | 67,108,864 (windowLog=26) | 32 MiB history envelope |
 
-For every research lane after H0, a candidate starts at the same production start and appends consecutive base chunks until end-of-base, 128 references, or adding the next chunk would exceed the byte budget. It never skips to a non-contiguous chunk.
+For every research lane after H0, a candidate starts at the same production start and appends consecutive base chunks until end-of-base, the lane's reference cap, or adding the next chunk would exceed the byte budget. It never skips to a non-contiguous chunk.
 
-The stable-profile maximum chunk is 262,144 bytes, so 128 references are sufficient to make the 32 MiB byte budget reachable. Keeping only 64 references would cap the possible dictionary at 16 MiB and make the proposed 32 MiB lane partly fictitious.
+The reference cap is derived from the stable profile's **16 KiB minimum chunk**, not its 256 KiB maximum: `maxRefs = byteBudget / 16 KiB`. Therefore any legal stable-profile chunk sequence can reach the lane's byte budget without an arbitrary reference-count cap firing first. This is important for B8/B32: a common fixed cap such as 128 references would typically expose only about 8 MiB at a 64 KiB average chunk and could turn a nominal 32 MiB experiment into a hidden reference-cap experiment. Reference metadata remains fully charged, so the larger cap is not free.
 
 For B4/B8/B32, the window is the smallest power-of-two window that can keep the entire maximum dictionary plus one maximum-size 256 KiB target chunk addressable. The larger window is therefore an explicit part of the G1 **dictionary/history envelope** relaxation, not a hidden second factor. G1-R128-B1 deliberately keeps the v1 1 MiB window.
 
@@ -164,10 +166,10 @@ decoder_data_envelope = dictionary_budget + zstd_window_cap + 262,144 target-out
 | lane | decoder-data envelope |
 | --- | ---: |
 | G1-H0 | 2,359,424 bytes (about 2.2501 MiB) |
-| G1-R128-B1 | 2,363,392 bytes (about 2.2539 MiB) |
-| G1-R128-B4 | 12,849,152 bytes (about 12.2539 MiB) |
-| G1-R128-B8 | 25,432,064 bytes (about 24.2539 MiB) |
-| G1-R128-B32 | 100,929,536 bytes (about 96.2539 MiB) |
+| G1-B1-R64 | 2,361,344 bytes (about 2.2520 MiB) |
+| G1-B4-R256 | 12,853,248 bytes (about 12.2578 MiB) |
+| G1-B8-R512 | 25,444,352 bytes (about 24.2656 MiB) |
+| G1-B32-R2048 | 100,990,976 bytes (about 96.3125 MiB) |
 
 This is a codec-data upper envelope, not a prediction of RSS; allocator, native zstd and implementation overhead are measured separately. With the frozen maximum of eight candidate starts and no research candidate cache, the naïve create-side base-read bound is at most 8 × dictionary_budget per target entry; apply reads only the selected named dictionary and is bounded by dictionary_budget. Actual reads, read calls and amplification are recorded because overlapping candidates can cause substantial rereads.
 
@@ -177,15 +179,28 @@ G1 is an upper-bound experiment. Any result beyond H0 cannot be emitted as CSP v
 
 ## 6. G2 — candidate choice, owned by PATCH-ENC-005
 
-### 6.1 Boundary
+### 6.1 Blocking producer dependency
+
+PATCH-GAP-001 cannot freeze G2 against a mutable producer. PR #216 is currently an unmerged Draft with unresolved methodology/specification review threads, so its current head `cc18cf5fb4c887c5d81662f7cded6e6e57f960bf` is a **review snapshot only**.
+
+The freeze order is mandatory:
+
+1. freeze-review and merge #216;
+2. record the merged PATCH-ENC-005 protocol commit and authoritative trace/oracle schema identity here;
+3. reconcile this entire §6 and the G2 run-plan text against that merged contract;
+4. only then mark G2 exact in §17 and freeze #217.
+
+No PATCH-GAP G2 run is authorized before that reconciliation. If merged #216 changes its progression gate, evaluation population, H5/H6 availability, trace fields or oracle semantics, #217 follows the merged producer contract rather than the provisional text below.
+
+### 6.2 Boundary
 
 PATCH-GAP-001 does **not** implement Finesse, Odess, Gear-derived retrieval, a new similarity index, or another selector. #181 / PR #216 owns selector semantics, the shared trace, the exact whole-base oracle implementation and production-real H5/H6 work.
 
 G2 answers: **how much size headroom is attributable to dictionary choice under today's K=4 / 1 MiB / one-frame-per-chunk CSP envelope?**
 
-### 6.2 Shared oracle semantics and populations
+### 6.3 Provisional shared oracle semantics and populations
 
-The oracle semantics are owned by #216 and reused unchanged here: for a sampled missing target entry, enumerate every base-record index in the corresponding base file as a possible K=4 contiguous start; reject dictionaries above 1 MiB or failing CspDictionary.IsUsable; encode valid starts at L19 with raw-prefix H20/C20; add exactly 32 bytes per named base chunk; and choose against raw/L19-no-dictionary with production's strict cost/tie rule. Only candidate-start search is relaxed.
+At the current #216 review snapshot, the oracle semantics are owned by #216 and mirrored here for review: for a sampled missing target entry, enumerate every base-record index in the corresponding base file as a possible K=4 contiguous start; reject dictionaries above 1 MiB or failing CspDictionary.IsUsable; encode valid starts at L19 with raw-prefix H20/C20; add exactly 32 bytes per named base chunk; and choose against raw/L19-no-dictionary with production's strict cost/tie rule. Only candidate-start search is relaxed.
 
 PATCH-GAP does **not** duplicate that implementation and does not require an all-target × all-base Cartesian run. #216 deliberately freezes an exact, deterministic sample because exhaustive L19 trials over every missing target entry would be disproportionate. G2 therefore has two kinds of evidence:
 
@@ -200,9 +215,9 @@ Because the RFC gate in §11 is defined on whole holdout bytes, **G2-ORACLE-CAL/
 
 This keeps the questions separate: #217 measures how much headroom dictionary choice appears to contain and how much a production-real selector actually captures; #216 decides whether any selector is worth production adoption.
 
-### 6.3 Shared trace contract
+### 6.4 Provisional shared trace contract
 
-The authoritative selector trace is #216's schema **chunkshift.patch-candidate-trace.v1**. PATCH-GAP consumes it as written rather than defining a parallel JSON shape.
+At the current #216 review snapshot, the selector trace schema is **chunkshift.patch-candidate-trace.v1**. PATCH-GAP consumes it as written rather than defining a parallel JSON shape.
 
 The shared per-file header contains:
 
@@ -237,11 +252,11 @@ G3 instead uses a conservative counterfactual cost model that changes grouping o
 
 For RUN/FILE, input bytes are the concatenation of the group's original target chunks in first-target-record order. The group uses only the dictionary that H0 selected for the group's first payload entry; if H0 selected raw or no-dictionary zstd there is no base dictionary. No group-level candidate search, larger dictionary or whole-base oracle is allowed. The zstd window remains capped at 1 MiB.
 
-This anchor rule is intentionally conservative: later chunks lose their independent H0 dictionary changes. That loss is part of the measured cost of sharing one frame; it must not be repaired by silently importing G1/G2.
+This anchor rule is intentionally conservative: later chunks lose their independent H0 dictionary changes. A single zstd frame cannot swap raw-prefix dictionaries between chunk boundaries, so G3 measures the **net coalescing envelope**: cross-chunk frame context plus the required loss of per-entry dictionary reselection. It must not be described as a pure context-carry gain, and the loss must not be repaired by silently importing G1/G2.
 
 ### 7.3 Exact synthetic physical-byte formula
 
-G3 does not invent a new CSP file format. It keeps all non-payload CSP bytes and every existing 40-byte PAYL entry / PIDX cost unchanged, then replaces only stored frame bytes and dictionary-reference bytes:
+G3 does not invent a parsable CSP file format. It is a **synthetic accounting counterfactual**: all non-payload CSP bytes and every existing 40-byte PAYL entry / PIDX cost are conservatively reserved, while only stored frame bytes and dictionary-reference bytes are replaced:
 
 B_G3 = B_CSP - sum(entryStoredBytes + 32 × entryDictRefs) + sum(groupFrameBytes + 32 × anchorDictRefs)
 
@@ -399,7 +414,7 @@ Tool failures are tool-error; structurally unsupported inputs are unsupported. N
 
 ## 11. The only RFC decision formula
 
-The issue wording "recovers >=15% of CSP bytes on holdout" is frozen literally as reduction from current production CSP bytes, not as a fraction of an external-tool gap.
+The issue wording "recovers >=15% of CSP bytes on holdout" is frozen literally as reduction from current production CSP bytes on the corpus partition historically named `holdout` (the fixed evaluation split described in §3), not as a fraction of an external-tool gap or as an independent-generalization claim.
 
 For factor F on holdout H:
 
@@ -432,7 +447,7 @@ First run the inventory-only prepass and commit canonically sorted G4/G5 manifes
 - regenerate H0 and validate baseline totals/digest;
 - consume the frozen G4/G5 subset manifests;
 - G1 byte lanes;
-- G2-ORACLE-CAL only through the shared #216 oracle implementation/contract; G2-ORACLE-HOLD only after #216 production-real parameters are frozen;
+- no G2 lane until #216 is merged and §6 is reconciled/pinned to that merged producer contract; after reconciliation, use only the shared #216 oracle/trace/production-real lanes authorized there;
 - G3 byte lanes;
 - G4-BCJ byte lane plus Zucchini subset reference;
 - G5 classification plus Puffin subset reference;
@@ -442,19 +457,19 @@ One platform is sufficient for deterministic byte counts when the exact tool bin
 
 ### 12.2 Stage B — runtime-sensitive implications
 
-Every frozen lane is measured on calibration. Before any holdout bytes are viewed, the evaluator freezes **one reporting lane per factor** so #183 gets a calibration/holdout result even for negative factors.
+Every frozen lane is measured on calibration. Before the fixed evaluation split is read for PATCH-GAP, the evaluator freezes **one reporting lane per factor** so #183 gets one calibration/evaluation result without post-evaluation lane selection.
 
 Selection is deterministic:
 
 - G1: if one or more lanes reach 15% on calibration, choose the smallest relaxation in order B1, B4, B8, B32 that reaches it; otherwise choose the lane with the smallest calibration bytes, tie to the smaller budget.
 - G3: choose G3-RUN if it reaches 15%; otherwise G3-FILE if it reaches 15%; if neither does, choose the smaller-calibration-byte lane, tie to G3-RUN.
-- G2: the sampled oracle always has its separately frozen CAL/HOLD samples for descriptive upper-bound reporting. If #216 Phase B exists, its already-frozen production-real H5/H6 finalist is additionally the full-population G2 reporting/gate lane; GAP does not retune it.
+- G2: this rule is **blocked/provisional until #216 merges**. After §6 reconciliation, consume the merged producer's sampled-oracle and production-real finalist semantics without GAP-side retuning.
 - G4: G4-BCJ is the single gate/reporting lane over its frozen subset.
 - G5: if the frozen subset is non-empty, Puffin plus its AOSP-bsdiff same-backend control are the descriptive reporting lanes; G5 has no direct RFC-gate lane until a later CSP-costed codec exists. If the subset is empty, report NOT_PRESENT.
 
-A reporting lane that was below 15% on calibration is still run **once on holdout** for descriptive confirmation, but it does not trigger expensive production-implication timing merely because holdout happens to be better.
+**Calibration is a lane-selection/prioritization split, not a second RFC size gate.** Every frozen reporting lane is run once on the fixed evaluation split. The §11 size gate is decided by that evaluation result exactly as #183 specifies, even when calibration was below 15%.
 
-A factor proceeds to three-platform production-implication timing only when its predeclared gate-eligible reporting lane reaches reduction_vs_csp >= 0.15 on calibration and satisfies the non-size eligibility checks: exact reconstruction, explicit apply-memory bound and one-factor attribution. The timed candidate runs on linux-x64, linux-arm64 and win-x64.
+Three-platform production-implication timing may be run before evaluation when a gate-eligible reporting lane already reaches 15% on calibration. If calibration is below 15% but the frozen lane unexpectedly reaches the §11 15% size gate on evaluation, run the required three-platform timing/non-size checks **afterward on the same frozen lane without any retuning or second evaluation run** before opening an RFC. Thus calibration can save expensive timing work, but it cannot veto a holdout/evaluation size result.
 
 For CSP-counterfactual create/apply timing:
 
@@ -467,13 +482,14 @@ For CSP-counterfactual create/apply timing:
 
 External reference tools are timed on pinned Linux x64 primarily. They are not production dependencies, so three-platform timing is not required merely for symmetry. A second platform is required only when the tool itself changes format/algorithm by platform or cannot reproduce Linux output; divergence is a tool-specific limitation, not CSP evidence.
 
-### 12.3 Holdout ordering
+### 12.3 Frozen evaluation (`holdout`) ordering
 
 1. Tune/prune only on calibration.
-2. Freeze each factor's reporting lane, any gate-candidate status, subset fingerprints and all thresholds in the evidence-plan commit.
-3. Complete calibration runtime checks when required for a gate candidate.
-4. Run holdout once for each frozen reporting lane and H0; run G2-ORACLE-HOLD under its separately frozen sample membership.
-5. Apply the §11 formula to gate-eligible whole-split lanes and publish descriptive metrics for reference/sample lanes without retuning.
+2. Freeze each factor's reporting lane, subset fingerprints and all thresholds in the evidence-plan commit; for G2 this step is unavailable until §6's #216 dependency is reconciled.
+3. Optionally complete three-platform runtime checks early for a calibration result that already reaches 15%.
+4. Run the fixed evaluation partition once for each frozen reporting lane and H0; run any G2 evaluation oracle only as authorized by the merged #216 contract.
+5. Apply the §11 size formula to every gate-eligible whole-split reporting lane without a calibration veto.
+6. If a lane first crosses 15% on evaluation, complete its required non-size/runtime checks afterward on the unchanged lane. Never retune or rerun evaluation to improve the result.
 
 Exploratory smoke runs before protocol merge are not decision evidence and must carry exploratory in their evidence identity.
 
@@ -531,8 +547,8 @@ No combined result may retroactively change an individual factor's verdict.
 
 - [x] production baseline policy, K/C/radius, execution topology and exact byte anchor are recorded;
 - [x] corpus and split hashes are recorded;
-- [x] G1 byte/ref/window lanes and construction rule are exact;
-- [x] G2 ownership boundary, oracle semantics and shared trace fields are exact;
+- [x] G1 byte/ref/window lanes are budget-saturating under the stable 16 KiB minimum and charge all reference metadata;
+- [ ] G2 producer dependency is not yet frozen: merge #216, pin its merged protocol commit/schema here, then reconcile §6/run-plan semantics;
 - [x] G3 groups, cost formula and lost properties are exact;
 - [x] G4 supported formats/architectures, BCJ counterfactual and Zucchini reference are exact;
 - [x] G5 classifier and Puffin attribution semantics are exact;
@@ -544,7 +560,7 @@ No combined result may retroactively change an individual factor's verdict.
 - [x] interaction studies require a separate identity;
 - [x] production/API/tree/update-set changes remain non-goals.
 
-The remaining action before decision work is human freeze-review and merge of this protocol PR. The protocol itself authorizes no decision run while it remains a draft PR.
+This PR is **not freeze-ready while #216 is an unmerged/mutable producer**. The next allowed sequence is: resolve and merge #216, pin/reconcile its merged contract here, repeat freeze-review of #217, then merge #217. The protocol authorizes no PATCH-GAP decision run while that dependency/checklist item remains open or while this PR remains unmerged.
 
 ## 18. Primary sources
 
