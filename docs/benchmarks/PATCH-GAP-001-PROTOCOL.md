@@ -349,12 +349,12 @@ If the committed G5 inventory contains no supported changed-file pair, G5 is rec
 
 Pin AOSP Puffin at Android 17.0.0_r1, commit 343e23db1b4d81045e91a10244244893f5acd73b. Record the built puffin binary SHA-256, compiler/build identity and help output in the tool manifest.
 
-Puffin is a deterministic deflate recompressor: it transforms deflate streams to a puff representation, uses a binary diff, then deterministically reconstructs the original deflate stream. Therefore its whole-file patch is useful evidence for deflate-instability headroom, but it is not a CSP-v1-compatible one-factor encoding.
+Puffin is a deterministic deflate recompressor: it transforms deflate streams to a puff representation, uses a binary diff, then deterministically reconstructs the original deflate stream. Therefore its whole-file patch is useful evidence for deflate-instability headroom, but it is not a CSP-v1-compatible one-factor encoding. Android update_engine's PUFFDIFF apply path uses PuffPatch with a 5 MiB maximum cache; the reference lane pins that same cache rather than Puffin's larger standalone-tool default.
 
 To isolate the deflate transform from the raw diff algorithm, freeze Puffin's patch_algorithm to 0 (bsdiff), not Zucchini. For a structurally recognized whole-file type TYPE in {zip,gzip,zlib,deflate}; .nupkg is passed as TYPE=zip. The exact reference operations are:
 
     puffin --operation=puffdiff --src_file=OLD --dst_file=NEW --patch_file=PATCH --src_file_type=TYPE --dst_file_type=TYPE --patch_algorithm=0
-    puffin --operation=puffpatch --src_file=OLD --dst_file=RECON --patch_file=PATCH --cache_size=52428800
+    puffin --operation=puffpatch --src_file=OLD --dst_file=RECON --patch_file=PATCH --cache_size=5242880
 
 An arbitrary embedded-deflate case enters the Puffin size lane only if its exact source/target deflate extent lists were emitted and hashed by the pre-size classifier; those lists are then passed explicitly and stored in the compact evidence. Otherwise it remains inventory-only. No case may become eligible because Puffin happened to produce a small patch.
 
@@ -375,13 +375,13 @@ Every executable/package is pinned by immutable version/tag/commit and is also h
 | bsdiff | Python bsdiff4==1.2.6; source distribution SHA-256 2ab57d01a78b39e29e5accc9cfead4130982ded9dccbc4261bd0e9c51d6b751d | bsdiff4.diff(base,target) / bsdiff4.patch(base,patch); installed artifact SHA-256 recorded |
 | xdelta3 modern | xdelta v3.2.0, commit ff322e592383227b0d65ddfde7e0e5bbc504dc15 | xdelta3 -e -9 -f -s OLD NEW PATCH; inverse -d -f -s OLD |
 | xdelta3 legacy continuity | xdelta3 v3.0.11, commit 81aebf78ae67c29f528088d65743643e5355e3d3 | same mode; descriptive continuity with PATCH-PREFREEZE only |
-| HDiffPatch memory | v5.1.3, commit 3b9dca715ca492873bf2c49e22e5d5b7d2a78620 | create: hdiffz -m-4 -SD -d -f -p-1 -c-zstd-21-24 OLD NEW PATCH; apply: hpatchz -f OLD PATCH NEW |
-| HDiffPatch stream | same v5.1.3 | create: hdiffz -s-64 -SD -d -f -p-1 -c-zstd-21-24 OLD NEW PATCH; apply: hpatchz -f OLD PATCH NEW |
+| HDiffPatch memory | v5.1.3, commit 3b9dca715ca492873bf2c49e22e5d5b7d2a78620 | create: hdiffz -m-4 -SD -d -f -p-1 -c-zstd-21-24 OLD NEW PATCH; apply: hpatchz -s-8m -f OLD PATCH NEW |
+| HDiffPatch stream | same v5.1.3 | create: hdiffz -s-64 -SD -d -f -p-1 -c-zstd-21-24 OLD NEW PATCH; apply: hpatchz -s-8m -f OLD PATCH NEW |
 | Zucchini | Chromium component commit 667ffb4e19970939936af2e7a169175ae4c1da5b | -gen / -apply, executable-aware mode, supported G4 subset only |
 | XZ BCJ | XZ Utils v5.8.4, commit d3e650e63c110e830fd5391e7f8b45df0b91d3da | research-only low-level x86/ARM64 reversible transform; no .xz container |
-| Puffin | Android 17.0.0_r1 / 343e23db1b4d81045e91a10244244893f5acd73b | puffdiff/puffpatch commands in §9.2, patch_algorithm=0, apply cache 52,428,800 bytes |
+| Puffin | Android 17.0.0_r1 / 343e23db1b4d81045e91a10244244893f5acd73b | puffdiff/puffpatch commands in §9.2, patch_algorithm=0, apply cache 5,242,880 bytes (5 MiB, matching update_engine) |
 
-HDiffPatch has two deliberately separate lanes. The memory lane uses the documented all-in-memory matcher for ratio-oriented evidence. The -s-64 lane is the streaming/bounded-memory comparator. Both use the same single-compressed-diff format, one thread and identical zstd compressor settings, so the comparison does not silently change compressor or parallelism. HDiffPatch v5.1.3 release archives publish these SHA-256 values: Linux x64 628963bf2ee9108a97260fa5eef44acd9ec94369b76090a957c9182b3abbb558; Linux ARM64 03e404e16d06479deaba645a09ed5c06636778b083b82bc7fc932ba34425430b; Windows x64 77f141386e5d8f785c1c846e10fbbc19b6c05aa00e3f59cc44670fb3f0e2ae94.
+HDiffPatch has two deliberately separate lanes. The memory lane uses the documented all-in-memory matcher for ratio-oriented evidence. The -s-64 lane is the streaming/bounded-memory comparator. Both use the same single-compressed-diff format, one thread and identical zstd compressor settings, so the comparison does not silently change compressor or parallelism. Both are applied with the same explicit 8 MiB hpatchz stream cache, so create-side matcher memory is not confounded with a different apply configuration. HDiffPatch v5.1.3 release archives publish these SHA-256 values: Linux x64 628963bf2ee9108a97260fa5eef44acd9ec94369b76090a957c9182b3abbb558; Linux ARM64 03e404e16d06479deaba645a09ed5c06636778b083b82bc7fc932ba34425430b; Windows x64 77f141386e5d8f785c1c846e10fbbc19b6c05aa00e3f59cc44670fb3f0e2ae94.
 
 The modern xdelta 3.2.0 lane replaces 3.0.11 as the current reference. The 3.0.11 lane remains only to connect new results to PATCH-PREFREEZE evidence; it cannot be used to claim that the current xdelta implementation was measured.
 
