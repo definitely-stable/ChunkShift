@@ -888,7 +888,7 @@ internal static partial class CspPatchBuilder
         int noDictionaryFrameBytes,
         EntryChoice choice,
         int? selectedOrdinal,
-        IReadOnlyList<CspCandidateTraceCandidate> candidates,
+        List<CspCandidateTraceCandidate> candidates,
         int cheapTrials,
         int expensiveTrials,
         ICspCandidateTraceSink? traceSink)
