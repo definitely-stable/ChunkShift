@@ -179,36 +179,46 @@ G1 is an upper-bound experiment. Any result beyond H0 cannot be emitted as CSP v
 
 ### 6.1 Boundary
 
-PATCH-GAP-001 does **not** implement Finesse, Odess, Gear-derived retrieval, a new similarity index, or another selector. #181 / PR #216 owns selector semantics and production-real H5/H6 work.
+PATCH-GAP-001 does **not** implement Finesse, Odess, Gear-derived retrieval, a new similarity index, or another selector. #181 / PR #216 owns selector semantics, the shared trace, the exact whole-base oracle implementation and production-real H5/H6 work.
 
-G2 answers: **how many bytes would disappear if the dictionary were chosen better under today's K=4 / 1 MiB / one-frame-per-chunk CSP envelope?**
+G2 answers: **how much size headroom is attributable to dictionary choice under today's K=4 / 1 MiB / one-frame-per-chunk CSP envelope?**
 
-### 6.2 Required lanes
+### 6.2 Shared oracle semantics and populations
 
-- G2-H0: production choice from the shared trace.
-- G2-ORACLE: research-only whole-base upper bound owned/frozen with PATCH-ENC-005. It enumerates every base-record start, constructs the same production K=4 contiguous dictionary, rejects candidates above 1 MiB exactly as production does, uses the same L19/raw-prefix/H20/C20 encoder and the same 32-byte/reference cost, and chooses by the production strict-cost/tie semantics. Only the start search is relaxed.
-- G2-H5 and G2-H6: later production-real results from #181, consumed only when those lanes exist under the same trace contract.
+The oracle semantics are owned by #216 and reused unchanged here: for a sampled missing target entry, enumerate every base-record index in the corresponding base file as a possible K=4 contiguous start; reject dictionaries above 1 MiB or failing CspDictionary.IsUsable; encode valid starts at L19 with raw-prefix H20/C20; add exactly 32 bytes per named base chunk; and choose against raw/L19-no-dictionary with production's strict cost/tie rule. Only candidate-start search is relaxed.
 
-The oracle is not a production selector and is not allowed to become one implicitly.
+PATCH-GAP does **not** duplicate that implementation and does not require an all-target × all-base Cartesian run. #216 deliberately freezes an exact, deterministic sample because exhaustive L19 trials over every missing target entry would be disproportionate. G2 therefore has two kinds of evidence:
+
+- **G2-H0** — full-population production trace/cost on the ordinary corpus lanes.
+- **G2-ORACLE-CAL** — the exact #216 calibration sample: for each calibration pair, sort distinct missing target entries by #216's SHA-256 sample key and take the first 64 (or all when fewer exist), maximum 256 entries over the four calibration pairs.
+- **G2-ORACLE-HOLD** — after #216 has frozen any production-real Phase-B implementation/parameters, apply the **same** sample-key algorithm independently to every holdout pair and take the first 64 entries per pair (or all when fewer exist). This is confirmation/attribution only; no threshold, selector parameter or feature family may change after it is viewed.
+- **G2-H5/H6** — full-population production-real resemblance lanes from #216 when Phase B exists.
+
+For each oracle sample report H0 and oracle entry-cost sums, reduction, per-pair reduction, fraction of sampled entries improved, winning-start distance distribution and sample SHA-256. The sample is an exact upper bound **for that named sampled population**, not an estimator silently projected to all corpus bytes.
+
+Because the RFC gate in §11 is defined on whole holdout bytes, **G2-ORACLE-CAL/HOLD are descriptive upper-bound evidence and cannot pass that gate directly**. A full-population H5/H6 result may be gate-eligible because it is an implementable candidate-choice policy measured over the whole split. If #216 stops Phase B for insufficient oracle headroom, PATCH-GAP records G2 as sampled upper-bound / production-real STOPPED; it does not manufacture a whole-corpus oracle claim.
+
+This keeps the questions separate: #217 measures how much headroom dictionary choice appears to contain and how much a production-real selector actually captures; #216 decides whether any selector is worth production adoption.
 
 ### 6.3 Shared trace contract
 
-The shared candidate trace must be schema-versioned and fingerprinted. GAP requires, per distinct missing target identity:
+The authoritative selector trace is #216's schema **chunkshift.patch-candidate-trace.v1**. PATCH-GAP consumes it as written rather than defining a parallel JSON shape.
 
-- corpus family, version pair, split, normalized path;
-- target ChunkId, first target record index, target offset and length;
-- H0 stored form, frame/stored bytes, total entry cost, chosen dictionary chunk IDs, dictionary start offset and reference count;
-- oracle equivalent fields;
-- when present, H5/H6 equivalent selected fields;
-- candidate source (offset, sketch, gear, or combinations defined by #216);
-- ranking/cheap score when applicable;
-- low-level trial result and L19 result where the selector used them;
-- candidate count, total trials and L19 trials;
-- selected winner and final stored bytes.
+The shared per-file header contains:
 
-The trace header records schema ID, ExperimentId/RunId, source commit, policy fingerprint, corpus pairsSha256, and trace SHA-256. If GAP needs another selector-derived field, that field is added to the shared trace contract in #216; #217 does not reconstruct the selector from payloads.
+- schema, ExperimentId, RunId, commit, platform and lane;
+- corpus pairsSha256, family/pair id and normalized path;
+- base and target ManifestId.
 
-G2-ORACLE can run only after #216 freezes this oracle and trace schema. G2-H5/H6 wait for their production-real evidence. G1, G3, G4 and G5 do not wait for H5/H6.
+Each distinct missing-target record contains targetIndex, targetChunkId, targetOffset/targetLength, candidateCount, expensiveTrialCount, level19TrialCount, selectedEncoding, selectedCandidate, storedBytes, dictionaryRefs and candidates[]. Candidate rows contain ordinal, startIndex/startOffset/recordCount/firstChunkId, source, nullable cheap frame/cost, nullable L19 frame/cost and selected.
+
+PATCH-GAP derives selected total entry cost as:
+
+selectedEntryCost = storedBytes + 32 × dictionaryRefs
+
+and consumes #216's separate G2 oracle rows for oracle best-start/cost evidence. It needs no payload, dictionary or frame bytes.
+
+For provenance, the PATCH-GAP evidence manifest records the SHA-256 of every consumed trace/oracle document and a canonical policy fingerprint alongside the shared document; those do **not** require a fork of chunkshift.patch-candidate-trace.v1. If a future GAP question truly needs a new selector-derived field, that field must first be added to #216's shared contract (or a jointly versioned successor), never reconstructed by a private #217 selector.
 
 ## 7. G3 — frame granularity
 
@@ -379,7 +389,7 @@ It is reported only when named reference R is evaluated on the same population a
 
 A gate-eligible factor must additionally reconstruct every target exactly, have an explicit measured or analytically enforced apply-memory bound, report base-read amplification and lost properties, and be a one-factor CSP-costed counterfactual rather than merely a whole-file reference algorithm.
 
-Passing does **not** adopt anything. It means the factor is large enough to justify a separate RFC/design issue. G5-Puffin and G4-Zucchini are reference/attribution evidence and cannot pass this gate directly.
+Passing does **not** adopt anything. It means the factor is large enough to justify a separate RFC/design issue. G5-Puffin, G4-Zucchini and the sampled G2 oracle are reference/attribution evidence and cannot pass this gate directly.
 
 ## 12. Run plan and timing
 
@@ -390,7 +400,7 @@ Run on **Linux x64 only** after this protocol is merged/frozen:
 - regenerate H0 and validate baseline totals/digest;
 - materialize G4/G5 subset manifests before codec output;
 - G1 byte lanes;
-- G2-ORACLE only when the shared #216 trace/oracle is frozen;
+- G2-ORACLE-CAL only through the shared #216 oracle implementation/contract; G2-ORACLE-HOLD only after #216 production-real parameters are frozen;
 - G3 byte lanes;
 - G4-BCJ byte lane plus Zucchini subset reference;
 - G5 classification plus Puffin subset reference;
@@ -406,7 +416,7 @@ For factors with several ordered relaxation lanes, every frozen lane is measured
 
 - G1 chooses the smallest dictionary-budget lane in order B1, B4, B8, B32 that reaches 15%;
 - G3 chooses G3-RUN if it reaches 15%, otherwise G3-FILE if it reaches 15%;
-- G2 has one gate oracle lane;
+- G2's sampled oracle is not gate-eligible; if #216 Phase B exists, its full-population production-real H5/H6 finalist is the GAP gate candidate without GAP-side retuning;
 - G4 has one gate-eligible BCJ lane.
 
 If no lane reaches 15% on calibration, that factor has no RFC-gate holdout candidate; its negative calibration result remains evidence. The selected candidate is timed on linux-x64, linux-arm64 and win-x64.
