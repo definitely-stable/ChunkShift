@@ -15,16 +15,12 @@ on:
         description: "Frozen RunId UTC date (YYYYMMDD)"
         required: true
         type: string
-      run-sequence:
-        description: "Frozen RunId sequence (NNN)"
-        required: true
-        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: patch-enc-005-phase-a-${{ inputs.dataset-role }}-${{ inputs.run-date }}-${{ inputs.run-sequence }}-${{ github.sha }}
+  group: patch-enc-005-phase-a-${{ inputs.dataset-role }}-${{ inputs.run-date }}-${{ github.run_number }}-${{ github.sha }}
   cancel-in-progress: false
 
 env:
@@ -39,7 +35,6 @@ jobs:
     timeout-minutes: 5
     env:
       RUN_DATE: ${{ inputs.run-date }}
-      RUN_SEQUENCE: ${{ inputs.run-sequence }}
     steps:
       - name: Validate frozen evidence identity
         shell: bash
@@ -49,15 +44,12 @@ jobs:
             echo "PATCH-ENC-005 decision evidence rejects GitHub workflow re-runs." >&2
             exit 2
           fi
-          if [[ ! "$RUN_SEQUENCE" =~ ^[0-9]{3}$ ]]; then
-            echo "run-sequence must be exactly NNN." >&2
+          if (( GITHUB_RUN_NUMBER > 999 )); then
+            echo "PATCH-ENC-005 NNN identity supports workflow run numbers 000..999." >&2
             exit 2
           fi
-          expected_sequence="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
-          if [[ "$RUN_SEQUENCE" != "$expected_sequence" ]]; then
-            echo "run-sequence must equal zero-padded GITHUB_RUN_NUMBER=$expected_sequence." >&2
-            exit 2
-          fi
+          sequence="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
+          [[ "$sequence" =~ ^[0-9]{3}$ ]]
           python3 - "$RUN_DATE" <<'PY'
           import datetime as dt
           import re
@@ -123,7 +115,6 @@ jobs:
           DATASET_ROLE: ${{ inputs.dataset-role }}
           PLATFORM: ${{ matrix.platform }}
           RUN_DATE: ${{ inputs.run-date }}
-          RUN_SEQUENCE: ${{ inputs.run-sequence }}
         run: |
           set -euo pipefail
           case "$DATASET_ROLE" in
@@ -133,6 +124,7 @@ jobs:
           esac
           python=python3
           command -v python3 >/dev/null || python=python
+          RUN_SEQUENCE="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
           run_id="PATCH-ENC-005/RUN-$RUN_DATE-$RUN_SEQUENCE-$GITHUB_SHA-$PLATFORM"
           "$python" benchmarks/scripts/run_patch_enc_005_paired.py \
             --corpus "$HOME/patch-corpus" \
@@ -226,7 +218,6 @@ jobs:
           DATASET_ROLE: ${{ inputs.dataset-role }}
           PLATFORM: ${{ matrix.platform }}
           RUN_DATE: ${{ inputs.run-date }}
-          RUN_SEQUENCE: ${{ inputs.run-sequence }}
         run: |
           set -euo pipefail
           case "$DATASET_ROLE" in
@@ -236,6 +227,7 @@ jobs:
           esac
           python=python3
           command -v python3 >/dev/null || python=python
+          RUN_SEQUENCE="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
           run_id="PATCH-ENC-005/RUN-$RUN_DATE-$RUN_SEQUENCE-$GITHUB_SHA-$PLATFORM"
           "$python" benchmarks/scripts/run_patch_enc_005_paired.py \
             --corpus "$HOME/patch-corpus" \
@@ -317,7 +309,6 @@ jobs:
           DATASET_ROLE: ${{ inputs.dataset-role }}
           PLATFORM: ${{ matrix.platform }}
           RUN_DATE: ${{ inputs.run-date }}
-          RUN_SEQUENCE: ${{ inputs.run-sequence }}
         run: |
           set -euo pipefail
           case "$DATASET_ROLE" in
@@ -327,6 +318,7 @@ jobs:
           esac
           python=python3
           command -v python3 >/dev/null || python=python
+          RUN_SEQUENCE="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
           run_id="PATCH-ENC-005/RUN-$RUN_DATE-$RUN_SEQUENCE-$GITHUB_SHA-$PLATFORM"
           attempt1="artifacts/attempts/patch-enc-005-$DATASET_ROLE-attempt-1-$PLATFORM/dispatch.json"
           attempt2="artifacts/attempts/patch-enc-005-$DATASET_ROLE-attempt-2-$PLATFORM/dispatch.json"
@@ -431,7 +423,6 @@ jobs:
           DATASET_ROLE: ${{ inputs.dataset-role }}
           PLATFORM: ${{ matrix.platform }}
           RUN_DATE: ${{ inputs.run-date }}
-          RUN_SEQUENCE: ${{ inputs.run-sequence }}
         run: |
           set -euo pipefail
           case "$DATASET_ROLE" in
@@ -439,6 +430,7 @@ jobs:
             evaluation) families="node-win-x64,node-linux-x64,tzdata,chunkshift-source" ;;
             *) echo "unsupported development role: $DATASET_ROLE" >&2; exit 2 ;;
           esac
+          RUN_SEQUENCE="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
           run_id="PATCH-ENC-005/RUN-$RUN_DATE-$RUN_SEQUENCE-$GITHUB_SHA-$PLATFORM"
           mkdir -p artifacts/patch-enc-005/memory
           lanes="csp H4-L1-R2 H7-L1-R2-E75 H9-L9-K4-C16-R1M H9-L12-K4-C16-R1M H9-L15-K4-C16-R1M"
