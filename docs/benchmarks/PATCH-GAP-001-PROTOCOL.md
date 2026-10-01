@@ -154,7 +154,7 @@ G1 is a **nested relaxation**, not a replacement dictionary policy. For each dis
 1. Start with the exact H0 winning stored form and exact H0 entry cost. It remains a legal choice in every G1 lane without re-encoding.
 2. Reuse exactly the H0 candidate-start set/order; G1 never adds a start.
 3. For one start and envelope E, build the **maximal contiguous prefix** beginning at that start: append base chunks in order until end-of-base, E's reference cap, or adding the next chunk would exceed E's byte budget. Never skip a chunk.
-4. Deduplicate only an **exact trial identity**: same ordered ChunkId sequence, same zstd window cap, level 19, raw-prefix mode and H20/C20 caps. The same dictionary sequence under a different envelope window is a distinct trial and MUST run, because a larger window can change reachable prefix history and frame bytes even when the dictionary bytes are identical.
+4. Deduplicate only an **exact trial identity**: same ordered ChunkId sequence, same zstd window cap, level 19, raw-prefix mode and H20/C20 caps. The first occurrence in H0 candidate order owns the trial/result metadata and later identical occurrences alias it; this preserves production's earlier-candidate tie semantics. The same dictionary sequence under a different envelope window is a distinct trial and MUST run, because a larger window can change reachable prefix history and frame bytes even when the dictionary bytes are identical.
 5. A lane includes every frozen envelope up to itself:
    - B1 tries B1;
    - B4 tries B1 + B4;
@@ -332,7 +332,7 @@ G3 freezes a minimal **research-only parsable layout counterfactual** so group s
 - The corresponding PIDX entries carry the same Encoding/StoredLength/DictionaryCount values as PAYL. Continuation `PayloadOffset` still points to its ordinary 40-byte PAYL entry header, so no new pointer or group table is added.
 - A group frame is invalid if `groupFrameBytes > UInt32.MaxValue`, because the existing `StoredLength` field is retained rather than silently widened.
 
-This deliberately relaxes v1 rules that Encoding 2..255 are unsupported, every entry has `StoredLength > 0`, and one frame produces exactly one chunk; those are the G3 format revision. It does **not** remove or shrink any header/index record.
+This deliberately relaxes v1 rules that Encoding 2..255 are unsupported, every entry has `StoredLength > 0`, `StoredLength <= targetChunkLength`, and one frame produces exactly one target chunk. For `GroupZstdStart`, `StoredLength` is instead bounded by `UInt32.MaxValue` and describes the shared frame for the complete declared group; for `GroupContinuation` it is exactly zero. Those are the G3 format revision. It does **not** remove or shrink any header/index record.
 
 Therefore the physical byte equation is exact for this frozen counterfactual:
 
