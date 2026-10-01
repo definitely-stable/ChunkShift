@@ -102,6 +102,7 @@ internal static class PatchLabMemory
                         pair.Base,
                         pair.Target,
                         file.Path,
+                        file.BaseSize,
                         file.TargetSize,
                         createPeakBytes,
                         applyPeakBytes));

@@ -38,6 +38,7 @@ internal static class PatchLabRun
         int workers = PatchLabArguments.PositiveInt(args, "--workers", 1);
         int applyRepeats = PatchLabArguments.PositiveInt(args, "--apply-repeats", 3);
         bool apply = !args.Contains("--no-apply", StringComparer.Ordinal);
+        bool applyNoCheck = apply && !args.Contains("--apply-check-only", StringComparer.Ordinal);
         string? runId = PatchLabArguments.Value(args, "--run-id");
         string? executionName = PatchLabArguments.Value(args, "--execution");
         CspCreateExecution? execution = executionName is null ? null : PatchLabExecution.Parse(executionName);
@@ -60,6 +61,7 @@ internal static class PatchLabRun
             trace,
             workers,
             apply,
+            applyNoCheck,
             applyRepeats);
         clock.Stop();
 
@@ -93,6 +95,7 @@ internal static class PatchLabRun
         PatchLabTraceOptions? trace,
         int workers,
         bool apply,
+        bool applyNoCheck,
         int applyRepeats)
     {
         var items = new List<WorkItem>();
@@ -144,6 +147,7 @@ internal static class PatchLabRun
                     item.Pair,
                     item.File,
                     apply,
+                    applyNoCheck,
                     applyRepeats,
                     cancellationToken).ConfigureAwait(false);
 
@@ -175,6 +179,7 @@ internal static class PatchLabRun
         PatchLabPair pair,
         PatchLabChangedFile file,
         bool apply,
+        bool applyNoCheck,
         int applyRepeats,
         CancellationToken cancellationToken)
     {
@@ -262,6 +267,8 @@ internal static class PatchLabRun
                 .ConfigureAwait(false);
             double? applySeconds = null;
             double? applyNoCheckSeconds = null;
+            PatchLabApplyMetrics? applyMetrics = null;
+            PatchLabApplyMetrics? applyNoCheckMetrics = null;
 
             if (trace is not null && traceCollector is not null)
             {
@@ -278,7 +285,7 @@ internal static class PatchLabRun
 
             if (apply)
             {
-                applySeconds = await ApplyRepeatedAsync(
+                applyMetrics = await ApplyRepeatedMeasuredAsync(
                     patchPath,
                     baseManifestPath,
                     baseContentPath,
@@ -288,16 +295,22 @@ internal static class PatchLabRun
                     ChunkingCheck.Sequential,
                     applyRepeats,
                     cancellationToken).ConfigureAwait(false);
-                applyNoCheckSeconds = await ApplyRepeatedAsync(
-                    patchPath,
-                    baseManifestPath,
-                    baseContentPath,
-                    directory,
-                    "no-check",
-                    targetSha256: null,
-                    ChunkingCheck.Off,
-                    applyRepeats,
-                    cancellationToken).ConfigureAwait(false);
+                applySeconds = applyMetrics.MedianWallSeconds;
+
+                if (applyNoCheck)
+                {
+                    applyNoCheckMetrics = await ApplyRepeatedMeasuredAsync(
+                        patchPath,
+                        baseManifestPath,
+                        baseContentPath,
+                        directory,
+                        "no-check",
+                        targetSha256: null,
+                        ChunkingCheck.Off,
+                        applyRepeats,
+                        cancellationToken).ConfigureAwait(false);
+                    applyNoCheckSeconds = applyNoCheckMetrics.MedianWallSeconds;
+                }
             }
 
             return new PatchLabFileResult(
@@ -320,7 +333,9 @@ internal static class PatchLabRun
                 applySeconds,
                 applyNoCheckSeconds,
                 patchSha256,
-                createMetrics);
+                createMetrics,
+                applyMetrics,
+                applyNoCheckMetrics);
         }
         finally
         {
@@ -388,11 +403,10 @@ internal static class PatchLabRun
 
     /// <summary>
     /// Applies the patch <paramref name="repeats"/> times into fresh temporary
-    /// outputs and returns the median wall time. When
-    /// <paramref name="targetSha256"/> is set, the first output is verified
-    /// against it.
+    /// outputs and records every wall/CPU/base-read sample. The first checked
+    /// output is verified against <paramref name="targetSha256"/>.
     /// </summary>
-    private static async Task<double> ApplyRepeatedAsync(
+    private static async Task<PatchLabApplyMetrics> ApplyRepeatedMeasuredAsync(
         string patchPath,
         string baseManifestPath,
         string baseContentPath,
@@ -403,12 +417,12 @@ internal static class PatchLabRun
         int repeats,
         CancellationToken cancellationToken)
     {
-        var samples = new double[repeats];
+        var samples = new PatchLabApplySample[repeats];
 
         for (int repeat = 0; repeat < repeats; repeat++)
         {
             string outputPath = Path.Combine(directory, Invariant($"{name}-{repeat}.out"));
-            samples[repeat] = await ApplyOnceAsync(
+            samples[repeat] = await ApplyOnceMeasuredAsync(
                 patchPath,
                 baseManifestPath,
                 baseContentPath,
@@ -430,15 +444,21 @@ internal static class PatchLabRun
             }
         }
 
-        return PatchLabRunner.Median(samples);
+        return new PatchLabApplyMetrics(
+            PatchLabRunner.Median(samples.Select(static sample => sample.WallSeconds)),
+            PatchLabRunner.Median(samples.Select(static sample => sample.CpuSeconds)),
+            PatchLabRunner.Median(samples.Select(static sample => sample.BaseReads)),
+            PatchLabRunner.Median(samples.Select(static sample => sample.BaseBytesRead)),
+            PatchLabRunner.Median(samples.Select(static sample => sample.BaseSeeks)),
+            samples);
     }
 
     /// <summary>
-    /// Applies one patch into <paramref name="outputPath"/> with the production
-    /// applier and returns the wall time of the call. Streams are opened fresh
-    /// for every repeat.
+    /// Applies one patch with production semantics and records wall/process-CPU
+    /// plus reads served by the base-content stream. The counters cover only
+    /// the apply call, never target verification after it.
     /// </summary>
-    internal static async Task<double> ApplyOnceAsync(
+    private static async Task<PatchLabApplySample> ApplyOnceMeasuredAsync(
         string patchPath,
         string baseManifestPath,
         string baseContentPath,
@@ -449,26 +469,58 @@ internal static class PatchLabRun
         await using FileStream patch = PatchLabFiles.OpenRead(patchPath);
         await using FileStream baseManifest = PatchLabFiles.OpenRead(baseManifestPath);
         await using FileStream baseContent = PatchLabFiles.OpenRead(baseContentPath);
+        var counted = new PatchLabCountingStream(baseContent);
+        using Process process = Process.GetCurrentProcess();
+        process.Refresh();
+        TimeSpan cpuBefore = process.TotalProcessorTime;
         var clock = Stopwatch.StartNew();
+
         PatchApplyResult result = await CspApplier
             .ApplyAsync(
                 patch,
                 baseManifest,
-                baseContent,
+                counted,
                 outputPath,
                 CspFormat.DefaultMaximumPayloadEntries,
                 check,
                 cancellationToken)
             .ConfigureAwait(false);
+
         double seconds = clock.Elapsed.TotalSeconds;
+        process.Refresh();
+        double cpuSeconds = (process.TotalProcessorTime - cpuBefore).TotalSeconds;
 
         if (result.Failures != PatchApplyFailure.None)
         {
             throw new InvalidDataException($"Applying '{patchPath}' failed with {result.Failures}.");
         }
 
-        return seconds;
+        return new PatchLabApplySample(
+            seconds,
+            cpuSeconds,
+            counted.Reads,
+            counted.BytesRead,
+            counted.Seeks);
     }
+
+    /// <summary>
+    /// Applies one patch and returns its wall time. Kept for existing helpers;
+    /// Phase-A evidence uses the measured repeat path above.
+    /// </summary>
+    internal static async Task<double> ApplyOnceAsync(
+        string patchPath,
+        string baseManifestPath,
+        string baseContentPath,
+        string outputPath,
+        ChunkingCheck check,
+        CancellationToken cancellationToken) =>
+        (await ApplyOnceMeasuredAsync(
+            patchPath,
+            baseManifestPath,
+            baseContentPath,
+            outputPath,
+            check,
+            cancellationToken).ConfigureAwait(false)).WallSeconds;
 
     /// <summary>Reads a created patch back for its physical and entry statistics.</summary>
     private static async Task<PatchFacts> ReadPatchAsync(string patchPath, CancellationToken cancellationToken)

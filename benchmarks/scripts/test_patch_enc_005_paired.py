@@ -22,25 +22,92 @@ class PatchEnc005PairedTests(unittest.TestCase):
         self.assertTrue(MODULE.bracket_is_noisy(0.87, 1.13))
         self.assertTrue(MODULE.bracket_is_noisy(0.0, 0.0))
 
-    def test_aggregate_sums_only_create_evidence(self):
+    def test_aggregate_sums_create_and_apply_evidence(self):
         result = {
             "files": [
                 {
+                    "family": "f",
+                    "base": "1",
+                    "target": "2",
+                    "path": "a",
+                    "patchSha256": "a" * 64,
                     "createSeconds": 1.25,
                     "patchBytes": 10,
                     "createMetrics": {"cpuSeconds": 0.5},
+                    "applyMetrics": {
+                        "medianWallSeconds": 0.3,
+                        "medianCpuSeconds": 0.2,
+                        "medianBaseReads": 4,
+                        "medianBaseBytesRead": 100,
+                        "samples": [{}, {}, {}, {}, {}],
+                    },
                 },
                 {
+                    "family": "f",
+                    "base": "1",
+                    "target": "2",
+                    "path": "b",
+                    "patchSha256": "b" * 64,
                     "createSeconds": 2.75,
                     "patchBytes": 20,
                     "createMetrics": {"cpuSeconds": 1.5},
+                    "applyMetrics": {
+                        "medianWallSeconds": 0.7,
+                        "medianCpuSeconds": 0.4,
+                        "medianBaseReads": 6,
+                        "medianBaseBytesRead": 200,
+                        "samples": [{}, {}, {}, {}, {}],
+                    },
                 },
             ]
         }
-        self.assertEqual(
-            {"wallSeconds": 4.0, "cpuSeconds": 2.0, "patchBytes": 30},
-            MODULE.aggregate(result),
-        )
+        aggregate = MODULE.aggregate(result)
+        self.assertEqual(4.0, aggregate["wallSeconds"])
+        self.assertEqual(2.0, aggregate["cpuSeconds"])
+        self.assertEqual(30, aggregate["patchBytes"])
+        self.assertEqual(1.0, aggregate["applyWallSeconds"])
+        self.assertAlmostEqual(0.6, aggregate["applyCpuSeconds"])
+        self.assertEqual(10, aggregate["applyBaseReads"])
+        self.assertEqual(300, aggregate["applyBaseBytesRead"])
+
+    def test_aggregate_rejects_missing_five_repeat_apply_evidence(self):
+        result = {
+            "files": [
+                {
+                    "createSeconds": 1.0,
+                    "patchBytes": 10,
+                    "createMetrics": {"cpuSeconds": 0.5},
+                    "applyMetrics": {
+                        "medianWallSeconds": 0.1,
+                        "medianCpuSeconds": 0.1,
+                        "medianBaseReads": 1,
+                        "medianBaseBytesRead": 1,
+                        "samples": [{}],
+                    },
+                }
+            ]
+        }
+        with self.assertRaises(ValueError):
+            MODULE.aggregate(result)
+
+    def test_h7_h4_byte_oracle_compares_per_file_sha(self):
+        base = {
+            "files": [
+                {
+                    "family": "f",
+                    "base": "1",
+                    "target": "2",
+                    "path": "a",
+                    "patchSha256": "a" * 64,
+                }
+            ]
+        }
+        same = {"files": [dict(base["files"][0])]}
+        MODULE.require_same_patch_bytes("oracle", base, same)
+
+        changed = {"files": [dict(base["files"][0], patchSha256="b" * 64)]}
+        with self.assertRaises(ValueError):
+            MODULE.require_same_patch_bytes("oracle", base, changed)
 
 
 if __name__ == "__main__":

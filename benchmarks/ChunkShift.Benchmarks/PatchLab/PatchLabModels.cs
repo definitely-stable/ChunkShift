@@ -53,7 +53,9 @@ internal sealed record PatchLabFileResult(
     double? ApplySeconds,
     double? ApplyNoCheckSeconds,
     string? PatchSha256 = null,
-    PatchLabCreateMetrics? CreateMetrics = null);
+    PatchLabCreateMetrics? CreateMetrics = null,
+    PatchLabApplyMetrics? ApplyMetrics = null,
+    PatchLabApplyMetrics? ApplyNoCheckMetrics = null);
 
 /// <summary>
 /// What one create cost beyond its wall time
@@ -75,6 +77,26 @@ internal sealed record PatchLabCreateMetrics(
     long WindowPeakBytes,
     long ReorderPeakEntries,
     long ReorderPeakBytes);
+
+/// <summary>One measured production-apply repeat for PATCH-ENC-005 evidence.</summary>
+internal sealed record PatchLabApplySample(
+    double WallSeconds,
+    double CpuSeconds,
+    long BaseReads,
+    long BaseBytesRead,
+    long BaseSeeks);
+
+/// <summary>
+/// Apply evidence whose medians are selected independently, matching
+/// PATCH-ENC-005 section 9.1; raw samples remain durable and recomputable.
+/// </summary>
+internal sealed record PatchLabApplyMetrics(
+    double MedianWallSeconds,
+    double MedianCpuSeconds,
+    long MedianBaseReads,
+    long MedianBaseBytesRead,
+    long MedianBaseSeeks,
+    PatchLabApplySample[] Samples);
 
 /// <summary>One <c>patch-lab memory</c> result document (<c>chunkshift.patch-lab-memory.v1</c>).</summary>
 /// <remarks>
@@ -100,6 +122,7 @@ internal sealed record PatchLabMemoryFile(
     string Base,
     string Target,
     string Path,
+    long BaseSize,
     long TargetSize,
     long CreatePeakBytes,
     long ApplyPeakBytes);

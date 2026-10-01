@@ -69,6 +69,16 @@ public class PatchLabRunTests
         Assert.True(file.ApplyNoCheckSeconds is not null);
         Assert.True(file.ApplySeconds is >= 0);
         Assert.True(file.ApplyNoCheckSeconds is >= 0);
+        Assert.NotNull(file.ApplyMetrics);
+        Assert.NotNull(file.ApplyNoCheckMetrics);
+        Assert.Single(file.ApplyMetrics.Samples);
+        Assert.Single(file.ApplyNoCheckMetrics.Samples);
+        Assert.Equal(file.ApplySeconds.Value, file.ApplyMetrics.MedianWallSeconds);
+        Assert.Equal(file.ApplyNoCheckSeconds.Value, file.ApplyNoCheckMetrics.MedianWallSeconds);
+        Assert.True(file.ApplyMetrics.MedianCpuSeconds >= 0);
+        Assert.True(file.ApplyMetrics.MedianBaseReads >= 0);
+        Assert.True(file.ApplyMetrics.MedianBaseBytesRead >= 0);
+        Assert.True(file.ApplyMetrics.MedianBaseSeeks >= 0);
 
         Assert.Equal(file.PayloadEntries, file.RawEntries + file.ZstdEntries);
 
@@ -98,6 +108,36 @@ public class PatchLabRunTests
                 Path.Combine(scope.Path, "work", "csm", corpus.TargetSha256 + ".csm"),
             ],
             cached);
+    }
+
+    [Fact]
+    public void ApplyCheckOnlySkipsLegacyNoCheckRepeats()
+    {
+        using var scope = new TempDirectory();
+        _ = WriteCorpus(scope.Path);
+        string output = Path.Combine(scope.Path, "phase-a.json");
+
+        int exit = PatchLabRunner.Run(
+        [
+            "run",
+            "--corpus", scope.Path,
+            "--lane", "H4-L1-R2",
+            "--output", output,
+            "--workers", "1",
+            "--execution", "h2-w2",
+            "--apply-repeats", "1",
+            "--apply-check-only",
+        ]);
+
+        Assert.Equal(0, exit);
+        PatchLabRunResult run = JsonSerializer.Deserialize<PatchLabRunResult>(
+            File.ReadAllText(output),
+            Json)!;
+        PatchLabFileResult file = Assert.Single(run.Files);
+        Assert.NotNull(file.ApplyMetrics);
+        Assert.Null(file.ApplyNoCheckMetrics);
+        Assert.NotNull(file.ApplySeconds);
+        Assert.Null(file.ApplyNoCheckSeconds);
     }
 
     [Fact]
