@@ -56,6 +56,26 @@ public class PatchLabMemoryTests
     }
 
     [Fact]
+    public void MemoryPopulationUsesTheLargerOfBaseAndTarget()
+    {
+        var largeBase = new PatchLabChangedFile(
+            "large-base.bin",
+            2 * 1024 * 1024,
+            new string('a', 64),
+            64 * 1024,
+            new string('b', 64));
+        var smallBoth = new PatchLabChangedFile(
+            "small.bin",
+            64 * 1024,
+            new string('c', 64),
+            128 * 1024,
+            new string('d', 64));
+
+        Assert.True(PatchLabMemory.IsInMemoryPopulation(largeBase, 1024 * 1024));
+        Assert.False(PatchLabMemory.IsInMemoryPopulation(smallBoth, 1024 * 1024));
+    }
+
+    [Fact]
     public void MemoryEnvironmentKeepsOnlyAllocatorAndGcVariables()
     {
         System.Environment.SetEnvironmentVariable("MALLOC_ARENA_MAX", "2");
