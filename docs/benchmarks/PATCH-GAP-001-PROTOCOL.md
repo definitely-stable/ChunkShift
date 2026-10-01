@@ -247,7 +247,7 @@ The freeze order is mandatory:
 3. reconcile this entire §6 and the G2 run-plan text against that merged contract;
 4. only then mark G2 exact in §17 and freeze #217.
 
-No PATCH-GAP G2 run is authorized before that reconciliation. If merged #216 changes its progression gate, evaluation population, H5/H6 availability, trace fields or oracle semantics, #217 follows the merged producer contract rather than this non-normative review snapshot.
+No PATCH-GAP G2 run is authorized before that reconciliation. Whatever #216 eventually merges for progression, evaluation population, H5/H6 availability, trace fields and oracle semantics is authoritative; earlier Draft behavior has no standing in PATCH-GAP.
 
 ### 6.2 Boundary
 
@@ -268,9 +268,11 @@ After #216 merges, the reconciliation commit on #217 must record all of the foll
 - any fresh-confirmation dataset lock and verdict exported by PATCH-ENC-005, recorded as additional selector evidence but not substituted for #183's fixed-evaluation formula;
 - SHA-256 of every consumed trace/oracle/result document and the upstream policy/lane fingerprint needed to prove it belongs to that merged contract.
 
-PATCH-GAP then derives its per-entry selected cost only from the merged producer's authoritative fields. Under the current review snapshot this is conceptually `storedBytes + 32 × dictionaryRefs`, but even that field mapping is **non-normative here until the merged schema is pinned**.
+PATCH-GAP derives per-entry selected cost only from fields explicitly pinned during the post-merge reconciliation; **no field mapping is normative here until the merged schema is pinned**.
 
 The reconciliation must be a documentation-only change in #217 unless the merged producer contract exposes a genuine missing evidence field. In that case, fix/version the producer evidence contract first; #217 must not reconstruct selector decisions or invent a private compatibility shim.
+
+If #216 has already produced valid evidence for the required commit, dataset role/lock and frozen lane, #217 consumes that immutable evidence by digest; it does **not** rerun the same selector/oracle under a new GAP-owned lane identity. A missing required population/result is produced under the merged #216 contract first, then consumed here.
 
 ## 7. G3 — frame granularity
 
