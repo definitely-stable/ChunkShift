@@ -191,7 +191,7 @@ PATCH-GAP does **not** duplicate that implementation and does not require an all
 
 - **G2-H0** — full-population production trace/cost on the ordinary corpus lanes.
 - **G2-ORACLE-CAL** — the exact #216 calibration sample: for each calibration pair, sort distinct missing target entries by #216's SHA-256 sample key and take the first 64 (or all when fewer exist), maximum 256 entries over the four calibration pairs.
-- **G2-ORACLE-HOLD** — after #216 has frozen any production-real Phase-B implementation/parameters, apply the **same** sample-key algorithm independently to every holdout pair and take the first 64 entries per pair (or all when fewer exist). This is confirmation/attribution only; no threshold, selector parameter or feature family may change after it is viewed.
+- **G2-ORACLE-HOLD** — after #216 has frozen its Phase-B progression decision and, when Phase B exists, all production-real implementation/parameters, apply the **same** sample-key algorithm independently to every holdout pair and take the first 64 entries per pair (or all when fewer exist). This is confirmation/attribution only; no threshold, selector parameter or feature family may change after it is viewed.
 - **G2-H5/H6** — full-population production-real resemblance lanes from #216 when Phase B exists.
 
 For each oracle sample report H0 and oracle entry-cost sums, reduction, per-pair reduction, fraction of sampled entries improved, winning-start distance distribution and sample SHA-256. The sample is an exact upper bound **for that named sampled population**, not an estimator silently projected to all corpus bytes.
@@ -442,16 +442,19 @@ One platform is sufficient for deterministic byte counts when the exact tool bin
 
 ### 12.2 Stage B — runtime-sensitive implications
 
-A factor proceeds to production-implication timing only when a predeclared gate-eligible lane reaches reduction_vs_csp >= 0.15 on calibration and satisfies the non-size eligibility checks: exact reconstruction, explicit apply-memory bound and one-factor attribution.
+Every frozen lane is measured on calibration. Before any holdout bytes are viewed, the evaluator freezes **one reporting lane per factor** so #183 gets a calibration/holdout result even for negative factors.
 
-For factors with several ordered relaxation lanes, every frozen lane is measured on calibration, but the holdout/runtime candidate is selected without holdout access:
+Selection is deterministic:
 
-- G1 chooses the smallest dictionary-budget lane in order B1, B4, B8, B32 that reaches 15%;
-- G3 chooses G3-RUN if it reaches 15%, otherwise G3-FILE if it reaches 15%;
-- G2's sampled oracle is not gate-eligible; if #216 Phase B exists, its full-population production-real H5/H6 finalist is the GAP gate candidate without GAP-side retuning;
-- G4 has one gate-eligible BCJ lane.
+- G1: if one or more lanes reach 15% on calibration, choose the smallest relaxation in order B1, B4, B8, B32 that reaches it; otherwise choose the lane with the smallest calibration bytes, tie to the smaller budget.
+- G3: choose G3-RUN if it reaches 15%; otherwise G3-FILE if it reaches 15%; if neither does, choose the smaller-calibration-byte lane, tie to G3-RUN.
+- G2: the sampled oracle always has its separately frozen CAL/HOLD samples for descriptive upper-bound reporting. If #216 Phase B exists, its already-frozen production-real H5/H6 finalist is additionally the full-population G2 reporting/gate lane; GAP does not retune it.
+- G4: G4-BCJ is the single gate/reporting lane over its frozen subset.
+- G5: if the frozen subset is non-empty, Puffin plus its AOSP-bsdiff same-backend control are the descriptive reporting lanes; G5 has no direct RFC-gate lane until a later CSP-costed codec exists. If the subset is empty, report NOT_PRESENT.
 
-If no lane reaches 15% on calibration, that factor has no RFC-gate holdout candidate; its negative calibration result remains evidence. The selected candidate is timed on linux-x64, linux-arm64 and win-x64.
+A reporting lane that was below 15% on calibration is still run **once on holdout** for descriptive confirmation, but it does not trigger expensive production-implication timing merely because holdout happens to be better.
+
+A factor proceeds to three-platform production-implication timing only when its predeclared gate-eligible reporting lane reaches reduction_vs_csp >= 0.15 on calibration and satisfies the non-size eligibility checks: exact reconstruction, explicit apply-memory bound and one-factor attribution. The timed candidate runs on linux-x64, linux-arm64 and win-x64.
 
 For CSP-counterfactual create/apply timing:
 
@@ -466,11 +469,11 @@ External reference tools are timed on pinned Linux x64 primarily. They are not p
 
 ### 12.3 Holdout ordering
 
-1. Tune/prune on calibration.
-2. Freeze the selected factor lane and all thresholds in the evidence-plan commit.
-3. Complete calibration runtime checks when required.
-4. Run holdout once for the frozen lane and H0.
-5. Apply the §11 formula without retuning.
+1. Tune/prune only on calibration.
+2. Freeze each factor's reporting lane, any gate-candidate status, subset fingerprints and all thresholds in the evidence-plan commit.
+3. Complete calibration runtime checks when required for a gate candidate.
+4. Run holdout once for each frozen reporting lane and H0; run G2-ORACLE-HOLD under its separately frozen sample membership.
+5. Apply the §11 formula to gate-eligible whole-split lanes and publish descriptive metrics for reference/sample lanes without retuning.
 
 Exploratory smoke runs before protocol merge are not decision evidence and must carry exploratory in their evidence identity.
 
