@@ -25,7 +25,7 @@ A primary PATCH-GAP-001 lane changes **one** factor. Any combined lane is a late
 
 Two corrections to the original #183 sketch are part of this freeze:
 
-1. 32 MiB with only 64 stable-profile chunks cannot exercise a 32 MiB dictionary: the stable profile has a 256 KiB maximum chunk, so 64 chunks can supply at most 16 MiB. G1 therefore freezes an independent 128-reference research cap.
+1. A fixed reference cap can silently prevent the nominal G1 byte budget from being exercised. G1 therefore derives each research cap from the stable profile's 16 KiB minimum chunk: B1/R64, B4/R256, B8/R512 and B32/R2048. This guarantees that the byte budget, not an arbitrary reference ceiling, is the limiting envelope for any legal stable-profile chunk sequence.
 2. Whole-file Zucchini and Puffin/PUFFDIFF are reference/attribution lanes, not automatically one-factor CSP counterfactuals. Their patch algorithms change more than one CSP property. They cannot directly satisfy the RFC gate unless a separate, CSP-costed reversible normalization lane is defined.
 
 ## 2. Frozen production baseline
@@ -153,11 +153,11 @@ For every research lane after H0, a candidate starts at the same production star
 
 The reference cap is derived from the stable profile's **16 KiB minimum chunk**, not its 256 KiB maximum: `maxRefs = byteBudget / 16 KiB`. Therefore any legal stable-profile chunk sequence can reach the lane's byte budget without an arbitrary reference-count cap firing first. This is important for B8/B32: a common fixed cap such as 128 references would typically expose only about 8 MiB at a 64 KiB average chunk and could turn a nominal 32 MiB experiment into a hidden reference-cap experiment. Reference metadata remains fully charged, so the larger cap is not free.
 
-For B4/B8/B32, the window is the smallest power-of-two window that can keep the entire maximum dictionary plus one maximum-size 256 KiB target chunk addressable. The larger window is therefore an explicit part of the G1 **dictionary/history envelope** relaxation, not a hidden second factor. G1-R128-B1 deliberately keeps the v1 1 MiB window.
+For B4/B8/B32, the window is the smallest power-of-two window that can keep the entire maximum dictionary plus one maximum-size 256 KiB target chunk addressable. The larger window is therefore an explicit part of the G1 **dictionary/history envelope** relaxation, not a hidden second factor. G1-B1-R64 deliberately keeps the v1 1 MiB window.
 
 ### 5.3 Costing and representability
 
-Each dictionary reference still costs exactly 32 bytes in the research score. No oracle gets free references. Thus a 128-reference dictionary is charged up to 4,096 bytes of reference metadata per entry.
+Each dictionary reference still costs exactly 32 bytes in the research score. No oracle gets free references. Maximum reference metadata is therefore 2,048 bytes for B1/R64, 8,192 for B4/R256, 16,384 for B8/R512 and 65,536 for B32/R2048.
 
 The protocol also freezes an analytical decoder-data envelope, separate from observed process RSS:
 
@@ -175,7 +175,16 @@ This is a codec-data upper envelope, not a prediction of RSS; allocator, native 
 
 For every candidate, record dictionary bytes/reference count, compressed-frame bytes, reference-cost bytes, zstd window, base bytes/read calls, create/apply peak RSS, winning candidate start and stored form.
 
-G1 is an upper-bound experiment. Any result beyond H0 cannot be emitted as CSP v1 because it may exceed the v1 4-reference, 1 MiB dictionary and/or 1 MiB window maxima. The concept can map to CSP's declarative named-base-chunk model without a new instruction VM only through an explicit format revision that raises DictionaryCount, dictionary bytes and/or window bounds. The research score deliberately assumes the direct reference-list representation (32 bytes per named chunk). A future compact run descriptor or other cheaper reference encoding would be a separate format factor and receives no free credit here.
+G1 is an upper-bound experiment. Any result beyond H0 cannot be emitted as CSP v1 because it may exceed the v1 4-reference, 1 MiB dictionary and/or 1 MiB window maxima.
+
+CSP v1 also persists `DictionaryCount` as **UInt8** in both the 40-byte PAYL entry header and the 24-byte PIDX entry, so B4/R256 and larger are not representable by merely changing a semantic maximum. To make research bytes fully defined without granting a free compact encoding, G1 freezes this **synthetic revised-header accounting model only**:
+
+- PAYL keeps its 40-byte fixed header; bytes 37..38 are treated as little-endian UInt16 DictionaryCount and byte 39 remains reserved zero;
+- PIDX keeps its 24-byte fixed entry; bytes 21..22 are treated as little-endian UInt16 DictionaryCount and byte 23 remains reserved zero;
+- dictionary ChunkIds still begin at PAYL offset 40 and still cost exactly 32 bytes each;
+- every frozen G1 cap (maximum 2,048) fits UInt16.
+
+This is not CSP v1 and is not a proposed wire revision; it is the minimal direct-list counterfactual needed to price the factor consistently. A real RFC would need to choose/version the layout and raise the dictionary/window limits explicitly. A future compact run descriptor, range encoding or other cheaper reference representation is a separate factor and receives no free credit here.
 
 ## 6. G2 — candidate choice, owned by PATCH-ENC-005
 
