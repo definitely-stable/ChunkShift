@@ -57,6 +57,9 @@ def validate(documents: list[tuple[Path, dict]]) -> dict:
             source_commit,
             str(document.get("protocolCommit", "")),
             str(document.get("datasetRole", "")) + ":" + str(document.get("datasetSha256", "")),
+            str(document.get("githubRunId", "")),
+            str(document.get("githubRunNumber", "")),
+            str(document.get("githubRunAttempt", "")),
         )
         if identity is None:
             identity = current_identity
@@ -82,6 +85,9 @@ def validate(documents: list[tuple[Path, dict]]) -> dict:
         "sourceCommit": identity[2],
         "protocolCommit": identity[3],
         "dataset": identity[4],
+        "githubRunId": identity[5],
+        "githubRunNumber": identity[6],
+        "githubRunAttempt": identity[7],
         "platforms": sorted(platforms),
         "patchBytesEqual": True,
         "acceptedPatchShas": json.loads(patch_map),

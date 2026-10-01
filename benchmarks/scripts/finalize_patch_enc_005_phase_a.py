@@ -35,6 +35,9 @@ def validate_attempt(args: argparse.Namespace, document: dict, attempt: int) -> 
         ("platform", args.platform),
         ("datasetRole", args.dataset_role),
         ("datasetSha256", paired.FROZEN_DATASET_SHA256),
+        ("githubRunId", os.environ.get("GITHUB_RUN_ID")),
+        ("githubRunNumber", os.environ.get("GITHUB_RUN_NUMBER")),
+        ("githubRunAttempt", os.environ.get("GITHUB_RUN_ATTEMPT")),
     ):
         if document.get(field) != expected:
             raise ValueError(f"attempt {attempt}: {field} mismatch")
@@ -73,7 +76,7 @@ def main() -> int:
     try:
         paired.validate_development_families(args.dataset_role, args.families)
         paired.validate_run_identity(args.run_id, args.source_commit, args.platform)
-        paired.validate_ci_binding(args.source_commit)
+        paired.validate_ci_binding(args.source_commit, args.run_id)
     except ValueError as error:
         parser.error(str(error))
 

@@ -20,6 +20,9 @@ def document(platform: str, patch: str = "a" * 64) -> dict:
         "protocolCommit": "c" * 40,
         "datasetRole": "calibration",
         "datasetSha256": "d" * 64,
+        "githubRunId": "123",
+        "githubRunNumber": "1",
+        "githubRunAttempt": "1",
         "acceptedPatchShas": {
             "csp": [
                 {

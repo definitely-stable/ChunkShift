@@ -56,18 +56,32 @@ class PatchEnc005PairedTests(unittest.TestCase):
                 "linux-x64",
             )
 
-    def test_ci_binding_requires_checked_out_commit(self):
-        previous = os.environ.get("GITHUB_SHA")
+    def test_ci_binding_requires_commit_first_attempt_and_run_number(self):
+        names = ("GITHUB_SHA", "GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ATTEMPT")
+        previous = {name: os.environ.get(name) for name in names}
+        commit = "a" * 40
+        run_id = f"PATCH-ENC-005/RUN-20261001-007-{commit}-linux-x64"
         try:
-            os.environ["GITHUB_SHA"] = "a" * 40
-            MODULE.validate_ci_binding("a" * 40)
+            os.environ["GITHUB_SHA"] = commit
+            os.environ["GITHUB_RUN_ID"] = "123456"
+            os.environ["GITHUB_RUN_NUMBER"] = "7"
+            os.environ["GITHUB_RUN_ATTEMPT"] = "1"
+            MODULE.validate_ci_binding(commit, run_id)
             with self.assertRaises(ValueError):
-                MODULE.validate_ci_binding("b" * 40)
+                MODULE.validate_ci_binding("b" * 40, run_id)
+            os.environ["GITHUB_RUN_ATTEMPT"] = "2"
+            with self.assertRaises(ValueError):
+                MODULE.validate_ci_binding(commit, run_id)
+            os.environ["GITHUB_RUN_ATTEMPT"] = "1"
+            os.environ["GITHUB_RUN_NUMBER"] = "8"
+            with self.assertRaises(ValueError):
+                MODULE.validate_ci_binding(commit, run_id)
         finally:
-            if previous is None:
-                os.environ.pop("GITHUB_SHA", None)
-            else:
-                os.environ["GITHUB_SHA"] = previous
+            for name, value in previous.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
 
     def test_retry_predecessor_must_match_identity(self):
         commit = "a" * 40

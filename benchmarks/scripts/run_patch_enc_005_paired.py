@@ -100,12 +100,26 @@ def validate_run_identity(run_id: str, source_commit: str, platform: str) -> Non
         raise ValueError("--run-id commit/platform must match source/platform arguments")
 
 
-def validate_ci_binding(source_commit: str) -> None:
+def validate_ci_binding(source_commit: str, run_id: str) -> None:
     checked_out = os.environ.get("GITHUB_SHA")
-    if not checked_out:
-        raise ValueError("decision evidence requires GITHUB_SHA binding")
+    github_run_id = os.environ.get("GITHUB_RUN_ID")
+    github_run_number = os.environ.get("GITHUB_RUN_NUMBER")
+    github_run_attempt = os.environ.get("GITHUB_RUN_ATTEMPT")
+    if not checked_out or not github_run_id or not github_run_number or not github_run_attempt:
+        raise ValueError("decision evidence requires GitHub Actions run binding")
     if checked_out.lower() != source_commit:
         raise ValueError("--source-commit does not match GITHUB_SHA")
+    if github_run_attempt != "1":
+        raise ValueError("decision evidence rejects GitHub workflow re-run attempts")
+    try:
+        run_number = int(github_run_number)
+    except ValueError as error:
+        raise ValueError("GITHUB_RUN_NUMBER must be an integer") from error
+    if run_number < 0 or run_number > 999:
+        raise ValueError("PATCH-ENC-005 NNN binding requires GITHUB_RUN_NUMBER <= 999")
+    match = RUN_ID_RE.fullmatch(run_id)
+    if match is None or match.group(2) != f"{run_number:03d}":
+        raise ValueError("RunId NNN must equal zero-padded GITHUB_RUN_NUMBER")
 
 
 def patch_sha_map(result: dict) -> dict[tuple[str, str, str, str], str]:
@@ -403,6 +417,9 @@ def run_dispatch(
         "platform": args.platform,
         "datasetRole": args.dataset_role,
         "datasetSha256": FROZEN_DATASET_SHA256,
+        "githubRunId": os.environ["GITHUB_RUN_ID"],
+        "githubRunNumber": os.environ["GITHUB_RUN_NUMBER"],
+        "githubRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
         "rounds": rounds,
         "summaries": summaries,
         "valid": not invalid,
@@ -551,6 +568,9 @@ def validate_prior_dispatch(args: argparse.Namespace, document: dict) -> None:
         ("platform", args.platform),
         ("datasetRole", args.dataset_role),
         ("datasetSha256", FROZEN_DATASET_SHA256),
+        ("githubRunId", os.environ.get("GITHUB_RUN_ID")),
+        ("githubRunNumber", os.environ.get("GITHUB_RUN_NUMBER")),
+        ("githubRunAttempt", os.environ.get("GITHUB_RUN_ATTEMPT")),
     ):
         if document.get(field) != expected:
             raise ValueError(f"retry predecessor {field} mismatch")
@@ -600,7 +620,7 @@ def main() -> int:
     try:
         validate_development_families(args.dataset_role, args.families)
         validate_run_identity(args.run_id, args.source_commit, args.platform)
-        validate_ci_binding(args.source_commit)
+        validate_ci_binding(args.source_commit, args.run_id)
     except ValueError as error:
         parser.error(str(error))
 
@@ -630,6 +650,9 @@ def main() -> int:
             "platform": args.platform,
             "datasetRole": args.dataset_role,
             "datasetSha256": FROZEN_DATASET_SHA256,
+            "githubRunId": os.environ["GITHUB_RUN_ID"],
+            "githubRunNumber": os.environ["GITHUB_RUN_NUMBER"],
+            "githubRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
             "skipped": True,
             "reason": "attempt-1-valid",
         }
