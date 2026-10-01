@@ -1,195 +1,490 @@
 # PATCH-GAP-001 protocol: decompose the remaining CSP size gap
 
-Status: **DRAFT — informative study; freeze before decision-bearing runs.**  
+Status: **FREEZE-READY DRAFT — review and merge this protocol before any decision-bearing run.**  
 Issue: [#183](https://github.com/definitely-stable/ChunkShift/issues/183) · Parent: [#7](https://github.com/definitely-stable/ChunkShift/issues/7)  
-ExperimentId: `PATCH-GAP-001`  
-Baseline commit for protocol work: `e967aeb6d4d467e94c5ac20f85e70ba0035d998d`  
-Related candidate-policy protocol: PR #216 / `PATCH-ENC-005`.
+ExperimentId: PATCH-GAP-001  
+Protocol baseline commit: e967aeb6d4d467e94c5ac20f85e70ba0035d998d  
+Related candidate-policy protocol: [PR #216](https://github.com/definitely-stable/ChunkShift/pull/216) / PATCH-ENC-005.  
+Tree/update-set research is owned by [#184](https://github.com/definitely-stable/ChunkShift/issues/184), not this experiment.
 
-## 1. Question
+## 1. Question and decision boundary
 
-Where does the remaining patch-size gap between CSP v1 and byte-level/reference delta tools come from, and which factor — if any — is large enough to justify a future CSP revision?
+PATCH-GAP-001 asks one question: **which independently testable cause explains the remaining size gap of the current per-file CSP encoder, and by how much?**
 
-This experiment is **informative**. It does not change CSP v1 or production defaults.
+It is an informative decomposition study. It does not change CSP v1, CspEncoderPolicy.Default, the production applier, a public API, or D15. A positive result can justify a later RFC or a more focused experiment; it does not adopt a format or encoder change here.
 
-The current measured reference point from PATCH-PREFREEZE-001 is approximately:
+The five named factors are:
 
-- CSP encoding 1: 38.56 MiB;
-- zstd `--patch-from`: 28.90 MiB;
-- bsdiff: 20.64 MiB;
+- G1 — dictionary/history budget;
+- G2 — dictionary candidate choice;
+- G3 — frame granularity;
+- G4 — executable normalization;
+- G5 — already-compressed containers/streams.
 
-over the frozen changed-file corpus. This protocol must verify the exact baseline dataset/fingerprint it uses rather than relying on rounded historical numbers.
+A primary PATCH-GAP-001 lane changes **one** factor. Any combined lane is a later interaction study with a different ExperimentId and evidence identity. No interaction result may be substituted for an individual-factor result.
 
-## 2. Independence and shared ownership
+Two corrections to the original #183 sketch are part of this freeze:
 
-PATCH-GAP-001 owns decomposition of the size gap.
+1. 32 MiB with only 64 stable-profile chunks cannot exercise a 32 MiB dictionary: the stable profile has a 256 KiB maximum chunk, so 64 chunks can supply at most 16 MiB. G1 therefore freezes an independent 128-reference research cap.
+2. Whole-file Zucchini and Puffin/PUFFDIFF are reference/attribution lanes, not automatically one-factor CSP counterfactuals. Their patch algorithms change more than one CSP property. They cannot directly satisfy the RFC gate unless a separate, CSP-costed reversible normalization lane is defined.
 
-It does **not** own production candidate-selection semantics.
+## 2. Frozen production baseline
 
-`PATCH-ENC-005` (#181, protocol PR #216) owns candidate ranking, resemblance/sketch retrieval and any production-real candidate trace.
+### 2.1 Production policy on the protocol baseline
 
-For factor G2, this study must consume:
+The source of truth is main at e967aeb6d4d467e94c5ac20f85e70ba0035d998d, not rounded PATCH-PREFREEZE numbers.
 
-- the shared candidate trace;
-- a clearly defined oracle upper bound;
-- H5/H6 results when available;
+CspEncoderPolicy.Default is:
 
-rather than implementing a second independent resemblance selector.
+| property | value |
+| --- | ---: |
+| zstd level | 19 |
+| dictionary chunks K | 4 contiguous base chunks |
+| maximum candidate starts C | 8 |
+| search radius | 262,144 bytes (256 KiB) |
+| dictionary load | raw prefix |
+| dictionary hash-log cap | 20 |
+| dictionary chain-log cap | 20 |
 
-This lets G2 answer "how many bytes are lost because of candidate choice?" while #181 answers "which selector should production use?"
+Candidate starts are the nearest base-record offsets inside ±262,144 bytes of the target offset, lower base index first on an equal-distance tie, capped at eight. A production dictionary is the K contiguous records beginning at that start, truncated only by end-of-base; the candidate is skipped if their total exceeds 1,048,576 bytes.
 
-## 3. Factors
+The stored-form choice is the strict minimum of:
 
-Each factor is relaxed **one at a time** against the same baseline unless a later explicitly named interaction study is added.
+1. raw target chunk bytes;
+2. one zstd frame without a dictionary;
+3. one zstd frame for each legal dictionary candidate plus 32 × DictionaryCount bytes of dictionary-reference cost.
 
-### G1 — dictionary budget
+Strict less-than comparisons mean ties stay with the earlier form: raw first, then no-dictionary zstd, then the first equal-cost dictionary candidate.
 
-Relax the CSP-v1-sized dictionary budget in the research harness:
+### 2.2 Production create topology
 
-- current 1 MiB / K=4 baseline;
-- candidate budgets such as 4, 8 and 32 MiB;
-- up to a pre-frozen chunk-count limit.
+PATCH-ENC-004 is already adopted on this baseline. CspCreateExecution.Default is H2-W2 when at least two processors are available and sequential on a one-processor machine:
 
-Record both byte recovery and the apply-side memory/base-read cost implied by the larger dictionary.
+- two encode workers;
+- shared base stream, serialized seek/read critical section;
+- no base-candidate cache;
+- four in-flight entries and 4 MiB window bytes per worker.
 
-This is an upper-bound study, not a production-format proposal.
+Changing worker topology is not a GAP factor. Byte lanes must be byte-identical to the production H2-W2 baseline; runtime comparisons use the same production topology unless the lane is explicitly an external reference tool.
 
-### G2 — candidate choice
+### 2.3 CSP framing and normative costs
 
-Measure:
+CSP v1 encoding 1 is one independent RFC 8878 zstd frame per distinct missing target ChunkId. Its decoded content is exactly one target chunk. Normative limits are:
 
-1. current offset-radius selection;
-2. the PATCH-ENC-005 oracle upper bound;
-3. production-real resemblance candidates from H5/H6 when available.
+- DictionaryCount 0..4;
+- total dictionary bytes ≤ 1,048,576;
+- zstd window ≤ 1,048,576;
+- output exactly target chunk length;
+- PAYL entry header = 40 bytes;
+- dictionary reference = 32 bytes each;
+- PIDX entry = 24 bytes.
 
-Do not fork candidate semantics in this experiment.
+The stable chunking profile is fastcdc.gear.chunkshift.v1.64k: minimum 16 KiB, target 64 KiB, maximum 256 KiB.
 
-### G3 — frame granularity
+### 2.4 Exact baseline evidence anchor
 
-Compare:
+The current policy's frozen-corpus byte anchor is not 38.56 MiB. PATCH-ENC-003 measured:
 
-- one independent frame per missing chunk (CSP v1);
-- one frame per run of adjacent missing chunks;
-- a whole-file/reference-frame extreme comparable to `zstd --patch-from`.
+- calibration: **11,860,274 bytes**;
+- holdout: **26,363,364 bytes**;
+- total: **38,223,638 bytes**.
 
-The study must keep target reconstruction verifiable and record what independence/random-access properties are lost by each relaxation.
+PATCH-ENC-004 subsequently proved every execution topology, including H2-W2, byte-identical for all 1,893 files. Its whole-corpus patch-set SHA-256 is:
 
-### G4 — executable normalization
+4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6
 
-On a clearly identified PE/ELF subset, measure BCJ-style branch normalization and Zucchini-style reference normalization.
+Every GAP decision dataset must regenerate an H0 control from the production builder and record exact per-file bytes. For this protocol baseline, a different total or patch-set digest is an invalid baseline unless the evidence record names and justifies a later production-code baseline under a new protocol revision. Historical rounded numbers are descriptive only.
 
-Report:
+## 3. Corpus, split and no-peeking rule
 
-- affected corpus bytes/files;
-- patch-byte recovery;
-- tool/filter coverage by architecture/format;
-- create/apply cost where measurable.
+Use the existing frozen PATCH corpus and no other inputs for the primary decision:
 
-Do not generalize PE/ELF results to the full corpus.
+- pairsSha256: 8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd;
+- corpus manifest SHA-256: 0e0ba2f1d0a0f7a27690f88a55cd045008a1ea71277b04680775e4c6ee3c028f;
+- source-assets SHA-256: 3ae2e55108051700a07425896e01b1703683cd896ed4f54e4a6c652fe55bda3e;
+- 12 version pairs, 1,893 changed files, 857,713,581 changed target bytes.
 
-### G5 — compressed containers
+Calibration is the frozen .NET ASP.NET Core Windows x64 plus .NET Runtime Linux ARM64 families. Holdout is the frozen Node Windows x64, Node Linux x64, tzdata and ChunkShift-source families. Family membership cannot move after results are known.
 
-Classify target bytes/files that live inside already-compressed containers/streams, including relevant zip/nupkg/deflate cases.
+All threshold selection, lane pruning and optional parameter choice happens on calibration only. Holdout is opened once to confirm the already-frozen choice. A failed holdout confirmation is a negative result, not a reason to retune.
 
-Measure a deflate-aware upper/reference lane where reproducible tooling is available (e.g. Puffin-style reasoning), and report the fraction of the corpus to which it applies.
+G4 and G5 use deterministic subset classifiers frozen below. Each run writes the sorted subset manifest and its SHA-256 **before invoking the factor/reference codec**. Subset membership may depend on file structure or parser support, but never on resulting patch size. Calibration and holdout subset fingerprints are recorded separately.
 
-## 4. Reference tools
+## 4. Common cost model and metrics
 
-Pin exact versions/build identities and documented modes before final runs.
+Let B_CSP(S) be the sum of exact production CSP bytes over split S and B_F(S) the whole-split bytes of factor lane F. For a subset factor, files outside its predeclared eligible subset contribute their production CSP bytes unchanged. Therefore subset results are never extrapolated to the rest of the corpus.
 
-At minimum evaluate or justify exclusion of:
+Every lane records, where meaningful:
 
-- zstd `--patch-from`;
-- bsdiff;
-- xdelta3;
-- HDiffPatch / `hdiffz` stream and memory modes;
-- Zucchini on the supported executable subset.
+- per-file bytes and aggregate bytes;
+- reduction_vs_csp;
+- gap_recovered(reference) for each explicitly named reference;
+- create wall time and process CPU time;
+- decode/apply wall time and process CPU time;
+- peak RSS over the same idle/process convention used by Patching evidence;
+- base bytes read and base_read_amplification = factor_base_bytes_read / CSP_base_bytes_read;
+- eligible/affected file count, target bytes and unique-missing bytes;
+- exact reconstruction result and target SHA-256;
+- the exact property/cost relaxed by the lane.
 
-Reference tools are comparison evidence, not implementation dependencies.
+Per-file aggregation is authoritative. A single large file cannot be hidden behind family averages.
 
-## 5. Corpus and split
+## 5. G1 — dictionary/history budget
 
-Use the frozen patch corpus and its calibration/holdout split.
+### 5.1 Question
 
-Record:
+How much size is lost because the current entry can name only four base chunks / 1 MiB of dictionary history, before changing candidate-start selection?
 
-- corpus lock digest;
-- materialization/source provenance;
-- per-tool input fingerprint;
-- subset fingerprints for G4/G5.
+G1 keeps the production candidate-start set: at most eight starts inside ±256 KiB, in the exact production order. It does not use the G2 oracle, H5 or H6.
 
-Factors are explored/tuned on calibration. Holdout is used to confirm whether a recovered-byte effect generalizes.
+### 5.2 Frozen G1 lanes
 
-## 6. Metrics
+| lane | max refs | byte budget | zstd window cap | purpose |
+| --- | ---: | ---: | ---: | --- |
+| G1-H0 | 4 | 1,048,576 | 1,048,576 | exact production control |
+| G1-R128-B1 | 128 | 1,048,576 | 1,048,576 | isolate the 4-reference ceiling at the current byte/window budget |
+| G1-R128-B4 | 128 | 4,194,304 | 8,388,608 (windowLog=23) | 4 MiB history envelope |
+| G1-R128-B8 | 128 | 8,388,608 | 16,777,216 (windowLog=24) | 8 MiB history envelope |
+| G1-R128-B32 | 128 | 33,554,432 | 67,108,864 (windowLog=26) | 32 MiB history envelope |
 
-For every factor/lane where applicable:
+For every research lane after H0, a candidate starts at the same production start and appends consecutive base chunks until end-of-base, 128 references, or adding the next chunk would exceed the byte budget. It never skips to a non-contiguous chunk.
 
-- patch/delta bytes;
-- bytes recovered vs CSP baseline;
-- percentage of the CSP-to-reference gap recovered;
-- create wall/CPU time;
-- apply/decode wall/CPU time;
-- peak RSS / declared memory requirement;
-- base bytes read / amplification;
-- affected bytes/files for subset-only factors;
-- exact target reconstruction.
+The stable-profile maximum chunk is 262,144 bytes, so 128 references are sufficient to make the 32 MiB byte budget reachable. Keeping only 64 references would cap the possible dictionary at 16 MiB and make the proposed 32 MiB lane partly fictitious.
 
-For G1/G2/G3, explicitly state the apply-side cost and which CSP-v1 property is being relaxed.
+For B4/B8/B32, the window is the smallest power-of-two window that can keep the entire maximum dictionary plus one maximum-size 256 KiB target chunk addressable. The larger window is therefore an explicit part of the G1 **dictionary/history envelope** relaxation, not a hidden second factor. G1-R128-B1 deliberately keeps the v1 1 MiB window.
 
-## 7. Draft interpretation rule
+### 5.3 Costing and representability
 
-This experiment does not directly ADOPT a production change.
+Each dictionary reference still costs exactly 32 bytes in the research score. No oracle gets free references. Thus a 128-reference dictionary is charged up to 4,096 bytes of reference metadata per entry.
 
-A factor is **RFC-worthy** only when, on holdout:
+For every candidate, record dictionary bytes/reference count, compressed-frame bytes, reference-cost bytes, zstd window, base bytes/reads, create/apply peak RSS, winning candidate start and stored form.
 
-- it recovers at least 15% of CSP bytes relative to the current production baseline (or the protocol freezes an equivalent exact definition before runs);
-- its apply-side memory/cost remains explicitly bounded;
-- the result is not explained only by an unrepresentative subset;
-- the semantic/format property being relaxed is clearly identified.
+G1 is an upper-bound experiment. Any result beyond H0 cannot be emitted as CSP v1 because it may exceed the v1 4-reference, 1 MiB dictionary and/or 1 MiB window maxima. A future format could map the concept to named base chunks only by an explicit format revision with new normative bounds. No such revision is proposed here.
 
-Otherwise record the negative result and keep CSP v1 unchanged.
+## 6. G2 — candidate choice, owned by PATCH-ENC-005
 
-The final protocol must define exactly whether "15%" means reduction from CSP bytes or fraction of the gap to a named reference; do not leave both interpretations possible.
+### 6.1 Boundary
 
-## 8. Run strategy
+PATCH-GAP-001 does **not** implement Finesse, Odess, Gear-derived retrieval, a new similarity index, or another selector. #181 / PR #216 owns selector semantics and production-real H5/H6 work.
 
-Before freeze, define:
+G2 answers: **how many bytes would disappear if the dictionary were chosen better under today's K=4 / 1 MiB / one-frame-per-chunk CSP envelope?**
 
-- which factors require only one Linux byte-count lane;
-- which require timing on linux-x64/linux-arm64/win-x64;
-- tool pinning and artifact retention;
-- sample/repetition strategy for timing;
-- how external-tool failures/unsupported files are classified;
-- compact per-file result format and raw-artifact digest manifest.
+### 6.2 Required lanes
 
-Do not use expiring CI artifacts as the only durable decision record.
+- G2-H0: production choice from the shared trace.
+- G2-ORACLE: research-only whole-base upper bound owned/frozen with PATCH-ENC-005. It enumerates every base-record start, constructs the same production K=4 contiguous dictionary, rejects candidates above 1 MiB exactly as production does, uses the same L19/raw-prefix/H20/C20 encoder and the same 32-byte/reference cost, and chooses by the production strict-cost/tie semantics. Only the start search is relaxed.
+- G2-H5 and G2-H6: later production-real results from #181, consumed only when those lanes exist under the same trace contract.
 
-## 9. Interaction policy
+The oracle is not a production selector and is not allowed to become one implicitly.
 
-The primary experiment changes one factor at a time.
+### 6.3 Shared trace contract
 
-Only after individual-factor results exist may a named interaction run combine winners (for example candidate choice + larger dictionary). Such a run must have a separate recorded identity and cannot silently replace the one-factor decomposition.
+The shared candidate trace must be schema-versioned and fingerprinted. GAP requires, per distinct missing target identity:
 
-## 10. Non-goals
+- corpus family, version pair, split, normalized path;
+- target ChunkId, first target record index, target offset and length;
+- H0 stored form, frame/stored bytes, total entry cost, chosen dictionary chunk IDs, dictionary start offset and reference count;
+- oracle equivalent fields;
+- when present, H5/H6 equivalent selected fields;
+- candidate source (offset, sketch, gear, or combinations defined by #216);
+- ranking/cheap score when applicable;
+- low-level trial result and L19 result where the selector used them;
+- candidate count, total trials and L19 trials;
+- selected winner and final stored bytes.
 
-- no CSP v1 change in this PR/experiment;
-- no production encoder change;
-- no second resemblance/sketch implementation;
-- no instruction VM;
+The trace header records schema ID, ExperimentId/RunId, source commit, policy fingerprint, corpus pairsSha256, and trace SHA-256. If GAP needs another selector-derived field, that field is added to the shared trace contract in #216; #217 does not reconstruct the selector from payloads.
+
+G2-ORACLE can run only after #216 freezes this oracle and trace schema. G2-H5/H6 wait for their production-real evidence. G1, G3, G4 and G5 do not wait for H5/H6.
+
+## 7. G3 — frame granularity
+
+### 7.1 Why zstd --patch-from is not the G3 lane
+
+Whole-file zstd --patch-from changes dictionary scope, candidate choice and frame granularity simultaneously. It remains an external reference, but cannot be counted as the isolated G3 result.
+
+G3 instead uses a conservative counterfactual cost model that changes grouping of CSP payload bytes while holding candidate generation and dictionary budget fixed.
+
+### 7.2 Frozen G3 lanes
+
+- G3-H0 — exact production CSP: one independent stored form per distinct missing target chunk.
+- G3-RUN — one zstd frame for each maximal run of payload-bearing first-occurrence missing target records that are consecutive in manifest index and physically adjacent in target content. A base-reused record, duplicate already-supplied ChunkId, or discontinuity ends the run.
+- G3-FILE — one zstd frame for the ordered sequence of all payload-bearing first-occurrence missing chunks of a changed file. This is the strongest within-file framing extreme; it is **not** whole-target --patch-from.
+
+For RUN/FILE, input bytes are the concatenation of the group's original target chunks in first-target-record order. The group uses only the dictionary that H0 selected for the group's first payload entry; if H0 selected raw or no-dictionary zstd there is no base dictionary. No group-level candidate search, larger dictionary or whole-base oracle is allowed. The zstd window remains capped at 1 MiB.
+
+This anchor rule is intentionally conservative: later chunks lose their independent H0 dictionary changes. That loss is part of the measured cost of sharing one frame; it must not be repaired by silently importing G1/G2.
+
+### 7.3 Exact synthetic physical-byte formula
+
+G3 does not invent a new CSP file format. It keeps all non-payload CSP bytes and every existing 40-byte PAYL entry / PIDX cost unchanged, then replaces only stored frame bytes and dictionary-reference bytes:
+
+B_G3 = B_CSP - sum(entryStoredBytes + 32 × entryDictRefs) + sum(groupFrameBytes + 32 × anchorDictRefs)
+
+This is conservative because it grants no hypothetical savings from deleting per-entry headers or PIDX entries. The compact dataset records every term so the total can be independently recomputed.
+
+The reconstruction oracle decodes each group, splits decoded bytes by the known target chunk lengths, verifies every target ChunkId, and reconstructs the complete target file for SHA-256 equality.
+
+### 7.4 Lost properties
+
+| property | H0 | G3-RUN | G3-FILE |
+| --- | --- | --- | --- |
+| independent target-chunk verification | yes | no, group scope | no, file-payload scope |
+| dictionary locality/change per chunk | yes | only group anchor | only file anchor |
+| random payload access | chunk | run | file payload |
+| failure isolation | chunk | run | file payload |
+| parallel decode/apply | many entries | fewer runs | at most one frame/file |
+| bounded decoder history | 1 MiB | 1 MiB | 1 MiB |
+| CSP declarative codec model | current v1 | conceptually retainable, format revision required | conceptually retainable, format revision required |
+
+A group decoder must be streamable and hash chunks as they emerge; it may not allocate the complete group merely because the research frame is larger than one chunk.
+
+## 8. G4 — executable normalization
+
+### 8.1 Predeclared subset
+
+G4 membership is based on bytes, not filename extensions. Both base and target must parse as the same supported executable family/architecture before any patch result is produced:
+
+- PE/COFF x86 (Machine=0x014c) or x86-64 (0x8664);
+- ELF x86 (EM_386=3), x86-64 (EM_X86_64=62) or AArch64 (EM_AARCH64=183).
+
+Mach-O is excluded because the frozen corpus has no macOS family. Adding Mach-O requires a new corpus/protocol revision; it cannot be added after seeing G4 results.
+
+The subset manifest records parser result, architecture, target bytes and unique-missing bytes for every pair. Unsupported/malformed inputs are explicit rows, never silent skips.
+
+### 8.2 G4-BCJ counterfactual lane
+
+The gate-eligible normalization lane uses reversible BCJ transforms from XZ Utils 5.8.1 / liblzma, pinned to commit a522a226545730551f7e7c2685fab27cf567746c:
+
+- x86 BCJ for PE/ELF x86 and x86-64;
+- ARM64 BCJ for ELF AArch64.
+
+A research-only driver invokes the low-level reversible BCJ transform with the original file offset as start position. For every eligible distinct missing chunk it normalizes the target bytes and each of that entry's **same H0 candidate dictionaries**, then runs the same L19/raw-prefix/H20/C20 choice and 32-byte/reference cost. Candidate starts, K=4, C=8, 256 KiB radius, 1 MiB dictionary and 1 MiB zstd window do not change.
+
+Apply is the exact inverse: verify/read the named base chunks, apply the same BCJ normalization to dictionary bytes, zstd-decode the normalized target chunk, inverse-BCJ at target file offset, then verify the original target ChunkId. A lane is invalid on any non-exact reconstruction.
+
+This is a research codec counterfactual, not a production dependency or CSP v1 encoding.
+
+### 8.3 Zucchini reference lane
+
+Zucchini is a whole-file executable-aware reference, not the G4 RFC gate. Pin Chromium Zucchini source commit 667ffb4e19970939936af2e7a169175ae4c1da5b and record the built executable SHA-256 plus full Chromium/build provenance. Use:
+
+    zucchini -gen OLD NEW PATCH
+    zucchini -apply OLD PATCH RECONSTRUCTED
+
+Do not use -raw: the purpose is executable reference normalization. Apply must reproduce target SHA-256. Before the size run, parser support is probed on both base and target; a parser rejection is unsupported, not zero bytes and not a failed experiment.
+
+Zucchini's documented model recognizes PE, ELF and DEX and executable architectures including x86/x64/ARM/AArch64; only the predeclared PE/ELF corpus subset above contributes here. Report Zucchini bytes next to generic references on the **same subset**. Do not extrapolate its subset ratio to the whole corpus.
+
+## 9. G5 — already-compressed containers and deflate streams
+
+### 9.1 Classification before measurement
+
+G5 has a structure inventory and a reference attribution lane. The classifier is deterministic and runs before Puffin/bsdiff size output.
+
+Classify by bytes, not extension alone:
+
+- ZIP-compatible container, including .zip and .nupkg only when structurally ZIP;
+- gzip;
+- zlib/raw deflate extent when deterministically detectable by the pinned Puffin scanner;
+- other already-compressed payload, recorded as compressed-other and not force-fed to Puffin;
+- not compressed/unknown.
+
+For ZIP-compatible pairs, match members by raw member name plus duplicate-name ordinal and record separately:
+
+1. metadata-only/container-layout change — uncompressed bytes and compressed payload match while surrounding metadata/layout differs;
+2. recompressed member — uncompressed member SHA-256 matches but deflate bytes differ;
+3. changed compressed member — both versions exist but uncompressed bytes differ;
+4. genuinely new compressed payload/member — no matched base member.
+
+These categories are reported as target bytes and, where the CSP trace maps them exactly, unique-missing bytes. Ambiguous or unsupported members remain explicit.
+
+### 9.2 Puffin / PUFFDIFF reference lane
+
+Pin AOSP Puffin at Android 17.0.0_r1, commit 343e23db1b4d81045e91a10244244893f5acd73b. Record the built puffin binary SHA-256, compiler/build identity and exact command/help output in the tool manifest.
+
+Puffin is a deterministic deflate recompressor: it transforms deflate streams to a puff representation, uses a binary diff, then deterministically reconstructs the original deflate stream. Therefore its whole-file patch is useful evidence for deflate-instability headroom, but it is not a CSP-v1-compatible one-factor encoding.
+
+Run Puffin only on the predeclared supported G5 subset, verify reconstruction by target SHA-256, and compare against **bsdiff4 on the identical subset**. The descriptive deflate-attribution delta is:
+
+puffin_gain_over_bsdiff = B_bsdiff_same_subset - B_puffin_same_subset
+
+Also report CSP, zstd-patch-from and other references on exactly that subset. No Puffin result directly passes the 15% RFC gate. A large G5 result opens a separately identified follow-up experiment that must define a CSP-costed, bounded reversible container/stream codec before an RFC can be considered.
+
+## 10. Frozen reference tools and modes
+
+Every executable/package is pinned by immutable version/tag/commit and is also hashed at execution time. latest is forbidden. The compact evidence keeps both upstream identity and exact local binary/package SHA-256.
+
+| reference | frozen identity | frozen mode |
+| --- | --- | --- |
+| CSP H0 | ChunkShift e967aeb6d4d467e94c5ac20f85e70ba0035d998d; production policy in §2 | production builder, H2-W2 when ≥2 CPUs |
+| zstd patch-from | zstd v1.5.7, commit f8745da6ff1ad1e7bab384bd1f9d742439278e99 | zstd -19 --long=31 -q --patch-from=OLD NEW -o PATCH; decode zstd -d --long=31 -q --patch-from=OLD PATCH -o NEW |
+| bsdiff | Python bsdiff4==1.2.6; source distribution SHA-256 2ab57d01a78b39e29e5accc9cfead4130982ded9dccbc4261bd0e9c51d6b751d | bsdiff4.diff(base,target) / bsdiff4.patch(base,patch); installed artifact SHA-256 recorded |
+| xdelta3 modern | xdelta v3.2.0, commit ff322e592383227b0d65ddfde7e0e5bbc504dc15 | xdelta3 -e -9 -f -s OLD NEW PATCH; inverse -d -f -s OLD |
+| xdelta3 legacy continuity | xdelta3 v3.0.11, commit 81aebf78ae67c29f528088d65743643e5355e3d3 | same mode; descriptive continuity with PATCH-PREFREEZE only |
+| HDiffPatch memory | v5.1.3, commit 3b9dca715ca492873bf2c49e22e5d5b7d2a78620 | hdiffz -m-4 -SD -d -f -p-1 -c-zstd-21-24 OLD NEW PATCH |
+| HDiffPatch stream | same v5.1.3 | hdiffz -s-64 -SD -d -f -p-1 -c-zstd-21-24 OLD NEW PATCH |
+| Zucchini | Chromium component commit 667ffb4e19970939936af2e7a169175ae4c1da5b | -gen / -apply, executable-aware mode, supported G4 subset only |
+| XZ BCJ | XZ Utils v5.8.1, commit a522a226545730551f7e7c2685fab27cf567746c | research-only low-level x86/ARM64 reversible transform; no .xz container |
+| Puffin | Android 17.0.0_r1 / 343e23db1b4d81045e91a10244244893f5acd73b | pinned diff/patch operation on supported G5 subset; exact CLI captured from built binary before measurement |
+
+HDiffPatch has two deliberately separate lanes. The memory lane uses the documented all-in-memory matcher for ratio-oriented evidence. The -s-64 lane is the streaming/bounded-memory comparator. Both use the same single-compressed-diff format, one thread and identical zstd compressor settings, so the comparison does not silently change compressor or parallelism. HDiffPatch v5.1.3 release archives publish these SHA-256 values: Linux x64 628963bf2ee9108a97260fa5eef44acd9ec94369b76090a957c9182b3abbb558; Linux ARM64 03e404e16d06479deaba645a09ed5c06636778b083b82bc7fc932ba34425430b; Windows x64 77f141386e5d8f785c1c846e10fbbc19b6c05aa00e3f59cc44670fb3f0e2ae94.
+
+The modern xdelta 3.2.0 lane replaces 3.0.11 as the current reference. The 3.0.11 lane remains only to connect new results to PATCH-PREFREEZE evidence; it cannot be used to claim that the current xdelta implementation was measured.
+
+Tool failures are tool-error; structurally unsupported inputs are unsupported. Neither becomes zero bytes. A reference aggregate over a subset names its exact denominator and subset SHA-256.
+
+## 11. The only RFC decision formula
+
+The issue wording "recovers >=15% of CSP bytes on holdout" is frozen literally as reduction from current production CSP bytes, not as a fraction of an external-tool gap.
+
+For factor F on holdout H:
+
+**reduction_vs_csp(F,H) = (B_CSP(H) - B_F(H)) / B_CSP(H)**
+
+The RFC size gate is:
+
+**reduction_vs_csp(F,H) >= 0.15**
+
+For a subset factor, B_F(H) includes factor bytes on the frozen eligible subset and unchanged H0 CSP bytes on every ineligible holdout file. Therefore a 30% win on 10% of holdout does not become a 30% corpus claim.
+
+The following is **descriptive only**, never a gate:
+
+gap_recovered(F,R,H) = (B_CSP(H) - B_F(H)) / (B_CSP(H) - B_R(H))
+
+It is reported only when named reference R is evaluated on the same population and the denominator is positive. Always name R. Values above 100% are possible and reported as-is; that is one reason this metric is unsuitable for the RFC threshold.
+
+A gate-eligible factor must additionally reconstruct every target exactly, have an explicit measured or analytically enforced apply-memory bound, report base-read amplification and lost properties, and be a one-factor CSP-costed counterfactual rather than merely a whole-file reference algorithm.
+
+Passing does **not** adopt anything. It means the factor is large enough to justify a separate RFC/design issue. G5-Puffin and G4-Zucchini are reference/attribution evidence and cannot pass this gate directly.
+
+## 12. Run plan and timing
+
+### 12.1 Stage A — deterministic inventory and byte decomposition
+
+Run on **Linux x64 only** after this protocol is merged/frozen:
+
+- regenerate H0 and validate baseline totals/digest;
+- materialize G4/G5 subset manifests before codec output;
+- G1 byte lanes;
+- G2-ORACLE only when the shared #216 trace/oracle is frozen;
+- G3 byte lanes;
+- G4-BCJ byte lane plus Zucchini subset reference;
+- G5 classification plus Puffin subset reference;
+- whole-file reference tools.
+
+One platform is sufficient for deterministic byte counts when the exact tool binary/build is pinned. This avoids spending three-platform CI time to rediscover the same integer byte count.
+
+### 12.2 Stage B — runtime-sensitive implications
+
+A factor proceeds to production-implication timing only when a predeclared gate-eligible lane reaches reduction_vs_csp >= 0.15 on calibration and satisfies the non-size eligibility checks: exact reconstruction, explicit apply-memory bound and one-factor attribution.
+
+For factors with several ordered relaxation lanes, every frozen lane is measured on calibration, but the holdout/runtime candidate is selected without holdout access:
+
+- G1 chooses the smallest dictionary-budget lane in order B1, B4, B8, B32 that reaches 15%;
+- G3 chooses G3-RUN if it reaches 15%, otherwise G3-FILE if it reaches 15%;
+- G2 has one gate oracle lane;
+- G4 has one gate-eligible BCJ lane.
+
+If no lane reaches 15% on calibration, that factor has no RFC-gate holdout candidate; its negative calibration result remains evidence. The selected candidate is timed on linux-x64, linux-arm64 and win-x64.
+
+For CSP-counterfactual create/apply timing:
+
+- use the same production H2-W2 topology where ≥2 CPUs;
+- use 10 independent repetitions for short operations;
+- for whole-corpus expensive create lanes use five paired whole-corpus repetitions, alternating H0/F and retaining every sample;
+- report median, p50, p95 when at least 10 samples exist, min/max and sample count;
+- use one process per peak-RSS measurement and the existing Patching idle-baseline convention;
+- keep exact target verification outside the timed region where that does not change the measured operation; otherwise include it identically in both lanes and record that fact.
+
+External reference tools are timed on pinned Linux x64 primarily. They are not production dependencies, so three-platform timing is not required merely for symmetry. A second platform is required only when the tool itself changes format/algorithm by platform or cannot reproduce Linux output; divergence is a tool-specific limitation, not CSP evidence.
+
+### 12.3 Holdout ordering
+
+1. Tune/prune on calibration.
+2. Freeze the selected factor lane and all thresholds in the evidence-plan commit.
+3. Complete calibration runtime checks when required.
+4. Run holdout once for the frozen lane and H0.
+5. Apply the §11 formula without retuning.
+
+Exploratory smoke runs before protocol merge are not decision evidence and must carry exploratory in their evidence identity.
+
+## 13. Evidence durability and provenance
+
+A decision dataset is incomplete unless it leaves durable, recomputable evidence in the repository.
+
+Commit under docs/research/results/data/PATCH-GAP-001-<date>-<n>/ at minimum:
+
+- files.jsonl or equivalent compact per-file rows containing H0 and all included factor/reference byte metrics;
+- tools.json with tool name, exact version/tag/commit, build command, version output, source/archive SHA-256 and executable/package SHA-256;
+- inputs.json with repo commit, pairsSha256, corpus manifest/source-assets SHA-256 and materialized input SHA-256 values;
+- subsets/g4.json and subsets/g5.json, canonically sorted, plus calibration/holdout SHA-256 values;
+- artifacts.json with workflow run ID, artifact ID/name, raw artifact SHA-256, contained-file SHA-256/size and retention information;
+- reproduction commands/scripts;
+- a small evaluator that recomputes §11 and all published aggregates from the committed compact dataset.
+
+The compact per-file dataset must be sufficient to recompute the decision after CI raw artifacts expire. A 90-day Actions artifact may hold verbose logs/samples, but it may never be the only link between the evidence record and quoted numbers.
+
+Every raw result names its RunId, exact source commit, clean/dirty state, environment, framework/runtime, OS/architecture, processor count, command line, timestamps and sample count as required by docs/research/README.md.
+
+## 14. Prior-art interpretation
+
+The reference tools answer different questions and must not be collapsed into one leaderboard:
+
+- zstd --patch-from uses the previous file as a large dictionary and long-range matching; it bounds G1+G2+G3 together and is an external gap marker, not an isolated factor.
+- bsdiff and xdelta are generic byte-delta references. They show attainable whole-file delta size under different instruction/match models, not a drop-in CSP codec.
+- HDiffPatch's memory and stream modes explicitly trade matching precision, memory and speed. Comparing both with one compressor setting makes that trade visible instead of treating hdiffz as one number.
+- Zucchini models executable references/elements and is the executable-aware reference for G4; G4-BCJ is the cleaner per-chunk counterfactual.
+- Puffin neutralizes deflate bitstream instability before binary diff and reconstructs the exact original deflate stream. It is the G5 attribution reference; its whole-file diff is not evidence that CSP should embed Puffin.
+- OSTree static deltas are useful architectural prior art for content-aware delta generation. PATCH-GAP keeps that lesson at the measurement layer and does not import tree/update-set semantics from #184.
+
+The purpose of prior art here is causal attribution: identify which CSP constraint is expensive and whether headroom survives CSP's desired properties. It is not a catalog of delta algorithms.
+
+## 15. Interaction policy
+
+No primary lane combines G1..G5 changes. After every participating factor has an individual result, a combined study may be proposed under a new identity such as PATCH-GAP-INT-001 with its own protocol, because interactions are not additive: a larger dictionary can change candidate-choice value; broader frames can change dictionary value; normalization can change both.
+
+No combined result may retroactively change an individual factor's verdict.
+
+## 16. Non-goals
+
+- no CSP v1 production-format change;
+- no CspEncoderPolicy.Default change;
+- no production candidate selector in #217;
+- no new ChunkShift instruction VM;
+- no public tuning/API surface;
 - no Repository dependency;
-- no tree/update-set semantics (#184 owns that dimension).
+- no tree/update-set implementation or cross-file reference semantics (#184 owns that space);
+- no silent combination of factors;
+- no publication/release/default decision;
+- no decision-bearing run before this protocol is reviewed, frozen and merged.
 
-## 11. Freeze checklist
+## 17. Freeze checklist
 
-Before marking the protocol frozen:
+- [x] production baseline policy, K/C/radius, execution topology and exact byte anchor are recorded;
+- [x] corpus and split hashes are recorded;
+- [x] G1 byte/ref/window lanes and construction rule are exact;
+- [x] G2 ownership boundary, oracle semantics and shared trace fields are exact;
+- [x] G3 groups, cost formula and lost properties are exact;
+- [x] G4 supported formats/architectures, BCJ counterfactual and Zucchini reference are exact;
+- [x] G5 classifier and Puffin attribution semantics are exact;
+- [x] reference tools have immutable identities and fixed modes;
+- [x] the 15% RFC formula has one interpretation;
+- [x] subset membership is determined before size results and fingerprinted;
+- [x] deterministic-byte and runtime-sensitive platform requirements are separated;
+- [x] compact/raw evidence retention and SHA-256 lineage are mandatory;
+- [x] interaction studies require a separate identity;
+- [x] production/API/tree/update-set changes remain non-goals.
 
-- [ ] exact CSP baseline and corpus fingerprint are recorded;
-- [ ] each factor has exact parameters;
-- [ ] the G2 dependency on PATCH-ENC-005 trace/oracle is explicit and implementable;
-- [ ] reference tool versions/modes are pinned;
-- [ ] calibration/holdout and subset fingerprints are fixed;
-- [ ] "15% recovered" has one unambiguous formula;
-- [ ] apply-side bounds are defined;
-- [ ] timing/noise rules are defined where timing matters;
-- [ ] raw/compact evidence retention and SHA-256 manifests are defined;
-- [ ] interaction runs cannot contaminate one-factor conclusions.
+The remaining action before decision work is human freeze-review and merge of this protocol PR. The protocol itself authorizes no decision run while it remains a draft PR.
+
+## 18. Primary sources
+
+- CSP and prior ChunkShift evidence: docs/architecture/CSP-V1-CANDIDATE.md, docs/architecture/PATCHING-DECISIONS.md, docs/benchmarks/PATCH-PREFREEZE-PROTOCOL.md, PATCH-ENC-002/003/004 evidence and docs/research/README.md.
+- Zstandard v1.5.7: https://github.com/facebook/zstd/releases/tag/v1.5.7 and https://github.com/facebook/zstd/wiki/Zstandard-as-a-patching-engine.
+- Xdelta: https://github.com/jmacd/xdelta/releases/tag/v3.2.0; legacy continuity https://github.com/jmacd/xdelta-gpl/releases/tag/v3.0.11.
+- bsdiff4 1.2.6: https://pypi.org/project/bsdiff4/1.2.6/.
+- HDiffPatch v5.1.3: https://github.com/sisong/HDiffPatch/releases/tag/v5.1.3 and project CLI documentation.
+- XZ Utils BCJ: https://github.com/tukaani-project/xz/releases/tag/v5.8.1 and liblzma BCJ API documentation.
+- Chromium Zucchini: https://chromium.googlesource.com/chromium/src/components/zucchini/; pinned component commit 667ffb4e19970939936af2e7a169175ae4c1da5b.
+- AOSP Puffin: https://android.googlesource.com/platform/external/puffin/+/refs/tags/android-17.0.0_r1.
+- OSTree static deltas: https://ostreedev.github.io/ostree/man/ostree-static-delta.html.
