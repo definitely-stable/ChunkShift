@@ -555,7 +555,7 @@ internal static partial class CspPatchBuilder
                 noDictionaryFrameBytes,
                 best,
                 selectedOrdinal,
-                traceCandidates ?? [],
+                traceCandidates,
                 cheapTrials: 0,
                 expensiveTrials: 0,
                 traceSink);
@@ -654,7 +654,7 @@ internal static partial class CspPatchBuilder
             noDictionaryFrameBytes,
             best,
             selectedOrdinal,
-            traceCandidates ?? [],
+            traceCandidates,
             cheapTrials: 0,
             expensiveTrials,
             traceSink);
@@ -691,7 +691,8 @@ internal static partial class CspPatchBuilder
             best = new EntryChoice(CspFormat.EncodingZstd, buffers.KeepFrame(noDictionaryFrame), []);
         }
 
-        var traceCandidates = new List<CspCandidateTraceCandidate>();
+        List<CspCandidateTraceCandidate>? traceCandidates =
+            traceSink is null ? null : new List<CspCandidateTraceCandidate>();
         RankedCandidate? first = null;
         RankedCandidate? second = null;
         int cheapTrials = 0;
@@ -724,19 +725,22 @@ internal static partial class CspPatchBuilder
                 int cheapCost = cheapFrame.Length + (count * CspFormat.DictionaryReferenceSize);
                 cheapTrials++;
 
-                var row = new CspCandidateTraceCandidate
+                if (traceCandidates is not null)
                 {
-                    Ordinal = candidateOrdinal,
-                    StartIndex = start,
-                    StartOffset = baseRecords[start].Offset,
-                    RecordCount = count,
-                    FirstChunkId = baseRecords[start].ChunkId.ToString(),
-                    CheapLevel = 1,
-                    CheapFrameBytes = cheapFrame.Length,
-                    CheapCostBytes = cheapCost,
-                };
-                traceCandidates.Add(row);
-                var candidate = new RankedCandidate(candidateOrdinal, start, count, length, cheapCost, row);
+                    traceCandidates.Add(new CspCandidateTraceCandidate
+                    {
+                        Ordinal = candidateOrdinal,
+                        StartIndex = start,
+                        StartOffset = baseRecords[start].Offset,
+                        RecordCount = count,
+                        FirstChunkId = baseRecords[start].ChunkId.ToString(),
+                        CheapLevel = 1,
+                        CheapFrameBytes = cheapFrame.Length,
+                        CheapCostBytes = cheapCost,
+                    });
+                }
+
+                var candidate = new RankedCandidate(candidateOrdinal, start, count, length, cheapCost);
 
                 if (first is null || CompareRank(candidate, first.Value) < 0)
                 {
@@ -764,7 +768,7 @@ internal static partial class CspPatchBuilder
             int firstCost = firstFrame.Length +
                 (firstCandidate.RecordCount * CspFormat.DictionaryReferenceSize);
             expensiveTrials++;
-            SetFinalTrace(firstCandidate.Trace, firstFrame.Length, firstCost, finalLevel: 19);
+            SetFinalTrace(traceCandidates, firstCandidate.Ordinal, firstFrame.Length, firstCost, finalLevel: 19);
 
             if (firstCost < bestCost)
             {
@@ -787,7 +791,7 @@ internal static partial class CspPatchBuilder
                 int secondCost = secondFrame.Length +
                     (secondCandidate.RecordCount * CspFormat.DictionaryReferenceSize);
                 expensiveTrials++;
-                SetFinalTrace(secondCandidate.Trace, secondFrame.Length, secondCost, finalLevel: 19);
+                SetFinalTrace(traceCandidates, secondCandidate.Ordinal, secondFrame.Length, secondCost, finalLevel: 19);
 
                 if (secondCost < bestCost)
                 {
@@ -813,7 +817,10 @@ internal static partial class CspPatchBuilder
                     dictionary,
                     hashSuite),
             };
-            selectedCandidate.Trace.Selected = true;
+            if (traceCandidates is not null)
+            {
+                traceCandidates.Single(candidate => candidate.Ordinal == selectedCandidate.Ordinal).Selected = true;
+            }
         }
 
         RecordCandidateTrace(
@@ -837,11 +844,19 @@ internal static partial class CspPatchBuilder
     }
 
     private static void SetFinalTrace(
-        CspCandidateTraceCandidate candidate,
+        List<CspCandidateTraceCandidate>? candidates,
+        int ordinal,
         int frameBytes,
         int costBytes,
         int finalLevel)
     {
+        if (candidates is null)
+        {
+            return;
+        }
+
+        CspCandidateTraceCandidate candidate =
+            candidates.Single(candidate => candidate.Ordinal == ordinal);
         candidate.FinalFrameBytes = frameBytes;
         candidate.FinalCostBytes = costBytes;
 
@@ -888,7 +903,7 @@ internal static partial class CspPatchBuilder
         int noDictionaryFrameBytes,
         EntryChoice choice,
         int? selectedOrdinal,
-        List<CspCandidateTraceCandidate> candidates,
+        List<CspCandidateTraceCandidate>? candidates,
         int cheapTrials,
         int expensiveTrials,
         ICspCandidateTraceSink? traceSink)
@@ -898,6 +913,7 @@ internal static partial class CspPatchBuilder
             return;
         }
 
+        candidates ??= [];
         int totalTrials = policy.Level == 0 ? 0 : 1 + cheapTrials + expensiveTrials;
         int level19Trials = policy.Level == 19 ? 1 + expensiveTrials : 0;
         string encoding = choice.Encoding == CspFormat.EncodingRaw
@@ -929,8 +945,7 @@ internal static partial class CspPatchBuilder
         int Start,
         int RecordCount,
         int Length,
-        int CheapCost,
-        CspCandidateTraceCandidate Trace);
+        int CheapCost);
 
     /// <summary>
     /// Measures the candidate that starts at base record <paramref name="start"/>:
