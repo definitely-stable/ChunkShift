@@ -459,6 +459,7 @@ The resemblance families are intentionally narrower than the literature survey:
 - Finesse (FAST'19) keeps the super-feature model but replaces N-transform's repeated transforms with fixed-subchunk feature locality; its paper uses 12 features and three 4-feature super-features and reports materially faster feature computation with comparable compression.
 - Odess (ICDE'21) uses Gear hashing plus content-defined sampling before transforms; the paper's evaluated setup includes 1/128 sampling and 12 features / 3 super-features. H6 adopts that direction, not an opaque external index.
 - Palantir (ASPLOS'24) shows why one fixed super-feature threshold can miss candidates and uses the three `(3,4)/(4,3)/(6,2)` tiers. H6-P evaluates only that hierarchy over H6's existing features; it does not import backup-history state.
+- Argus (ACM TOS'26) is directly relevant: its bin-wise partitioning plus fine-grained Gear/plain-feature design addresses duplicate/useless features in earlier super-feature schemes. It is **not** a fourth selector lane in PATCH-ENC-005: H6-O first establishes whether a bounded Gear-derived signal recovers enough of G2 on CSP's 64 KiB chunks. If H6-O/H6-P leave material G2 headroom that can plausibly be feature-recall loss, an Argus-style bin-wise lane requires a new ExperimentId rather than post-freeze expansion of this grid.
 - *Once Rolling Hashing is Enough* (EuroSys'26) is relevant to avoiding duplicate rolling work. In ChunkShift the reusable Core Gear state is internal by design, so H6 recomputes a small Patching-side pass rather than changing the Core contract.
 - ML/embedding selectors are not in this experiment: they add model/runtime/training and NativeAOT deployment complexity before G2 has shown that CSP has enough candidate-choice headroom to justify any large selector.
 
@@ -467,6 +468,7 @@ Primary references:
 - [Finesse, FAST'19](https://www.usenix.org/conference/fast19/presentation/zhang)
 - [Odess, ICDE'21, DOI 10.1109/ICDE51399.2021.00048](https://doi.org/10.1109/ICDE51399.2021.00048)
 - [Palantir, ASPLOS'24, DOI 10.1145/3620665.3640353](https://doi.org/10.1145/3620665.3640353)
+- [Argus, ACM TOS'26, DOI 10.1145/3747839](https://doi.org/10.1145/3747839)
 - [Once Rolling Hashing is Enough, EuroSys'26, DOI 10.1145/3767295.3803596](https://doi.org/10.1145/3767295.3803596)
 
 ## 16. Known protocol traps fixed by this freeze candidate
