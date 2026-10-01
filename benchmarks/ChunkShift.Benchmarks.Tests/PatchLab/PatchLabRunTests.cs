@@ -100,6 +100,72 @@ public class PatchLabRunTests
             cached);
     }
 
+    [Fact]
+    public void PhaseATraceWritesFrozenSchemaAndProvenance()
+    {
+        using var scope = new TempDirectory();
+        SyntheticCorpus corpus = WriteCorpus(scope.Path);
+        string output = Path.Combine(scope.Path, "run.json");
+        string traces = Path.Combine(scope.Path, "traces");
+        const string ProtocolCommit = "1111111111111111111111111111111111111111";
+        const string SourceCommit = "2222222222222222222222222222222222222222";
+
+        int exit = PatchLabRunner.Run(
+        [
+            "run",
+            "--corpus", scope.Path,
+            "--lane", "H4-L1-R2",
+            "--output", output,
+            "--workers", "1",
+            "--execution", "h2-w2",
+            "--no-apply",
+            "--run-id", "PATCH-ENC-005/TEST",
+            "--trace-dir", traces,
+            "--protocol-commit", ProtocolCommit,
+            "--source-commit", SourceCommit,
+            "--platform", "test-x64",
+            "--dataset-role", "calibration",
+        ]);
+
+        Assert.Equal(0, exit);
+        string tracePath = Assert.Single(Directory.GetFiles(traces, "*.json"));
+
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllBytes(tracePath));
+        JsonElement root = document.RootElement;
+        Assert.Equal("chunkshift.patch-candidate-trace.v1", root.GetProperty("schema").GetString());
+        Assert.Equal("PATCH-ENC-005", root.GetProperty("experimentId").GetString());
+        Assert.Equal("PATCH-ENC-005/TEST", root.GetProperty("runId").GetString());
+        Assert.Equal(ProtocolCommit, root.GetProperty("protocolCommit").GetString());
+        Assert.Equal(SourceCommit, root.GetProperty("sourceCommit").GetString());
+        Assert.Equal("test-x64", root.GetProperty("platform").GetString());
+        Assert.Equal("H4-L1-R2", root.GetProperty("lane").GetString());
+        Assert.Equal("calibration", root.GetProperty("datasetRole").GetString());
+        Assert.Equal(corpus.PairsSha256, root.GetProperty("datasetSha256").GetString());
+        Assert.Equal(Family, root.GetProperty("family").GetString());
+        Assert.Equal(BaseVersion, root.GetProperty("baseVersion").GetString());
+        Assert.Equal(TargetVersion, root.GetProperty("targetVersion").GetString());
+        Assert.Equal(ChangedPath, root.GetProperty("path").GetString());
+        Assert.Equal(19, root.GetProperty("finalLevel").GetInt32());
+
+        JsonElement entries = root.GetProperty("entries");
+        Assert.True(entries.GetArrayLength() > 0);
+
+        foreach (JsonElement entry in entries.EnumerateArray())
+        {
+            Assert.Equal(
+                entry.GetProperty("candidateCount").GetInt32(),
+                entry.GetProperty("cheapTrialCount").GetInt32());
+            Assert.Equal(
+                1 +
+                entry.GetProperty("cheapTrialCount").GetInt32() +
+                entry.GetProperty("expensiveTrialCount").GetInt32(),
+                entry.GetProperty("totalCompressionTrialCount").GetInt32());
+            Assert.False(entry.TryGetProperty("targetBytes", out _));
+            Assert.False(entry.TryGetProperty("dictionaryBytes", out _));
+            Assert.False(entry.TryGetProperty("frameBytes", out _));
+        }
+    }
+
     /// <summary>
     /// Writes the two versions of a one-family corpus with two files, one of
     /// them changed, and a pairs.json in the materializer's format.
