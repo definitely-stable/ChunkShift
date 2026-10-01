@@ -366,11 +366,25 @@ The position contract is frozen because BCJ conversion depends on stream positio
 
 Ignoring the returned processed length, using the candidate's non-canonical duplicate occurrence only on create, re-normalizing duplicate target occurrences at later positions, or deriving dictionary position from the target offset invalidates the lane.
 
-For every eligible distinct missing chunk the research driver normalizes the target bytes and each of that entry's **same H0 candidate dictionaries**, then runs the same L19/raw-prefix/H20/C20 choice and 32-byte/reference cost. Candidate starts, K=4, C=8, 256 KiB radius, 1 MiB dictionary and 1 MiB zstd window do not change.
+G4 is an **additive encoding relaxation**, not a forced replacement of ordinary CSP encoding. For every eligible distinct missing chunk:
 
-Apply is the exact inverse: verify/read the named base chunks, normalize dictionary bytes under the frozen base-offset rule, zstd-decode the normalized target chunk, inverse-BCJ under the frozen target-offset rule, then verify the original target ChunkId. A lane is invalid on any non-exact reconstruction.
+1. Preserve the exact H0 winning stored form and exact H0 entry cost as the initial winner. It is never re-encoded and remains legal.
+2. Normalize the target bytes once under the frozen first-target-occurrence position rule.
+3. Add one BCJ+zstd L19 no-dictionary trial and one BCJ+zstd L19 trial for each of that entry's **same H0 candidate dictionary sequences**. Candidate starts/order, K=4, C=8, ±256 KiB radius, <=1 MiB original dictionary and 1 MiB zstd window do not change.
+4. Candidate eligibility is decided on the original H0 dictionary bytes using the production K/size/`CspDictionary.IsUsable` rules **before** normalization. An admitted dictionary is then normalized and supplied explicitly as a raw prefix; do not reinterpret transformed bytes as a trained dictionary.
+5. BCJ trials cost `frameBytes + 32 × dictionaryRefs`. Replace H0 only on a strict cost decrease; a tie keeps H0, then the earlier H0 candidate order.
 
-This is a research codec counterfactual, not a production dependency or CSP v1 encoding. Normalization must be in-place within the already bounded dictionary/chunk buffers (or use an equivalently bounded scratch buffer); it does not receive a second whole-file/executable buffer. Because G4 keeps the v1 <=1 MiB dictionary/window and <=256 KiB output chunk, its hard RFC-eligibility apply bound remains **64 MiB over idle** under the D17 measurement convention on every required runtime platform. Exceeding it rejects G4 even if its byte reduction passes §11.
+For exact synthetic physical accounting, the BCJ-coded winner uses hypothetical **Encoding = 2**, one of CSP v1's currently reserved one-byte encoding values, in both PAYL/PIDX. This changes no fixed header size and grants no free offset field: all normalization positions are derived deterministically from the embedded target/base manifests as frozen above. Encoding 0/1 entries remain exact H0 bytes/semantics.
+
+For eligible distinct missing entries define `H0EntryCost = storedBytes + 32 × dictionaryRefs` and `G4EntryCost = min(H0EntryCost, all BCJ trial costs)`. Then:
+
+`B_G4 = B_CSP - sum(H0EntryCost_eligible) + sum(G4EntryCost_eligible)`
+
+with every ineligible entry/file unchanged. The mandatory oracle is therefore `B_G4 <= B_CSP` both per eligible entry and in aggregate. The compact evidence records H0 winner, every BCJ trial, selected encoding/start/refs, normalization positions and every term of the equation.
+
+Apply dispatches Encoding 0/1 exactly as production. For synthetic Encoding 2 it verifies/reads the named base chunks, normalizes dictionary bytes under the canonical base-offset rule, zstd-decodes the normalized target chunk, inverse-BCJ under the frozen first-target-occurrence rule, then verifies original target length/ChunkId. A lane is invalid on any non-exact reconstruction.
+
+This is a research codec counterfactual, not a production dependency or CSP v1 encoding; assigning Encoding 2 for real would require the normal format-revision/vector process. Normalization must be in-place within the already bounded dictionary/chunk buffers (or use an equivalently bounded scratch buffer); it does not receive a second whole-file/executable buffer. Because G4 keeps the v1 <=1 MiB dictionary/window and <=256 KiB output chunk, its hard RFC-eligibility apply bound remains **64 MiB over idle** under the D17 measurement convention on every required runtime platform. Exceeding it rejects G4 even if its byte reduction passes §11.
 
 ### 8.3 Zucchini reference lane
 
