@@ -67,8 +67,8 @@ internal sealed record PatchLabTraceOptions(
         ?? throw new PatchLabUsageException($"--trace-dir requires {name}.");
 
     private static bool IsCommit(string value) =>
-        value.Length == 40 && value.All(static value =>
-            value is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F');
+        value.Length == 40 && value.All(static character =>
+            character is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F');
 }
 
 /// <summary>
