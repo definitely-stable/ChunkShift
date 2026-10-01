@@ -11,19 +11,26 @@ on:
         options:
           - calibration
           - evaluation
+      run-date:
+        description: "Frozen RunId UTC date (YYYYMMDD)"
+        required: true
+        type: string
+      run-sequence:
+        description: "Frozen RunId sequence (NNN)"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: patch-enc-005-phase-a-${{ inputs.dataset-role }}-${{ github.ref }}
+  group: patch-enc-005-phase-a-${{ inputs.dataset-role }}-${{ inputs.run-date }}-${{ inputs.run-sequence }}-${{ github.sha }}
   cancel-in-progress: false
 
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
   DOTNET_NOLOGO: "1"
   NUGET_XMLDOC_MODE: skip
-  PATCH_ENC_005_PROTOCOL_COMMIT: 96fd9b296d6998cac397e61041f22df51e6dd43c
 
 jobs:
   timing:
@@ -39,7 +46,7 @@ jobs:
           - os: windows-2025
             platform: win-x64
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 350
+    timeout-minutes: 360
 
     steps:
       - name: Checkout
@@ -61,7 +68,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/patch-corpus/sources
-          key: patch-enc-005-sources-${{ runner.os }}-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
 
       - name: Materialize frozen development corpus
         shell: bash
@@ -86,6 +93,8 @@ jobs:
         env:
           DATASET_ROLE: ${{ inputs.dataset-role }}
           PLATFORM: ${{ matrix.platform }}
+          RUN_DATE: ${{ inputs.run-date }}
+          RUN_SEQUENCE: ${{ inputs.run-sequence }}
         run: |
           set -euo pipefail
           case "$DATASET_ROLE" in
@@ -103,13 +112,12 @@ jobs:
 
           python=python3
           command -v python3 >/dev/null || python=python
-          run_id="PATCH-ENC-005/RUN-${{ github.run_id }}-${GITHUB_SHA::7}-$PLATFORM"
+          run_id="PATCH-ENC-005/RUN-$RUN_DATE-$RUN_SEQUENCE-$GITHUB_SHA-$PLATFORM"
           mkdir -p artifacts/patch-enc-005
           "$python" benchmarks/scripts/run_patch_enc_005_paired.py \
             --corpus "$HOME/patch-corpus" \
             --output "artifacts/patch-enc-005/paired" \
             --run-id "$run_id" \
-            --protocol-commit "$PATCH_ENC_005_PROTOCOL_COMMIT" \
             --source-commit "$GITHUB_SHA" \
             --platform "$PLATFORM" \
             --dataset-role "$DATASET_ROLE" \
@@ -120,7 +128,38 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: patch-enc-005-${{ inputs.dataset-role }}-paired-${{ matrix.platform }}
-          path: artifacts/patch-enc-005
+          path: artifacts/patch-enc-005/paired
+          if-no-files-found: error
+          retention-days: 90
+
+  cross-platform:
+    name: patch-byte-determinism
+    needs: timing
+    if: needs.timing.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download platform evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: patch-enc-005-${{ inputs.dataset-role }}-paired-*
+          path: artifacts/platforms
+
+      - name: Verify cross-platform patch bytes
+        run: |
+          python3 benchmarks/scripts/check_patch_enc_005_cross_platform.py \
+            --input artifacts/platforms \
+            --output artifacts/cross-platform.json
+
+      - name: Upload cross-platform gate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-enc-005-${{ inputs.dataset-role }}-cross-platform
+          path: artifacts/cross-platform.json
           if-no-files-found: error
           retention-days: 90
 
@@ -137,7 +176,7 @@ jobs:
           - os: windows-2025
             platform: win-x64
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 350
+    timeout-minutes: 360
 
     steps:
       - name: Checkout
@@ -159,7 +198,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/patch-corpus/sources
-          key: patch-enc-005-sources-${{ runner.os }}-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
 
       - name: Materialize frozen development corpus
         shell: bash
@@ -184,6 +223,8 @@ jobs:
         env:
           DATASET_ROLE: ${{ inputs.dataset-role }}
           PLATFORM: ${{ matrix.platform }}
+          RUN_DATE: ${{ inputs.run-date }}
+          RUN_SEQUENCE: ${{ inputs.run-sequence }}
         run: |
           set -euo pipefail
           case "$DATASET_ROLE" in
@@ -199,7 +240,7 @@ jobs:
               ;;
           esac
 
-          run_id="PATCH-ENC-005/RUN-${{ github.run_id }}-${GITHUB_SHA::7}-$PLATFORM"
+          run_id="PATCH-ENC-005/RUN-$RUN_DATE-$RUN_SEQUENCE-$GITHUB_SHA-$PLATFORM"
           mkdir -p artifacts/patch-enc-005/memory
           lanes="csp H4-L1-R2 H7-L1-R2-E75 H9-L9-K4-C16-R1M H9-L12-K4-C16-R1M H9-L15-K4-C16-R1M"
 
@@ -211,6 +252,8 @@ jobs:
               --output "artifacts/patch-enc-005/memory/$lane.json" \
               --families "$families" \
               --min-bytes 1048576 \
+              --population max-base-target \
+              --apply-check boundary \
               --lane "$lane" \
               --execution h2-w2 \
               --run-id "$run_id"
@@ -221,6 +264,6 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: patch-enc-005-${{ inputs.dataset-role }}-memory-${{ matrix.platform }}
-          path: artifacts/patch-enc-005
+          path: artifacts/patch-enc-005/memory
           if-no-files-found: error
           retention-days: 90

@@ -8,6 +8,8 @@ on:
       - "benchmarks/scripts/materialize_patch_enc_005_confirmation.py"
       - "benchmarks/scripts/run_patch_enc_005_paired.py"
       - "benchmarks/scripts/test_patch_enc_005_paired.py"
+      - "benchmarks/scripts/check_patch_enc_005_cross_platform.py"
+      - "benchmarks/scripts/test_check_patch_enc_005_cross_platform.py"
 
 permissions:
   contents: read
@@ -26,8 +28,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Test paired-run infrastructure
-        run: python3 -m unittest benchmarks/scripts/test_patch_enc_005_paired.py
+      - name: Test PATCH-ENC-005 evidence infrastructure
+        run: |
+          python3 -m unittest \
+            benchmarks/scripts/test_patch_enc_005_paired.py \
+            benchmarks/scripts/test_check_patch_enc_005_cross_platform.py
 
       - name: Materialize frozen confirmation pair list
         shell: bash
