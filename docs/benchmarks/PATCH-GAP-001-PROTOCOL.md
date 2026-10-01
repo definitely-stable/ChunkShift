@@ -208,7 +208,7 @@ G3 instead uses a conservative counterfactual cost model that changes grouping o
 
 - G3-H0 — exact production CSP: one independent stored form per distinct missing target chunk.
 - G3-RUN — one zstd frame for each maximal run of payload-bearing first-occurrence missing target records that are consecutive in manifest index and physically adjacent in target content. A base-reused record, duplicate already-supplied ChunkId, or discontinuity ends the run.
-- G3-FILE — one zstd frame for the ordered sequence of all payload-bearing first-occurrence missing chunks of a changed file. This is the strongest within-file framing extreme; it is **not** whole-target --patch-from.
+- G3-FILE — one zstd frame for the ordered sequence of all payload-bearing first-occurrence missing chunks of a changed file. This is the strongest one-factor within-file framing extreme; it is **not** whole-target --patch-from.\n- G3-REF-PATCHFROM — the pinned whole-file zstd --patch-from lane from §10. It is the requested whole-file/reference extreme, but is descriptive only because it simultaneously changes dictionary scope, candidate choice and framing. It is never substituted for B_G3 and cannot pass the G3 RFC gate.
 
 For RUN/FILE, input bytes are the concatenation of the group's original target chunks in first-target-record order. The group uses only the dictionary that H0 selected for the group's first payload entry; if H0 selected raw or no-dictionary zstd there is no base dictionary. No group-level candidate search, larger dictionary or whole-base oracle is allowed. The zstd window remains capped at 1 MiB.
 
@@ -226,15 +226,15 @@ The reconstruction oracle decodes each group, splits decoded bytes by the known 
 
 ### 7.4 Lost properties
 
-| property | H0 | G3-RUN | G3-FILE |
-| --- | --- | --- | --- |
-| independent target-chunk verification | yes | no, group scope | no, file-payload scope |
-| dictionary locality/change per chunk | yes | only group anchor | only file anchor |
-| random payload access | chunk | run | file payload |
-| failure isolation | chunk | run | file payload |
-| parallel decode/apply | many entries | fewer runs | at most one frame/file |
-| bounded decoder history | 1 MiB | 1 MiB | 1 MiB |
-| CSP declarative codec model | current v1 | conceptually retainable, format revision required | conceptually retainable, format revision required |
+| property | H0 | G3-RUN | G3-FILE | G3-REF-PATCHFROM |
+| --- | --- | --- | --- | --- |
+| independent target-chunk verification | yes | no, group scope | no, file-payload scope | no, whole-file scope |
+| dictionary locality/change per chunk | yes | only group anchor | only file anchor | previous file is one large reference dictionary |
+| random payload access | chunk | run | file payload | file |
+| failure isolation | chunk | run | file payload | file |
+| parallel decode/apply | many entries | fewer runs | at most one frame/file | per file |
+| bounded decoder history | 1 MiB | 1 MiB | 1 MiB | reference-tool bound, not CSP v1 |
+| CSP declarative codec model | current v1 | conceptually retainable, format revision required | conceptually retainable, format revision required | no; multi-factor external reference |
 
 A group decoder must be streamable and hash chunks as they emerge; it may not allocate the complete group merely because the research frame is larger than one chunk.
 
@@ -489,11 +489,11 @@ The remaining action before decision work is human freeze-review and merge of th
 ## 18. Primary sources
 
 - CSP and prior ChunkShift evidence: docs/architecture/CSP-V1-CANDIDATE.md, docs/architecture/PATCHING-DECISIONS.md, docs/benchmarks/PATCH-PREFREEZE-PROTOCOL.md, PATCH-ENC-002/003/004 evidence and docs/research/README.md.
-- Zstandard v1.5.7: https://github.com/facebook/zstd/releases/tag/v1.5.7 and https://github.com/facebook/zstd/wiki/Zstandard-as-a-patching-engine.
-- Xdelta: https://github.com/jmacd/xdelta/releases/tag/v3.2.0; legacy continuity https://github.com/jmacd/xdelta-gpl/releases/tag/v3.0.11.
-- bsdiff4 1.2.6: https://pypi.org/project/bsdiff4/1.2.6/.
-- HDiffPatch v5.1.3: https://github.com/sisong/HDiffPatch/releases/tag/v5.1.3 and project CLI documentation.
-- XZ Utils BCJ: https://github.com/tukaani-project/xz/releases/tag/v5.8.4 and liblzma BCJ API documentation.
-- Chromium Zucchini: https://chromium.googlesource.com/chromium/src/components/zucchini/; pinned component commit 667ffb4e19970939936af2e7a169175ae4c1da5b.
-- AOSP Puffin: https://android.googlesource.com/platform/external/puffin/+/refs/tags/android-17.0.0_r1; Android update_engine PUFFDIFF apply path: https://android.googlesource.com/platform/system/update_engine/+/refs/heads/main/payload_consumer/.
-- OSTree static deltas: https://ostreedev.github.io/ostree/man/ostree-static-delta.html.
+- Zstandard v1.5.7: <https://github.com/facebook/zstd/releases/tag/v1.5.7> and <https://github.com/facebook/zstd/wiki/Zstandard-as-a-patching-engine>.
+- Xdelta: <https://github.com/jmacd/xdelta/releases/tag/v3.2.0>; legacy continuity <https://github.com/jmacd/xdelta-gpl/releases/tag/v3.0.11>.
+- bsdiff4 1.2.6: <https://pypi.org/project/bsdiff4/1.2.6/>.
+- HDiffPatch v5.1.3: <https://github.com/sisong/HDiffPatch/releases/tag/v5.1.3> and project CLI documentation.
+- XZ Utils BCJ: <https://github.com/tukaani-project/xz/releases/tag/v5.8.4> and liblzma BCJ API documentation.
+- Chromium Zucchini: <https://chromium.googlesource.com/chromium/src/components/zucchini/>; pinned component commit 667ffb4e19970939936af2e7a169175ae4c1da5b.
+- AOSP Puffin: <https://android.googlesource.com/platform/external/puffin/+/refs/tags/android-17.0.0_r1>; Android update_engine PUFFDIFF apply path: <https://android.googlesource.com/platform/system/update_engine/+/refs/heads/main/payload_consumer/>.
+- OSTree static deltas: <https://ostreedev.github.io/ostree/man/ostree-static-delta.html>.
