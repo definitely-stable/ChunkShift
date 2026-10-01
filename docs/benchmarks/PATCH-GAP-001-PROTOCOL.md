@@ -4,7 +4,7 @@ Status: **BLOCKED DRAFT — #216 / PATCH-ENC-005 must be freeze-reviewed and mer
 Issue: [#183](https://github.com/definitely-stable/ChunkShift/issues/183) · Parent: [#7](https://github.com/definitely-stable/ChunkShift/issues/7)  
 ExperimentId: PATCH-GAP-001  
 Protocol baseline commit: e967aeb6d4d467e94c5ac20f85e70ba0035d998d  
-Related candidate-policy protocol: [PR #216](https://github.com/definitely-stable/ChunkShift/pull/216) / PATCH-ENC-005. Current review snapshot: `70e9d906f7979200695597f6ead50d4f7efd88f5`; this SHA is **not** a frozen dependency and may move again before #216 merges.  
+Related candidate-policy protocol: [PR #216](https://github.com/definitely-stable/ChunkShift/pull/216) / PATCH-ENC-005. While #216 is open, its head SHA is intentionally **not pinned here**; only the merged producer commit may become a PATCH-GAP dependency.  
 Tree/update-set research is owned by [#184](https://github.com/definitely-stable/ChunkShift/issues/184), not this experiment.
 
 ## 1. Question and decision boundary
@@ -238,7 +238,7 @@ This is not CSP v1 and is not a proposed wire revision; it is the minimal direct
 
 ### 6.1 Blocking producer dependency
 
-PATCH-GAP-001 cannot freeze G2 against a mutable producer. PR #216 is currently an unmerged Draft. Its current head `70e9d906f7979200695597f6ead50d4f7efd88f5` has incorporated the latest review corrections, but remains a **moving review snapshot only** until the PR is freeze-reviewed and merged.
+PATCH-GAP-001 cannot freeze G2 against a mutable producer. While PR #216 remains an unmerged Draft, its head is intentionally not copied or pinned in this protocol. The first durable dependency is the merged PATCH-ENC-005 protocol commit.
 
 The freeze order is mandatory:
 
@@ -271,10 +271,6 @@ After #216 merges, the reconciliation commit on #217 must record all of the foll
 PATCH-GAP then derives its per-entry selected cost only from the merged producer's authoritative fields. Under the current review snapshot this is conceptually `storedBytes + 32 × dictionaryRefs`, but even that field mapping is **non-normative here until the merged schema is pinned**.
 
 The reconciliation must be a documentation-only change in #217 unless the merged producer contract exposes a genuine missing evidence field. In that case, fix/version the producer evidence contract first; #217 must not reconstruct selector decisions or invent a private compatibility shim.
-
-### 6.4 Current snapshot note — informative only
-
-At review snapshot `70e9d906f7979200695597f6ead50d4f7efd88f5`, #216 has already moved beyond the older assumptions that were previously copied here: its historical holdout is a fixed evaluation split, it defines a separate fresh confirmation set, its sampled G2 oracle is a prioritization gate with one pre-frozen H6-O false-negative guard, and its candidate-trace schema carries explicit protocol/source commit and dataset-role identity. These facts explain the required dependency ordering; **they are not frozen PATCH-GAP semantics**.
 
 ## 7. G3 — frame granularity
 
