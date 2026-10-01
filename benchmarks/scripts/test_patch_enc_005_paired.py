@@ -91,21 +91,38 @@ class PatchEnc005PairedTests(unittest.TestCase):
             platform="linux-x64",
             dataset_role="calibration",
         )
-        predecessor = {
-            "schema": "chunkshift.patch-enc-005-dispatch.v1",
-            "attempt": 1,
-            "experimentId": MODULE.EXPERIMENT_ID,
-            "runId": args.run_id,
-            "protocolCommit": MODULE.FROZEN_PROTOCOL_COMMIT,
-            "sourceCommit": commit,
-            "platform": "linux-x64",
-            "datasetRole": "calibration",
-            "datasetSha256": MODULE.FROZEN_DATASET_SHA256,
+        previous = {
+            name: os.environ.get(name)
+            for name in ("GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ATTEMPT")
         }
-        MODULE.validate_prior_dispatch(args, predecessor)
-        predecessor["sourceCommit"] = "b" * 40
-        with self.assertRaises(ValueError):
+        try:
+            os.environ["GITHUB_RUN_ID"] = "123"
+            os.environ["GITHUB_RUN_NUMBER"] = "1"
+            os.environ["GITHUB_RUN_ATTEMPT"] = "1"
+            predecessor = {
+                "schema": "chunkshift.patch-enc-005-dispatch.v1",
+                "attempt": 1,
+                "experimentId": MODULE.EXPERIMENT_ID,
+                "runId": args.run_id,
+                "protocolCommit": MODULE.FROZEN_PROTOCOL_COMMIT,
+                "sourceCommit": commit,
+                "platform": "linux-x64",
+                "datasetRole": "calibration",
+                "datasetSha256": MODULE.FROZEN_DATASET_SHA256,
+                "githubRunId": "123",
+                "githubRunNumber": "1",
+                "githubRunAttempt": "1",
+            }
             MODULE.validate_prior_dispatch(args, predecessor)
+            predecessor["sourceCommit"] = "b" * 40
+            with self.assertRaises(ValueError):
+                MODULE.validate_prior_dispatch(args, predecessor)
+        finally:
+            for name, value in previous.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
 
     def test_create_aggregate_excludes_apply(self):
         result = {

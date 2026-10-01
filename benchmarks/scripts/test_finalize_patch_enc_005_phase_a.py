@@ -1,4 +1,5 @@
 import importlib.util
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -43,21 +44,38 @@ class FinalizeTests(unittest.TestCase):
             platform="linux-x64",
             dataset_role="calibration",
         )
-        document = {
-            "schema": "chunkshift.patch-enc-005-dispatch.v1",
-            "attempt": 1,
-            "experimentId": paired.EXPERIMENT_ID,
-            "runId": run_id,
-            "protocolCommit": paired.FROZEN_PROTOCOL_COMMIT,
-            "sourceCommit": commit,
-            "platform": "linux-x64",
-            "datasetRole": "calibration",
-            "datasetSha256": paired.FROZEN_DATASET_SHA256,
+        previous = {
+            name: os.environ.get(name)
+            for name in ("GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ATTEMPT")
         }
-        MODULE.validate_attempt(args, document, 1)
-        document["datasetSha256"] = "0" * 64
-        with self.assertRaises(ValueError):
+        try:
+            os.environ["GITHUB_RUN_ID"] = "123"
+            os.environ["GITHUB_RUN_NUMBER"] = "1"
+            os.environ["GITHUB_RUN_ATTEMPT"] = "1"
+            document = {
+                "schema": "chunkshift.patch-enc-005-dispatch.v1",
+                "attempt": 1,
+                "experimentId": paired.EXPERIMENT_ID,
+                "runId": run_id,
+                "protocolCommit": paired.FROZEN_PROTOCOL_COMMIT,
+                "sourceCommit": commit,
+                "platform": "linux-x64",
+                "datasetRole": "calibration",
+                "datasetSha256": paired.FROZEN_DATASET_SHA256,
+                "githubRunId": "123",
+                "githubRunNumber": "1",
+                "githubRunAttempt": "1",
+            }
             MODULE.validate_attempt(args, document, 1)
+            document["datasetSha256"] = "0" * 64
+            with self.assertRaises(ValueError):
+                MODULE.validate_attempt(args, document, 1)
+        finally:
+            for name, value in previous.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
 
 
 if __name__ == "__main__":
