@@ -60,7 +60,7 @@ internal sealed record PatchLabTraceOptions(
         if (!string.Equals(experimentId, FrozenExperimentId, StringComparison.Ordinal))
         {
             throw new PatchLabUsageException(
-                $"PATCH-ENC-005 traces require --experiment-id {ExperimentId}.");
+                $"PATCH-ENC-005 traces require --experiment-id {FrozenExperimentId}.");
         }
 
         string? checkedOutCommit = System.Environment.GetEnvironmentVariable("GITHUB_SHA");
