@@ -95,7 +95,7 @@ PATCH-ENC-004 subsequently proved every execution topology, including H2-W2, byt
 
 Every GAP decision dataset must regenerate an H0 control from the production builder and record exact per-file bytes. For this protocol baseline, a different total or patch-set digest is an invalid baseline unless the evidence record names and justifies a later production-code baseline under a new protocol revision. Historical rounded numbers are descriptive only.
 
-## 3. Corpus, split and no-peeking rule
+## 3. Corpus, fixed splits and no-retuning rule
 
 Use the existing frozen PATCH corpus and no other inputs for the primary decision:
 
@@ -477,19 +477,19 @@ One platform is sufficient for deterministic byte counts when the exact tool bin
 
 ### 12.2 Stage B — runtime-sensitive implications
 
-Every frozen lane is measured on calibration. Before the fixed evaluation split is read for PATCH-GAP, the evaluator freezes **one reporting lane per factor** so #183 gets one calibration/evaluation result without post-evaluation lane selection.
+Every frozen byte lane is measured on calibration. The fixed evaluation split then receives **exactly one deterministic byte run for every predeclared gate-eligible lane**, not one calibration-selected winner. This matches #183's existential rule ("if one relaxation ... recovers >=15%") and prevents calibration-specific ranking from hiding a valid factor result.
 
-Selection is deterministic:
+The evaluation set is therefore fixed before any GAP factor bytes are produced:
 
-- G1: if one or more lanes reach 15% on calibration, choose the smallest relaxation in order B1, B4, B8, B32 that reaches it; otherwise choose the lane with the smallest calibration bytes, tie to the smaller budget.
-- G3: choose G3-RUN if it reaches 15%; otherwise G3-FILE if it reaches 15%; if neither does, choose the smaller-calibration-byte lane, tie to G3-RUN.
-- G2: this rule is **blocked/provisional until #216 merges**. After §6 reconciliation, consume the merged producer's sampled-oracle and production-real finalist semantics without GAP-side retuning.
-- G4: G4-BCJ is the single gate/reporting lane over its frozen subset.
-- G5: if the frozen subset is non-empty, Puffin plus its AOSP-bsdiff same-backend control are the descriptive reporting lanes; G5 has no direct RFC-gate lane until a later CSP-costed codec exists. If the subset is empty, report NOT_PRESENT.
+- G1: G1-B1-R64, G1-B4-R256, G1-B8-R512 and G1-B32-R2048 all receive one calibration byte run and one evaluation byte run.
+- G3: G3-RUN and G3-FILE both receive one calibration byte run and one evaluation byte run.
+- G2: **blocked/provisional until #216 merges**. After §6 reconciliation, use exactly the sampled-oracle and full-population production-real evaluation lanes authorized by the merged producer; GAP adds or drops none.
+- G4: G4-BCJ receives one calibration/evaluation byte run over the frozen subset with unchanged H0 bytes outside it.
+- G5: if the frozen subset is non-empty, Puffin plus its AOSP-bsdiff same-backend control receive one calibration/evaluation descriptive run; G5 has no direct RFC-gate lane until a later CSP-costed codec exists. If the subset is empty, report NOT_PRESENT.
 
-**Calibration is a lane-selection/prioritization split, not a second RFC size gate.** Every frozen reporting lane is run once on the fixed evaluation split. The §11 size gate is decided by that evaluation result exactly as #183 specifies, even when calibration was below 15%.
+**Calibration is a runtime-prioritization split, not a second RFC size gate and not a size-lane selector.** No threshold or parameter changes after any evaluation result is visible. The §11 gate is applied independently to each already-frozen gate-eligible lane; if multiple lanes pass, PATCH-GAP reports the full size/memory/read frontier and opens at most one factor-level RFC/design issue. This protocol does not choose a production winner.
 
-Three-platform production-implication timing may be run before evaluation when a gate-eligible reporting lane already reaches 15% on calibration. If calibration is below 15% but the frozen lane unexpectedly reaches the §11 15% size gate on evaluation, run the required three-platform timing/non-size checks **afterward on the same frozen lane without any retuning or second evaluation run** before opening an RFC. Thus calibration can save expensive timing work, but it cannot veto a holdout/evaluation size result.
+Three-platform production-implication timing may be run before evaluation for any gate-eligible lane that already reaches 15% on calibration. A lane below 15% on calibration still gets its single evaluation byte run. If it unexpectedly reaches the §11 gate there, run the required three-platform timing/non-size checks **afterward on that unchanged lane without retuning or repeating its evaluation byte run** before treating it as RFC-qualified.
 
 For CSP-counterfactual create/apply timing:
 
@@ -504,12 +504,12 @@ External reference tools are timed on pinned Linux x64 primarily. They are not p
 
 ### 12.3 Frozen evaluation (`holdout`) ordering
 
-1. Tune/prune only on calibration.
-2. Freeze each factor's reporting lane, subset fingerprints and all thresholds in the evidence-plan commit; for G2 this step is unavailable until §6's #216 dependency is reconciled.
-3. Optionally complete three-platform runtime checks early for a calibration result that already reaches 15%.
-4. Run the fixed evaluation partition once for each frozen reporting lane and H0; run any G2 evaluation oracle only as authorized by the merged #216 contract.
-5. Apply the §11 size formula to every gate-eligible whole-split reporting lane without a calibration veto.
-6. If a lane first crosses 15% on evaluation, complete its required non-size/runtime checks afterward on the unchanged lane. Never retune or rerun evaluation to improve the result.
+1. Run every frozen byte lane on calibration; calibration may prioritize expensive runtime work but may not remove a predeclared size lane.
+2. Before any GAP evaluation-factor bytes are produced, commit the lane definitions, G4/G5 subset fingerprints, all thresholds and the complete list of evaluation lanes; for G2 this list is unavailable until §6's #216 dependency is reconciled.
+3. Optionally complete three-platform runtime checks early for any lane already at >=15% on calibration.
+4. Run the fixed evaluation partition exactly once for every committed evaluation lane and H0; run any G2 evaluation oracle/production-real lane only as authorized by the merged #216 contract.
+5. Apply the §11 size formula independently to every gate-eligible lane, with no calibration veto and no post-evaluation lane creation.
+6. If a lane first crosses 15% on evaluation, complete its required non-size/runtime checks afterward on the unchanged lane. Never retune its parameters or repeat its evaluation byte run to improve the result.
 
 Exploratory smoke runs before protocol merge are not decision evidence and must carry exploratory in their evidence identity.
 
