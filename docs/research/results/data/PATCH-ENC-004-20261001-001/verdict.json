@@ -1,0 +1,989 @@
+{
+  "bytes": {
+    "h0": {
+      "linux-arm64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "linux-x64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "win-x64": {
+        "identical": true,
+        "mismatches": []
+      }
+    },
+    "h1": {
+      "linux-arm64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "linux-x64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "win-x64": {
+        "identical": true,
+        "mismatches": []
+      }
+    },
+    "h2-w1": {
+      "linux-arm64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "linux-x64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "win-x64": {
+        "identical": true,
+        "mismatches": []
+      }
+    },
+    "h2-w2": {
+      "linux-arm64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "linux-x64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "win-x64": {
+        "identical": true,
+        "mismatches": []
+      }
+    },
+    "h2-w4": {
+      "linux-arm64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "linux-x64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "win-x64": {
+        "identical": true,
+        "mismatches": []
+      }
+    },
+    "h2-w8": {
+      "linux-arm64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "linux-x64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "win-x64": {
+        "identical": true,
+        "mismatches": []
+      }
+    },
+    "h3-w1": {
+      "linux-arm64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "linux-x64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "win-x64": {
+        "identical": true,
+        "mismatches": []
+      }
+    },
+    "h3-w2": {
+      "linux-arm64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "linux-x64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "win-x64": {
+        "identical": true,
+        "mismatches": []
+      }
+    },
+    "h3-w4": {
+      "linux-arm64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "linux-x64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "win-x64": {
+        "identical": true,
+        "mismatches": []
+      }
+    },
+    "h3-w8": {
+      "linux-arm64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "linux-x64": {
+        "identical": true,
+        "mismatches": []
+      },
+      "win-x64": {
+        "identical": true,
+        "mismatches": []
+      }
+    }
+  },
+  "commit": "844d1e7c931877072eea804164fd145defbdd2c8",
+  "corpusPairsSha256": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+  "decisionGrade": true,
+  "h0DigestsEqualAcrossPlatforms": true,
+  "h1": {
+    "bytesIdentical": true,
+    "decision": "REJECT",
+    "memoryMet": {
+      "linux-arm64": true,
+      "linux-x64": true,
+      "win-x64": true
+    },
+    "noRegression": {
+      "linux-arm64": false,
+      "linux-x64": true,
+      "win-x64": false
+    },
+    "readRatio": 15.571909823033414,
+    "readRatioPlatform": "linux-x64",
+    "readRatios": {
+      "linux-arm64": 15.571909823033414,
+      "linux-x64": 15.571909823033414,
+      "win-x64": 15.571909823033414
+    }
+  },
+  "invalidReasons": [],
+  "platforms": {
+    "linux-arm64": {
+      "h0": {
+        "allocatedBytes": 14123077072,
+        "baseBytesRead": 9856132051,
+        "baseSeeks": 123057,
+        "cachePeakBytes": 0,
+        "cachePeakRecords": 0,
+        "cpuSeconds": 1409.5926480000012,
+        "createSeconds": 1378.9583312500006,
+        "effectiveCores": 1.0057455593879772,
+        "files": 1893,
+        "h0Seconds": [
+          1401.5400165999993,
+          1356.376645900002
+        ],
+        "memoryBoundMiB": 64,
+        "memoryMet": true,
+        "memoryMiB": 51.09765625,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 0,
+        "reorderPeakEntries": 0,
+        "speedup": 1.0,
+        "targetMiBPerSecond": 0.583629010477254,
+        "uniqueMissingMiBPerSecond": 0.3372244533190521
+      },
+      "h1": {
+        "allocatedBytes": 14457660912,
+        "baseBytesRead": 632943047,
+        "baseSeeks": 2377,
+        "cachePeakBytes": 1535686,
+        "cachePeakRecords": 11,
+        "cpuSeconds": 1428.4959650000012,
+        "createSeconds": 1424.1252704000017,
+        "effectiveCores": 1.0030690380199292,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 64,
+        "memoryMet": true,
+        "memoryMiB": 49.83203125,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 0,
+        "reorderPeakEntries": 0,
+        "speedup": 0.9682844338986311,
+        "targetMiBPerSecond": 0.5743732170434568,
+        "uniqueMissingMiBPerSecond": 0.3318763986049899
+      },
+      "h2-w1": {
+        "allocatedBytes": 14290955040,
+        "baseBytesRead": 9856132051,
+        "baseSeeks": 123057,
+        "cachePeakBytes": 0,
+        "cachePeakRecords": 0,
+        "cpuSeconds": 1408.362174999999,
+        "createSeconds": 1397.7145859000018,
+        "effectiveCores": 1.007617856468988,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 64,
+        "memoryMet": true,
+        "memoryMiB": 53.8046875,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 111373,
+        "reorderPeakEntries": 1,
+        "speedup": 0.9865807691790496,
+        "targetMiBPerSecond": 0.5852263554263669,
+        "uniqueMissingMiBPerSecond": 0.33814740911384045
+      },
+      "h2-w2": {
+        "allocatedBytes": 15330062072,
+        "baseBytesRead": 9856132051,
+        "baseSeeks": 123057,
+        "cachePeakBytes": 0,
+        "cachePeakRecords": 0,
+        "cpuSeconds": 1444.882420999999,
+        "createSeconds": 732.2997164999981,
+        "effectiveCores": 1.9730752155767124,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 96,
+        "memoryMet": true,
+        "memoryMiB": 69.25,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 162625,
+        "reorderPeakEntries": 5,
+        "speedup": 1.8830518436367634,
+        "targetMiBPerSecond": 1.1170008598965966,
+        "uniqueMissingMiBPerSecond": 0.6454100080246462
+      },
+      "h2-w4": {
+        "allocatedBytes": 16288802040,
+        "baseBytesRead": 9856132051,
+        "baseSeeks": 123057,
+        "cachePeakBytes": 0,
+        "cachePeakRecords": 0,
+        "cpuSeconds": 1424.1757340000015,
+        "createSeconds": 390.3287556000003,
+        "effectiveCores": 3.6486569681775207,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 160,
+        "memoryMet": true,
+        "memoryMiB": 95.4609375,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 304027,
+        "reorderPeakEntries": 13,
+        "speedup": 3.5328125624009226,
+        "targetMiBPerSecond": 2.0956165829370197,
+        "uniqueMissingMiBPerSecond": 1.210860227748769
+      },
+      "h2-w8": {
+        "allocatedBytes": 16770582544,
+        "baseBytesRead": 9856132051,
+        "baseSeeks": 123057,
+        "cachePeakBytes": 0,
+        "cachePeakRecords": 0,
+        "cpuSeconds": 1548.9838849999987,
+        "createSeconds": 422.3792052000004,
+        "effectiveCores": 3.667282541209719,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 288,
+        "memoryMet": true,
+        "memoryMiB": 152.03125,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 425563,
+        "reorderPeakEntries": 25,
+        "speedup": 3.2647401062205494,
+        "targetMiBPerSecond": 1.9365996312370801,
+        "uniqueMissingMiBPerSecond": 1.118979249177084
+      },
+      "h3-w1": {
+        "allocatedBytes": 14668461352,
+        "baseBytesRead": 632943047,
+        "baseSeeks": 2377,
+        "cachePeakBytes": 1535686,
+        "cachePeakRecords": 11,
+        "cpuSeconds": 1469.5553899999982,
+        "createSeconds": 1462.444695999998,
+        "effectiveCores": 1.0048621968539726,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 64,
+        "memoryMet": true,
+        "memoryMiB": 53.35546875,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 111373,
+        "reorderPeakEntries": 1,
+        "speedup": 0.9429131474315953,
+        "targetMiBPerSecond": 0.5593233134010648,
+        "uniqueMissingMiBPerSecond": 0.3231804711627267
+      },
+      "h3-w2": {
+        "allocatedBytes": 15728253688,
+        "baseBytesRead": 632943047,
+        "baseSeeks": 2377,
+        "cachePeakBytes": 1535686,
+        "cachePeakRecords": 11,
+        "cpuSeconds": 1298.9338590000002,
+        "createSeconds": 660.9344511999988,
+        "effectiveCores": 1.9652990650459268,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 96,
+        "memoryMet": true,
+        "memoryMiB": 69.84765625,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 162625,
+        "reorderPeakEntries": 6,
+        "speedup": 2.0863768392559217,
+        "targetMiBPerSecond": 1.2376104945768838,
+        "uniqueMissingMiBPerSecond": 0.7150990011862629
+      },
+      "h3-w4": {
+        "allocatedBytes": 16706722264,
+        "baseBytesRead": 632943047,
+        "baseSeeks": 2377,
+        "cachePeakBytes": 1535686,
+        "cachePeakRecords": 11,
+        "cpuSeconds": 1304.8812419999992,
+        "createSeconds": 358.10523319999976,
+        "effectiveCores": 3.6438485702643457,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 160,
+        "memoryMet": true,
+        "memoryMiB": 97.23046875,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 444901,
+        "reorderPeakEntries": 13,
+        "speedup": 3.8507070084615607,
+        "targetMiBPerSecond": 2.284187264517564,
+        "uniqueMissingMiBPerSecond": 1.3198175343021217
+      },
+      "h3-w8": {
+        "allocatedBytes": 17105614656,
+        "baseBytesRead": 632943047,
+        "baseSeeks": 2377,
+        "cachePeakBytes": 1535686,
+        "cachePeakRecords": 11,
+        "cpuSeconds": 1328.7925590000034,
+        "createSeconds": 363.4763453000001,
+        "effectiveCores": 3.6557882684312415,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 288,
+        "memoryMet": true,
+        "memoryMiB": 148.6015625,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 774616,
+        "reorderPeakEntries": 29,
+        "speedup": 3.793804876385721,
+        "targetMiBPerSecond": 2.2504336901412425,
+        "uniqueMissingMiBPerSecond": 1.3003145101852926
+      }
+    },
+    "linux-x64": {
+      "h0": {
+        "allocatedBytes": 14123884464,
+        "baseBytesRead": 9856132051,
+        "baseSeeks": 123057,
+        "cachePeakBytes": 0,
+        "cachePeakRecords": 0,
+        "cpuSeconds": 1509.7515099999996,
+        "createSeconds": 1482.2367957000017,
+        "effectiveCores": 1.0069682146097763,
+        "files": 1893,
+        "h0Seconds": [
+          1499.304037700002,
+          1465.1695537000014
+        ],
+        "memoryBoundMiB": 64,
+        "memoryMet": true,
+        "memoryMiB": 53.5234375,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 0,
+        "reorderPeakEntries": 0,
+        "speedup": 1.0,
+        "targetMiBPerSecond": 0.54557274072799,
+        "uniqueMissingMiBPerSecond": 0.31523530519383547
+      },
+      "h1": {
+        "allocatedBytes": 14460244504,
+        "baseBytesRead": 632943047,
+        "baseSeeks": 2377,
+        "cachePeakBytes": 1535686,
+        "cachePeakRecords": 11,
+        "cpuSeconds": 1477.2327020000007,
+        "createSeconds": 1472.0551509999984,
+        "effectiveCores": 1.0035172262374035,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 64,
+        "memoryMet": true,
+        "memoryMiB": 53.328125,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 0,
+        "reorderPeakEntries": 0,
+        "speedup": 1.0069166190499634,
+        "targetMiBPerSecond": 0.5556717168353786,
+        "uniqueMissingMiBPerSecond": 0.3210705560736905
+      },
+      "h2-w1": {
+        "allocatedBytes": 14293062352,
+        "baseBytesRead": 9856132051,
+        "baseSeeks": 123057,
+        "cachePeakBytes": 0,
+        "cachePeakRecords": 0,
+        "cpuSeconds": 1499.0696890000004,
+        "createSeconds": 1486.3675598999992,
+        "effectiveCores": 1.0085457523715438,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 64,
+        "memoryMet": true,
+        "memoryMiB": 54.92578125,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 111373,
+        "reorderPeakEntries": 1,
+        "speedup": 0.997220899923115,
+        "targetMiBPerSecond": 0.5503210882021432,
+        "uniqueMissingMiBPerSecond": 0.3179789297436686
+      },
+      "h2-w2": {
+        "allocatedBytes": 15330473128,
+        "baseBytesRead": 9856132051,
+        "baseSeeks": 123057,
+        "cachePeakBytes": 0,
+        "cachePeakRecords": 0,
+        "cpuSeconds": 1570.4866290000011,
+        "createSeconds": 796.3574224999993,
+        "effectiveCores": 1.9720876388265252,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 96,
+        "memoryMet": true,
+        "memoryMiB": 70.1796875,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 162625,
+        "reorderPeakEntries": 6,
+        "speedup": 1.8612707734258647,
+        "targetMiBPerSecond": 1.027151113208256,
+        "uniqueMissingMiBPerSecond": 0.5934942684642465
+      },
+      "h2-w4": {
+        "allocatedBytes": 16291489360,
+        "baseBytesRead": 9856132051,
+        "baseSeeks": 123057,
+        "cachePeakBytes": 0,
+        "cachePeakRecords": 0,
+        "cpuSeconds": 2151.7623309999944,
+        "createSeconds": 577.6805026999998,
+        "effectiveCores": 3.7248311496457838,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 160,
+        "memoryMet": true,
+        "memoryMiB": 101.07421875,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 248194,
+        "reorderPeakEntries": 13,
+        "speedup": 2.5658418256670066,
+        "targetMiBPerSecond": 1.4159719935317319,
+        "uniqueMissingMiBPerSecond": 0.818157378851606
+      },
+      "h2-w8": {
+        "allocatedBytes": 16758495328,
+        "baseBytesRead": 9856132051,
+        "baseSeeks": 123057,
+        "cachePeakBytes": 0,
+        "cachePeakRecords": 0,
+        "cpuSeconds": 2379.9835750000007,
+        "createSeconds": 639.4096624000002,
+        "effectiveCores": 3.72215766347168,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 288,
+        "memoryMet": true,
+        "memoryMiB": 158.66015625,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 425563,
+        "reorderPeakEntries": 25,
+        "speedup": 2.318133245181941,
+        "targetMiBPerSecond": 1.2792728373266626,
+        "uniqueMissingMiBPerSecond": 0.7391717606028936
+      },
+      "h3-w1": {
+        "allocatedBytes": 14670669056,
+        "baseBytesRead": 632943047,
+        "baseSeeks": 2377,
+        "cachePeakBytes": 1535686,
+        "cachePeakRecords": 11,
+        "cpuSeconds": 1514.4150570000024,
+        "createSeconds": 1506.195733400002,
+        "effectiveCores": 1.0054570089515833,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 64,
+        "memoryMet": true,
+        "memoryMiB": 56.04296875,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 111373,
+        "reorderPeakEntries": 1,
+        "speedup": 0.9840930782309968,
+        "targetMiBPerSecond": 0.5430764374734157,
+        "uniqueMissingMiBPerSecond": 0.3137929257280615
+      },
+      "h3-w2": {
+        "allocatedBytes": 15728963056,
+        "baseBytesRead": 632943047,
+        "baseSeeks": 2377,
+        "cachePeakBytes": 1535686,
+        "cachePeakRecords": 11,
+        "cpuSeconds": 1539.0713570000007,
+        "createSeconds": 782.8501840999998,
+        "effectiveCores": 1.9659845373471903,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 96,
+        "memoryMet": true,
+        "memoryMiB": 73.08203125,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 162625,
+        "reorderPeakEntries": 6,
+        "speedup": 1.893384999843934,
+        "targetMiBPerSecond": 1.0448735015281605,
+        "uniqueMissingMiBPerSecond": 0.6037343740885378
+      },
+      "h3-w4": {
+        "allocatedBytes": 16706835688,
+        "baseBytesRead": 632943047,
+        "baseSeeks": 2377,
+        "cachePeakBytes": 1535686,
+        "cachePeakRecords": 11,
+        "cpuSeconds": 2180.7050010000003,
+        "createSeconds": 585.4695688999999,
+        "effectiveCores": 3.724711098302142,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 160,
+        "memoryMet": true,
+        "memoryMiB": 104.8359375,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 461343,
+        "reorderPeakEntries": 13,
+        "speedup": 2.5317059578090086,
+        "targetMiBPerSecond": 1.397133952784906,
+        "uniqueMissingMiBPerSecond": 0.8072726423522062
+      },
+      "h3-w8": {
+        "allocatedBytes": 17109083680,
+        "baseBytesRead": 632943047,
+        "baseSeeks": 2377,
+        "cachePeakBytes": 1535686,
+        "cachePeakRecords": 11,
+        "cpuSeconds": 2361.120675000001,
+        "createSeconds": 630.3288539000007,
+        "effectiveCores": 3.7458552950434725,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 288,
+        "memoryMet": true,
+        "memoryMiB": 166.5859375,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 1010817,
+        "reorderPeakEntries": 29,
+        "speedup": 2.351529343023147,
+        "targetMiBPerSecond": 1.297702632477461,
+        "uniqueMissingMiBPerSecond": 0.7498206102709865
+      }
+    },
+    "win-x64": {
+      "h0": {
+        "allocatedBytes": 14112489208,
+        "baseBytesRead": 9856132051,
+        "baseSeeks": 123057,
+        "cachePeakBytes": 0,
+        "cachePeakRecords": 0,
+        "cpuSeconds": 1317.875,
+        "createSeconds": 1288.0957363,
+        "effectiveCores": 0.9872614341298412,
+        "files": 1893,
+        "h0Seconds": [
+          1334.8794497999986,
+          1241.3120228000014
+        ],
+        "memoryBoundMiB": 64,
+        "memoryMet": true,
+        "memoryMiB": 30.5546875,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 0,
+        "reorderPeakEntries": 0,
+        "speedup": 1.0,
+        "targetMiBPerSecond": 0.6127739948016185,
+        "uniqueMissingMiBPerSecond": 0.35406460558930875
+      },
+      "h1": {
+        "allocatedBytes": 14445505160,
+        "baseBytesRead": 632943047,
+        "baseSeeks": 2377,
+        "cachePeakBytes": 1535686,
+        "cachePeakRecords": 11,
+        "cpuSeconds": 1288.640625,
+        "createSeconds": 1294.2794393000022,
+        "effectiveCores": 0.995643279087357,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 64,
+        "memoryMet": true,
+        "memoryMiB": 31.12109375,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 0,
+        "reorderPeakEntries": 0,
+        "speedup": 0.9952222813619395,
+        "targetMiBPerSecond": 0.6319959880340273,
+        "uniqueMissingMiBPerSecond": 0.3651711922104928
+      },
+      "h2-w1": {
+        "allocatedBytes": 14276997568,
+        "baseBytesRead": 9856132051,
+        "baseSeeks": 123057,
+        "cachePeakBytes": 0,
+        "cachePeakRecords": 0,
+        "cpuSeconds": 1308.109375,
+        "createSeconds": 1306.7471324999997,
+        "effectiveCores": 1.0010424683292736,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 64,
+        "memoryMet": true,
+        "memoryMiB": 31.11328125,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 111373,
+        "reorderPeakEntries": 1,
+        "speedup": 0.9857268512506189,
+        "targetMiBPerSecond": 0.6259661052154878,
+        "uniqueMissingMiBPerSecond": 0.361687088609479
+      },
+      "h2-w2": {
+        "allocatedBytes": 15320303648,
+        "baseBytesRead": 9856132051,
+        "baseSeeks": 123057,
+        "cachePeakBytes": 0,
+        "cachePeakRecords": 0,
+        "cpuSeconds": 1395.0625,
+        "createSeconds": 712.5219204000016,
+        "effectiveCores": 1.9579222197358195,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 96,
+        "memoryMet": true,
+        "memoryMiB": 45.41015625,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 162625,
+        "reorderPeakEntries": 8,
+        "speedup": 1.8077980472192041,
+        "targetMiBPerSecond": 1.148005962501936,
+        "uniqueMissingMiBPerSecond": 0.6633249481466885
+      },
+      "h2-w4": {
+        "allocatedBytes": 16277978672,
+        "baseBytesRead": 9856132051,
+        "baseSeeks": 123057,
+        "cachePeakBytes": 0,
+        "cachePeakRecords": 0,
+        "cpuSeconds": 1949.375,
+        "createSeconds": 536.4885811,
+        "effectiveCores": 3.6335815312286055,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 160,
+        "memoryMet": true,
+        "memoryMiB": 71.7265625,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 295222,
+        "reorderPeakEntries": 13,
+        "speedup": 2.400975121705158,
+        "targetMiBPerSecond": 1.5246911898019737,
+        "uniqueMissingMiBPerSecond": 0.880976003130647
+      },
+      "h2-w8": {
+        "allocatedBytes": 16751979560,
+        "baseBytesRead": 9856132051,
+        "baseSeeks": 123057,
+        "cachePeakBytes": 0,
+        "cachePeakRecords": 0,
+        "cpuSeconds": 1954.59375,
+        "createSeconds": 537.3346530999999,
+        "effectiveCores": 3.637572486203013,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 288,
+        "memoryMet": true,
+        "memoryMiB": 126.99609375,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 335812,
+        "reorderPeakEntries": 18,
+        "speedup": 2.397194613949979,
+        "targetMiBPerSecond": 1.5222904540279163,
+        "uniqueMissingMiBPerSecond": 0.8795888431464166
+      },
+      "h3-w1": {
+        "allocatedBytes": 14656045688,
+        "baseBytesRead": 632943047,
+        "baseSeeks": 2377,
+        "cachePeakBytes": 1535686,
+        "cachePeakRecords": 11,
+        "cpuSeconds": 1269.859375,
+        "createSeconds": 1276.5952658000024,
+        "effectiveCores": 0.9947235502273454,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 64,
+        "memoryMet": true,
+        "memoryMiB": 33.1328125,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 111373,
+        "reorderPeakEntries": 1,
+        "speedup": 1.0090087052710404,
+        "targetMiBPerSecond": 0.640750780569384,
+        "uniqueMissingMiBPerSecond": 0.37022976550561254
+      },
+      "h3-w2": {
+        "allocatedBytes": 15717320800,
+        "baseBytesRead": 632943047,
+        "baseSeeks": 2377,
+        "cachePeakBytes": 1535686,
+        "cachePeakRecords": 11,
+        "cpuSeconds": 1322.421875,
+        "createSeconds": 678.1991088999996,
+        "effectiveCores": 1.949902112293974,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 96,
+        "memoryMet": true,
+        "memoryMiB": 45.76171875,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 162625,
+        "reorderPeakEntries": 7,
+        "speedup": 1.899288452898763,
+        "targetMiBPerSecond": 1.2061051132303136,
+        "uniqueMissingMiBPerSecond": 0.6968949969121823
+      },
+      "h3-w4": {
+        "allocatedBytes": 16691310824,
+        "baseBytesRead": 632943047,
+        "baseSeeks": 2377,
+        "cachePeakBytes": 1535686,
+        "cachePeakRecords": 11,
+        "cpuSeconds": 1912.34375,
+        "createSeconds": 527.2953512999997,
+        "effectiveCores": 3.6267032229381257,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 160,
+        "memoryMet": true,
+        "memoryMiB": 74.828125,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 444901,
+        "reorderPeakEntries": 13,
+        "speedup": 2.4428353732387644,
+        "targetMiBPerSecond": 1.5512737046057328,
+        "uniqueMissingMiBPerSecond": 0.8963355446572288
+      },
+      "h3-w8": {
+        "allocatedBytes": 17061181496,
+        "baseBytesRead": 632943047,
+        "baseSeeks": 2377,
+        "cachePeakBytes": 1535686,
+        "cachePeakRecords": 11,
+        "cpuSeconds": 1933.765625,
+        "createSeconds": 532.5057261000012,
+        "effectiveCores": 3.6314456919790024,
+        "files": 1893,
+        "h0Seconds": null,
+        "memoryBoundMiB": 288,
+        "memoryMet": true,
+        "memoryMiB": 123.63671875,
+        "patchesSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+        "reorderPeakBytes": 973590,
+        "reorderPeakEntries": 30,
+        "speedup": 2.418933117834875,
+        "targetMiBPerSecond": 1.5360950557720772,
+        "uniqueMissingMiBPerSecond": 0.8875652274468733
+      }
+    }
+  },
+  "runIds": {
+    "linux-arm64": "PATCH-ENC-004/RUN-20261001-22-844d1e7-linux-arm64",
+    "linux-x64": "PATCH-ENC-004/RUN-20261001-22-844d1e7-linux-x64",
+    "win-x64": "PATCH-ENC-004/RUN-20261001-22-844d1e7-win-x64"
+  },
+  "schema": "chunkshift.patch-enc-004-verdict.v1",
+  "valid": true,
+  "workers": {
+    "adoptedExecution": "h2-w2",
+    "adoptedWorkers": 2,
+    "decision": "ADOPT",
+    "families": {
+      "h2": {
+        "eligible": true,
+        "family": "h2",
+        "table": [
+          {
+            "bytesIdentical": true,
+            "execution": "h2-w1",
+            "memoryMet": {
+              "linux-arm64": true,
+              "linux-x64": true,
+              "win-x64": true
+            },
+            "platformsWithSpeedup": 0,
+            "qualifies": false,
+            "speedups": {
+              "linux-arm64": 0.9865807691790496,
+              "linux-x64": 0.997220899923115,
+              "win-x64": 0.9857268512506189
+            },
+            "status": "does not qualify",
+            "workers": 1
+          },
+          {
+            "bytesIdentical": true,
+            "execution": "h2-w2",
+            "memoryMet": {
+              "linux-arm64": true,
+              "linux-x64": true,
+              "win-x64": true
+            },
+            "platformsWithSpeedup": 3,
+            "qualifies": true,
+            "speedups": {
+              "linux-arm64": 1.8830518436367634,
+              "linux-x64": 1.8612707734258647,
+              "win-x64": 1.8077980472192041
+            },
+            "status": "qualifies",
+            "workers": 2
+          },
+          {
+            "bytesIdentical": true,
+            "execution": "h2-w4",
+            "memoryMet": {
+              "linux-arm64": true,
+              "linux-x64": true,
+              "win-x64": true
+            },
+            "platformsWithSpeedup": 3,
+            "qualifies": true,
+            "speedups": {
+              "linux-arm64": 3.5328125624009226,
+              "linux-x64": 2.5658418256670066,
+              "win-x64": 2.400975121705158
+            },
+            "status": "qualifies",
+            "workers": 4
+          },
+          {
+            "bytesIdentical": true,
+            "execution": "h2-w8",
+            "memoryMet": {
+              "linux-arm64": true,
+              "linux-x64": true,
+              "win-x64": true
+            },
+            "platformsWithSpeedup": 3,
+            "qualifies": true,
+            "speedups": {
+              "linux-arm64": 3.2647401062205494,
+              "linux-x64": 2.318133245181941,
+              "win-x64": 2.397194613949979
+            },
+            "status": "qualifies",
+            "workers": 8
+          }
+        ]
+      },
+      "h3": {
+        "eligible": false,
+        "family": "h3",
+        "table": [
+          {
+            "bytesIdentical": true,
+            "execution": "h3-w1",
+            "memoryMet": {
+              "linux-arm64": true,
+              "linux-x64": true,
+              "win-x64": true
+            },
+            "platformsWithSpeedup": 0,
+            "qualifies": false,
+            "speedups": {
+              "linux-arm64": 0.9429131474315953,
+              "linux-x64": 0.9840930782309968,
+              "win-x64": 1.0090087052710404
+            },
+            "status": "not eligible (H1 not adopted)",
+            "workers": 1
+          },
+          {
+            "bytesIdentical": true,
+            "execution": "h3-w2",
+            "memoryMet": {
+              "linux-arm64": true,
+              "linux-x64": true,
+              "win-x64": true
+            },
+            "platformsWithSpeedup": 3,
+            "qualifies": false,
+            "speedups": {
+              "linux-arm64": 2.0863768392559217,
+              "linux-x64": 1.893384999843934,
+              "win-x64": 1.899288452898763
+            },
+            "status": "not eligible (H1 not adopted)",
+            "workers": 2
+          },
+          {
+            "bytesIdentical": true,
+            "execution": "h3-w4",
+            "memoryMet": {
+              "linux-arm64": true,
+              "linux-x64": true,
+              "win-x64": true
+            },
+            "platformsWithSpeedup": 3,
+            "qualifies": false,
+            "speedups": {
+              "linux-arm64": 3.8507070084615607,
+              "linux-x64": 2.5317059578090086,
+              "win-x64": 2.4428353732387644
+            },
+            "status": "not eligible (H1 not adopted)",
+            "workers": 4
+          },
+          {
+            "bytesIdentical": true,
+            "execution": "h3-w8",
+            "memoryMet": {
+              "linux-arm64": true,
+              "linux-x64": true,
+              "win-x64": true
+            },
+            "platformsWithSpeedup": 3,
+            "qualifies": false,
+            "speedups": {
+              "linux-arm64": 3.793804876385721,
+              "linux-x64": 2.351529343023147,
+              "win-x64": 2.418933117834875
+            },
+            "status": "not eligible (H1 not adopted)",
+            "workers": 8
+          }
+        ]
+      }
+    },
+    "family": "h2",
+    "h3Eligible": false
+  }
+}

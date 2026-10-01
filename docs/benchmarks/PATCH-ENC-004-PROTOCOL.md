@@ -124,4 +124,4 @@ RunIds are `PATCH-ENC-004/RUN-YYYYMMDD-NNN-<commit>-<platform>`; the record is `
 
 ## 9. Result
 
-None yet.
+[PATCH-ENC-004-EVIDENCE-20261001-001](../research/results/PATCH-ENC-004-EVIDENCE-20261001-001.md): H1 REJECT, workers ADOPT H2-W2.
