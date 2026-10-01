@@ -284,9 +284,9 @@ public class PatchEnc005PhaseATests
         Assert.Equal(112, largerFrameButOneRef);
         Assert.True(CspPatchBuilder.CompareRankKeys(
             smallerFrameButFourRefs,
-            leftOrdinal: 0,
+            0,
             largerFrameButOneRef,
-            rightOrdinal: 1) > 0);
+            1) > 0);
 
         Assert.True(CspPatchBuilder.CompareRankKeys(
             leftCost: 112,
@@ -333,8 +333,8 @@ public class PatchEnc005PhaseATests
 
             CspCandidateTraceCandidate? loser = entry.Candidates.FirstOrDefault(candidate =>
                 candidate.Ordinal != selectedOrdinal &&
-                candidate.StartIndex + candidate.RecordCount <= selected.StartIndex ||
-                selected.StartIndex + selected.RecordCount <= candidate.StartIndex);
+                (candidate.StartIndex + candidate.RecordCount <= selected.StartIndex ||
+                 selected.StartIndex + selected.RecordCount <= candidate.StartIndex));
 
             if (loser is not null)
             {
