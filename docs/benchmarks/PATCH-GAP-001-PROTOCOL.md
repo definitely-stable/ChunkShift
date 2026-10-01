@@ -149,9 +149,26 @@ G1 keeps the production candidate-start set: at most eight starts inside ±256 K
 | G1-B8-R512 | 512 | 8,388,608 | 16,777,216 (windowLog=24) | 8 MiB history envelope |
 | G1-B32-R2048 | 2,048 | 33,554,432 | 67,108,864 (windowLog=26) | 32 MiB history envelope |
 
-For every research lane after H0, a candidate starts at the same production start and appends consecutive base chunks until end-of-base, the lane's reference cap, or adding the next chunk would exceed the byte budget. It never skips to a non-contiguous chunk.
+G1 is a **nested relaxation**, not a replacement dictionary policy. For each distinct missing target entry:
 
-The reference cap is derived from the stable profile's **16 KiB minimum chunk**, not its 256 KiB maximum: `maxRefs = byteBudget / 16 KiB`. Therefore any legal stable-profile chunk sequence can reach the lane's byte budget without an arbitrary reference-count cap firing first. This is important for B8/B32: a common fixed cap such as 128 references would typically expose only about 8 MiB at a 64 KiB average chunk and could turn a nominal 32 MiB experiment into a hidden reference-cap experiment. Reference metadata remains fully charged, so the larger cap is not free.
+1. Start with the exact H0 winning stored form and exact H0 entry cost. It remains a legal choice in every G1 lane without re-encoding.
+2. Reuse exactly the H0 candidate-start set/order; G1 never adds a start.
+3. For one start and envelope E, build the **maximal contiguous prefix** beginning at that start: append base chunks in order until end-of-base, E's reference cap, or adding the next chunk would exceed E's byte budget. Never skip a chunk.
+4. Deduplicate trials whose ordered ChunkId sequence is identical to an already-tried dictionary for that start.
+5. A lane includes every frozen envelope up to itself:
+   - B1 tries B1;
+   - B4 tries B1 + B4;
+   - B8 tries B1 + B4 + B8;
+   - B32 tries B1 + B4 + B8 + B32.
+6. Each envelope candidate is encoded with **that envelope's own frozen window cap**, so the exact B4 trial embedded in B32 is byte-identical to the B4-lane trial. The final winner is the strict minimum against the preserved H0 winner; equal cost keeps the earlier/smaller-envelope choice.
+
+The reference cap is derived from the stable profile's **16 KiB minimum chunk**, not its 256 KiB maximum: `maxRefs = byteBudget / 16 KiB`. Therefore a reference cap cannot fire before the byte budget except where end-of-base itself is the limiter. This is important for B8/B32: a common fixed cap such as 128 references would typically expose only about 8 MiB at a 64 KiB average chunk and could turn a nominal 32 MiB experiment into a hidden reference-cap experiment. Reference metadata remains fully charged, so the larger cap is not free.
+
+These nesting rules create mandatory byte oracles, aggregate and per entry:
+
+`cost(H0) >= cost(B1) >= cost(B4) >= cost(B8) >= cost(B32)`.
+
+Any violation is an implementation/evidence error, not measurement noise.
 
 The G1 driver is **lab-only** and must not widen `CspDictionary.MaximumBytes`, `CspEncoderPolicy.Default` or any public API. Production `CspPayloadEncoder` rejects dictionaries above 1 MiB through `CspDictionary.IsUsable`, so B4/B8/B32 use a dedicated research codec path over the same pinned low-level zstd backend. The only dictionary-eligibility changes are the frozen G1 reference/byte/window limits. All other H0 semantics stay fixed:
 
@@ -164,9 +181,15 @@ The G1 driver is **lab-only** and must not widen `CspDictionary.MaximumBytes`, `
 
 The evidence records zstd version/build/binary SHA-256 and the exact research-policy fingerprint. A result obtained by patching the production format limits or by falling back to trained-dictionary auto-detection is invalid.
 
-For B4/B8/B32, the window is the smallest power-of-two window that can keep the entire maximum dictionary plus one maximum-size 256 KiB target chunk addressable. The larger window is therefore an explicit part of the G1 **dictionary/history envelope** relaxation, not a hidden second factor. G1-B1-R64 deliberately keeps the v1 1 MiB window.
+For B4/B8/B32, the window is the smallest frozen power-of-two envelope chosen to keep the larger raw-prefix history usable with a maximum-size 256 KiB target chunk. The larger window is therefore an explicit part of the G1 **dictionary/history envelope** relaxation, not a hidden second factor. G1-B1-R64 deliberately keeps the v1 1 MiB window. Because smaller-envelope trials retain their own window caps, a larger lane never rewrites earlier evidence merely by raising its maximum supported window.
 
 ### 5.3 Costing and representability
+
+For each distinct missing entry define `entryCost = storedBytes + 32 × dictionaryRefs`. Since G1 conservatively keeps every existing fixed PAYL/PIDX/non-payload byte and the synthetic count field does not enlarge either fixed header, whole-split physical accounting is exact:
+
+`B_G1(E) = B_CSP - sum(H0EntryCost) + sum(G1WinnerEntryCost(E))`
+
+over the distinct missing payload entries. The compact dataset records H0 cost, every attempted envelope/start cost, selected envelope/start and final winner so this equation and the nesting oracle can be recomputed independently.
 
 Each dictionary reference still costs exactly 32 bytes in the research score. No oracle gets free references. Maximum reference metadata is therefore 2,048 bytes for B1/R64, 8,192 for B4/R256, 16,384 for B8/R512 and 65,536 for B32/R2048.
 
@@ -196,9 +219,9 @@ apply_rss_limit(F) = 64 MiB + decoder_data_envelope(F) - decoder_data_envelope(H
 
 A G1 lane that crosses the §11 size threshold but exceeds its lane-specific apply-RSS ceiling on **any** required runtime platform is not RFC-qualified. The measurement uses the same >=1 MiB per-file child-process / idle-baseline convention as D17. This rule preserves the existing 64 MiB implementation allowance and grants only memory directly implied by the larger declared dictionary/window/reference envelope; it does not hide arbitrary lab implementation overhead.
 
-This is a codec-data upper envelope, not a prediction of RSS; allocator, native zstd and implementation overhead are measured separately. With the frozen maximum of eight candidate starts and no research candidate cache, the naïve create-side base-read bound is at most 8 × dictionary_budget per target entry; apply reads only the selected named dictionary and is bounded by dictionary_budget. Actual reads, read calls and amplification are recorded because overlapping candidates can cause substantial rereads.
+This is a codec-data upper envelope, not a prediction of RSS; allocator, native zstd and implementation overhead are measured separately. The G1 driver must read at most the **largest requested dictionary once per H0 start** and reuse prefix slices for the smaller nested-envelope trials; it may not reread the same start independently for B1/B4/B8 inside a B32 entry. Thus the per-entry base-read bound remains at most `8 × laneMaximumDictionaryBudget`; B32 performs at most 32 non-deduplicated extended dictionary encodes (8 starts × 4 envelopes), not thousands of prefix-length trials. Apply reads only the selected named dictionary and is bounded by the selected envelope's dictionary budget. Actual bytes/read calls/seeks and amplification are still recorded.
 
-For every candidate, record dictionary bytes/reference count, compressed-frame bytes, reference-cost bytes, zstd window, base bytes/read calls, create/apply peak RSS, winning candidate start and stored form.
+For every attempted envelope/start, record envelope id, ordered dictionary ChunkIds, dictionary bytes/reference count, compressed-frame bytes, reference-cost bytes, zstd window, base bytes/read calls and whether the trial was deduplicated. Per entry also record H0 winner cost, G1 winner envelope/start/stored form, trial count and create/apply peak RSS.
 
 G1 is an upper-bound experiment. Any result beyond H0 cannot be emitted as CSP v1 because it may exceed the v1 4-reference, 1 MiB dictionary and/or 1 MiB window maxima.
 
