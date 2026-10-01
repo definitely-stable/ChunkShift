@@ -8,8 +8,8 @@ namespace ChunkShift.Benchmarks.PatchLab;
 /// <c>patch-lab</c> mode: the CSP lanes of the patching pre-freeze protocol
 /// (docs/benchmarks/PATCH-PREFREEZE-PROTOCOL.md) over the frozen patch corpus.
 /// <code>
-/// patch-lab run --corpus &lt;root&gt; --lane &lt;name&gt; --output &lt;file.json&gt; [--families &lt;id,...&gt;] [--workers &lt;n&gt;] [--apply-repeats &lt;n&gt;] [--no-apply] [--run-id &lt;id&gt;] [--work &lt;dir&gt;]
-/// patch-lab memory --corpus &lt;root&gt; --output &lt;file.json&gt; [--min-bytes &lt;n&gt;] [--families &lt;id,...&gt;] [--run-id &lt;id&gt;] [--work &lt;dir&gt;] [--lane &lt;name&gt;]
+/// patch-lab run --corpus &lt;root&gt; --lane &lt;name&gt; --output &lt;file.json&gt; [--families &lt;id,...&gt;] [--workers &lt;n&gt;] [--apply-repeats &lt;n&gt;] [--no-apply] [--run-id &lt;id&gt;] [--work &lt;dir&gt;] [--execution &lt;h0|h1|h2-wN|h3-wN&gt;]
+/// patch-lab memory --corpus &lt;root&gt; --output &lt;file.json&gt; [--min-bytes &lt;n&gt;] [--families &lt;id,...&gt;] [--run-id &lt;id&gt;] [--work &lt;dir&gt;] [--lane &lt;name&gt;] [--execution &lt;name&gt;]
 /// patch-lab one &lt;idle|create|apply&gt; ...
 /// patch-lab apply-check &lt;prepare|time|concurrent|memory&gt; ...
 /// </code>

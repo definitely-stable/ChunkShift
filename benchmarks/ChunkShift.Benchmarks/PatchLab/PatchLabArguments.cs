@@ -78,7 +78,8 @@ internal sealed record PatchLabMemoryOptions(
     string[]? Families,
     string? RunId,
     string? Work,
-    string Lane)
+    string Lane,
+    string? Execution = null)
 {
     private const long DefaultMinBytes = 1024 * 1024;
 
@@ -125,6 +126,14 @@ internal sealed record PatchLabMemoryOptions(
             return false;
         }
 
+        string? execution = PatchLabArguments.Value(args, "--execution");
+
+        if (execution is not null && !PatchLabExecution.TryParse(execution, out _))
+        {
+            error = $"Unknown execution '{execution}'; expected one of: {string.Join(", ", PatchLabExecution.Names)}.";
+            return false;
+        }
+
         try
         {
             options = new PatchLabMemoryOptions(
@@ -134,7 +143,8 @@ internal sealed record PatchLabMemoryOptions(
                 PatchLabArguments.Families(PatchLabArguments.Value(args, "--families")),
                 PatchLabArguments.Value(args, "--run-id"),
                 PatchLabArguments.Value(args, "--work"),
-                lane);
+                lane,
+                execution);
             return true;
         }
         catch (PatchLabUsageException exception)

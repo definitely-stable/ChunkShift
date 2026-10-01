@@ -39,10 +39,19 @@ internal static class PatchLabRun
         int applyRepeats = PatchLabArguments.PositiveInt(args, "--apply-repeats", 3);
         bool apply = !args.Contains("--no-apply", StringComparer.Ordinal);
         string? runId = PatchLabArguments.Value(args, "--run-id");
+        string? executionName = PatchLabArguments.Value(args, "--execution");
+        CspCreateExecution? execution = executionName is null ? null : PatchLabExecution.Parse(executionName);
+
+        // PATCH-ENC-004 attributes process CPU and allocations to one create,
+        // so its runs create one file at a time.
+        if (execution is not null && workers != 1)
+        {
+            throw new PatchLabUsageException("--execution requires --workers 1.");
+        }
 
         DateTimeOffset startedUtc = DateTimeOffset.UtcNow;
         var clock = Stopwatch.StartNew();
-        PatchLabFileResult[] files = RunFiles(corpus, laneName, policy, workers, apply, applyRepeats);
+        PatchLabFileResult[] files = RunFiles(corpus, laneName, policy, execution, workers, apply, applyRepeats);
         clock.Stop();
 
         PatchLabRunner.WriteJson(outputPath, new PatchLabRunResult(
@@ -57,7 +66,8 @@ internal static class PatchLabRun
             PatchLabRunner.Snapshot(),
             startedUtc,
             clock.Elapsed.TotalSeconds,
-            files));
+            files,
+            executionName));
 
         return 0;
     }
@@ -70,6 +80,7 @@ internal static class PatchLabRun
         PatchLabCorpus corpus,
         string lane,
         CspEncoderPolicy policy,
+        CspCreateExecution? execution,
         int workers,
         bool apply,
         int applyRepeats)
@@ -117,6 +128,7 @@ internal static class PatchLabRun
                 results[index] = await RunFileAsync(
                     corpus,
                     policy,
+                    execution,
                     item.Pair,
                     item.File,
                     apply,
@@ -145,6 +157,7 @@ internal static class PatchLabRun
     private static async Task<PatchLabFileResult> RunFileAsync(
         PatchLabCorpus corpus,
         CspEncoderPolicy policy,
+        CspCreateExecution? execution,
         PatchLabPair pair,
         PatchLabChangedFile file,
         bool apply,
@@ -184,6 +197,7 @@ internal static class PatchLabRun
         {
             string patchPath = Path.Combine(directory, "patch.csp");
             double createSeconds;
+            PatchLabCreateMetrics? createMetrics = null;
 
             await using (FileStream baseManifest = PatchLabFiles.OpenRead(baseManifestPath))
             await using (FileStream baseContent = PatchLabFiles.OpenRead(baseContentPath))
@@ -191,18 +205,33 @@ internal static class PatchLabRun
             await using (FileStream targetContent = PatchLabFiles.OpenRead(targetContentPath))
             await using (FileStream destination = PatchLabFiles.Create(patchPath))
             {
-                var clock = Stopwatch.StartNew();
-                _ = await CspPatchBuilder
-                    .CreateAsync(
+                if (execution is null)
+                {
+                    var clock = Stopwatch.StartNew();
+                    _ = await CspPatchBuilder
+                        .CreateAsync(
+                            baseManifest,
+                            baseContent,
+                            targetManifest,
+                            targetContent,
+                            destination,
+                            policy,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    createSeconds = clock.Elapsed.TotalSeconds;
+                }
+                else
+                {
+                    (createSeconds, createMetrics) = await CreateMeasuredAsync(
                         baseManifest,
                         baseContent,
                         targetManifest,
                         targetContent,
                         destination,
                         policy,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-                createSeconds = clock.Elapsed.TotalSeconds;
+                        execution,
+                        cancellationToken).ConfigureAwait(false);
+                }
             }
 
             PatchFacts facts = await ReadPatchAsync(patchPath, cancellationToken).ConfigureAwait(false);
@@ -258,12 +287,70 @@ internal static class PatchLabRun
                 createSeconds,
                 applySeconds,
                 applyNoCheckSeconds,
-                patchSha256);
+                patchSha256,
+                createMetrics);
         }
         finally
         {
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    /// <summary>
+    /// Creates one patch with an explicit execution and records, around the
+    /// call alone, its wall time, process CPU, managed allocations, the base
+    /// content's reads and seeks and the builder's own counters
+    /// (docs/benchmarks/PATCH-ENC-004-PROTOCOL.md section 6).
+    /// </summary>
+    private static async Task<(double Seconds, PatchLabCreateMetrics Metrics)> CreateMeasuredAsync(
+        Stream baseManifest,
+        Stream baseContent,
+        Stream targetManifest,
+        Stream targetContent,
+        Stream destination,
+        CspEncoderPolicy policy,
+        CspCreateExecution execution,
+        CancellationToken cancellationToken)
+    {
+        var counted = new PatchLabCountingStream(baseContent);
+        var statistics = new CspCreateStatistics();
+        using Process process = Process.GetCurrentProcess();
+        process.Refresh();
+        TimeSpan cpuBefore = process.TotalProcessorTime;
+        long allocatedBefore = GC.GetTotalAllocatedBytes(precise: true);
+        var clock = Stopwatch.StartNew();
+
+        _ = await CspPatchBuilder
+            .CreateAsync(
+                baseManifest,
+                counted,
+                targetManifest,
+                targetContent,
+                destination,
+                policy,
+                execution with { Statistics = statistics },
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        double seconds = clock.Elapsed.TotalSeconds;
+        long allocated = GC.GetTotalAllocatedBytes(precise: true) - allocatedBefore;
+        process.Refresh();
+        double cpuSeconds = (process.TotalProcessorTime - cpuBefore).TotalSeconds;
+
+        return (seconds, new PatchLabCreateMetrics(
+            cpuSeconds,
+            allocated,
+            counted.Reads,
+            counted.BytesRead,
+            counted.Seeks,
+            statistics.CacheLoads,
+            statistics.CacheHits,
+            statistics.CachePeakRecords,
+            statistics.CachePeakBytes,
+            statistics.WindowPeakEntries,
+            statistics.WindowPeakBytes,
+            statistics.ReorderPeakEntries,
+            statistics.ReorderPeakBytes));
     }
 
     /// <summary>
