@@ -108,7 +108,7 @@ Calibration is the frozen .NET ASP.NET Core Windows x64 plus .NET Runtime Linux 
 
 **The historical `holdout` label does not mean an untouched statistical holdout.** PATCH-PREFREEZE and PATCH-ENC-002/003/004 have already published behavior on this partition, and those results informed the present research program. PATCH-GAP therefore treats it as a **fixed evaluation split** for the #183 corpus-specific RFC rule, not as independent generalization evidence. Below, `holdout`/H refers to that frozen evaluation split solely to stay compatible with the corpus schema and #183 wording.
 
-All lane selection, pruning and optional parameter choice for PATCH-GAP happens on calibration only. The fixed evaluation split is then evaluated once for each preselected reporting lane and is never used to retune that lane. A failed evaluation is a negative result. A claim of out-of-corpus generalization would require a separately predeclared fresh confirmation corpus under a new protocol/evidence identity.
+All frozen size-lane definitions and parameters are fixed by this protocol before GAP evaluation begins. Calibration may prioritize expensive runtime characterization, but it cannot prune any predeclared gate-eligible byte lane from the fixed evaluation split. Each committed evaluation lane runs exactly once and is never retuned from evaluation results. A claim of out-of-corpus generalization would require a separately predeclared fresh confirmation corpus under a new protocol/evidence identity.
 
 G4 and G5 use deterministic subset classifiers frozen below. The first post-merge GAP action is an **inventory-only** pass: it materializes canonically sorted G4/G5 subset manifests, records calibration/holdout SHA-256 values and commits those manifests before any G4/G5 size codec is invoked. Subsequent factor/reference runs consume those exact manifests; they do not re-decide membership. A classifier change after the inventory commit requires a protocol revision/new evidence identity. Subset membership may depend on file structure or parser support, but never on resulting patch size.
 
@@ -247,7 +247,7 @@ The freeze order is mandatory:
 3. reconcile this entire §6 and the G2 run-plan text against that merged contract;
 4. only then mark G2 exact in §17 and freeze #217.
 
-No PATCH-GAP G2 run is authorized before that reconciliation. If merged #216 changes its progression gate, evaluation population, H5/H6 availability, trace fields or oracle semantics, #217 follows the merged producer contract rather than the provisional text below.
+No PATCH-GAP G2 run is authorized before that reconciliation. If merged #216 changes its progression gate, evaluation population, H5/H6 availability, trace fields or oracle semantics, #217 follows the merged producer contract rather than this non-normative review snapshot.
 
 ### 6.2 Boundary
 
