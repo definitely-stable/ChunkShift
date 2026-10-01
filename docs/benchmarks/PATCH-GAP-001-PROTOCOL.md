@@ -513,7 +513,7 @@ gap_recovered(F,R,H) = (B_CSP(H) - B_F(H)) / (B_CSP(H) - B_R(H))
 
 It is reported only when named reference R is evaluated on the same population and the denominator is positive. Always name R. Values above 100% are possible and reported as-is; that is one reason this metric is unsuitable for the RFC threshold.
 
-A gate-eligible factor must additionally reconstruct every target exactly, have an explicit measured or analytically enforced apply-memory bound, report base-read amplification and lost properties, and be a one-factor CSP-costed counterfactual rather than merely a whole-file reference algorithm.
+A gate-eligible factor must additionally reconstruct every target exactly, have an explicit measured or analytically enforced apply-memory bound, report base-read amplification and lost properties, and be a one-factor CSP-costed counterfactual rather than merely a whole-file reference algorithm. When the lane reaches three-platform characterization, its per-file selected encoding/cost decisions and total physical bytes must be identical on linux-x64, linux-arm64 and win-x64; where the lab materializes a concrete revised-layout patch, its patch SHA-256 must also match across those platforms. Cross-platform divergence is an invalid/incomplete factor result, not timing noise.
 
 Passing does **not** adopt anything. It means the factor is large enough to justify a separate RFC/design issue. G5-Puffin, G4-Zucchini and the sampled G2 oracle are reference/attribution evidence and cannot pass this gate directly.
 
@@ -554,12 +554,15 @@ Three-platform production-implication timing may be run before evaluation for an
 
 For CSP-counterfactual create/apply timing:
 
-- use the same production H2-W2 topology where ≥2 CPUs;
-- use 10 independent repetitions for short operations;
-- for whole-corpus expensive create lanes use five paired whole-corpus repetitions, alternating H0/F and retaining every sample;
-- report median, p50, p95 when at least 10 samples exist, min/max and sample count;
-- use one process per peak-RSS measurement and the existing Patching idle-baseline convention;
-- keep exact target verification outside the timed region where that does not change the measured operation; otherwise include it identically in both lanes and record that fact.
+- use the same production H2-W2 payload topology where >=2 CPUs; do not add file-level parallelism;
+- each measured whole-corpus create invocation runs in a fresh child process against the same already-materialized corpus/input lock; environment variables, processor affinity policy, runtime and tool build are identical within the pair;
+- before measurement, run one untimed H0 warm-up and one untimed factor warm-up on that platform;
+- expensive whole-corpus create uses exactly five measured paired rounds: rounds 1/3/5 run `H0 -> F`, rounds 2/4 run `F -> H0`; no other measured lane is interleaved inside a pair;
+- compute `createWallRatio_r = wall(F_r) / wall(H0_r)` and the analogous CPU ratio per round; the platform summary is the median of the five paired ratios plus all five raw pairs. An interrupted/failed member invalidates the pair; do not silently replace only that member;
+- use 10 independent repetitions for short operations; report median/p50, p95 only where at least 10 observations exist, plus min/max and sample count;
+- peak-RSS evidence is separate from timing: one operation per fresh child process using the existing Patching idle-baseline convention, with no earlier zstd/GC state in that process;
+- keep exact target verification outside the timed region where that does not change the measured operation; otherwise include it identically in H0/F and record that fact;
+- record per-file selected-form/cost digests during the three-platform dispatch and enforce the cross-platform byte oracle from §11 before accepting timing/memory evidence.
 
 External reference tools are timed on pinned Linux x64 primarily. They are not production dependencies, so three-platform timing is not required merely for symmetry. A second platform is required only when the tool itself changes format/algorithm by platform or cannot reproduce Linux output; divergence is a tool-specific limitation, not CSP evidence.
 
