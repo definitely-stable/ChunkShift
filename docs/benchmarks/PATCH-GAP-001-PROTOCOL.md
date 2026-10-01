@@ -253,14 +253,16 @@ The subset manifest records parser result, architecture, target bytes and unique
 
 ### 8.2 G4-BCJ counterfactual lane
 
-The gate-eligible normalization lane uses reversible BCJ transforms from XZ Utils 5.8.1 / liblzma, pinned to commit a522a226545730551f7e7c2685fab27cf567746c:
+The gate-eligible normalization lane uses the public raw BCJ APIs from XZ Utils 5.8.1 / liblzma, pinned to commit a522a226545730551f7e7c2685fab27cf567746c:
 
-- x86 BCJ for PE/ELF x86 and x86-64;
-- ARM64 BCJ for ELF AArch64.
+- lzma_bcj_x86_encode/decode for PE/ELF x86 and x86-64;
+- lzma_bcj_arm64_encode/decode for ELF AArch64.
 
-A research-only driver invokes the low-level reversible BCJ transform with the original file offset as start position. For every eligible distinct missing chunk it normalizes the target bytes and each of that entry's **same H0 candidate dictionaries**, then runs the same L19/raw-prefix/H20/C20 choice and 32-byte/reference cost. Candidate starts, K=4, C=8, 256 KiB radius, 1 MiB dictionary and 1 MiB zstd window do not change.
+The position contract is frozen because BCJ conversion depends on stream position. For x86, start_offset is the low 32 bits of the chunk or dictionary's original file offset. For ARM64, the raw API requires start_offset to be a multiple of four. If a chunk/dictionary begins unaligned, leave the 0..3-byte prefix unchanged, advance to the first 4-byte-aligned original file offset, and call the raw ARM64 filter on the remaining bytes; any 0..3-byte tail not reported as processed by liblzma is also left unchanged. A contiguous H0 dictionary is normalized from its own base-file start offset, never from the target offset. The inverse uses the identical boundaries/start offsets. Record processed and untouched prefix/tail bytes so the transformation is independently auditable.
 
-Apply is the exact inverse: verify/read the named base chunks, apply the same BCJ normalization to dictionary bytes, zstd-decode the normalized target chunk, inverse-BCJ at target file offset, then verify the original target ChunkId. A lane is invalid on any non-exact reconstruction.
+For every eligible distinct missing chunk the research driver normalizes the target bytes and each of that entry's **same H0 candidate dictionaries**, then runs the same L19/raw-prefix/H20/C20 choice and 32-byte/reference cost. Candidate starts, K=4, C=8, 256 KiB radius, 1 MiB dictionary and 1 MiB zstd window do not change.
+
+Apply is the exact inverse: verify/read the named base chunks, normalize dictionary bytes under the frozen base-offset rule, zstd-decode the normalized target chunk, inverse-BCJ under the frozen target-offset rule, then verify the original target ChunkId. A lane is invalid on any non-exact reconstruction.
 
 This is a research codec counterfactual, not a production dependency or CSP v1 encoding.
 
@@ -285,7 +287,7 @@ Classify by bytes, not extension alone:
 
 - ZIP-compatible container, including .zip and .nupkg only when structurally ZIP;
 - gzip;
-- zlib/raw deflate extent when deterministically detectable by the pinned Puffin scanner;
+- zlib or a whole raw-deflate stream; arbitrary embedded deflate extents are inventory-only unless their exact extent list is produced by the frozen structural classifier before any size run;
 - other already-compressed payload, recorded as compressed-other and not force-fed to Puffin;
 - not compressed/unknown.
 
@@ -300,11 +302,18 @@ These categories are reported as target bytes and, where the CSP trace maps them
 
 ### 9.2 Puffin / PUFFDIFF reference lane
 
-Pin AOSP Puffin at Android 17.0.0_r1, commit 343e23db1b4d81045e91a10244244893f5acd73b. Record the built puffin binary SHA-256, compiler/build identity and exact command/help output in the tool manifest.
+Pin AOSP Puffin at Android 17.0.0_r1, commit 343e23db1b4d81045e91a10244244893f5acd73b. Record the built puffin binary SHA-256, compiler/build identity and help output in the tool manifest.
 
 Puffin is a deterministic deflate recompressor: it transforms deflate streams to a puff representation, uses a binary diff, then deterministically reconstructs the original deflate stream. Therefore its whole-file patch is useful evidence for deflate-instability headroom, but it is not a CSP-v1-compatible one-factor encoding.
 
-Run Puffin only on the predeclared supported G5 subset, verify reconstruction by target SHA-256, and compare against **bsdiff4 on the identical subset**. The descriptive deflate-attribution delta is:
+To isolate the deflate transform from the raw diff algorithm, freeze Puffin's patch_algorithm to 0 (bsdiff), not Zucchini. For a structurally recognized whole-file type TYPE in {zip,gzip,zlib,deflate}; .nupkg is passed as TYPE=zip. The exact reference operations are:
+
+    puffin --operation=puffdiff --src_file=OLD --dst_file=NEW --patch_file=PATCH --src_file_type=TYPE --dst_file_type=TYPE --patch_algorithm=0
+    puffin --operation=puffpatch --src_file=OLD --dst_file=RECON --patch_file=PATCH --cache_size=52428800
+
+An arbitrary embedded-deflate case enters the Puffin size lane only if its exact source/target deflate extent lists were emitted and hashed by the pre-size classifier; those lists are then passed explicitly and stored in the compact evidence. Otherwise it remains inventory-only. No case may become eligible because Puffin happened to produce a small patch.
+
+Run Puffin only on this predeclared supported subset, verify RECON by target SHA-256, and compare against **bsdiff4 on the identical subset**. The descriptive deflate-attribution delta is:
 
 puffin_gain_over_bsdiff = B_bsdiff_same_subset - B_puffin_same_subset
 
@@ -321,11 +330,11 @@ Every executable/package is pinned by immutable version/tag/commit and is also h
 | bsdiff | Python bsdiff4==1.2.6; source distribution SHA-256 2ab57d01a78b39e29e5accc9cfead4130982ded9dccbc4261bd0e9c51d6b751d | bsdiff4.diff(base,target) / bsdiff4.patch(base,patch); installed artifact SHA-256 recorded |
 | xdelta3 modern | xdelta v3.2.0, commit ff322e592383227b0d65ddfde7e0e5bbc504dc15 | xdelta3 -e -9 -f -s OLD NEW PATCH; inverse -d -f -s OLD |
 | xdelta3 legacy continuity | xdelta3 v3.0.11, commit 81aebf78ae67c29f528088d65743643e5355e3d3 | same mode; descriptive continuity with PATCH-PREFREEZE only |
-| HDiffPatch memory | v5.1.3, commit 3b9dca715ca492873bf2c49e22e5d5b7d2a78620 | hdiffz -m-4 -SD -d -f -p-1 -c-zstd-21-24 OLD NEW PATCH |
-| HDiffPatch stream | same v5.1.3 | hdiffz -s-64 -SD -d -f -p-1 -c-zstd-21-24 OLD NEW PATCH |
+| HDiffPatch memory | v5.1.3, commit 3b9dca715ca492873bf2c49e22e5d5b7d2a78620 | create: hdiffz -m-4 -SD -d -f -p-1 -c-zstd-21-24 OLD NEW PATCH; apply: hpatchz -f OLD PATCH NEW |
+| HDiffPatch stream | same v5.1.3 | create: hdiffz -s-64 -SD -d -f -p-1 -c-zstd-21-24 OLD NEW PATCH; apply: hpatchz -f OLD PATCH NEW |
 | Zucchini | Chromium component commit 667ffb4e19970939936af2e7a169175ae4c1da5b | -gen / -apply, executable-aware mode, supported G4 subset only |
 | XZ BCJ | XZ Utils v5.8.1, commit a522a226545730551f7e7c2685fab27cf567746c | research-only low-level x86/ARM64 reversible transform; no .xz container |
-| Puffin | Android 17.0.0_r1 / 343e23db1b4d81045e91a10244244893f5acd73b | pinned diff/patch operation on supported G5 subset; exact CLI captured from built binary before measurement |
+| Puffin | Android 17.0.0_r1 / 343e23db1b4d81045e91a10244244893f5acd73b | puffdiff/puffpatch commands in §9.2, patch_algorithm=0, apply cache 52,428,800 bytes |
 
 HDiffPatch has two deliberately separate lanes. The memory lane uses the documented all-in-memory matcher for ratio-oriented evidence. The -s-64 lane is the streaming/bounded-memory comparator. Both use the same single-compressed-diff format, one thread and identical zstd compressor settings, so the comparison does not silently change compressor or parallelism. HDiffPatch v5.1.3 release archives publish these SHA-256 values: Linux x64 628963bf2ee9108a97260fa5eef44acd9ec94369b76090a957c9182b3abbb558; Linux ARM64 03e404e16d06479deaba645a09ed5c06636778b083b82bc7fc932ba34425430b; Windows x64 77f141386e5d8f785c1c846e10fbbc19b6c05aa00e3f59cc44670fb3f0e2ae94.
 
