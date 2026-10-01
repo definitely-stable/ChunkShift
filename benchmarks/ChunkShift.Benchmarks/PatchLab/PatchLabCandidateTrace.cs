@@ -15,6 +15,9 @@ internal sealed record PatchLabTraceOptions(
     string Platform,
     string DatasetRole)
 {
+    internal const string FrozenProtocolCommit = "96fd9b296d6998cac397e61041f22df51e6dd43c";
+    internal const string ExperimentId = "PATCH-ENC-005";
+
     internal static PatchLabTraceOptions? Parse(string[] args, string? runId, string? executionName)
     {
         string? directory = PatchLabArguments.Value(args, "--trace-dir");
@@ -46,6 +49,29 @@ internal sealed record PatchLabTraceOptions(
                 "--protocol-commit and --source-commit require full 40-hex commits.");
         }
 
+        if (!string.Equals(protocolCommit, FrozenProtocolCommit, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new PatchLabUsageException(
+                $"PATCH-ENC-005 traces require frozen protocol commit {FrozenProtocolCommit}.");
+        }
+
+        string experimentId = PatchLabArguments.Value(args, "--experiment-id") ?? ExperimentId;
+
+        if (!string.Equals(experimentId, ExperimentId, StringComparison.Ordinal))
+        {
+            throw new PatchLabUsageException(
+                $"PATCH-ENC-005 traces require --experiment-id {ExperimentId}.");
+        }
+
+        string? checkedOutCommit = System.Environment.GetEnvironmentVariable("GITHUB_SHA");
+
+        if (!string.IsNullOrWhiteSpace(checkedOutCommit) &&
+            !string.Equals(sourceCommit, checkedOutCommit, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new PatchLabUsageException(
+                "--source-commit must match GITHUB_SHA for CI evidence.");
+        }
+
         if (datasetRole is not ("calibration" or "evaluation" or "confirmation"))
         {
             throw new PatchLabUsageException(
@@ -54,7 +80,7 @@ internal sealed record PatchLabTraceOptions(
 
         return new PatchLabTraceOptions(
             Path.GetFullPath(directory),
-            PatchLabArguments.Value(args, "--experiment-id") ?? "PATCH-ENC-005",
+            experimentId,
             runId,
             protocolCommit.ToLowerInvariant(),
             sourceCommit.ToLowerInvariant(),

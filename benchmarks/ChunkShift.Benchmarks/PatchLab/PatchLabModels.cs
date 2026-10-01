@@ -56,7 +56,8 @@ internal sealed record PatchLabFileResult(
     string? PatchSha256 = null,
     PatchLabCreateMetrics? CreateMetrics = null,
     PatchLabApplyMetrics? ApplyMetrics = null,
-    PatchLabApplyMetrics? ApplyNoCheckMetrics = null);
+    PatchLabApplyMetrics? ApplyNoCheckMetrics = null,
+    string? SavedPatch = null);
 
 /// <summary>
 /// What one create cost beyond its wall time

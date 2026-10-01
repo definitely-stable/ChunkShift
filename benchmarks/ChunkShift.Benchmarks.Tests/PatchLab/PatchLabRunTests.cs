@@ -144,16 +144,52 @@ public class PatchLabRunTests
     }
 
     [Fact]
+    public void PatchDirectoryPreservesUntimedPatchForIndependentDecoder()
+    {
+        using var scope = new TempDirectory();
+        _ = WriteCorpus(scope.Path);
+        string output = Path.Combine(scope.Path, "capture.json");
+        string patches = Path.Combine(scope.Path, "patches");
+
+        int exit = PatchLabRunner.Run(
+        [
+            "run",
+            "--corpus", scope.Path,
+            "--lane", "H4-L1-R2",
+            "--output", output,
+            "--workers", "1",
+            "--execution", "h2-w2",
+            "--no-apply",
+            "--patch-dir", patches,
+        ]);
+
+        Assert.Equal(0, exit);
+        PatchLabRunResult run = JsonSerializer.Deserialize<PatchLabRunResult>(
+            File.ReadAllText(output),
+            Json)!;
+        PatchLabFileResult file = Assert.Single(run.Files);
+        Assert.NotNull(file.SavedPatch);
+        string saved = Path.Combine(patches, file.SavedPatch);
+        Assert.True(File.Exists(saved));
+        Assert.Equal(file.PatchSha256, Sha256(saved));
+    }
+
+    [Fact]
     public void PhaseATraceWritesFrozenSchemaAndProvenance()
     {
         using var scope = new TempDirectory();
         SyntheticCorpus corpus = WriteCorpus(scope.Path);
         string output = Path.Combine(scope.Path, "run.json");
         string traces = Path.Combine(scope.Path, "traces");
-        const string ProtocolCommit = "1111111111111111111111111111111111111111";
+        const string ProtocolCommit = PatchLabTraceOptions.FrozenProtocolCommit;
         const string SourceCommit = "2222222222222222222222222222222222222222";
+        string? previousSha = System.Environment.GetEnvironmentVariable("GITHUB_SHA");
+        System.Environment.SetEnvironmentVariable("GITHUB_SHA", SourceCommit);
 
-        int exit = PatchLabRunner.Run(
+        int exit;
+        try
+        {
+            exit = PatchLabRunner.Run(
         [
             "run",
             "--corpus", scope.Path,
@@ -169,6 +205,11 @@ public class PatchLabRunTests
             "--platform", "test-x64",
             "--dataset-role", "calibration",
         ]);
+        }
+        finally
+        {
+            System.Environment.SetEnvironmentVariable("GITHUB_SHA", previousSha);
+        }
 
         Assert.Equal(0, exit);
         string tracePath = Assert.Single(Directory.GetFiles(traces, "*.json"));

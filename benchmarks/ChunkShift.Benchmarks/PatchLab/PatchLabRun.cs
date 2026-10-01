@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
 using ChunkShift.Patching;
 using ChunkShift.Patching.Application;
 using ChunkShift.Patching.Creation;
@@ -48,6 +50,7 @@ internal static class PatchLabRun
         }
 
         string? runId = PatchLabArguments.Value(args, "--run-id");
+        string? patchDirectory = PatchLabArguments.Value(args, "--patch-dir");
         string? executionName = PatchLabArguments.Value(args, "--execution");
         CspCreateExecution? execution = executionName is null ? null : PatchLabExecution.Parse(executionName);
         PatchLabTraceOptions? trace = PatchLabTraceOptions.Parse(args, runId, executionName);
@@ -71,7 +74,8 @@ internal static class PatchLabRun
             apply,
             applyNoCheck,
             applyCheck,
-            applyRepeats);
+            applyRepeats,
+            patchDirectory);
         clock.Stop();
 
         PatchLabRunner.WriteJson(outputPath, new PatchLabRunResult(
@@ -107,7 +111,8 @@ internal static class PatchLabRun
         bool apply,
         bool applyNoCheck,
         ChunkingCheck applyCheck,
-        int applyRepeats)
+        int applyRepeats,
+        string? patchDirectory)
     {
         var items = new List<WorkItem>();
 
@@ -161,6 +166,7 @@ internal static class PatchLabRun
                     applyNoCheck,
                     applyCheck,
                     applyRepeats,
+                    patchDirectory,
                     cancellationToken).ConfigureAwait(false);
 
                 if (Interlocked.Decrement(ref remaining[item.PairIndex]) == 0)
@@ -194,6 +200,7 @@ internal static class PatchLabRun
         bool applyNoCheck,
         ChunkingCheck applyCheck,
         int applyRepeats,
+        string? patchDirectory,
         CancellationToken cancellationToken)
     {
         string baseContentPath = corpus.ContentPath(pair, pair.Base, file.Path);
@@ -278,6 +285,9 @@ internal static class PatchLabRun
             string patchSha256 = await PatchLabManifests
                 .DigestAsync(patchPath, cancellationToken)
                 .ConfigureAwait(false);
+            string? savedPatch = patchDirectory is null
+                ? null
+                : SavePatch(patchPath, patchDirectory, pair, file);
             double? applySeconds = null;
             double? applyNoCheckSeconds = null;
             PatchLabApplyMetrics? applyMetrics = null;
@@ -348,12 +358,34 @@ internal static class PatchLabRun
                 patchSha256,
                 createMetrics,
                 applyMetrics,
-                applyNoCheckMetrics);
+                applyNoCheckMetrics,
+                savedPatch);
         }
         finally
         {
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    private static string SavePatch(
+        string patchPath,
+        string patchDirectory,
+        PatchLabPair pair,
+        PatchLabChangedFile file)
+    {
+        string directory = Path.GetFullPath(patchDirectory);
+        Directory.CreateDirectory(directory);
+        string identity = string.Join(
+            "\0",
+            pair.Family,
+            pair.Base,
+            pair.Target,
+            file.Path.Replace('\\', '/'));
+        string suffix = Convert.ToHexStringLower(
+            SHA256.HashData(Encoding.UTF8.GetBytes(identity)))[..16];
+        string name = $"{pair.Family}-{pair.Base}-{pair.Target}-{suffix}.csp";
+        File.Copy(patchPath, Path.Combine(directory, name), overwrite: false);
+        return name;
     }
 
     /// <summary>
