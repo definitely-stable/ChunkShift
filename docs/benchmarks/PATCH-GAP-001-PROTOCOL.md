@@ -223,7 +223,7 @@ This is a codec-data upper envelope, not a prediction of RSS; allocator, native 
 
 For every attempted envelope/start, record envelope id, ordered dictionary ChunkIds, dictionary bytes/reference count, compressed-frame bytes, reference-cost bytes, zstd window, base bytes/read calls and whether the trial was deduplicated. Per entry also record H0 winner cost, G1 winner envelope/start/stored form, trial count and create/apply peak RSS.
 
-G1 is an upper-bound experiment. Any result beyond H0 cannot be emitted as CSP v1 because it may exceed the v1 4-reference, 1 MiB dictionary and/or 1 MiB window maxima.
+G1 is a **bounded envelope counterfactual**, not a mathematical best-dictionary oracle. For each H0 start it tests the frozen maximal prefix of each envelope, plus the exact H0 winner; it does not search every intermediate prefix length. Therefore its result answers the value of these concrete larger-history envelopes. Searching arbitrary prefix endpoints would mix dictionary-budget relaxation with a new candidate/length-selection policy and belongs in a separately identified G1×G2 interaction study. Any result beyond H0 cannot be emitted as CSP v1 because it may exceed the v1 4-reference, 1 MiB dictionary and/or 1 MiB window maxima.
 
 CSP v1 also persists `DictionaryCount` as **UInt8** in both the 40-byte PAYL entry header and the 24-byte PIDX entry, so B4/R256 and larger are not representable by merely changing a semantic maximum. To make research bytes fully defined without granting a free compact encoding, G1 freezes this **synthetic revised-header accounting model only**:
 
