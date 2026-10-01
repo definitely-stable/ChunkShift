@@ -33,7 +33,43 @@ env:
   NUGET_XMLDOC_MODE: skip
 
 jobs:
+  preflight:
+    name: evidence-identity-preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RUN_DATE: ${{ inputs.run-date }}
+      RUN_SEQUENCE: ${{ inputs.run-sequence }}
+    steps:
+      - name: Validate frozen evidence identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
+            echo "PATCH-ENC-005 decision evidence rejects GitHub workflow re-runs." >&2
+            exit 2
+          fi
+          if [[ ! "$RUN_SEQUENCE" =~ ^[0-9]{3}$ ]]; then
+            echo "run-sequence must be exactly NNN." >&2
+            exit 2
+          fi
+          expected_sequence="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
+          if [[ "$RUN_SEQUENCE" != "$expected_sequence" ]]; then
+            echo "run-sequence must equal zero-padded GITHUB_RUN_NUMBER=$expected_sequence." >&2
+            exit 2
+          fi
+          python3 - "$RUN_DATE" <<'PY'
+          import datetime as dt
+          import re
+          import sys
+          value = sys.argv[1]
+          if not re.fullmatch(r"\d{8}", value):
+              raise SystemExit("run-date must be YYYYMMDD")
+          dt.datetime.strptime(value, "%Y%m%d")
+          PY
+
   timing-attempt-1:
+    needs: preflight
     name: timing-a1-${{ inputs.dataset-role }} (${{ matrix.platform }})
     strategy:
       fail-fast: false
@@ -341,6 +377,7 @@ jobs:
           retention-days: 90
 
   memory:
+    needs: preflight
     name: memory-${{ inputs.dataset-role }} (${{ matrix.platform }})
     strategy:
       fail-fast: false
