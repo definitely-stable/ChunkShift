@@ -320,6 +320,8 @@ A coalesced group uses only the dictionary that H0 selected for the group's firs
 
 This anchor rule is intentionally conservative: later chunks lose their independent H0 dictionary changes. A single zstd frame cannot swap raw-prefix dictionaries between chunk boundaries, so G3 measures the **net coalescing envelope**: cross-chunk frame context plus the required loss of per-entry dictionary reselection. It must not be described as a pure context-carry gain, and the loss must not be repaired by silently importing G1/G2.
 
+For **G3-FILE**, “file” means one frame over that file's ordered **payload-entry stream**, not over every target byte. Base-reused records and later duplicate occurrences are not inserted into the zstd input and receive no second copy in the patch. If such a target record lies between two FILE group members, apply may suspend the group's streaming zstd decoder after finishing the earlier member, emit the intervening record through the ordinary base/replay path, then resume decoding the next group member. It must not materialize the full group merely to bridge those target positions. Thus FILE tests frame/context scope over stored payload bytes without silently turning reused target bytes into new payload.
+
 ### 7.3 Exact revised-layout accounting
 
 G3 freezes a minimal **research-only parsable layout counterfactual** so group signaling receives no free bytes. It consumes two currently reserved one-byte encoding values while keeping every existing PAYL/PIDX fixed-size record:
