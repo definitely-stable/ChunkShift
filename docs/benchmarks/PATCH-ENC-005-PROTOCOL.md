@@ -24,7 +24,7 @@ Every candidate lane must use the **same create execution topology as the baseli
 
 [#181](https://github.com/definitely-stable/ChunkShift/issues/181) owns production-real candidate selection and resemblance/sketch infrastructure.
 
-[`PATCH-GAP-001`](PATCH-GAP-001-PROTOCOL.md) may consume compact candidate traces and an oracle upper bound produced here, but it must not grow a second independent resemblance selector whose semantics can diverge from production.
+`PATCH-GAP-001` (#183, protocol PR #217) may consume compact candidate traces and an oracle upper bound produced here, but it must not grow a second independent resemblance selector whose semantics can diverge from production.
 
 Shared trace fields should be sufficient to answer both experiments without storing payload bytes:
 
