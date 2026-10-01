@@ -258,7 +258,8 @@ The document contains one record per distinct missing target chunk, in productio
 | `targetChunkId` | exact ChunkId hex |
 | `targetOffset`, `targetLength` | bytes |
 | `candidateCount` | unique candidates considered by the selector |
-| `expensiveTrialCount` | dictionary L19 trials actually executed |
+| `expensiveTrialCount` | dictionary trials at the lane's expensive/final level actually executed |
+| `level19TrialCount` | all L19 frames actually encoded for the entry, including the no-dictionary L19 frame; zero for H9 L9/L12/L15 |
 | `selectedEncoding` | raw / zstd / zstd-dictionary |
 | `selectedCandidate` | candidate ordinal or null |
 | `storedBytes` | selected raw/frame bytes, excluding dictionary refs |
@@ -296,7 +297,7 @@ Per file, lane, repetition and platform where applicable:
 - create wall seconds and process CPU seconds;
 - managed allocated bytes;
 - base reads, bytes read and seeks;
-- candidate count and L19 dictionary-trial count;
+- candidate count, expensive dictionary-trial count and total L19 frame count;
 - dictionary entries and references;
 - apply wall/CPU, base reads and target SHA-256;
 - H5/H6/H8 index build wall/CPU, bytes scanned, posting count, ignored-hot-feature count, index peak bytes and candidate source statistics;
