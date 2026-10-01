@@ -16,7 +16,7 @@ namespace ChunkShift.Patching.Creation;
 /// </param>
 /// <remarks>
 /// Internal: the public <see cref="ChunkPatch"/> API always uses
-/// <see cref="Sequential"/> (D9); the lab and the tests pass other values.
+/// <see cref="Default"/> (D9); the lab and the tests pass other values.
 /// </remarks>
 internal sealed record CspCreateExecution(int WorkerCount, bool UseBaseCandidateCache)
 {
@@ -25,6 +25,24 @@ internal sealed record CspCreateExecution(int WorkerCount, bool UseBaseCandidate
 
     /// <summary>Gets the sequential payload pass without a cache (H0).</summary>
     internal static CspCreateExecution Sequential { get; } = new(0, false);
+
+    /// <summary>
+    /// Gets the execution of the public API for this process's
+    /// <see cref="Environment.ProcessorCount"/>; see <see cref="ForProcessorCount"/>.
+    /// </summary>
+    internal static CspCreateExecution Default { get; } = ForProcessorCount(Environment.ProcessorCount);
+
+    /// <summary>
+    /// Returns the public API's execution for <paramref name="processorCount"/>
+    /// available processors: two encode workers without the cache (H2-W2,
+    /// adopted by PATCH-ENC-004, docs/research/results/PATCH-ENC-004-EVIDENCE-20261001-001.md)
+    /// from two processors on, otherwise <see cref="Sequential"/>, which the
+    /// experiment measured as the same bytes and needs no second core. Both
+    /// write the same patch bytes. Each create uses at most this many encoders,
+    /// so a caller that runs several creates at once multiplies it (D17).
+    /// </summary>
+    internal static CspCreateExecution ForProcessorCount(int processorCount) =>
+        processorCount >= 2 ? new CspCreateExecution(2, false) : Sequential;
 
     /// <summary>
     /// Gets the entries the pipeline keeps in flight per worker: queued,
