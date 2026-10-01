@@ -29,7 +29,7 @@ Every H4/H5/H6/H7/H8/H9 production-real lane uses exactly the same H2-W2 executi
 
 ## 2. Scope and ownership
 
-PATCH-ENC-005 owns candidate-selection semantics for Patching. [PATCH-GAP-001](PATCH-GAP-001-PROTOCOL.md) / #183 / PR #217 may consume the trace and G2 oracle defined here, but must not implement a second offset/sketch selector.
+PATCH-ENC-005 owns candidate-selection semantics for Patching. [PATCH-GAP-001 protocol PR #217](https://github.com/definitely-stable/ChunkShift/pull/217) / #183 may consume the trace and G2 oracle defined here, but must not implement a second offset/sketch selector.
 
 This experiment may change physical patch bytes (D14/D15). It does **not**:
 
@@ -152,7 +152,17 @@ Every H5/H6 production-real lane feeds that union through **the H4 L1 ranking an
 
 **N-transform SF is a research control, not an adoption lane.** It is useful to validate feature recall/CPU against the literature, but its repeated transforms over every rolling fingerprint are exactly the cost Finesse and Odess were designed to remove.
 
-**H5-F — Finesse-style fixed-subchunk locality.** Use the FAST'19 Finesse construction: 12 equal-sized subchunks, one feature from each subchunk using a 48-byte Rabin rolling window, then the paper's grouping of the 12 features into **3 super-features of 4 features**. This lane is `H5-F12-SF3`.
+**H5-F — Finesse-style fixed-subchunk locality.** Lane: `H5-F12-SF3`.
+
+The feature definition is frozen rather than left to an implementation-specific Rabin library:
+
+- divide a chunk of length L into 12 contiguous subchunks with boundaries `floor(i × L / 12)`, i = 0..12;
+- Rabin fingerprint polynomial: `0x3DA3358B4DC173` over GF(2); sliding window: exactly 48 bytes;
+- a subchunk feature is the maximum Rabin fingerprint over every 48-byte window wholly inside that subchunk;
+- partition the 12 features into four consecutive sets of three, sort each set by unsigned feature value descending (feature index breaks equal-value ties), and form three 4-feature super-features: SF j takes rank j from each of the four sets;
+- identify a super-feature by BLAKE3-256 over ASCII `"PATCH-ENC-005/H5F"`, its SF ordinal byte and the four little-endian 64-bit feature values, truncated to the first 64 bits for indexing.
+
+The stable 64 KiB profile has a 16 KiB minimum chunk, so every subchunk is larger than the 48-byte window; no short-subchunk fallback exists in this experiment. This fixes the Finesse-style family completely while keeping it independent of Core's CDC implementation.
 
 **H6-O — Gear/content-defined sampling.** This is a ChunkShift-specific Odess-style family rather than a claim of bit-for-bit Odess reproduction:
 
