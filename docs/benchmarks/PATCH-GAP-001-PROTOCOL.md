@@ -310,7 +310,9 @@ The reconstruction oracle decodes each group, splits decoded bytes by the known 
 | bounded decoder history | 1 MiB | 1 MiB | 1 MiB | reference-tool bound, not CSP v1 |
 | CSP declarative codec model | current v1 | conceptually retainable, format revision required | conceptually retainable, format revision required | no; multi-factor external reference |
 
-A group decoder must be streamable and hash chunks as they emerge; it may not allocate the complete group merely because the research frame is larger than one chunk.
+A group decoder must be streamable and hash chunks as they emerge; it may not allocate the complete group merely because the research frame is larger than one chunk. Repeated target ChunkIds follow the existing applier model: after the first verified occurrence has been written, later occurrences replay those bytes from the already-written output rather than retaining the group in memory or re-decoding it.
+
+G3 keeps the v1 1 MiB zstd window and <=1 MiB anchor dictionary, so its hard RFC-eligibility apply bound remains **64 MiB over idle** under the existing D17 per-file child-process convention. RUN/FILE must satisfy that bound on every required runtime platform. A research implementation that materializes a complete group/file payload or otherwise exceeds 64 MiB is not evidence for a bounded G3 revision.
 
 ## 8. G4 — executable normalization
 
@@ -360,7 +362,7 @@ For every eligible distinct missing chunk the research driver normalizes the tar
 
 Apply is the exact inverse: verify/read the named base chunks, normalize dictionary bytes under the frozen base-offset rule, zstd-decode the normalized target chunk, inverse-BCJ under the frozen target-offset rule, then verify the original target ChunkId. A lane is invalid on any non-exact reconstruction.
 
-This is a research codec counterfactual, not a production dependency or CSP v1 encoding.
+This is a research codec counterfactual, not a production dependency or CSP v1 encoding. Normalization must be in-place within the already bounded dictionary/chunk buffers (or use an equivalently bounded scratch buffer); it does not receive a second whole-file/executable buffer. Because G4 keeps the v1 <=1 MiB dictionary/window and <=256 KiB output chunk, its hard RFC-eligibility apply bound remains **64 MiB over idle** under the D17 measurement convention on every required runtime platform. Exceeding it rejects G4 even if its byte reduction passes §11.
 
 ### 8.3 Zucchini reference lane
 
