@@ -16,7 +16,7 @@ internal sealed record PatchLabTraceOptions(
     string DatasetRole)
 {
     internal const string FrozenProtocolCommit = "96fd9b296d6998cac397e61041f22df51e6dd43c";
-    internal const string ExperimentId = "PATCH-ENC-005";
+    internal const string FrozenExperimentId = "PATCH-ENC-005";
 
     internal static PatchLabTraceOptions? Parse(string[] args, string? runId, string? executionName)
     {
@@ -55,9 +55,9 @@ internal sealed record PatchLabTraceOptions(
                 $"PATCH-ENC-005 traces require frozen protocol commit {FrozenProtocolCommit}.");
         }
 
-        string experimentId = PatchLabArguments.Value(args, "--experiment-id") ?? ExperimentId;
+        string experimentId = PatchLabArguments.Value(args, "--experiment-id") ?? FrozenExperimentId;
 
-        if (!string.Equals(experimentId, ExperimentId, StringComparison.Ordinal))
+        if (!string.Equals(experimentId, FrozenExperimentId, StringComparison.Ordinal))
         {
             throw new PatchLabUsageException(
                 $"PATCH-ENC-005 traces require --experiment-id {ExperimentId}.");
