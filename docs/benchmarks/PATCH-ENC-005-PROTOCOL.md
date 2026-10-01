@@ -53,9 +53,9 @@ For each distinct missing target chunk:
 
 1. Compute raw cost and one **L19 no-dictionary** frame exactly as H0.
 2. Read every valid H0 dictionary candidate once and encode it at **zstd level 1** with raw-prefix dictionary semantics. H20/C20 are retained as policy caps; where level 1 already chooses smaller tables the caps do nothing.
-3. The cheap ranking key is `(cheapCostBytes, h0CandidateOrdinal)`, where
+3. The cheap ranking key is `(cheapCostBytes, selectorCandidateOrdinal)`, where
    `cheapCostBytes = cheapFrameBytes + 32 × dictionaryReferenceCount`.
-   Dictionary-reference cost is therefore included before ranking.
+   Dictionary-reference cost is therefore included before ranking. In H4, `selectorCandidateOrdinal` is exactly H0's candidate ordinal. In Phase B it is the deterministic union ordinal defined in §5.2.
 4. Retain the two candidates with the smallest key. Candidate bytes may be retained for the L19 re-encode; they must not be re-read merely because they won ranking.
 5. Re-encode exactly those **R = 2** candidates at L19.
 6. Choose the final stored form by H0's cost function and strict-decrease rule: raw → L19 no-dictionary → ranked L19 candidate 1 → ranked L19 candidate 2.
@@ -68,7 +68,7 @@ Rationale: L1 minimizes proxy cost; R = 2 gives the proxy one correction opportu
 
 Lane: `H7-L1-R2-E75`. H7 is H4 plus one rule.
 
-All cheap trials run first and candidates are ordered by the H4 ranking key. Encode ranked candidate 1 at L19. Let
+All cheap trials run first and candidates are ordered by the H4 ranking key. With zero or one usable candidate H7 is exactly H4. With at least two, encode ranked candidate 1 at L19. Let
 
 `baselineCost = min(targetLength, l19NoDictionaryFrameBytes)`
 
@@ -84,7 +84,7 @@ holds; otherwise encode candidate 2 and finish exactly as H4.
 
 There is **no** “two consecutive non-improvements” rule. Such a rule would be order-dependent and would systematically privilege offset-nearest candidates. H7 sees all cheap scores before it exits and therefore does not stop because a near-offset candidate happened to be visited first.
 
-H7 is eligible only if it produces the **same patch SHA-256 as H4 for every file on calibration, fixed evaluation and fresh confirmation**. This is an additional no-byte-regression oracle for H7, not a general PATCH-ENC-005 oracle. It proves that the frozen 75% rule skipped no L19 trial that changes H4's result on the frozen corpus.
+H7 is eligible only if it produces the **same patch SHA-256 as H4 on every dataset on which H7 is evaluated**; if H7 reaches fresh confirmation, equality is required there too. This is an additional no-byte-regression oracle for H7, not a general PATCH-ENC-005 oracle. It proves that the frozen 75% rule skipped no L19 trial that changes H4's result on the frozen corpus.
 
 ### 3.3 H9 — fixed level ladder, wider offset search
 
@@ -106,9 +106,11 @@ G2 is a research-only byte upper bound. It is **not timed as a production select
 
 Use calibration only: the two .NET families and their four adjacent-version pairs from `patch-corpus.json`.
 
-For each calibration pair independently, enumerate the same distinct missing target chunks that production create would emit. Define the sample key as SHA-256 over UTF-8 fields separated by a zero byte:
+For each calibration pair independently, enumerate the same distinct missing target chunks that production create would emit. Define the sample key as SHA-256 over these six fields joined by one `00` byte and **no trailing separator**:
 
 `familyId, baseVersion, targetVersion, normalizedPath, targetChunkIdHex, firstTargetIndex`.
+
+The first four fields are their exact UTF-8 manifest/path strings; `targetChunkIdHex` is 64 lowercase ASCII hex characters; `firstTargetIndex` is invariant unsigned decimal ASCII with no leading zeros except `0`.
 
 Sort by the 32-byte digest, then by normalized path, then target index. Take the first **64 entries per pair**, or every entry if the pair contains fewer than 64. The maximum sample is therefore 256 target entries.
 
@@ -159,7 +161,7 @@ No oracle over the fresh confirmation set is inspected before the production-rea
 
 ## 5. Phase B — bounded resemblance retrieval
 
-Phase B starts only after §4.3 passes. All selectors preserve the eight H0 offset candidates and add at most eight content candidates. The union therefore contains at most **16 unique starts**.
+Full Phase B starts after the §4.3 main gate passes, or after its one permitted H6-O false-negative guard opens the grid. The H6-O guard itself is the sole exception to the full-grid gate. All selectors preserve the eight H0 offset candidates and add at most eight content candidates. The union therefore contains at most **16 unique starts**.
 
 Every H5/H6 production-real lane feeds that union through **the H4 L1 ranking and L19 R = 2 final trial policy**. Thus a resemblance family changes where candidates come from; it does not silently reintroduce 16 L19 trials.
 
@@ -181,7 +183,7 @@ H5 uses a non-reflected, MSB-first GF(2) remainder of width 64 with polynomial
 
 `P(x) = x^64 + 0x003DA3358B4DC173`.
 
-The initial remainder is zero. The normative `Rabin48` for one 48-byte window is intentionally specified from scratch so a rolling optimization cannot define semantics:
+The lower constant's bit k is the coefficient of x^k; x^64 is implicit. The initial remainder is zero. Input bytes are consumed in increasing address order and each byte MSB-first. The normative `Rabin48` for one 48-byte window is intentionally specified from scratch so a rolling optimization cannot define semantics:
 
 ```text
 r = 0
@@ -233,7 +235,7 @@ The stable 64 KiB profile has a 16 KiB minimum chunk, so every subchunk is large
 - start `h = 0`; for each byte in increasing offset order, `h = ((h << 1) + table[byte]) mod 2^64`;
 - after updating h for a byte, keep that h when `(h & 0x7f) == 0`;
 - if a chunk produces no sample, its terminal h is the sole fallback proxy;
-- for transform i = 0..11, `d = SHA256(ASCII("PATCH-ENC-005/NTRANSFORM/" + decimal-i-with-no-leading-zero))`, `m = UInt32LE(d[0..4]) | 1`, `a = UInt32LE(d[4..8])`; feature i is the minimum unsigned `(m × UInt32(h) + a) mod 2^32` over proxies;
+- for transform i = 0..11, `d = SHA256(ASCII("PATCH-ENC-005/NTRANSFORM/" + decimal-i-with-no-leading-zero))`, `m = UInt32LE(d[0..4]) | 1`, `a = UInt32LE(d[4..8])`; feature i is the minimum unsigned `(m × Low32(h) + a) mod 2^32` over proxies;
 - group features as `[0..3]`, `[4..7]`, `[8..11]`;
 - group g's key is `Key64("PATCH-ENC-005/H6O/SF3", byte(g) || U32LE(f0) || U32LE(f1) || U32LE(f2) || U32LE(f3))`.
 
@@ -280,7 +282,7 @@ Then:
 2. union them with all H0 offset starts;
 3. duplicate starts collapse to one row with source `both`; otherwise source is `offset` or `sketch`;
 4. apply production candidate validity: K = 4 `TryMeasureCandidate` semantics, dictionary bytes <= 1 MiB and `CspDictionary.IsUsable`; an invalid sketch hit is not counted and consumes no L1/L19 trial;
-5. preserve H0 offset ordinal among offset candidates; sketch-only candidates follow in the deterministic sketch order above;
+5. assign `selectorCandidateOrdinal` after deduplication: all valid H0 offset starts first in H0 ordinal order, then valid sketch-only starts in their deterministic sketch order; a `both` start keeps its H0 position;
 6. run H4's L1 ranking over the valid unique union and re-encode only its top two at L19.
 
 The selected dictionary is still verified from its bytes against every named base `ChunkId` before writing the entry.
@@ -297,7 +299,7 @@ Apply has no index and keeps the existing **64 MiB over-idle** bound.
 
 H8 is evaluated only on the best still-eligible H5/H6 retrieval family after its parameters have been frozen. It never precedes G2/H5/H6.
 
-The parent selector still computes its sketch query and all L1 cheap scores. H8 suppresses all L19 dictionary re-encodes for an entry only when all three conditions hold:
+The parent selector still computes its sketch query and all L1 cheap scores. If the parent has no valid dictionary candidate, it already executes no dictionary L19 trial and H8 changes nothing. Otherwise H8 suppresses all L19 dictionary re-encodes for an entry only when all three conditions hold:
 
 1. `l19NoDictionaryFrameBytes >= ceil(0.98 × targetLength)`;
 2. the resemblance query produced **zero sketch candidates** (offset-only candidates do not count as resemblance evidence);
@@ -307,7 +309,7 @@ Otherwise the parent selector runs unchanged.
 
 This deliberately does **not** infer incompressibility from the no-dictionary frame alone. A small edit inside compressed/high-entropy-looking data can make no-dictionary zstd ineffective while the old version remains an excellent dictionary.
 
-H8 is eligible only if it produces the **same patch SHA-256 as its parent H5/H6 lane for every calibration, fixed-evaluation and fresh-confirmation file**. Its purpose is to remove provably unnecessary expensive trials on the frozen corpus, not to trade bytes for speed.
+H8 is eligible only if it produces the **same patch SHA-256 as its parent H5/H6 lane on every dataset on which H8 is evaluated**; if H8 reaches fresh confirmation, equality is required there too. Its purpose is to remove provably unnecessary expensive trials on the frozen corpus, not to trade bytes for speed.
 
 ## 7. Shared candidate trace contract for #181/#183
 
@@ -371,7 +373,7 @@ Final adoption uses a separate set whose products/version pairs were not used by
 | `go-win-x64` | Go 1.26.7 → 1.26.8 | `go1.26.{7,8}.windows-amd64.zip`; strip top-level `go/` | 1.26.7 `f4f534a486e4bc3387fa18f08208f2f854b7aaea8a08f2a2d829a914a05abb11`; 1.26.8 `b92c3b2adae85a11ba71fe7216daf0d84e82af4c8ab6c5625807f28622043a59` |
 | `cpython-source` | CPython 3.14.7 → 3.14.8 | `Python-3.14.{7,8}.tgz`; strip versioned top-level directory | 3.14.7 `62859805f6fdf25e2bcbf3fa3217801e1996887ca33e6a2af80674bdfa2dbe07`; 3.14.8 `a65b20a728f169f4e66ae143f40b1bd3d33c38d770251663f627c9767b79b210` |
 
-Sources are the official Go download service and Python release archive. The confirmation materializer must reject a checksum mismatch, case-colliding normalized paths or archive entries escaping the destination.
+Sources are frozen as `https://go.dev/dl/<asset>` for the Go rows and `https://www.python.org/ftp/python/<version>/<asset>` for CPython. The confirmation materializer must reject a checksum mismatch, case-colliding normalized paths or archive entries escaping the destination.
 
 The implementation/lab PR adds a separate canonical confirmation manifest/materializer and commits its materialized pair-list SHA-256 **before any selector lane is invoked on the confirmation content**. That derived lock is provenance, not a tunable input: asset identities, versions, checksums and normalization above cannot change without a new ExperimentId.
 
@@ -514,7 +516,7 @@ A survivor is confirmed only when, on the §8.1 Go/Python set:
 
 The paired five-round timing/noise rules of §9 apply unchanged to fresh confirmation.
 
-If one of two survivors fails, the other may be adopted if confirmed. If both confirm and remain non-dominated with materially different speed/size tradeoffs, the experiment result is **DEFER**, not an invented scalar preference; D15 stays unchanged until a separately frozen product tradeoff rule exists.
+If one of two survivors fails, the other may be adopted if confirmed. If both confirm, recompute dominance on fresh confirmation over `(b, max_p(w_p), max_p(c_p))`: if one survivor is no worse in all three and strictly better in at least one, only that survivor remains; if the two distinct survivors remain non-dominated, the experiment result is **DEFER**, not an invented scalar preference. D15 stays unchanged until a separately frozen product tradeoff rule exists.
 
 A fresh-confirmation failure cannot be repaired by changing thresholds, selector features, index fanout, lane parameters or complexity preference under PATCH-ENC-005. Missing platform/run data yields **INCOMPLETE**.
 
@@ -543,7 +545,7 @@ Decision RunIds are `PATCH-ENC-005/RUN-YYYYMMDD-NNN-<commit>-<platform>`; eviden
 Every decision record must commit enough data to recompute the verdict without a GitHub artifact:
 
 - protocol/evaluator version and exact commit;
-- corpus lock and any oracle-sample/feature-definition fingerprints;
+- development corpus lock, fresh-confirmation pair-list lock and any oracle-sample/feature-definition fingerprints;
 - per-file patch bytes/SHA/correctness verdict;
 - per-round aggregate timing and CPU values with both H0 brackets;
 - per-file memory peaks for the memory set;
