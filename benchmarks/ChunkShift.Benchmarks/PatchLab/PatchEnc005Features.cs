@@ -293,7 +293,7 @@ internal static class PatchEnc005Features
             for (int bit = 7; bit >= 0; bit--)
             {
                 ulong carry = remainder >> 63;
-                remainder = (remainder << 1) | (ulong)((value >> bit) & 1);
+                remainder = (remainder << 1) | (((ulong)value >> bit) & 1UL);
 
                 if (carry != 0)
                 {
