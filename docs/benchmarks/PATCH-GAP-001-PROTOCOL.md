@@ -177,6 +177,7 @@ The G1 driver is **lab-only** and must not widen `CspDictionary.MaximumBytes`, `
 - dictionary hash/chain logs capped at H20/C20;
 - the candidate must not begin with the zstd dictionary magic (the current raw-content semantic guard is preserved);
 - raw and no-dictionary zstd remain competing stored forms under the same strict-decrease/tie order;
+- every research frame MUST declare `Frame_Content_Size = targetLength`, Dictionary_ID 0, use no more than that trial's frozen window cap, and be exactly one non-skippable frame with no second frame/trailing bytes; a content checksum is optional but must validate when present;
 - the decoder uses the corresponding lab-only raw-prefix path with the lane's window bound and must reproduce the exact target length, ChunkId and file SHA-256.
 
 The evidence records zstd version/build/binary SHA-256 and the exact research-policy fingerprint. A result obtained by patching the production format limits or by falling back to trained-dictionary auto-detection is invalid.
@@ -413,6 +414,8 @@ G4 is an **additive encoding relaxation**, not a forced replacement of ordinary 
 3. Add one BCJ+zstd L19 no-dictionary trial and one BCJ+zstd L19 trial for each of that entry's **same H0 candidate dictionary sequences**. Candidate starts/order, K=4, C=8, ±256 KiB radius, <=1 MiB original dictionary and 1 MiB zstd window do not change.
 4. Candidate eligibility is decided on the original H0 dictionary bytes using the production K/size/`CspDictionary.IsUsable` rules **before** normalization. An admitted dictionary is then normalized and supplied explicitly as a raw prefix; do not reinterpret transformed bytes as a trained dictionary.
 5. BCJ trials cost `frameBytes + 32 × dictionaryRefs`. Replace H0 only on a strict cost decrease; a tie keeps H0, then the earlier H0 candidate order.
+
+Every BCJ+zstd trial keeps the production encoding-1 frame envelope over the **normalized** target bytes: `Frame_Content_Size = targetLength`, Dictionary_ID 0, window <=1 MiB, exactly one non-skippable frame and no trailing bytes. A content checksum remains optional and must validate when present.
 
 For exact synthetic physical accounting, the BCJ-coded winner consumes two of CSP v1's currently reserved one-byte encoding values in both PAYL/PIDX:
 
