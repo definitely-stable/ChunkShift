@@ -340,6 +340,8 @@ Therefore the physical byte equation is exact for this frozen counterfactual:
 
 where the subtraction covers only H0 entries in coalesced groups of two or more members and the addition carries one frame plus one anchor-reference list per such group. Singleton entries are unchanged and cancel completely. Fixed PAYL/PIDX/non-payload bytes cancel because their sizes are unchanged. The compact dataset records group id/type, member FirstTargetIndex/ChunkId/length, H0 stored/ref costs, anchor refs and group frame bytes so every term and continuation sequence can be independently reconstructed.
 
+The group zstd frame keeps the production encoding-1 frame envelope except for its group-sized output: it MUST declare `Frame_Content_Size = sum(member target lengths)`, MUST declare Dictionary_ID 0, MUST use a window <=1 MiB, and MUST be exactly one non-skippable frame with no second frame or trailing bytes. A content checksum remains optional but must validate when present. The decoder bounds total group output by the precomputed checked sum of member lengths before decoding.
+
 The reconstruction oracle reads GroupZstdStart followed by its GroupContinuation records, decodes the frame incrementally, splits output by the members' known target chunk lengths, verifies every target ChunkId, rejects short/extra decoded output, and reconstructs the complete target file for SHA-256 equality.
 
 ### 7.4 Lost properties
