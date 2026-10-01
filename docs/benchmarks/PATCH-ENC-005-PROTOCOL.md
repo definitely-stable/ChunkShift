@@ -150,9 +150,9 @@ Every H5/H6 production-real lane feeds that union through **the H4 L1 ranking an
 
 ### 5.1 Families to measure
 
-**N-transform SF is a research control, not an adoption lane.** It is useful to validate feature recall/CPU against the literature, but its repeated transforms over every rolling fingerprint are exactly the cost Finesse and Odess were designed to remove.
+**N-transform SF is a literature/control family, not a lane in this ExperimentId.** Its repeated transforms over every rolling fingerprint are exactly the cost Finesse and Odess were designed to remove. G2 is the stronger CSP-specific upper bound; adding an N-transform implementation would add work without changing the production decision grid. If a later study needs N-transform recall as a standalone result, it gets its own recorded lane/ExperimentId rather than appearing post-freeze here.
 
-**H5-F — Finesse-style fixed-subchunk locality.** Lane: `H5-F12-SF3`.
+**H5-F — Finesse-style fixed-subchunk locality.** Lane: `H5-F12-SF3`. This freezes a CSP adaptation of Finesse's feature/grouping construction; the index key below is ChunkShift-specific rather than a claim of byte-for-byte Finesse reproduction.
 
 The feature definition is frozen rather than left to an implementation-specific Rabin library:
 
@@ -169,8 +169,8 @@ The stable 64 KiB profile has a 16 KiB minimum chunk, so every subchunk is large
 - use the stable ChunkShift Gear table identified by `chunkshift.fastcdc.gear.v1` / SHA-256 `91a3061015ae351cd3701852712bcd6aa4a1ce26c8a231d3969432b00f028f88`;
 - Patching computes its own deterministic pass; it does not expose or depend on Core's internal rolling state;
 - Gear state is `h = (h << 1) + table[byte]` modulo 2^64;
-- after the first 32 bytes, a proxy sample is kept when `(h & 0x7f) == 0` (1/128 sampling);
-- derive 12 features from the proxy hashes. For transform i in 0..11, let `d = SHA256(ASCII("PATCH-ENC-005/NTRANSFORM/" + invariant(i)))`, `m = UInt32LE(d[0..4]) | 1`, `a = UInt32LE(d[4..8])`; the feature is the maximum of `(m × UInt32(h) + a) mod 2^32` over sampled hashes. An empty proxy set produces feature zero;
+- a proxy sample is kept whenever `(h & 0x7f) == 0` (1/128 content-defined sampling), from the first byte onward. If a chunk produces no such sample, its terminal Gear value is the single deterministic fallback proxy so the feature vector is always defined;
+- derive 12 features from the proxy hashes. For transform i in 0..11, let `d = SHA256(ASCII("PATCH-ENC-005/NTRANSFORM/" + invariant(i)))`, `m = UInt32LE(d[0..4]) | 1`, `a = UInt32LE(d[4..8])`; the feature is the **minimum** of `(m × UInt32(h) + a) mod 2^32` over the proxy set. The SHA-derived `(m,a)` pairs replace Odess's pre-generated random pairs with a reproducible experiment constant; the min-wise selection itself follows the Odess/N-transform construction;
 - group features in order into **3 groups of 4**, and identify each group by BLAKE3-256 of the tier id plus its four little-endian feature values, truncated to the first 64 bits for the in-memory index.
 
 Lane: `H6-O12-SF3-S128`.
@@ -458,7 +458,7 @@ The final decision runs in steps 3/4/7 are forbidden on this protocol PR.
 The resemblance families are intentionally narrower than the literature survey:
 
 - Finesse (FAST'19) keeps the super-feature model but replaces N-transform's repeated transforms with fixed-subchunk feature locality; its paper uses 12 features and three 4-feature super-features and reports materially faster feature computation with comparable compression.
-- Odess (ICDE'21) uses Gear hashing plus content-defined sampling before transforms; the paper's evaluated setup includes 1/128 sampling and 12 features / 3 super-features. H6 adopts that direction, not an opaque external index.
+- Odess (ICDE'21) uses Gear hashing plus content-defined sampling before linear transforms and selects the minimum transformed value per feature; the paper evaluates 1/128 sampling and a 12-feature / 3-super-feature setup. H6 keeps those semantics where they matter, while pinning the random transform pairs deterministically for reproducibility.
 - Palantir (ASPLOS'24) shows why one fixed super-feature threshold can miss candidates and uses the three `(3,4)/(4,3)/(6,2)` tiers. H6-P evaluates only that hierarchy over H6's existing features; it does not import backup-history state.
 - Argus (ACM TOS'26) is directly relevant: its bin-wise partitioning plus fine-grained Gear/plain-feature design addresses duplicate/useless features in earlier super-feature schemes. It is **not** a fourth selector lane in PATCH-ENC-005: H6-O first establishes whether a bounded Gear-derived signal recovers enough of G2 on CSP's 64 KiB chunks. If H6-O/H6-P leave material G2 headroom that can plausibly be feature-recall loss, an Argus-style bin-wise lane requires a new ExperimentId rather than post-freeze expansion of this grid.
 - *Once Rolling Hashing is Enough* (EuroSys'26) is relevant to avoiding duplicate rolling work. In ChunkShift the reusable Core Gear state is internal by design, so H6 recomputes a small Patching-side pass rather than changing the Core contract.
