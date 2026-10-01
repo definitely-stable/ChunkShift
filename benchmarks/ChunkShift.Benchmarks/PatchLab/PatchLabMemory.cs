@@ -49,7 +49,7 @@ internal static class PatchLabMemory
             {
                 foreach (PatchLabChangedFile file in pair.Changed)
                 {
-                    if (file.TargetSize < options.MinBytes)
+                    if (!IsInMemoryPopulation(file, options.MinBytes))
                     {
                         continue;
                     }
@@ -131,6 +131,9 @@ internal static class PatchLabMemory
             Directory.Delete(directory, recursive: true);
         }
     }
+
+    internal static bool IsInMemoryPopulation(PatchLabChangedFile file, long minimumBytes) =>
+        Math.Max(file.BaseSize, file.TargetSize) >= minimumBytes;
 
     /// <summary>
     /// Returns the allocator and GC variables the children inherit, sorted by
