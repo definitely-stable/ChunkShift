@@ -16,7 +16,7 @@ namespace ChunkShift.Patching.Creation;
 /// </param>
 /// <remarks>
 /// Internal: the public <see cref="ChunkPatch"/> API always uses
-/// <see cref="Sequential"/> (D9); the lab and the tests pass other values.
+/// <see cref="Default"/> (D9); the lab and the tests pass other values.
 /// </remarks>
 internal sealed record CspCreateExecution(int WorkerCount, bool UseBaseCandidateCache)
 {
@@ -25,6 +25,13 @@ internal sealed record CspCreateExecution(int WorkerCount, bool UseBaseCandidate
 
     /// <summary>Gets the sequential payload pass without a cache (H0).</summary>
     internal static CspCreateExecution Sequential { get; } = new(0, false);
+
+    /// <summary>
+    /// Gets the execution of the public API: two encode workers without the
+    /// cache (H2-W2), adopted by PATCH-ENC-004
+    /// (docs/research/results/PATCH-ENC-004-EVIDENCE-20261001-001.md).
+    /// </summary>
+    internal static CspCreateExecution Default { get; } = new(2, false);
 
     /// <summary>
     /// Gets the entries the pipeline keeps in flight per worker: queued,

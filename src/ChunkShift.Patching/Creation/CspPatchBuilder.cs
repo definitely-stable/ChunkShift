@@ -45,9 +45,9 @@ internal static partial class CspPatchBuilder
         "A stream returned a byte count outside the Stream contract.";
 
     /// <summary>
-    /// Creates a patch; with <paramref name="baseManifest"/> and
-    /// <paramref name="baseContent"/> both <see langword="null"/> it is
-    /// self-contained.
+    /// Creates a patch with <see cref="CspCreateExecution.Default"/>; with
+    /// <paramref name="baseManifest"/> and <paramref name="baseContent"/> both
+    /// <see langword="null"/> it is self-contained.
     /// </summary>
     internal static Task<PatchInfo> CreateAsync(
         Stream? baseManifest,
@@ -64,7 +64,7 @@ internal static partial class CspPatchBuilder
             targetContent,
             destination,
             policy,
-            CspCreateExecution.Sequential,
+            CspCreateExecution.Default,
             cancellationToken);
 
     /// <summary>

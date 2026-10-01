@@ -84,10 +84,17 @@ public sealed class PatchCreationExecutionBytesTests
         AssertNothingLeaked(statistics);
     }
 
-    // The public API is the sequential pass, so H0 through the internal
-    // builder is the same patch as ChunkPatch.CreateAsync.
+    // The public API runs two encode workers (H2-W2, PATCH-ENC-004) and still
+    // makes H0's patch.
     [Fact]
-    public async Task PublicApi_IsH0()
+    public void DefaultExecution_IsTwoWorkersWithoutTheCache()
+    {
+        Assert.Equal(2, CspCreateExecution.Default.WorkerCount);
+        Assert.False(CspCreateExecution.Default.UseBaseCandidateCache);
+    }
+
+    [Fact]
+    public async Task PublicApi_MakesH0sBytes()
     {
         PatchScenario scenario = PatchScenarios.Find(PatchScenarios.EditedChunks);
         (byte[] baseManifest, byte[] targetManifest) =
