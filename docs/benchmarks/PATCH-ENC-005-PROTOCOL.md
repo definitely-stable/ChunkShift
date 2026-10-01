@@ -56,7 +56,7 @@ For each distinct missing target chunk:
 3. The cheap ranking key is `(cheapCostBytes, selectorCandidateOrdinal)`, where
    `cheapCostBytes = cheapFrameBytes + 32 × dictionaryReferenceCount`.
    Dictionary-reference cost is therefore included before ranking. In H4, `selectorCandidateOrdinal` is exactly H0's candidate ordinal. In Phase B it is the deterministic union ordinal defined in §5.2.
-4. Retain the two candidates with the smallest key. Candidate bytes may be retained for the L19 re-encode; they must not be re-read merely because they won ranking.
+4. Retain the two candidates with the smallest key **and their dictionary bytes**. The implementation may use one scratch dictionary buffer plus two retained-winner buffers per encode worker; it must not retain all candidate dictionaries. A winner must not be re-read merely because it reached L19.
 5. Re-encode exactly those **R = 2** candidates at L19.
 6. Choose the final stored form by H0's cost function and strict-decrease rule: raw → L19 no-dictionary → ranked L19 candidate 1 → ranked L19 candidate 2.
 
@@ -254,7 +254,7 @@ Palantir's generational backup-history machinery is not imported: CSP create has
 
 ### 5.2 Bounded index and deterministic retrieval
 
-The index is rebuilt for every base file/create; build time and the full sequential base read are charged to create. No cross-create cache, Repository service or hidden precomputation is allowed.
+The index is rebuilt for every base file/create. The build is a complete **single-threaded sequential prepass before the target payload producer starts**; its wall/CPU time and full base read are charged to create and are not overlapped with H2-W2 encoding. The prepass computes features/postings and discards base payload bytes; later L1/L19 dictionary trials reread candidate bytes through the ordinary H2 base source. Target features are computed from the target chunk bytes already owned by the payload work item, never by a second target-stream pass. No cross-create cache, Repository service or hidden precomputation is allowed.
 
 Index format for the experiment is sorted packed postings `(featureKey64, baseStartIndex32)`, sorted first by unsigned `featureKey64`, then ascending base start index. A posting is 12 logical bytes. A 64-bit key collision is deliberately a deterministic false-positive retrieval, never a correctness shortcut; exact L1/L19 trials and chosen-dictionary ChunkId verification remain authoritative.
 
@@ -339,7 +339,7 @@ The document contains one record per distinct missing target chunk, in productio
 
 Each candidate row contains:
 
-- `ordinal`;
+- `ordinal`: the `selectorCandidateOrdinal` used by the cheap-stage tie break; Phase-A offset rows preserve H0 relative order (gaps from skipped invalid starts are allowed), while Phase-B rows use the union order in §5.2;
 - `startIndex`, `startOffset`, `recordCount` and `firstChunkId`; together with the base ManifestId these identify the dictionary window;
 - `source`: exactly `offset`, `sketch` or `both`;
 - `cheapFrameBytes` and `cheapCostBytes`, nullable where the lane has no cheap stage;
