@@ -1,0 +1,226 @@
+name: PATCH-ENC-005 Phase A
+
+on:
+  workflow_dispatch:
+    inputs:
+      dataset-role:
+        description: "Development split to measure"
+        required: true
+        default: calibration
+        type: choice
+        options:
+          - calibration
+          - evaluation
+
+permissions:
+  contents: read
+
+concurrency:
+  group: patch-enc-005-phase-a-\${{ inputs.dataset-role }}-\${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+  PATCH_ENC_005_PROTOCOL_COMMIT: 96fd9b296d6998cac397e61041f22df51e6dd43c
+
+jobs:
+  timing:
+    name: paired-\${{ inputs.dataset-role }} (\${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux-x64
+          - os: ubuntu-24.04-arm
+            platform: linux-arm64
+          - os: windows-2025
+            platform: win-x64
+    runs-on: \${{ matrix.os }}
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Restore corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-enc-005-sources-\${{ runner.os }}-\${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize frozen development corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python=python3
+          command -v python3 >/dev/null || python=python
+          "$python" benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$HOME/patch-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download --lock
+
+      - name: Build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Run frozen paired procedure
+        shell: bash
+        env:
+          DATASET_ROLE: \${{ inputs.dataset-role }}
+          PLATFORM: \${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          case "$DATASET_ROLE" in
+            calibration)
+              families="dotnet-aspnetcore-win-x64,dotnet-runtime-linux-arm64"
+              ;;
+            evaluation)
+              families="node-win-x64,node-linux-x64,tzdata,chunkshift-source"
+              ;;
+            *)
+              echo "unsupported development role: $DATASET_ROLE" >&2
+              exit 2
+              ;;
+          esac
+
+          python=python3
+          command -v python3 >/dev/null || python=python
+          run_id="PATCH-ENC-005/RUN-$(date -u +%Y%m%d)-\${{ github.run_number }}-\${GITHUB_SHA::7}-$PLATFORM"
+          mkdir -p artifacts/patch-enc-005
+          "$python" benchmarks/scripts/run_patch_enc_005_paired.py \
+            --corpus "$HOME/patch-corpus" \
+            --output "artifacts/patch-enc-005/paired" \
+            --run-id "$run_id" \
+            --protocol-commit "$PATCH_ENC_005_PROTOCOL_COMMIT" \
+            --source-commit "$GITHUB_SHA" \
+            --platform "$PLATFORM" \
+            --dataset-role "$DATASET_ROLE" \
+            --families "$families"
+
+      - name: Upload paired evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-enc-005-\${{ inputs.dataset-role }}-paired-\${{ matrix.platform }}
+          path: artifacts/patch-enc-005
+          if-no-files-found: error
+          retention-days: 90
+
+  memory:
+    name: memory-\${{ inputs.dataset-role }} (\${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux-x64
+          - os: ubuntu-24.04-arm
+            platform: linux-arm64
+          - os: windows-2025
+            platform: win-x64
+    runs-on: \${{ matrix.os }}
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Restore corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-enc-005-sources-\${{ runner.os }}-\${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize frozen development corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python=python3
+          command -v python3 >/dev/null || python=python
+          "$python" benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$HOME/patch-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download --lock
+
+      - name: Build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Run frozen Phase-A memory population
+        shell: bash
+        env:
+          DATASET_ROLE: \${{ inputs.dataset-role }}
+          PLATFORM: \${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          case "$DATASET_ROLE" in
+            calibration)
+              families="dotnet-aspnetcore-win-x64,dotnet-runtime-linux-arm64"
+              ;;
+            evaluation)
+              families="node-win-x64,node-linux-x64,tzdata,chunkshift-source"
+              ;;
+            *)
+              echo "unsupported development role: $DATASET_ROLE" >&2
+              exit 2
+              ;;
+          esac
+
+          run_id="PATCH-ENC-005/RUN-$(date -u +%Y%m%d)-\${{ github.run_number }}-\${GITHUB_SHA::7}-$PLATFORM"
+          mkdir -p artifacts/patch-enc-005/memory
+          lanes="csp H4-L1-R2 H7-L1-R2-E75 H9-L9-K4-C16-R1M H9-L12-K4-C16-R1M H9-L15-K4-C16-R1M"
+
+          for lane in $lanes
+          do
+            dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
+              patch-lab memory \
+              --corpus "$HOME/patch-corpus" \
+              --output "artifacts/patch-enc-005/memory/$lane.json" \
+              --families "$families" \
+              --min-bytes 1048576 \
+              --lane "$lane" \
+              --execution h2-w2 \
+              --run-id "$run_id"
+          done
+
+      - name: Upload memory evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-enc-005-\${{ inputs.dataset-role }}-memory-\${{ matrix.platform }}
+          path: artifacts/patch-enc-005
+          if-no-files-found: error
+          retention-days: 90
