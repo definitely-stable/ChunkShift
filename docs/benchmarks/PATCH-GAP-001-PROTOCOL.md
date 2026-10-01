@@ -154,7 +154,7 @@ G1 is a **nested relaxation**, not a replacement dictionary policy. For each dis
 1. Start with the exact H0 winning stored form and exact H0 entry cost. It remains a legal choice in every G1 lane without re-encoding.
 2. Reuse exactly the H0 candidate-start set/order; G1 never adds a start.
 3. For one start and envelope E, build the **maximal contiguous prefix** beginning at that start: append base chunks in order until end-of-base, E's reference cap, or adding the next chunk would exceed E's byte budget. Never skip a chunk.
-4. Deduplicate trials whose ordered ChunkId sequence is identical to an already-tried dictionary for that start.
+4. Deduplicate only an **exact trial identity**: same ordered ChunkId sequence, same zstd window cap, level 19, raw-prefix mode and H20/C20 caps. The same dictionary sequence under a different envelope window is a distinct trial and MUST run, because a larger window can change reachable prefix history and frame bytes even when the dictionary bytes are identical.
 5. A lane includes every frozen envelope up to itself:
    - B1 tries B1;
    - B4 tries B1 + B4;
