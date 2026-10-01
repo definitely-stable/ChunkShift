@@ -370,7 +370,12 @@ G4 is an **additive encoding relaxation**, not a forced replacement of ordinary 
 4. Candidate eligibility is decided on the original H0 dictionary bytes using the production K/size/`CspDictionary.IsUsable` rules **before** normalization. An admitted dictionary is then normalized and supplied explicitly as a raw prefix; do not reinterpret transformed bytes as a trained dictionary.
 5. BCJ trials cost `frameBytes + 32 × dictionaryRefs`. Replace H0 only on a strict cost decrease; a tie keeps H0, then the earlier H0 candidate order.
 
-For exact synthetic physical accounting, the BCJ-coded winner uses hypothetical **Encoding = 2**, one of CSP v1's currently reserved one-byte encoding values, in both PAYL/PIDX. This changes no fixed header size and grants no free offset field: all normalization positions are derived deterministically from the embedded target/base manifests as frozen above. Encoding 0/1 entries remain exact H0 bytes/semantics.
+For exact synthetic physical accounting, the BCJ-coded winner consumes two of CSP v1's currently reserved one-byte encoding values in both PAYL/PIDX:
+
+- **Encoding = 2:** x86/x64 BCJ + zstd frame, optional normalized raw-prefix dictionary;
+- **Encoding = 3:** ARM64 BCJ + zstd frame, optional normalized raw-prefix dictionary.
+
+The architecture is therefore self-described by the entry without adding bytes or depending on an external G4 inventory at apply time. PE-vs-ELF does not need to be persisted because both x86 families use the same BCJ transform and ARM64 is a separate encoding. All normalization positions are derived deterministically from the embedded target/base manifests as frozen above; no free offset field is granted. Encoding 0/1 entries remain exact H0 bytes/semantics.
 
 For eligible distinct missing entries define `H0EntryCost = storedBytes + 32 × dictionaryRefs` and `G4EntryCost = min(H0EntryCost, all BCJ trial costs)`. Then:
 
@@ -378,9 +383,9 @@ For eligible distinct missing entries define `H0EntryCost = storedBytes + 32 × 
 
 with every ineligible entry/file unchanged. The mandatory oracle is therefore `B_G4 <= B_CSP` both per eligible entry and in aggregate. The compact evidence records H0 winner, every BCJ trial, selected encoding/start/refs, normalization positions and every term of the equation.
 
-Apply dispatches Encoding 0/1 exactly as production. For synthetic Encoding 2 it verifies/reads the named base chunks, normalizes dictionary bytes under the canonical base-offset rule, zstd-decodes the normalized target chunk, inverse-BCJ under the frozen first-target-occurrence rule, then verifies original target length/ChunkId. A lane is invalid on any non-exact reconstruction.
+Apply dispatches Encoding 0/1 exactly as production. For synthetic Encoding 2/3 it selects x86-or-ARM64 BCJ from the encoding value itself, verifies/reads the named base chunks, normalizes dictionary bytes under the canonical base-offset rule with that transform, zstd-decodes the normalized target chunk, inverse-BCJ under the frozen first-target-occurrence rule, then verifies original target length/ChunkId. A lane is invalid on any non-exact reconstruction.
 
-This is a research codec counterfactual, not a production dependency or CSP v1 encoding; assigning Encoding 2 for real would require the normal format-revision/vector process. Normalization must be in-place within the already bounded dictionary/chunk buffers (or use an equivalently bounded scratch buffer); it does not receive a second whole-file/executable buffer. Because G4 keeps the v1 <=1 MiB dictionary/window and <=256 KiB output chunk, its hard RFC-eligibility apply bound remains **64 MiB over idle** under the D17 measurement convention on every required runtime platform. Exceeding it rejects G4 even if its byte reduction passes §11.
+This is a research codec counterfactual, not a production dependency or CSP v1 encoding; assigning Encoding 2/3 for real would require the normal format-revision/vector process. Normalization must be in-place within the already bounded dictionary/chunk buffers (or use an equivalently bounded scratch buffer); it does not receive a second whole-file/executable buffer. Because G4 keeps the v1 <=1 MiB dictionary/window and <=256 KiB output chunk, its hard RFC-eligibility apply bound remains **64 MiB over idle** under the D17 measurement convention on every required runtime platform. Exceeding it rejects G4 even if its byte reduction passes §11.
 
 ### 8.3 Zucchini reference lane
 
