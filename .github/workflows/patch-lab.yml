@@ -331,7 +331,9 @@ jobs:
 
   memory:
     name: patch-lab-memory (${{ matrix.platform }})
-    if: contains(inputs.lanes, 'memory')
+    # The group name is matched as a whole list item: a substring match also
+    # ran this group for lanes=create-memory.
+    if: contains(format(',{0},', inputs.lanes), ',memory,') || contains(format(',{0},', inputs.lanes), ', memory,')
     strategy:
       fail-fast: false
       # arch names the artifact; the summary job merges the x64 and arm64
