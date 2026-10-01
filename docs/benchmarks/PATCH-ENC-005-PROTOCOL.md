@@ -254,7 +254,7 @@ Palantir's generational backup-history machinery is not imported: CSP create has
 
 ### 5.2 Bounded index and deterministic retrieval
 
-The index is rebuilt for every base file/create. The build is a complete **single-threaded sequential prepass before the target payload producer starts**; its wall/CPU time and full base read are charged to create and are not overlapped with H2-W2 encoding. The prepass computes features/postings and discards base payload bytes; later L1/L19 dictionary trials reread candidate bytes through the ordinary H2 base source. Target features are computed from the target chunk bytes already owned by the payload work item, never by a second target-stream pass. No cross-create cache, Repository service or hidden precomputation is allowed.
+The index is rebuilt for every base file/create. The build is a complete **single-threaded sequential prepass before the target payload producer starts**; its wall/CPU time and full base read are charged to create and are not overlapped with H2-W2 encoding. The prepass computes features/postings and discards base payload bytes; later L1/L19 dictionary trials reread candidate bytes through the ordinary H2 base source. Every base record selected for indexing is hashed with the patch HashSuite and must equal its manifest `ChunkId` **before any posting derived from it is published to the in-memory index**. Unindexed records are read/discarded but need no new eager hash. Target features are computed from the already target-hash-verified chunk bytes owned by the payload work item, never by a second target-stream pass. No cross-create cache, Repository service or hidden precomputation is allowed.
 
 Index format for the experiment is sorted packed postings `(featureKey64, baseStartIndex32)`, sorted first by unsigned `featureKey64`, then ascending base start index. A posting is 12 logical bytes. A 64-bit key collision is deliberately a deterministic false-positive retrieval, never a correctness shortcut; exact L1/L19 trials and chosen-dictionary ChunkId verification remain authoritative.
 
@@ -297,7 +297,7 @@ Apply has no index and keeps the existing **64 MiB over-idle** bound.
 
 ## 6. H8 — incompressibility gate only after resemblance exists
 
-H8 is evaluated only on the best still-eligible H5/H6 retrieval family after its parameters have been frozen. It never precedes G2/H5/H6.
+H8 is evaluated on exactly one deterministic parent after H5/H6 calibration. Among indexed H5-F/H6-O/H6-P lanes that are eligible under §10 on calibration, choose the parent with the smallest calibration bytes; ties go to smaller `max_p(w_p)`, then smaller `max_p(c_p)`, then lexicographically smaller lane id. If no indexed lane is eligible, H8 is NOT_RUN. H8 never precedes G2/H5/H6.
 
 The parent selector still computes its sketch query and all L1 cheap scores. If the parent has no valid dictionary candidate, it already executes no dictionary L19 trial and H8 changes nothing. Otherwise H8 suppresses all L19 dictionary re-encodes for an entry only when all three conditions hold:
 
@@ -532,6 +532,8 @@ Before any decision run, the implementation/lab PR must pass:
 - short reads on base manifest/content, target manifest/content and patch input;
 - cancellation before and during create/apply;
 - corrupt/truncated patch and wrong/corrupt base semantics;
+- Phase A must preserve H0's existing create failure behavior for equivalent reads. Indexed Phase B has one explicitly broader dependency: its required full-base prepass means a short/throwing base anywhere in that prepass can fail create even where H0 would never read that region. A short base surfaces `InvalidDataException`; a source exception remains unwrapped; caller cancellation surfaces `OperationCanceledException`; no partial patch is accepted as successful;
+- an indexed base record whose bytes do not hash to its manifest `ChunkId` fails before its postings become visible. This verification work is included in index build CPU/wall metrics; selected dictionary chunks are still verified again from the bytes actually encoded, as production does;
 - existing P6 failure-point and P9 fuzz regressions;
 - existing committed CSP vectors unchanged and still decodable;
 - new committed creation vectors for any newly representable/default selector outcome where a vector adds coverage, without deleting old compatibility vectors.
