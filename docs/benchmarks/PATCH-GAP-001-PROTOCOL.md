@@ -409,13 +409,15 @@ The inventory classifier runs before any Puffin/bsdiff output and classifies by 
 
 - **ZIP-compatible** — a valid ZIP central directory/end record is present, every referenced local header/range is in bounds, and the parser can enumerate members deterministically; .zip/.nupkg names receive no special credit without this structure;
 - **gzip** — the complete input is a valid RFC 1952 member chain with deflate method 8 and no trailing unparsed bytes;
-- **zlib** — the complete input is a valid RFC 1950 stream (CM=8, FCHECK valid, declared optional dictionary field structurally present when set), the deflate payload terminates exactly before the Adler-32 footer, and the footer verifies;
+- **zlib** — the complete input is a valid RFC 1950 stream with CM=8 and valid FCHECK; `FDICT` MUST be 0 for this experiment because the frozen corpus supplies no external preset-dictionary bytes. `FDICT=1` is explicit `UNSUPPORTED/PRESET_DICTIONARY`, not a parse failure. The deflate payload must terminate exactly before the Adler-32 footer and the footer must verify;
 - **compressed-other** — already-compressed payload not in the three supported structural classes;
 - **not-compressed/unknown**.
 
 Raw DEFLATE is intentionally **not auto-detected** by trying a decoder against arbitrary bytes: it has no self-identifying wrapper and doing so would make population membership parser/false-positive dependent. Likewise this ExperimentId does not scan arbitrary binaries for embedded deflate signatures. Deflate extents enter G5 only as deterministic children of a recognized ZIP/gzip/zlib structure. A later raw/embedded-stream study requires its own predeclared locator and ExperimentId.
 
-For every accepted ZIP/gzip/zlib file, the inventory also runs the pinned Puffin Android-17 structural locator for that declared type and stores the canonical sorted bit-extents plus their SHA-256. A pair is Puffin-supported only when both base and target pass the strict structural classifier and Puffin locator for the same type, every returned extent is in bounds, and at least one side contains a deflate extent. A disagreement between the strict classifier and Puffin is `UNSUPPORTED/PARSER_DISAGREEMENT`, never a silent skip or a size of zero.
+For every accepted ZIP/gzip/zlib file, the inventory also runs the pinned Puffin Android-17 structural locator for that declared type and stores canonical sorted bit-extents plus their SHA-256. A pair is Puffin-supported only when both base and target pass the strict structural classifier and Puffin locator for the same type, every returned extent is in bounds/non-overlapping, and at least one side contains a deflate extent.
+
+For ZIP specifically, the Puffin deflate extents must have a one-to-one correspondence with the structurally enumerated members whose compression method is deflate (method 8), in canonical member order; stored/other-method members generate no Puffin deflate extent. For gzip/zlib, the locator must identify exactly the structurally parsed deflate payload(s). Any count/order/range disagreement is `UNSUPPORTED/PARSER_DISAGREEMENT`, never a silent skip or a size of zero.
 
 For ZIP-compatible pairs, match members by raw member name plus duplicate-name ordinal and record separately:
 
