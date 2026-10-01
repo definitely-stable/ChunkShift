@@ -58,6 +58,11 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Setup Python 3.14 for PATCH-ENC-005 decoder
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
       - name: Restore
         run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
 
@@ -66,6 +71,12 @@ jobs:
 
       - name: Test
         run: dotnet test benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-build --no-restore
+
+      - name: Verify PATCH-ENC-005 Phase-A patches with independent decoder
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/verify_patch_enc_005_phase_a_decoder.py
 
       - name: Validate benchmark evidence scripts
         shell: bash
