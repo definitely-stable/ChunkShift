@@ -336,9 +336,14 @@ The document contains one record per distinct missing target chunk, in productio
 | `targetIndex` | first target record index |
 | `targetChunkId` | exact ChunkId hex |
 | `targetOffset`, `targetLength` | bytes |
-| `candidateCount` | unique candidates considered by the selector |
-| `expensiveTrialCount` | dictionary trials at the lane's expensive/final level actually executed |
-| `level19TrialCount` | all L19 frames actually encoded for the entry, including the no-dictionary L19 frame; zero for H9 L9/L12/L15 |
+| `candidateCount` | valid unique candidate rows after selector dedup/validity |
+| `cheapTrialCount` | dictionary cheap-stage trials actually encoded; zero for H0/H9 |
+| `expensiveTrialCount` | dictionary trials at the lane's expensive/final level actually encoded |
+| `totalCompressionTrialCount` | every zstd encode call for the entry: the one no-dictionary final-level frame plus cheap dictionary trials plus expensive dictionary trials |
+| `level19TrialCount` | every L19 encode call for the entry, including the no-dictionary L19 frame when `finalLevel=19`; zero for H9 L9/L12/L15 |
+| `noDictionaryFrameBytes` | final-level no-dictionary frame bytes |
+| `l19NoDictionaryFrameBytes` | same value when `finalLevel=19`, otherwise null |
+| `baselineCostBytes` | `min(targetLength, noDictionaryFrameBytes)` |
 | `selectedEncoding` | raw / zstd / zstd-dictionary |
 | `selectedCandidate` | candidate ordinal or null |
 | `storedBytes` | selected raw/frame bytes, excluding dictionary refs |
@@ -355,7 +360,34 @@ Each candidate row contains:
 - `l19FrameBytes` and `l19CostBytes`: exactly equal to the final fields when `finalLevel=19` and the trial ran, otherwise null; these explicit fields keep the shared #183 L19 analysis direct;
 - `selected` boolean.
 
-The trace stores **no target bytes, dictionary bytes or frame payload bytes**. G2 oracle rows are separate and name their best base start; `source` is not extended with an `oracle` value. PATCH-GAP-001 consumes this schema and the G2 artifact rather than inventing selector semantics. SHA-256 of each completed trace/oracle document is recorded by the external evidence manifest; it is not embedded self-referentially in the document. GAP may record its own policy fingerprint beside that digest without forking this schema.
+The trace stores **no target bytes, dictionary bytes or frame payload bytes**. `source` is not extended with an `oracle` value.
+
+### 7.1 G2 oracle artifact
+
+G2 uses a separate schema, exactly `chunkshift.patch-g2-oracle.v1`; PATCH-GAP-001 consumes it instead of reconstructing an exhaustive selector.
+
+One document covers one frozen oracle sample. Header fields are:
+
+- `schema`, `experimentId`, `runId`, `protocolCommit`, `sourceCommit`;
+- `datasetRole` (calibration for the PATCH-ENC-005 gate; a later descriptive #183 population names its own role);
+- `datasetSha256`, `oracleSampleSha256`;
+- `policy` exactly `L19-K4-ALL-PREFIX-H20C20-REF32`;
+- `candidateOrder` exactly `abs-offset-then-lower-index`.
+
+Rows are sorted by the frozen sample order and contain:
+
+- `family`, `baseVersion`, `targetVersion`, `path`;
+- `targetIndex`, `targetChunkId`, `targetOffset`, `targetLength`;
+- `candidateStartsEnumerated`: all base-record starts before dictionary validity;
+- `validCandidateCount`;
+- H0 fields: `h0Encoding`, `h0StoredBytes`, `h0DictionaryRefs`, `h0CostBytes`, plus nullable `h0StartIndex`, `h0StartOffset`, `h0RecordCount`, `h0FirstChunkId`;
+- oracle fields: `oracleEncoding`, `oracleStoredBytes`, `oracleDictionaryRefs`, `oracleCostBytes`, plus nullable `oracleStartIndex`, `oracleStartOffset`, `oracleRecordCount`, `oracleFirstChunkId`;
+- `oracleStartDistanceBytes`, nullable unless the oracle selected a dictionary;
+- `savedBytes = h0CostBytes - oracleCostBytes`.
+
+For raw/no-dictionary winners all dictionary-location fields and distance are null and refs are zero. `CostBytes = StoredBytes + 32 × DictionaryRefs`. The artifact stores no payload/dictionary/frame bytes.
+
+SHA-256 of each completed trace/oracle document is recorded by the external evidence manifest; it is not embedded self-referentially in the document. GAP may record its own policy fingerprint beside that digest without forking either shared schema.
 
 ## 8. Calibration, fixed evaluation and fresh confirmation
 
@@ -410,7 +442,7 @@ Per changed file, lane, repetition and platform where applicable:
 - create wall seconds and process CPU seconds;
 - managed allocated bytes;
 - base reads, bytes read and seeks;
-- candidate count, expensive dictionary-trial count and total L19 frame count;
+- candidate count, cheap/final/total compression-trial counts and total L19 frame count;
 - dictionary entries and references;
 - apply wall/CPU, base reads and target SHA-256;
 - H5/H6/H8 index build wall/CPU, bytes scanned, posting count, ignored-hot-feature count, index peak bytes and candidate source statistics;
