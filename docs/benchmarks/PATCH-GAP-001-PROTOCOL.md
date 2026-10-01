@@ -157,9 +157,23 @@ For B4/B8/B32, the window is the smallest power-of-two window that can keep the 
 
 Each dictionary reference still costs exactly 32 bytes in the research score. No oracle gets free references. Thus a 128-reference dictionary is charged up to 4,096 bytes of reference metadata per entry.
 
-For every candidate, record dictionary bytes/reference count, compressed-frame bytes, reference-cost bytes, zstd window, base bytes/reads, create/apply peak RSS, winning candidate start and stored form.
+The protocol also freezes an analytical decoder-data envelope, separate from observed process RSS:
 
-G1 is an upper-bound experiment. Any result beyond H0 cannot be emitted as CSP v1 because it may exceed the v1 4-reference, 1 MiB dictionary and/or 1 MiB window maxima. A future format could map the concept to named base chunks only by an explicit format revision with new normative bounds. No such revision is proposed here.
+decoder_data_envelope = dictionary_budget + zstd_window_cap + 262,144 target-output bytes + maximum reference bytes
+
+| lane | decoder-data envelope |
+| --- | ---: |
+| G1-H0 | 2,359,424 bytes (about 2.2501 MiB) |
+| G1-R128-B1 | 2,363,392 bytes (about 2.2539 MiB) |
+| G1-R128-B4 | 12,849,152 bytes (about 12.2539 MiB) |
+| G1-R128-B8 | 25,432,064 bytes (about 24.2539 MiB) |
+| G1-R128-B32 | 100,929,536 bytes (about 96.2539 MiB) |
+
+This is a codec-data upper envelope, not a prediction of RSS; allocator, native zstd and implementation overhead are measured separately. With the frozen maximum of eight candidate starts and no research candidate cache, the naïve create-side base-read bound is at most 8 × dictionary_budget per target entry; apply reads only the selected named dictionary and is bounded by dictionary_budget. Actual reads, read calls and amplification are recorded because overlapping candidates can cause substantial rereads.
+
+For every candidate, record dictionary bytes/reference count, compressed-frame bytes, reference-cost bytes, zstd window, base bytes/read calls, create/apply peak RSS, winning candidate start and stored form.
+
+G1 is an upper-bound experiment. Any result beyond H0 cannot be emitted as CSP v1 because it may exceed the v1 4-reference, 1 MiB dictionary and/or 1 MiB window maxima. The concept can map to CSP's declarative named-base-chunk model without a new instruction VM only through an explicit format revision that raises DictionaryCount, dictionary bytes and/or window bounds. The research score deliberately assumes the direct reference-list representation (32 bytes per named chunk). A future compact run descriptor or other cheaper reference encoding would be a separate format factor and receives no free credit here.
 
 ## 6. G2 — candidate choice, owned by PATCH-ENC-005
 
