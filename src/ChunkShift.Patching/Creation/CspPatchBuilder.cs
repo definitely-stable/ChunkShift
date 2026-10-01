@@ -598,7 +598,7 @@ internal static partial class CspPatchBuilder
                 }
 
                 ReadOnlySpan<byte> dictionaryFrame = encoder.EncodeZstd(bytes.Span, dictionary.Span);
-                int cost = dictionaryFrame.Length + (count * CspFormat.DictionaryReferenceSize);
+                int cost = DictionaryCandidateCost(dictionaryFrame.Length, count);
                 expensiveTrials++;
 
                 if (traceCandidates is not null)
@@ -722,7 +722,7 @@ internal static partial class CspPatchBuilder
                 }
 
                 ReadOnlySpan<byte> cheapFrame = cheapEncoder.EncodeZstd(bytes.Span, dictionary.Span);
-                int cheapCost = cheapFrame.Length + (count * CspFormat.DictionaryReferenceSize);
+                int cheapCost = DictionaryCandidateCost(cheapFrame.Length, count);
                 cheapTrials++;
 
                 if (traceCandidates is not null)
@@ -765,8 +765,7 @@ internal static partial class CspPatchBuilder
             ReadOnlySpan<byte> firstFrame = encoder.EncodeZstd(
                 bytes.Span,
                 buffers.Rank1.AsSpan(0, firstCandidate.Length));
-            int firstCost = firstFrame.Length +
-                (firstCandidate.RecordCount * CspFormat.DictionaryReferenceSize);
+            int firstCost = DictionaryCandidateCost(firstFrame.Length, firstCandidate.RecordCount);
             expensiveTrials++;
             SetFinalTrace(traceCandidates, firstCandidate.Ordinal, firstFrame.Length, firstCost, finalLevel: 19);
 
@@ -788,8 +787,7 @@ internal static partial class CspPatchBuilder
                 ReadOnlySpan<byte> secondFrame = encoder.EncodeZstd(
                     bytes.Span,
                     buffers.Rank2.AsSpan(0, secondCandidate.Length));
-                int secondCost = secondFrame.Length +
-                    (secondCandidate.RecordCount * CspFormat.DictionaryReferenceSize);
+                int secondCost = DictionaryCandidateCost(secondFrame.Length, secondCandidate.RecordCount);
                 expensiveTrials++;
                 SetFinalTrace(traceCandidates, secondCandidate.Ordinal, secondFrame.Length, secondCost, finalLevel: 19);
 
@@ -837,11 +835,21 @@ internal static partial class CspPatchBuilder
         return best;
     }
 
-    private static int CompareRank(RankedCandidate left, RankedCandidate right)
+    internal static int DictionaryCandidateCost(int frameBytes, int referenceCount) =>
+        checked(frameBytes + (referenceCount * CspFormat.DictionaryReferenceSize));
+
+    internal static int CompareRankKeys(
+        int leftCost,
+        int leftOrdinal,
+        int rightCost,
+        int rightOrdinal)
     {
-        int cost = left.CheapCost.CompareTo(right.CheapCost);
-        return cost != 0 ? cost : left.Ordinal.CompareTo(right.Ordinal);
+        int cost = leftCost.CompareTo(rightCost);
+        return cost != 0 ? cost : leftOrdinal.CompareTo(rightOrdinal);
     }
+
+    private static int CompareRank(RankedCandidate left, RankedCandidate right) =>
+        CompareRankKeys(left.CheapCost, left.Ordinal, right.CheapCost, right.Ordinal);
 
     private static void SetFinalTrace(
         List<CspCandidateTraceCandidate>? candidates,

@@ -275,6 +275,97 @@ public class PatchEnc005PhaseATests
     }
 
     [Fact]
+    public void H4_RankingUsesTotalCostAndLowerOrdinalTieBreak()
+    {
+        int smallerFrameButFourRefs = CspPatchBuilder.DictionaryCandidateCost(50, 4);
+        int largerFrameButOneRef = CspPatchBuilder.DictionaryCandidateCost(80, 1);
+
+        Assert.Equal(178, smallerFrameButFourRefs);
+        Assert.Equal(112, largerFrameButOneRef);
+        Assert.True(CspPatchBuilder.CompareRankKeys(
+            smallerFrameButFourRefs,
+            leftOrdinal: 0,
+            largerFrameButOneRef,
+            rightOrdinal: 1) > 0);
+
+        Assert.True(CspPatchBuilder.CompareRankKeys(
+            leftCost: 112,
+            leftOrdinal: 3,
+            rightCost: 112,
+            rightOrdinal: 4) < 0);
+    }
+
+    [Fact]
+    public async Task H4_CorruptLosingCandidateDoesNotCreateAnEagerHashFailure()
+    {
+        byte[] baseContent = RepeatedText(2 * 1024 * Kibibyte, "losing-candidate");
+        byte[] targetContent = (byte[])baseContent.Clone();
+
+        for (int offset = 256 * Kibibyte; offset < targetContent.Length; offset += 512 * Kibibyte)
+        {
+            targetContent[offset] ^= 0x31;
+        }
+
+        (byte[] baseManifest, byte[] targetManifest) =
+            await CreationExecutions.ManifestsAsync(baseContent, targetContent);
+        var beforeTrace = new TraceSink();
+
+        _ = await CreationExecutions.CreateAsync(
+            baseManifest,
+            baseContent,
+            targetManifest,
+            targetContent,
+            Policy("H4-L1-R2"),
+            H2W2() with { CandidateTraceSink = beforeTrace });
+
+        List<ChunkInfo> records = await CreationTestSupport.ReadRecordsAsync(baseManifest);
+        (CspCandidateTraceEntry Entry, CspCandidateTraceCandidate Loser)? fixture = null;
+
+        foreach (CspCandidateTraceEntry entry in beforeTrace.Entries)
+        {
+            if (entry.SelectedCandidate is not int selectedOrdinal)
+            {
+                continue;
+            }
+
+            CspCandidateTraceCandidate selected =
+                entry.Candidates.Single(candidate => candidate.Ordinal == selectedOrdinal);
+
+            CspCandidateTraceCandidate? loser = entry.Candidates.FirstOrDefault(candidate =>
+                candidate.Ordinal != selectedOrdinal &&
+                candidate.StartIndex + candidate.RecordCount <= selected.StartIndex ||
+                selected.StartIndex + selected.RecordCount <= candidate.StartIndex);
+
+            if (loser is not null)
+            {
+                fixture = (entry, loser);
+                break;
+            }
+        }
+
+        Assert.NotNull(fixture);
+        CspCandidateTraceEntry targetEntry = fixture.Value.Entry;
+        CspCandidateTraceCandidate losingCandidate = fixture.Value.Loser;
+        byte[] corrupt = (byte[])baseContent.Clone();
+        int corruptOffset = checked((int)records[losingCandidate.StartIndex].Offset);
+        corrupt[corruptOffset] ^= 0x01;
+        var afterTrace = new TraceSink();
+
+        byte[] patch = await CreationExecutions.CreateAsync(
+            baseManifest,
+            corrupt,
+            targetManifest,
+            targetContent,
+            Policy("H4-L1-R2"),
+            H2W2() with { CandidateTraceSink = afterTrace });
+
+        Assert.NotEmpty(patch);
+        CspCandidateTraceEntry after = afterTrace.Entries.Single(
+            entry => entry.TargetChunkId == targetEntry.TargetChunkId);
+        Assert.NotEqual(losingCandidate.Ordinal, after.SelectedCandidate);
+    }
+
+    [Fact]
     public async Task H4_CorruptSelectedDictionaryStillFailsCreate()
     {
         byte[] baseContent = RepeatedText(512 * Kibibyte, "dictionary");
