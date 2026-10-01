@@ -25,7 +25,7 @@ H0 encoder policy is:
 - cost = frame bytes + 32 bytes per dictionary reference;
 - final tie order is raw, then no-dictionary zstd, then the first candidate in candidate order, because the production chooser replaces a winner only on a strict cost decrease.
 
-Every H4/H5/H6/H7/H8/H9 production-real lane uses exactly the same H2-W2 execution topology. Parallel encoding gain is therefore not counted as candidate-policy gain.
+Every H4/H5/H6/H7/H8/H9 production-real lane uses exactly the same **payload** H2-W2 topology: two encode workers and one ordered writer. H5/H6/H8 additionally pay the frozen single-threaded selector-index prepass in §5.2 before that payload topology begins. Parallel encoding gain is therefore never counted as candidate-policy gain.
 
 ## 2. Scope and ownership
 
@@ -52,7 +52,7 @@ Candidate universe is exactly H0's C = 8 / ±256 KiB starts and K = 4 dictionary
 For each distinct missing target chunk:
 
 1. Compute raw cost and one **L19 no-dictionary** frame exactly as H0.
-2. Read every valid H0 dictionary candidate once and encode it at **zstd level 1** with raw-prefix dictionary semantics. H20/C20 are retained as policy caps; where level 1 already chooses smaller tables the caps do nothing.
+2. Read every valid H0 dictionary candidate once and encode it at **zstd level 1** with raw-prefix dictionary semantics. Each H4/H7/H5/H6/H8 worker owns exactly two independent `CspPayloadEncoder` contexts: one fixed at L1 for ranking and one fixed at L19 for no-dictionary/final trials; contexts are never shared between workers. H20/C20 are retained as policy caps; where level 1 already chooses smaller tables the caps do nothing. The extra L1 context is part of the lane's measured CPU/RSS and must still fit the lane memory gate.
 3. The cheap ranking key is `(cheapCostBytes, selectorCandidateOrdinal)`, where
    `cheapCostBytes = cheapFrameBytes + 32 × dictionaryReferenceCount`.
    Dictionary-reference cost is therefore included before ranking. In H4, `selectorCandidateOrdinal` is exactly H0's candidate ordinal. In Phase B it is the deterministic union ordinal defined in §5.2.
@@ -315,11 +315,19 @@ H8 is eligible only if it produces the **same patch SHA-256 as its parent H5/H6 
 
 Schema id: `chunkshift.patch-candidate-trace.v1`.
 
-One JSON document is written per changed file. The header contains:
+One JSON document is written per changed file. Header field names are exact:
 
-- schema, ExperimentId, RunId, protocol commit, source commit, platform and lane;
-- dataset role (`calibration`, `evaluation` or `confirmation`), corpus/confirmation fingerprint, family/pair id and normalized path;
-- base and target `ManifestId`.
+| field | meaning |
+| --- | --- |
+| `schema` | exactly `chunkshift.patch-candidate-trace.v1` |
+| `experimentId`, `runId` | experiment/run identities |
+| `protocolCommit`, `sourceCommit` | full 40-hex Git commits |
+| `platform`, `lane` | measured platform and frozen lane id |
+| `datasetRole` | exactly `calibration`, `evaluation` or `confirmation` |
+| `datasetSha256` | development `pairsSha256` or fresh-confirmation pair-list SHA-256 |
+| `family`, `baseVersion`, `targetVersion`, `path` | exact family/pair/normalized-path identity |
+| `baseManifestId`, `targetManifestId` | exact manifest identities |
+| `finalLevel` | dictionary/no-dictionary output compression level for the lane: 19 except H9's 9/12/15 |
 
 The document contains one record per distinct missing target chunk, in production first-occurrence order:
 
@@ -342,8 +350,9 @@ Each candidate row contains:
 - `ordinal`: the `selectorCandidateOrdinal` used by the cheap-stage tie break; Phase-A offset rows preserve H0 relative order (gaps from skipped invalid starts are allowed), while Phase-B rows use the union order in §5.2;
 - `startIndex`, `startOffset`, `recordCount` and `firstChunkId`; together with the base ManifestId these identify the dictionary window;
 - `source`: exactly `offset`, `sketch` or `both`;
-- `cheapFrameBytes` and `cheapCostBytes`, nullable where the lane has no cheap stage;
-- `l19FrameBytes` and `l19CostBytes`, nullable when no L19 dictionary trial ran;
+- `cheapLevel`, `cheapFrameBytes` and `cheapCostBytes`: `cheapLevel=1` for H4/H7/H5/H6/H8 when that cheap trial ran, otherwise all three are null;
+- `finalFrameBytes` and `finalCostBytes`, nullable when this candidate did not receive the lane's expensive/final dictionary trial at header `finalLevel`;
+- `l19FrameBytes` and `l19CostBytes`: exactly equal to the final fields when `finalLevel=19` and the trial ran, otherwise null; these explicit fields keep the shared #183 L19 analysis direct;
 - `selected` boolean.
 
 The trace stores **no target bytes, dictionary bytes or frame payload bytes**. G2 oracle rows are separate and name their best base start; `source` is not extended with an `oracle` value. PATCH-GAP-001 consumes this schema and the G2 artifact rather than inventing selector semantics. SHA-256 of each completed trace/oracle document is recorded by the external evidence manifest; it is not embedded self-referentially in the document. GAP may record its own policy fingerprint beside that digest without forking this schema.
