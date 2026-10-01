@@ -287,7 +287,9 @@ G3 instead uses a conservative counterfactual cost model that changes grouping o
 - G3-FILE — one zstd frame for the ordered sequence of all payload-bearing first-occurrence missing chunks of a changed file. This is the strongest one-factor within-file framing extreme; it is **not** whole-target --patch-from.
 - G3-REF-PATCHFROM — the pinned whole-file zstd --patch-from lane from §10. It is the requested whole-file/reference extreme, but is descriptive only because it simultaneously changes dictionary scope, candidate choice and framing. It is never substituted for B_G3 and cannot pass the G3 RFC gate.
 
-For RUN/FILE, input bytes are the concatenation of the group's original target chunks in first-target-record order. The group uses only the dictionary that H0 selected for the group's first payload entry; if H0 selected raw or no-dictionary zstd there is no base dictionary. No group-level candidate search, larger dictionary or whole-base oracle is allowed. The zstd window remains capped at 1 MiB.
+For RUN/FILE, input bytes are the concatenation of the group's original target chunks in first-target-record order. **Only groups with at least two payload members are coalesced.** A singleton run/file-payload group has no cross-chunk framing opportunity and remains the exact H0 entry byte-for-byte; forcing it through GroupZstd would change codec choice rather than frame granularity.
+
+A coalesced group uses only the dictionary that H0 selected for the group's first payload entry; if H0 selected raw or no-dictionary zstd there is no base dictionary. No group-level candidate search, larger dictionary or whole-base oracle is allowed. The zstd window remains capped at 1 MiB.
 
 This anchor rule is intentionally conservative: later chunks lose their independent H0 dictionary changes. A single zstd frame cannot swap raw-prefix dictionaries between chunk boundaries, so G3 measures the **net coalescing envelope**: cross-chunk frame context plus the required loss of per-entry dictionary reselection. It must not be described as a pure context-carry gain, and the loss must not be repaired by silently importing G1/G2.
 
@@ -307,7 +309,7 @@ Therefore the physical byte equation is exact for this frozen counterfactual:
 
 `B_G3 = B_CSP - sum(entryStoredBytes + 32 × entryDictRefs) + sum(groupFrameBytes + 32 × anchorDictRefs)`
 
-where the subtraction covers all H0 entries participating in groups and the addition carries one frame plus one anchor-reference list per group. Fixed PAYL/PIDX/non-payload bytes cancel because their sizes are unchanged. The compact dataset records group id/type, member FirstTargetIndex/ChunkId/length, H0 stored/ref costs, anchor refs and group frame bytes so every term and continuation sequence can be independently reconstructed.
+where the subtraction covers only H0 entries in coalesced groups of two or more members and the addition carries one frame plus one anchor-reference list per such group. Singleton entries are unchanged and cancel completely. Fixed PAYL/PIDX/non-payload bytes cancel because their sizes are unchanged. The compact dataset records group id/type, member FirstTargetIndex/ChunkId/length, H0 stored/ref costs, anchor refs and group frame bytes so every term and continuation sequence can be independently reconstructed.
 
 The reconstruction oracle reads GroupZstdStart followed by its GroupContinuation records, decodes the frame incrementally, splits output by the members' known target chunk lengths, verifies every target ChunkId, rejects short/extra decoded output, and reconstructs the complete target file for SHA-256 equality.
 
