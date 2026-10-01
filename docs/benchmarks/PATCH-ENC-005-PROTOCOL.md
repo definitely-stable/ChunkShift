@@ -118,7 +118,7 @@ The implementation PR must materialize this list before the first oracle run and
 
 ### 4.2 Candidate universe and exact cost
 
-For each sampled target entry, enumerate **every base record index in the corresponding base file** as a possible K = 4 dictionary start. There is no radius and no candidate-count sample.
+For each sampled target entry, enumerate **every base record index in the corresponding base file** as a possible K = 4 dictionary start. There is no radius and no candidate-count cap. The exhaustive order is production's nearest-first order extended to the whole base: ascending absolute distance between base-start offset and target offset, then lower base record index. Strict `<` replacement therefore keeps raw, then no-dictionary, then the first equal-cost dictionary in that exact oracle order.
 
 A start is valid iff the current `TryMeasureCandidate` semantics produce 1–4 contiguous records totaling at most 1 MiB and the concatenated dictionary passes `CspDictionary.IsUsable`. Encode every valid start at L19 with raw-prefix H20/C20, add exactly 32 bytes per named base chunk, and compare it with raw and L19 no-dictionary using the same strict cost rule.
 
@@ -144,7 +144,7 @@ A pass authorizes the full Phase-B grid in §5.
 
 A miss does **not** prove that resemblance is useless. PATCH-ENC-002 already showed a distribution shift: widening offset search barely moved the .NET calibration bytes while materially improving the old Node/source partition. Therefore a .NET-only sampled oracle may false-negative the exact moved-content signal H5/H6 target.
 
-When the main G2 gate misses, the implementation may build **only** the already-frozen `H6-O12-SF3-S128` lane as a false-negative guard; H5-F, H6-P and H8 remain forbidden. Run that guard first on linux-x64 over the **fixed evaluation split** in §8, with H0 bracketing and the same correctness/index/memory rules. It opens the full Phase-B grid only when all hold:
+When the main G2 gate misses, the implementation may build **only** the already-frozen `H6-O12-SF3-S128` lane as a false-negative guard; H5-F, H6-P and H8 remain forbidden. Run that guard first on linux-x64 over the **fixed evaluation split** in §8. Timing uses the full §9.2 five-round paired procedure with the round shape `H0 / H6-O / H0`; the 1.50× wall condition must hold for the median and at least 4/5 rounds. Its explicit linux-x64 memory run uses §9.3. It opens the full Phase-B grid only when all hold:
 
 - `B_eval(H6-O) <= 0.97 × B_eval(H0)`;
 - paired create wall `<= 1.50 × H0`;
@@ -302,7 +302,7 @@ H8 is evaluated on exactly one deterministic parent after H5/H6 calibration. Amo
 The parent selector still computes its sketch query and all L1 cheap scores. If the parent has no valid dictionary candidate, it already executes no dictionary L19 trial and H8 changes nothing. Otherwise H8 suppresses all L19 dictionary re-encodes for an entry only when all three conditions hold:
 
 1. `l19NoDictionaryFrameBytes >= ceil(0.98 × targetLength)`;
-2. the resemblance query produced **zero sketch candidates** (offset-only candidates do not count as resemblance evidence);
+2. after §5.2 deduplication and production validity, the resemblance query produced **zero valid sketch-sourced candidates** (`sketch` or `both`); offset-only candidates do not count as resemblance evidence;
 3. the best H4 cheap candidate total cost is `>= ceil(0.98 × targetLength)`.
 
 Otherwise the parent selector runs unchanged.
