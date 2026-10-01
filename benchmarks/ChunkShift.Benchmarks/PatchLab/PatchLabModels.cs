@@ -26,7 +26,8 @@ internal sealed record PatchLabRunResult(
     DateTimeOffset StartedUtc,
     double ElapsedSeconds,
     PatchLabFileResult[] Files,
-    string? Execution = null);
+    string? Execution = null,
+    string ApplyCheck = "seq");
 
 /// <summary>One changed file of one lane, in corpus order.</summary>
 /// <remarks>
@@ -114,7 +115,9 @@ internal sealed record PatchLabMemoryResult(
     IReadOnlyDictionary<string, string> MemoryEnvironment,
     long IdleBaselineBytes,
     PatchLabMemoryFile[] Files,
-    string? Execution = null);
+    string? Execution = null,
+    string Population = "target",
+    string ApplyCheck = "seq");
 
 /// <summary>The peak working set of one file's create and apply children.</summary>
 internal sealed record PatchLabMemoryFile(

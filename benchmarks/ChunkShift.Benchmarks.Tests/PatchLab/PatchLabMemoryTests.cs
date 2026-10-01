@@ -16,6 +16,8 @@ public class PatchLabMemoryTests
                 "--run-id", "PATCH-APPLY-001/RUN-1",
                 "--work", "work",
                 "--lane", "sweep-L19-K2-C8",
+                "--population", "max-base-target",
+                "--apply-check", "boundary",
             ],
             out PatchLabMemoryOptions options,
             out string? error));
@@ -28,6 +30,8 @@ public class PatchLabMemoryTests
         Assert.Equal("PATCH-APPLY-001/RUN-1", options.RunId);
         Assert.Equal("work", options.Work);
         Assert.Equal("sweep-L19-K2-C8", options.Lane);
+        Assert.Equal("max-base-target", options.Population);
+        Assert.Equal("boundary", options.ApplyCheck);
     }
 
     [Fact]
@@ -43,6 +47,8 @@ public class PatchLabMemoryTests
         Assert.Null(options.RunId);
         Assert.Null(options.Work);
         Assert.Equal("csp", options.Lane);
+        Assert.Equal("target", options.Population);
+        Assert.Equal("seq", options.ApplyCheck);
     }
 
     [Fact]
@@ -56,7 +62,7 @@ public class PatchLabMemoryTests
     }
 
     [Fact]
-    public void MemoryPopulationUsesTheLargerOfBaseAndTarget()
+    public void MemoryPopulationPreservesLegacyTargetRuleAndSupportsEnc005MaxRule()
     {
         var largeBase = new PatchLabChangedFile(
             "large-base.bin",
@@ -71,8 +77,27 @@ public class PatchLabMemoryTests
             128 * 1024,
             new string('d', 64));
 
-        Assert.True(PatchLabMemory.IsInMemoryPopulation(largeBase, 1024 * 1024));
-        Assert.False(PatchLabMemory.IsInMemoryPopulation(smallBoth, 1024 * 1024));
+        Assert.False(PatchLabMemory.IsInMemoryPopulation(largeBase, 1024 * 1024));
+        Assert.True(PatchLabMemory.IsInMemoryPopulation(
+            largeBase,
+            1024 * 1024,
+            "max-base-target"));
+        Assert.False(PatchLabMemory.IsInMemoryPopulation(
+            smallBoth,
+            1024 * 1024,
+            "max-base-target"));
+    }
+
+    [Theory]
+    [InlineData("unknown", "--population")]
+    [InlineData("max", "--population")]
+    public void UnknownPopulationIsRejected(string value, string option)
+    {
+        Assert.False(PatchLabMemoryOptions.TryParse(
+            ["--corpus", "root", "--output", "memory.json", option, value],
+            out _,
+            out string? error));
+        Assert.Contains(option, error, StringComparison.Ordinal);
     }
 
     [Fact]

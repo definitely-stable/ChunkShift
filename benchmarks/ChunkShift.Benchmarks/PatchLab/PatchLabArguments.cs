@@ -79,7 +79,9 @@ internal sealed record PatchLabMemoryOptions(
     string? RunId,
     string? Work,
     string Lane,
-    string? Execution = null)
+    string? Execution = null,
+    string Population = "target",
+    string ApplyCheck = "seq")
 {
     private const long DefaultMinBytes = 1024 * 1024;
 
@@ -134,6 +136,22 @@ internal sealed record PatchLabMemoryOptions(
             return false;
         }
 
+        string population = PatchLabArguments.Value(args, "--population") ?? "target";
+
+        if (population is not ("target" or "max-base-target"))
+        {
+            error = "--population must be target or max-base-target.";
+            return false;
+        }
+
+        string applyCheck = PatchLabArguments.Value(args, "--apply-check") ?? "seq";
+
+        if (!PatchLabApplyCheck.TryParseLane(applyCheck, out _))
+        {
+            error = $"Unknown --apply-check '{applyCheck}'; expected off, seq, overlap or boundary.";
+            return false;
+        }
+
         try
         {
             options = new PatchLabMemoryOptions(
@@ -144,7 +162,9 @@ internal sealed record PatchLabMemoryOptions(
                 PatchLabArguments.Value(args, "--run-id"),
                 PatchLabArguments.Value(args, "--work"),
                 lane,
-                execution);
+                execution,
+                population,
+                applyCheck);
             return true;
         }
         catch (PatchLabUsageException exception)

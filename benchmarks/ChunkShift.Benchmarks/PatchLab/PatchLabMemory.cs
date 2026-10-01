@@ -49,7 +49,7 @@ internal static class PatchLabMemory
             {
                 foreach (PatchLabChangedFile file in pair.Changed)
                 {
-                    if (!IsInMemoryPopulation(file, options.MinBytes))
+                    if (!IsInMemoryPopulation(file, options.MinBytes, options.Population))
                     {
                         continue;
                     }
@@ -94,6 +94,7 @@ internal static class PatchLabMemory
                             "--work", corpus.WorkDirectory,
                             "--patch", patchPath,
                             "--output", outputPath,
+                            "--check", options.ApplyCheck,
                         ],
                         $"apply of {file.Path}");
 
@@ -123,7 +124,9 @@ internal static class PatchLabMemory
                 MemoryEnvironment(),
                 idleBaselineBytes,
                 [.. files],
-                options.Execution));
+                options.Execution,
+                options.Population,
+                options.ApplyCheck));
 
             return 0;
         }
@@ -134,7 +137,18 @@ internal static class PatchLabMemory
     }
 
     internal static bool IsInMemoryPopulation(PatchLabChangedFile file, long minimumBytes) =>
-        Math.Max(file.BaseSize, file.TargetSize) >= minimumBytes;
+        file.TargetSize >= minimumBytes;
+
+    internal static bool IsInMemoryPopulation(
+        PatchLabChangedFile file,
+        long minimumBytes,
+        string population) =>
+        population switch
+        {
+            "target" => file.TargetSize >= minimumBytes,
+            "max-base-target" => Math.Max(file.BaseSize, file.TargetSize) >= minimumBytes,
+            _ => throw new ArgumentOutOfRangeException(nameof(population), population, "Unknown memory population."),
+        };
 
     /// <summary>
     /// Returns the allocator and GC variables the children inherit, sorted by

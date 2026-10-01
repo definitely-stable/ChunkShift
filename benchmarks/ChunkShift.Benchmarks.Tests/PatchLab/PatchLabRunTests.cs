@@ -47,6 +47,7 @@ public class PatchLabRunTests
         Assert.Equal(1, run.ApplyRepeats);
         Assert.Equal(corpus.PairsSha256, run.CorpusPairsSha256);
         Assert.Null(run.RunId);
+        Assert.Equal("seq", run.ApplyCheck);
 
         PatchLabFileResult file = Assert.Single(run.Files);
 
@@ -126,6 +127,7 @@ public class PatchLabRunTests
             "--workers", "1",
             "--execution", "h2-w2",
             "--apply-repeats", "1",
+            "--apply-check", "boundary",
             "--apply-check-only",
         ]);
 
@@ -133,6 +135,7 @@ public class PatchLabRunTests
         PatchLabRunResult run = JsonSerializer.Deserialize<PatchLabRunResult>(
             File.ReadAllText(output),
             Json)!;
+        Assert.Equal("boundary", run.ApplyCheck);
         PatchLabFileResult file = Assert.Single(run.Files);
         Assert.NotNull(file.ApplyMetrics);
         Assert.Null(file.ApplyNoCheckMetrics);

@@ -39,6 +39,14 @@ internal static class PatchLabRun
         int applyRepeats = PatchLabArguments.PositiveInt(args, "--apply-repeats", 3);
         bool apply = !args.Contains("--no-apply", StringComparer.Ordinal);
         bool applyNoCheck = apply && !args.Contains("--apply-check-only", StringComparer.Ordinal);
+        string applyCheckName = PatchLabArguments.Value(args, "--apply-check") ?? "seq";
+
+        if (!PatchLabApplyCheck.TryParseLane(applyCheckName, out ChunkingCheck applyCheck))
+        {
+            throw new PatchLabUsageException(
+                $"Unknown --apply-check '{applyCheckName}'; expected off, seq, overlap or boundary.");
+        }
+
         string? runId = PatchLabArguments.Value(args, "--run-id");
         string? executionName = PatchLabArguments.Value(args, "--execution");
         CspCreateExecution? execution = executionName is null ? null : PatchLabExecution.Parse(executionName);
@@ -62,6 +70,7 @@ internal static class PatchLabRun
             workers,
             apply,
             applyNoCheck,
+            applyCheck,
             applyRepeats);
         clock.Stop();
 
@@ -78,7 +87,8 @@ internal static class PatchLabRun
             startedUtc,
             clock.Elapsed.TotalSeconds,
             files,
-            executionName));
+            executionName,
+            applyCheckName));
 
         return 0;
     }
@@ -96,6 +106,7 @@ internal static class PatchLabRun
         int workers,
         bool apply,
         bool applyNoCheck,
+        ChunkingCheck applyCheck,
         int applyRepeats)
     {
         var items = new List<WorkItem>();
@@ -148,6 +159,7 @@ internal static class PatchLabRun
                     item.File,
                     apply,
                     applyNoCheck,
+                    applyCheck,
                     applyRepeats,
                     cancellationToken).ConfigureAwait(false);
 
@@ -180,6 +192,7 @@ internal static class PatchLabRun
         PatchLabChangedFile file,
         bool apply,
         bool applyNoCheck,
+        ChunkingCheck applyCheck,
         int applyRepeats,
         CancellationToken cancellationToken)
     {
@@ -292,7 +305,7 @@ internal static class PatchLabRun
                     directory,
                     "check",
                     file.TargetSha256,
-                    ChunkingCheck.Sequential,
+                    applyCheck,
                     applyRepeats,
                     cancellationToken).ConfigureAwait(false);
                 applySeconds = applyMetrics.MedianWallSeconds;
