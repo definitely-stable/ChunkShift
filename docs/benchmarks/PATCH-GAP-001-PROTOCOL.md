@@ -347,7 +347,14 @@ The gate-eligible normalization lane uses the public raw BCJ APIs from XZ Utils 
 - lzma_bcj_x86_encode/decode for PE/ELF x86 and x86-64;
 - lzma_bcj_arm64_encode/decode for ELF AArch64.
 
-The position contract is frozen because BCJ conversion depends on stream position. For x86, start_offset is the low 32 bits of the chunk or dictionary's original file offset. For ARM64, the raw API requires start_offset to be a multiple of four. If a chunk/dictionary begins unaligned, leave the 0..3-byte prefix unchanged, advance to the first 4-byte-aligned original file offset, and call the raw ARM64 filter on the remaining bytes; any 0..3-byte tail not reported as processed by liblzma is also left unchanged. A contiguous H0 dictionary is normalized from its own base-file start offset, never from the target offset. The inverse uses the identical boundaries/start offsets. Record processed and untouched prefix/tail bytes so the transformation is independently auditable.
+The position contract is frozen because BCJ conversion depends on stream position and the raw functions return the number of bytes actually processed.
+
+- **x86/x64:** call the x86 raw filter with `start_offset = UInt32(originalFileOffset mod 2^32)`. All start offsets are valid. If the API reports `processed < inputLength`, leave the unprocessed suffix unchanged; the x86 filter may leave up to four trailing bytes.
+- **ARM64:** the filter start offset must be 4-byte aligned. Leave the 0..3-byte prefix before the first aligned original-file offset unchanged, call the raw ARM64 filter on the remaining span with `start_offset = UInt32(alignedOriginalFileOffset mod 2^32)`, and leave `inputLength - processed` trailing bytes unchanged (at most three).
+- A contiguous H0 dictionary is normalized from its own base-file start offset, never from the target offset. Target chunks use their target-file offset.
+- The inverse uses the exact same architecture, untouched prefix, start offset and processed-length boundary. Evidence records all four values for every normalized target/dictionary span.
+
+Ignoring the returned processed length, concatenating an unprocessed tail into the filter state, or deriving dictionary position from the target offset invalidates the lane.
 
 For every eligible distinct missing chunk the research driver normalizes the target bytes and each of that entry's **same H0 candidate dictionaries**, then runs the same L19/raw-prefix/H20/C20 choice and 32-byte/reference cost. Candidate starts, K=4, C=8, 256 KiB radius, 1 MiB dictionary and 1 MiB zstd window do not change.
 
