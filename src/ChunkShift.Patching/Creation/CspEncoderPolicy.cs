@@ -53,6 +53,12 @@ internal sealed record CspEncoderPolicy(
     internal int DictionaryChainLog { get; init; }
 
     /// <summary>
+    /// Gets the internal candidate-selection algorithm. The default remains
+    /// exhaustive; PATCH-ENC-005 alternatives are lab-only policies.
+    /// </summary>
+    internal CspCandidateSelection CandidateSelection { get; init; } = CspCandidateSelection.Exhaustive;
+
+    /// <summary>
     /// Gets zstd level 19, four contiguous base chunks per dictionary, up to
     /// eight candidates within 256 KiB of the target offset; each dictionary
     /// is a raw prefix on the encoder's static context, with the hash and
