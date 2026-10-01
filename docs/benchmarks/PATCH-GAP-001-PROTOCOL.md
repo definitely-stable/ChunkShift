@@ -182,6 +182,20 @@ decoder_data_envelope = dictionary_budget + zstd_window_cap + 262,144 target-out
 | G1-B8-R512 | 25,444,352 bytes (about 24.2656 MiB) |
 | G1-B32-R2048 | 100,990,976 bytes (about 96.3125 MiB) |
 
+For RFC eligibility, G1 also has a **hard measured apply-RSS ceiling** derived from the current D17 64 MiB-over-idle apply budget. A research lane receives only the incremental codec-data envelope above H0:
+
+apply_rss_limit(F) = 64 MiB + decoder_data_envelope(F) - decoder_data_envelope(H0)
+
+| lane | apply RSS limit over idle |
+| --- | ---: |
+| G1-H0 | 67,108,864 bytes (64.0000 MiB) |
+| G1-B1-R64 | 67,110,784 bytes (about 64.0018 MiB) |
+| G1-B4-R256 | 77,602,688 bytes (about 74.0077 MiB) |
+| G1-B8-R512 | 90,193,792 bytes (about 86.0155 MiB) |
+| G1-B32-R2048 | 165,740,416 bytes (about 158.0624 MiB) |
+
+A G1 lane that crosses the §11 size threshold but exceeds its lane-specific apply-RSS ceiling on **any** required runtime platform is not RFC-qualified. The measurement uses the same >=1 MiB per-file child-process / idle-baseline convention as D17. This rule preserves the existing 64 MiB implementation allowance and grants only memory directly implied by the larger declared dictionary/window/reference envelope; it does not hide arbitrary lab implementation overhead.
+
 This is a codec-data upper envelope, not a prediction of RSS; allocator, native zstd and implementation overhead are measured separately. With the frozen maximum of eight candidate starts and no research candidate cache, the naïve create-side base-read bound is at most 8 × dictionary_budget per target entry; apply reads only the selected named dictionary and is bounded by dictionary_budget. Actual reads, read calls and amplification are recorded because overlapping candidates can cause substantial rereads.
 
 For every candidate, record dictionary bytes/reference count, compressed-frame bytes, reference-cost bytes, zstd window, base bytes/read calls, create/apply peak RSS, winning candidate start and stored form.
