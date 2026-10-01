@@ -108,7 +108,7 @@ Calibration is the frozen .NET ASP.NET Core Windows x64 plus .NET Runtime Linux 
 
 All threshold selection, lane pruning and optional parameter choice happens on calibration only. Holdout is opened once to confirm the already-frozen choice. A failed holdout confirmation is a negative result, not a reason to retune.
 
-G4 and G5 use deterministic subset classifiers frozen below. Each run writes the sorted subset manifest and its SHA-256 **before invoking the factor/reference codec**. Subset membership may depend on file structure or parser support, but never on resulting patch size. Calibration and holdout subset fingerprints are recorded separately.
+G4 and G5 use deterministic subset classifiers frozen below. The first post-merge GAP action is an **inventory-only** pass: it materializes canonically sorted G4/G5 subset manifests, records calibration/holdout SHA-256 values and commits those manifests before any G4/G5 size codec is invoked. Subsequent factor/reference runs consume those exact manifests; they do not re-decide membership. A classifier change after the inventory commit requires a protocol revision/new evidence identity. Subset membership may depend on file structure or parser support, but never on resulting patch size.
 
 ## 4. Common cost model and metrics
 
@@ -267,14 +267,29 @@ A group decoder must be streamable and hash chunks as they emerge; it may not al
 
 ### 8.1 Predeclared subset
 
-G4 membership is based on bytes, not filename extensions. Both base and target must parse as the same supported executable family/architecture before any patch result is produced:
+G4 membership is based on bytes, not filename extensions. At the frozen-family level, only these corpus families can contribute executable rows:
+
+- calibration: dotnet-aspnetcore-win-x64 and dotnet-runtime-linux-arm64;
+- holdout: node-win-x64 and node-linux-x64.
+
+tzdata and chunkshift-source are structurally outside the executable family set and contribute unchanged H0 bytes to whole-split G4 metrics.
+
+For an individual changed-file pair, both base and target must parse as the same supported executable family/architecture before any patch result is produced:
 
 - PE/COFF x86 (Machine=0x014c) or x86-64 (0x8664);
 - ELF x86 (EM_386=3), x86-64 (EM_X86_64=62) or AArch64 (EM_AARCH64=183).
 
+PE is further classified so managed IL is not mislabeled as x86/x64 machine-code normalization:
+
+- **PE-native** — no CLR/COM descriptor: gate-eligible for x86 BCJ;
+- **PE-R2R/mixed** — CLR header present and either ManagedNativeHeader is non-empty or ILONLY is not set: gate-eligible, but reported separately from PE-native;
+- **PE-managed-IL-only** — CLR header present, ILONLY set and ManagedNativeHeader empty: inventory/reference-only; it is not included in G4-BCJ because the PE Machine field does not imply that its method bodies are x86/x64 branch code.
+
+This matters for dotnet-aspnetcore-win-x64, whose frozen corpus category explicitly contains ReadyToRun managed and native PE. The inventory manifest records PE subtype, architecture, parser result, CLR flags/ManagedNativeHeader presence, target bytes and unique-missing bytes.
+
 Mach-O is excluded because the frozen corpus has no macOS family. Adding Mach-O requires a new corpus/protocol revision; it cannot be added after seeing G4 results.
 
-The subset manifest records parser result, architecture, target bytes and unique-missing bytes for every pair. Unsupported/malformed inputs are explicit rows, never silent skips.
+The committed inventory is the denominator. Unsupported/malformed inputs are explicit rows, never silent skips. Zucchini may report results for a broader parser-supported PE/ELF subset, including managed-only PE if its own parser accepts it, but those rows remain reference-only and are reported by subtype; they do not enlarge the gate-eligible BCJ subset.
 
 ### 8.2 G4-BCJ counterfactual lane
 
@@ -306,13 +321,16 @@ Zucchini's documented model recognizes PE, ELF and DEX and executable architectu
 
 ### 9.1 Classification before measurement
 
-G5 has a structure inventory and a reference attribution lane. The classifier is deterministic and runs before Puffin/bsdiff size output.
+G5 has a structure inventory and a reference attribution lane. Its input population is the **materialized changed files** used by PATCH-PREFREEZE/Patching, not the source archives used to obtain those trees.
 
-Classify by bytes, not extension alone:
+Therefore the outer source packages named by patch-corpus.json — for example aspnetcore-runtime-*.zip, node-*.zip, node-*.tar.xz, dotnet-runtime-*.tar.gz and tzdata*.tar.gz — are provenance only and are **not G5 target files**. Counting them would measure the distribution container instead of CSP's per-file workload. Only compressed containers/streams that actually remain inside a materialized changed file are eligible. chunkshift-source's materialized source.tar is an uncompressed tar and is not treated as a deflate/ZIP container merely because it is an archive.
 
-- ZIP-compatible container, including .zip and .nupkg only when structurally ZIP;
-- gzip;
-- zlib or a whole raw-deflate stream; arbitrary embedded deflate extents are inventory-only unless their exact extent list is produced by the frozen structural classifier before any size run;
+The inventory classifier runs before any Puffin/bsdiff output and classifies by bytes, not extension alone:
+
+- ZIP-compatible changed file, including .zip and .nupkg only when structurally ZIP;
+- gzip changed file;
+- zlib or a whole raw-deflate changed file;
+- explicitly located embedded deflate extents, only when the frozen structural scanner can emit exact deterministic source/target extent lists without using patch-size results;
 - other already-compressed payload, recorded as compressed-other and not force-fed to Puffin;
 - not compressed/unknown.
 
@@ -324,6 +342,8 @@ For ZIP-compatible pairs, match members by raw member name plus duplicate-name o
 4. genuinely new compressed payload/member — no matched base member.
 
 These categories are reported as target bytes and, where the CSP trace maps them exactly, unique-missing bytes. Ambiguous or unsupported members remain explicit.
+
+If the committed G5 inventory contains no supported changed-file pair, G5 is recorded **NOT_PRESENT on the frozen corpus** and no Puffin size run is executed. A tiny subset is still measured/described if non-empty, but the whole-split §11 formula prevents it from being generalized. The protocol does not add synthetic nupkg/zip cases merely to preserve the original #183 hypothesis.
 
 ### 9.2 Puffin / PUFFDIFF reference lane
 
@@ -395,10 +415,12 @@ Passing does **not** adopt anything. It means the factor is large enough to just
 
 ### 12.1 Stage A — deterministic inventory and byte decomposition
 
-Run on **Linux x64 only** after this protocol is merged/frozen:
+Run on **Linux x64 only** after this protocol is merged/frozen.
+
+First run the inventory-only prepass and commit canonically sorted G4/G5 manifests plus their calibration/holdout SHA-256 values. No G4/G5 size tool runs before that inventory commit. Then:
 
 - regenerate H0 and validate baseline totals/digest;
-- materialize G4/G5 subset manifests before codec output;
+- consume the frozen G4/G5 subset manifests;
 - G1 byte lanes;
 - G2-ORACLE-CAL only through the shared #216 oracle implementation/contract; G2-ORACLE-HOLD only after #216 production-real parameters are frozen;
 - G3 byte lanes;
