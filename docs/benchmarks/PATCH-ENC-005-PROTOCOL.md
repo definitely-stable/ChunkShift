@@ -212,7 +212,8 @@ For a target:
 3. remaining ties use absolute target/base offset distance, then lower base start index;
 4. take at most eight sketch starts;
 5. union them with all eight H0 offset starts, preserving source as `offset`, `sketch` or `both`;
-6. H4 ranks the unique union at L1 and re-encodes top two at L19.
+6. apply the same candidate validity rules as production before scoring: `TryMeasureCandidate` K = 4 semantics, total dictionary bytes <= 1 MiB, and `CspDictionary.IsUsable`; an invalid sketch hit is not counted as a candidate and cannot consume an L1/L19 trial;
+7. H4 ranks the valid unique union at L1 and re-encodes top two at L19.
 
 The selected dictionary is still verified from its bytes against every named base `ChunkId` before writing the entry.
 
