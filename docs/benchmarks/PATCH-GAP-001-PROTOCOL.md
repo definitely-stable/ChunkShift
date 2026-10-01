@@ -291,15 +291,25 @@ For RUN/FILE, input bytes are the concatenation of the group's original target c
 
 This anchor rule is intentionally conservative: later chunks lose their independent H0 dictionary changes. A single zstd frame cannot swap raw-prefix dictionaries between chunk boundaries, so G3 measures the **net coalescing envelope**: cross-chunk frame context plus the required loss of per-entry dictionary reselection. It must not be described as a pure context-carry gain, and the loss must not be repaired by silently importing G1/G2.
 
-### 7.3 Exact synthetic physical-byte formula
+### 7.3 Exact revised-layout accounting
 
-G3 does not invent a parsable CSP file format. It is a **synthetic accounting counterfactual**: all non-payload CSP bytes and every existing 40-byte PAYL entry / PIDX cost are conservatively reserved, while only stored frame bytes and dictionary-reference bytes are replaced:
+G3 freezes a minimal **research-only parsable layout counterfactual** so group signaling receives no free bytes. It consumes two currently reserved one-byte encoding values while keeping every existing PAYL/PIDX fixed-size record:
 
-B_G3 = B_CSP - sum(entryStoredBytes + 32 × entryDictRefs) + sum(groupFrameBytes + 32 × anchorDictRefs)
+- **Encoding = 4 — GroupZstdStart.** This PAYL entry carries the group's single zstd frame and the anchor dictionary references. Its `ChunkId` / `FirstTargetIndex` identify the first group member. `StoredLength` is the group-frame byte length.
+- **Encoding = 5 — GroupContinuation.** This entry identifies one following group member in target-first-occurrence order, has `StoredLength = 0`, `DictionaryCount = 0`, and stores no payload bytes.
+- A group ends immediately before the next non-continuation payload entry or at the end of the payload-entry sequence. RUN/FILE construction determines which entries receive continuation markers; the decoder does not need an external lane id.
+- The corresponding PIDX entries carry the same Encoding/StoredLength/DictionaryCount values as PAYL. Continuation `PayloadOffset` still points to its ordinary 40-byte PAYL entry header, so no new pointer or group table is added.
+- A group frame is invalid if `groupFrameBytes > UInt32.MaxValue`, because the existing `StoredLength` field is retained rather than silently widened.
 
-This is conservative because it grants no hypothetical savings from deleting per-entry headers or PIDX entries. The compact dataset records every term so the total can be independently recomputed.
+This deliberately relaxes v1 rules that Encoding 2..255 are unsupported, every entry has `StoredLength > 0`, and one frame produces exactly one chunk; those are the G3 format revision. It does **not** remove or shrink any header/index record.
 
-The reconstruction oracle decodes each group, splits decoded bytes by the known target chunk lengths, verifies every target ChunkId, and reconstructs the complete target file for SHA-256 equality.
+Therefore the physical byte equation is exact for this frozen counterfactual:
+
+`B_G3 = B_CSP - sum(entryStoredBytes + 32 × entryDictRefs) + sum(groupFrameBytes + 32 × anchorDictRefs)`
+
+where the subtraction covers all H0 entries participating in groups and the addition carries one frame plus one anchor-reference list per group. Fixed PAYL/PIDX/non-payload bytes cancel because their sizes are unchanged. The compact dataset records group id/type, member FirstTargetIndex/ChunkId/length, H0 stored/ref costs, anchor refs and group frame bytes so every term and continuation sequence can be independently reconstructed.
+
+The reconstruction oracle reads GroupZstdStart followed by its GroupContinuation records, decodes the frame incrementally, splits output by the members' known target chunk lengths, verifies every target ChunkId, rejects short/extra decoded output, and reconstructs the complete target file for SHA-256 equality.
 
 ### 7.4 Lost properties
 
@@ -311,7 +321,7 @@ The reconstruction oracle decodes each group, splits decoded bytes by the known 
 | failure isolation | chunk | run | file payload | file |
 | parallel decode/apply | many entries | fewer runs | at most one frame/file | per file |
 | bounded decoder history | 1 MiB | 1 MiB | 1 MiB | reference-tool bound, not CSP v1 |
-| CSP declarative codec model | current v1 | conceptually retainable, format revision required | conceptually retainable, format revision required | no; multi-factor external reference |
+| CSP declarative codec model | current v1 | research Encoding 4/5 demonstrates a declarative revision shape | same | no; multi-factor external reference |
 
 A group decoder must be streamable and hash chunks as they emerge; it may not allocate the complete group merely because the research frame is larger than one chunk. Repeated target ChunkIds follow the existing applier model: after the first verified occurrence has been written, later occurrences replay those bytes from the already-written output rather than retaining the group in memory or re-decoding it.
 
