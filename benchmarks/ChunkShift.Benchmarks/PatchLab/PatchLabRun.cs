@@ -41,6 +41,7 @@ internal static class PatchLabRun
         string? runId = PatchLabArguments.Value(args, "--run-id");
         string? executionName = PatchLabArguments.Value(args, "--execution");
         CspCreateExecution? execution = executionName is null ? null : PatchLabExecution.Parse(executionName);
+        PatchLabTraceOptions? trace = PatchLabTraceOptions.Parse(args, runId, executionName);
 
         // PATCH-ENC-004 attributes process CPU and allocations to one create,
         // so its runs create one file at a time.
@@ -51,7 +52,15 @@ internal static class PatchLabRun
 
         DateTimeOffset startedUtc = DateTimeOffset.UtcNow;
         var clock = Stopwatch.StartNew();
-        PatchLabFileResult[] files = RunFiles(corpus, laneName, policy, execution, workers, apply, applyRepeats);
+        PatchLabFileResult[] files = RunFiles(
+            corpus,
+            laneName,
+            policy,
+            execution,
+            trace,
+            workers,
+            apply,
+            applyRepeats);
         clock.Stop();
 
         PatchLabRunner.WriteJson(outputPath, new PatchLabRunResult(
@@ -81,6 +90,7 @@ internal static class PatchLabRun
         string lane,
         CspEncoderPolicy policy,
         CspCreateExecution? execution,
+        PatchLabTraceOptions? trace,
         int workers,
         bool apply,
         int applyRepeats)
@@ -127,8 +137,10 @@ internal static class PatchLabRun
                 WorkItem item = items[index];
                 results[index] = await RunFileAsync(
                     corpus,
+                    lane,
                     policy,
                     execution,
+                    trace,
                     item.Pair,
                     item.File,
                     apply,
@@ -156,8 +168,10 @@ internal static class PatchLabRun
     /// </summary>
     private static async Task<PatchLabFileResult> RunFileAsync(
         PatchLabCorpus corpus,
+        string lane,
         CspEncoderPolicy policy,
         CspCreateExecution? execution,
+        PatchLabTraceOptions? trace,
         PatchLabPair pair,
         PatchLabChangedFile file,
         bool apply,
@@ -191,6 +205,10 @@ internal static class PatchLabRun
             uniqueMissingBytes = plan.UniqueMissingBytes;
         }
 
+        var traceCollector = trace is null ? null : new PatchLabCandidateTraceCollector();
+        CspCreateExecution? effectiveExecution = execution is null
+            ? null
+            : execution with { CandidateTraceSink = traceCollector };
         string directory = Directory.CreateTempSubdirectory("chunkshift-patch-lab-").FullName;
 
         try
@@ -198,6 +216,7 @@ internal static class PatchLabRun
             string patchPath = Path.Combine(directory, "patch.csp");
             double createSeconds;
             PatchLabCreateMetrics? createMetrics = null;
+            PatchInfo patchInfo;
 
             await using (FileStream baseManifest = PatchLabFiles.OpenRead(baseManifestPath))
             await using (FileStream baseContent = PatchLabFiles.OpenRead(baseContentPath))
@@ -205,10 +224,10 @@ internal static class PatchLabRun
             await using (FileStream targetContent = PatchLabFiles.OpenRead(targetContentPath))
             await using (FileStream destination = PatchLabFiles.Create(patchPath))
             {
-                if (execution is null)
+                if (effectiveExecution is null)
                 {
                     var clock = Stopwatch.StartNew();
-                    _ = await CspPatchBuilder
+                    patchInfo = await CspPatchBuilder
                         .CreateAsync(
                             baseManifest,
                             baseContent,
@@ -222,14 +241,14 @@ internal static class PatchLabRun
                 }
                 else
                 {
-                    (createSeconds, createMetrics) = await CreateMeasuredAsync(
+                    (createSeconds, createMetrics, patchInfo) = await CreateMeasuredAsync(
                         baseManifest,
                         baseContent,
                         targetManifest,
                         targetContent,
                         destination,
                         policy,
-                        execution,
+                        effectiveExecution,
                         cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -243,6 +262,19 @@ internal static class PatchLabRun
                 .ConfigureAwait(false);
             double? applySeconds = null;
             double? applyNoCheckSeconds = null;
+
+            if (trace is not null && traceCollector is not null)
+            {
+                PatchLabCandidateTrace.Write(
+                    trace,
+                    corpus,
+                    pair,
+                    file,
+                    lane,
+                    policy,
+                    patchInfo,
+                    traceCollector);
+            }
 
             if (apply)
             {
@@ -302,7 +334,7 @@ internal static class PatchLabRun
     /// content's reads and seeks and the builder's own counters
     /// (docs/benchmarks/PATCH-ENC-004-PROTOCOL.md section 6).
     /// </summary>
-    private static async Task<(double Seconds, PatchLabCreateMetrics Metrics)> CreateMeasuredAsync(
+    private static async Task<(double Seconds, PatchLabCreateMetrics Metrics, PatchInfo Info)> CreateMeasuredAsync(
         Stream baseManifest,
         Stream baseContent,
         Stream targetManifest,
@@ -320,7 +352,7 @@ internal static class PatchLabRun
         long allocatedBefore = GC.GetTotalAllocatedBytes(precise: true);
         var clock = Stopwatch.StartNew();
 
-        _ = await CspPatchBuilder
+        PatchInfo info = await CspPatchBuilder
             .CreateAsync(
                 baseManifest,
                 counted,
@@ -350,7 +382,8 @@ internal static class PatchLabRun
             statistics.WindowPeakEntries,
             statistics.WindowPeakBytes,
             statistics.ReorderPeakEntries,
-            statistics.ReorderPeakBytes));
+            statistics.ReorderPeakBytes),
+            info);
     }
 
     /// <summary>
