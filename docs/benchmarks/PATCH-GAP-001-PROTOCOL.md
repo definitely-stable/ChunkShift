@@ -381,14 +381,17 @@ G5 has a structure inventory and a reference attribution lane. Its input populat
 
 Therefore the outer source packages named by patch-corpus.json — for example aspnetcore-runtime-*.zip, node-*.zip, node-*.tar.xz, dotnet-runtime-*.tar.gz and tzdata*.tar.gz — are provenance only and are **not G5 target files**. Counting them would measure the distribution container instead of CSP's per-file workload. Only compressed containers/streams that actually remain inside a materialized changed file are eligible. chunkshift-source's materialized source.tar is an uncompressed tar and is not treated as a deflate/ZIP container merely because it is an archive.
 
-The inventory classifier runs before any Puffin/bsdiff output and classifies by bytes, not extension alone:
+The inventory classifier runs before any Puffin/bsdiff output and classifies by structure, never by extension alone. The frozen primary classes are deliberately limited to self-describing containers/streams:
 
-- ZIP-compatible changed file, including .zip and .nupkg only when structurally ZIP;
-- gzip changed file;
-- zlib or a whole raw-deflate changed file;
-- explicitly located embedded deflate extents, only when the frozen structural scanner can emit exact deterministic source/target extent lists without using patch-size results;
-- other already-compressed payload, recorded as compressed-other and not force-fed to Puffin;
-- not compressed/unknown.
+- **ZIP-compatible** — a valid ZIP central directory/end record is present, every referenced local header/range is in bounds, and the parser can enumerate members deterministically; .zip/.nupkg names receive no special credit without this structure;
+- **gzip** — the complete input is a valid RFC 1952 member chain with deflate method 8 and no trailing unparsed bytes;
+- **zlib** — the complete input is a valid RFC 1950 stream (CM=8, FCHECK valid, declared optional dictionary field structurally present when set), the deflate payload terminates exactly before the Adler-32 footer, and the footer verifies;
+- **compressed-other** — already-compressed payload not in the three supported structural classes;
+- **not-compressed/unknown**.
+
+Raw DEFLATE is intentionally **not auto-detected** by trying a decoder against arbitrary bytes: it has no self-identifying wrapper and doing so would make population membership parser/false-positive dependent. Likewise this ExperimentId does not scan arbitrary binaries for embedded deflate signatures. Deflate extents enter G5 only as deterministic children of a recognized ZIP/gzip/zlib structure. A later raw/embedded-stream study requires its own predeclared locator and ExperimentId.
+
+For every accepted ZIP/gzip/zlib file, the inventory also runs the pinned Puffin Android-17 structural locator for that declared type and stores the canonical sorted bit-extents plus their SHA-256. A pair is Puffin-supported only when both base and target pass the strict structural classifier and Puffin locator for the same type, every returned extent is in bounds, and at least one side contains a deflate extent. A disagreement between the strict classifier and Puffin is `UNSUPPORTED/PARSER_DISAGREEMENT`, never a silent skip or a size of zero.
 
 For ZIP-compatible pairs, match members by raw member name plus duplicate-name ordinal and record separately:
 
@@ -407,14 +410,12 @@ Pin AOSP Puffin at Android 17.0.0_r1, commit 343e23db1b4d81045e91a10244244893f5a
 
 Puffin is a deterministic deflate recompressor: it transforms deflate streams to a puff representation, uses a binary diff, then deterministically reconstructs the original deflate stream. Therefore its whole-file patch is useful evidence for deflate-instability headroom, but it is not a CSP-v1-compatible one-factor encoding. Android update_engine's PUFFDIFF apply path uses PuffPatch with a 5 MiB maximum cache; the reference lane pins that same cache rather than Puffin's larger standalone-tool default.
 
-To isolate the deflate transform from the raw diff algorithm, freeze Puffin's patch_algorithm to 0 (bsdiff), not Zucchini. For a structurally recognized whole-file type TYPE in {zip,gzip,zlib,deflate}; .nupkg is passed as TYPE=zip. The exact reference operations are:
+To isolate the deflate transform from the raw diff algorithm, freeze Puffin's patch_algorithm to 0 (bsdiff), not Zucchini. For a pair admitted by §9.1, TYPE is exactly one of {zip,gzip,zlib}; a structurally valid .nupkg is TYPE=zip. The exact reference operations are:
 
     puffin --operation=puffdiff --src_file=OLD --dst_file=NEW --patch_file=PATCH --src_file_type=TYPE --dst_file_type=TYPE --patch_algorithm=0
     puffin --operation=puffpatch --src_file=OLD --dst_file=RECON --patch_file=PATCH --cache_size=5242880
 
-An arbitrary embedded-deflate case enters the Puffin size lane only if its exact source/target deflate extent lists were emitted and hashed by the pre-size classifier; those lists are then passed explicitly and stored in the compact evidence. Otherwise it remains inventory-only. No case may become eligible because Puffin happened to produce a small patch.
-
-Run Puffin only on this predeclared supported subset and verify RECON by target SHA-256.
+Run Puffin only on this predeclared supported subset and verify RECON by target SHA-256. The verbose Puffin-discovered extent lists must exactly match the inventory fingerprints; a mismatch invalidates the run. No file may become eligible because Puffin happened to produce a small patch.
 
 To isolate the puff/huff transform from the raw binary-diff backend, build AOSP bsdiff from the **same Android 17.0.0_r1 release**, commit 6bbcf65f3b25bd09fc39d8166070f9adea325089. Use its BSDF2 writer with the same compressor set Puffin passes to libbsdiff:
 
