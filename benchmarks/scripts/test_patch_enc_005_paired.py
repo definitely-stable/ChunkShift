@@ -69,6 +69,30 @@ class PatchEnc005PairedTests(unittest.TestCase):
             else:
                 os.environ["GITHUB_SHA"] = previous
 
+    def test_retry_predecessor_must_match_identity(self):
+        commit = "a" * 40
+        args = SimpleNamespace(
+            run_id=f"PATCH-ENC-005/RUN-20261001-001-{commit}-linux-x64",
+            source_commit=commit,
+            platform="linux-x64",
+            dataset_role="calibration",
+        )
+        predecessor = {
+            "schema": "chunkshift.patch-enc-005-dispatch.v1",
+            "attempt": 1,
+            "experimentId": MODULE.EXPERIMENT_ID,
+            "runId": args.run_id,
+            "protocolCommit": MODULE.FROZEN_PROTOCOL_COMMIT,
+            "sourceCommit": commit,
+            "platform": "linux-x64",
+            "datasetRole": "calibration",
+            "datasetSha256": MODULE.FROZEN_DATASET_SHA256,
+        }
+        MODULE.validate_prior_dispatch(args, predecessor)
+        predecessor["sourceCommit"] = "b" * 40
+        with self.assertRaises(ValueError):
+            MODULE.validate_prior_dispatch(args, predecessor)
+
     def test_create_aggregate_excludes_apply(self):
         result = {
             "files": [

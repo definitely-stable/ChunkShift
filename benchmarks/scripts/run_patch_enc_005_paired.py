@@ -285,7 +285,7 @@ def run_dispatch(
     lanes: list[str],
     attempt: int,
 ) -> tuple[dict, dict[str, dict[tuple[str, str, str, str], str]]]:
-    root = args.output / f"attempt-{attempt}"
+    root = args.output
     root.mkdir(parents=True, exist_ok=False)
 
     _, warmup = invoke(args, "csp", root / "warmup-h0", apply=False)
@@ -538,6 +538,24 @@ def collect_trace_and_correctness(
     return evidence
 
 
+def validate_prior_dispatch(args: argparse.Namespace, document: dict) -> None:
+    if document.get("schema") != "chunkshift.patch-enc-005-dispatch.v1":
+        raise ValueError("retry predecessor has unexpected schema")
+    if document.get("attempt") != 1:
+        raise ValueError("retry predecessor must be attempt 1")
+    for field, expected in (
+        ("experimentId", EXPERIMENT_ID),
+        ("runId", args.run_id),
+        ("protocolCommit", FROZEN_PROTOCOL_COMMIT),
+        ("sourceCommit", args.source_commit),
+        ("platform", args.platform),
+        ("datasetRole", args.dataset_role),
+        ("datasetSha256", FROZEN_DATASET_SHA256),
+    ):
+        if document.get(field) != expected:
+            raise ValueError(f"retry predecessor {field} mismatch")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--corpus", type=Path, required=True)
@@ -553,6 +571,8 @@ def main() -> int:
     parser.add_argument("--families", required=True)
     parser.add_argument("--work", type=Path)
     parser.add_argument("--lanes", default=",".join(FROZEN_PHASE_A))
+    parser.add_argument("--attempt", type=int, choices=(1, 2), required=True)
+    parser.add_argument("--prior-dispatch", type=Path)
     parser.add_argument("--dotnet", default="dotnet")
     parser.add_argument(
         "--project",
@@ -584,63 +604,44 @@ def main() -> int:
     except ValueError as error:
         parser.error(str(error))
 
-    args.output.mkdir(parents=True, exist_ok=False)
-    attempts: list[dict] = []
-    accepted: tuple[dict, dict[str, dict[tuple[str, str, str, str], str]]] | None = None
+    if args.attempt == 1:
+        if args.prior_dispatch is not None:
+            parser.error("attempt 1 must not specify --prior-dispatch")
+        document, _ = run_dispatch(args, lanes, 1)
+        return 0
 
-    first = run_dispatch(args, lanes, 1)
-    attempts.append(first[0])
-    if first[0]["valid"]:
-        accepted = first
-    else:
-        second = run_dispatch(args, lanes, 2)
-        attempts.append(second[0])
-        if second[0]["valid"]:
-            accepted = second
+    if args.prior_dispatch is None:
+        parser.error("attempt 2 requires --prior-dispatch")
+    prior = json.loads(args.prior_dispatch.read_text(encoding="utf-8"))
+    try:
+        validate_prior_dispatch(args, prior)
+    except ValueError as error:
+        parser.error(str(error))
 
-    apply_evidence: dict[str, dict] | None = None
-    trace_correctness: dict[str, dict] | None = None
-    accepted_patch_shas: dict[str, list[dict[str, str]]] | None = None
-    if accepted is not None:
-        accepted_patch_shas = {
-            lane: serialized_patch_sha_map(mapping)
-            for lane, mapping in sorted(accepted[1].items())
+    if prior.get("valid") is True:
+        args.output.mkdir(parents=True, exist_ok=False)
+        marker = {
+            "schema": "chunkshift.patch-enc-005-retry.v1",
+            "experimentId": EXPERIMENT_ID,
+            "runId": args.run_id,
+            "attempt": 2,
+            "protocolCommit": FROZEN_PROTOCOL_COMMIT,
+            "sourceCommit": args.source_commit,
+            "platform": args.platform,
+            "datasetRole": args.dataset_role,
+            "datasetSha256": FROZEN_DATASET_SHA256,
+            "skipped": True,
+            "reason": "attempt-1-valid",
         }
-        apply_evidence = collect_apply_evidence(args, accepted[1])
-        trace_correctness = collect_trace_and_correctness(args, accepted[1])
+        (args.output / "dispatch.json").write_text(
+            json.dumps(marker, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        return 0
 
-    document = {
-        "schema": "chunkshift.patch-enc-005-paired.v2",
-        "experimentId": EXPERIMENT_ID,
-        "runId": args.run_id,
-        "protocolCommit": FROZEN_PROTOCOL_COMMIT,
-        "sourceCommit": args.source_commit,
-        "platform": args.platform,
-        "datasetRole": args.dataset_role,
-        "datasetSha256": FROZEN_DATASET_SHA256,
-        "githubRunId": os.environ.get("GITHUB_RUN_ID"),
-        "githubRunAttempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
-        "attempts": [
-            {
-                "attempt": item["attempt"],
-                "valid": item["valid"],
-                "invalidReason": item["invalidReason"],
-                "dispatch": f'attempt-{item["attempt"]}/dispatch.json',
-            }
-            for item in attempts
-        ],
-        "acceptedAttempt": accepted[0]["attempt"] if accepted else None,
-        "status": "VALID" if accepted else "INCOMPLETE",
-        "acceptedPatchShas": accepted_patch_shas,
-        "applyEvidence": apply_evidence,
-        "traceCorrectness": trace_correctness,
-    }
-    (args.output / "paired.json").write_text(
-        json.dumps(document, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-        newline="\n",
-    )
-    return 0 if accepted is not None else 1
+    run_dispatch(args, lanes, 2)
+    return 0
 
 
 if __name__ == "__main__":
