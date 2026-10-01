@@ -10,7 +10,8 @@ internal sealed record PatchLabPolicy(
     int SearchRadius,
     string DictionaryLoad = "copy",
     int DictionaryHashLog = 0,
-    int DictionaryChainLog = 0);
+    int DictionaryChainLog = 0,
+    string CandidateSelection = "exhaustive");
 
 /// <summary>One <c>patch-lab run</c> result document (<c>chunkshift.patch-lab.v1</c>).</summary>
 internal sealed record PatchLabRunResult(
