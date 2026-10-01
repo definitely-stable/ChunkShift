@@ -4,7 +4,7 @@ Status: **BLOCKED DRAFT — #216 / PATCH-ENC-005 must be freeze-reviewed and mer
 Issue: [#183](https://github.com/definitely-stable/ChunkShift/issues/183) · Parent: [#7](https://github.com/definitely-stable/ChunkShift/issues/7)  
 ExperimentId: PATCH-GAP-001  
 Protocol baseline commit: e967aeb6d4d467e94c5ac20f85e70ba0035d998d  
-Related candidate-policy protocol: [PR #216](https://github.com/definitely-stable/ChunkShift/pull/216) / PATCH-ENC-005. Current review snapshot: `cc18cf5fb4c887c5d81662f7cded6e6e57f960bf`; this SHA is **not** a frozen dependency.  
+Related candidate-policy protocol: [PR #216](https://github.com/definitely-stable/ChunkShift/pull/216) / PATCH-ENC-005. Current review snapshot: `70e9d906f7979200695597f6ead50d4f7efd88f5`; this SHA is **not** a frozen dependency and may move again before #216 merges.  
 Tree/update-set research is owned by [#184](https://github.com/definitely-stable/ChunkShift/issues/184), not this experiment.
 
 ## 1. Question and decision boundary
@@ -215,7 +215,7 @@ This is not CSP v1 and is not a proposed wire revision; it is the minimal direct
 
 ### 6.1 Blocking producer dependency
 
-PATCH-GAP-001 cannot freeze G2 against a mutable producer. PR #216 is currently an unmerged Draft with unresolved methodology/specification review threads, so its current head `cc18cf5fb4c887c5d81662f7cded6e6e57f960bf` is a **review snapshot only**.
+PATCH-GAP-001 cannot freeze G2 against a mutable producer. PR #216 is currently an unmerged Draft. Its current head `70e9d906f7979200695597f6ead50d4f7efd88f5` has incorporated the latest review corrections, but remains a **moving review snapshot only** until the PR is freeze-reviewed and merged.
 
 The freeze order is mandatory:
 
@@ -232,42 +232,26 @@ PATCH-GAP-001 does **not** implement Finesse, Odess, Gear-derived retrieval, a n
 
 G2 answers: **how much size headroom is attributable to dictionary choice under today's K=4 / 1 MiB / one-frame-per-chunk CSP envelope?**
 
-### 6.3 Provisional shared oracle semantics and populations
+### 6.3 Post-merge consumer handshake
 
-At the current #216 review snapshot, the oracle semantics are owned by #216 and mirrored here for review: for a sampled missing target entry, enumerate every base-record index in the corresponding base file as a possible K=4 contiguous start; reject dictionaries above 1 MiB or failing CspDictionary.IsUsable; encode valid starts at L19 with raw-prefix H20/C20; add exactly 32 bytes per named base chunk; and choose against raw/L19-no-dictionary with production's strict cost/tie rule. Only candidate-start search is relaxed.
+While #216 is open, **no selector/oracle/trace details below this boundary are normative in PATCH-GAP**. Duplicating a mutable producer specification here would create two sources of truth.
 
-PATCH-GAP does **not** duplicate that implementation and does not require an all-target × all-base Cartesian run. #216 deliberately freezes an exact, deterministic sample because exhaustive L19 trials over every missing target entry would be disproportionate. G2 therefore has two kinds of evidence:
+After #216 merges, the reconciliation commit on #217 must record all of the following before the G2 freeze-checklist item can be checked:
 
-- **G2-H0** — full-population production trace/cost on the ordinary corpus lanes.
-- **G2-ORACLE-CAL** — the exact #216 calibration sample: for each calibration pair, sort distinct missing target entries by #216's SHA-256 sample key and take the first 64 (or all when fewer exist), maximum 256 entries over the four calibration pairs.
-- **G2-ORACLE-HOLD** — after #216 has frozen its Phase-B progression decision and, when Phase B exists, all production-real implementation/parameters, apply the **same** sample-key algorithm independently to every holdout pair and take the first 64 entries per pair (or all when fewer exist). This is confirmation/attribution only; no threshold, selector parameter or feature family may change after it is viewed.
-- **G2-H5/H6** — full-population production-real resemblance lanes from #216 when Phase B exists.
+- the exact merged PATCH-ENC-005 protocol commit SHA and the implementation/evidence commit used by any consumed run;
+- the authoritative candidate-trace schema id/version and exact dataset-role vocabulary;
+- the exact calibration-oracle sample identity/lock and any progression/false-negative-guard semantics that determine which production-real resemblance lanes exist;
+- the production-real G2 lane ids whose **full fixed-evaluation population** bytes may participate in the §11 whole-split gate;
+- any fresh-confirmation dataset lock and verdict exported by PATCH-ENC-005, recorded as additional selector evidence but not substituted for #183's fixed-evaluation formula;
+- SHA-256 of every consumed trace/oracle/result document and the upstream policy/lane fingerprint needed to prove it belongs to that merged contract.
 
-For each oracle sample report H0 and oracle entry-cost sums, reduction, per-pair reduction, fraction of sampled entries improved, winning-start distance distribution and sample SHA-256. The sample is an exact upper bound **for that named sampled population**, not an estimator silently projected to all corpus bytes.
+PATCH-GAP then derives its per-entry selected cost only from the merged producer's authoritative fields. Under the current review snapshot this is conceptually `storedBytes + 32 × dictionaryRefs`, but even that field mapping is **non-normative here until the merged schema is pinned**.
 
-Because the RFC gate in §11 is defined on whole holdout bytes, **G2-ORACLE-CAL/HOLD are descriptive upper-bound evidence and cannot pass that gate directly**. A full-population H5/H6 result may be gate-eligible because it is an implementable candidate-choice policy measured over the whole split. If #216 stops Phase B for insufficient oracle headroom, PATCH-GAP records G2 as sampled upper-bound / production-real STOPPED; it does not manufacture a whole-corpus oracle claim.
+The reconciliation must be a documentation-only change in #217 unless the merged producer contract exposes a genuine missing evidence field. In that case, fix/version the producer evidence contract first; #217 must not reconstruct selector decisions or invent a private compatibility shim.
 
-This keeps the questions separate: #217 measures how much headroom dictionary choice appears to contain and how much a production-real selector actually captures; #216 decides whether any selector is worth production adoption.
+### 6.4 Current snapshot note — informative only
 
-### 6.4 Provisional shared trace contract
-
-At the current #216 review snapshot, the selector trace schema is **chunkshift.patch-candidate-trace.v1**. PATCH-GAP consumes it as written rather than defining a parallel JSON shape.
-
-The shared per-file header contains:
-
-- schema, ExperimentId, RunId, commit, platform and lane;
-- corpus pairsSha256, family/pair id and normalized path;
-- base and target ManifestId.
-
-Each distinct missing-target record contains targetIndex, targetChunkId, targetOffset/targetLength, candidateCount, expensiveTrialCount, level19TrialCount, selectedEncoding, selectedCandidate, storedBytes, dictionaryRefs and candidates[]. Candidate rows contain ordinal, startIndex/startOffset/recordCount/firstChunkId, source, nullable cheap frame/cost, nullable L19 frame/cost and selected.
-
-PATCH-GAP derives selected total entry cost as:
-
-selectedEntryCost = storedBytes + 32 × dictionaryRefs
-
-and consumes #216's separate G2 oracle rows for oracle best-start/cost evidence. It needs no payload, dictionary or frame bytes.
-
-For provenance, the PATCH-GAP evidence manifest records the SHA-256 of every consumed trace/oracle document and a canonical policy fingerprint alongside the shared document; those do **not** require a fork of chunkshift.patch-candidate-trace.v1. If a future GAP question truly needs a new selector-derived field, that field must first be added to #216's shared contract (or a jointly versioned successor), never reconstructed by a private #217 selector.
+At review snapshot `70e9d906f7979200695597f6ead50d4f7efd88f5`, #216 has already moved beyond the older assumptions that were previously copied here: its historical holdout is a fixed evaluation split, it defines a separate fresh confirmation set, its sampled G2 oracle is a prioritization gate with one pre-frozen H6-O false-negative guard, and its candidate-trace schema carries explicit protocol/source commit and dataset-role identity. These facts explain the required dependency ordering; **they are not frozen PATCH-GAP semantics**.
 
 ## 7. G3 — frame granularity
 
