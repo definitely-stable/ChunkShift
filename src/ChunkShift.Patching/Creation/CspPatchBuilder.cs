@@ -44,8 +44,6 @@ internal static partial class CspPatchBuilder
     private const string ByteCountMessage =
         "A stream returned a byte count outside the Stream contract.";
 
-    private static readonly AsyncLocal<ICspCandidateTraceSink?> _candidateTrace = new();
-
     /// <summary>
     /// Creates a patch with <see cref="CspCreateExecution.Default"/>; with
     /// <paramref name="baseManifest"/> and <paramref name="baseContent"/> both
@@ -87,11 +85,6 @@ internal static partial class CspPatchBuilder
         ValidatePolicy(policy);
         ValidateExecution(execution);
 
-        ICspCandidateTraceSink? previousTrace = _candidateTrace.Value;
-        _candidateTrace.Value = execution.CandidateTraceSink;
-
-        try
-        {
         var baseRecords = new List<BaseRecord>();
         var baseIds = new HashSet<ChunkId>();
         ManifestInfo? baseInfo = null;
@@ -193,11 +186,6 @@ internal static partial class CspPatchBuilder
             checked((long)result.PhysicalLength),
             checked((long)result.PayloadEntryCount),
             checked((long)result.StoredPayloadBytes));
-        }
-        finally
-        {
-            _candidateTrace.Value = previousTrace;
-        }
     }
 
     /// <summary>
@@ -312,6 +300,7 @@ internal static partial class CspPatchBuilder
                             hashSuite,
                             policy,
                             entryBuffers,
+                            execution.CandidateTraceSink,
                             cancellationToken).ConfigureAwait(false);
                     }
                     else
@@ -332,6 +321,7 @@ internal static partial class CspPatchBuilder
                             hashSuite,
                             policy,
                             entryBuffers,
+                            execution.CandidateTraceSink,
                             cancellationToken).ConfigureAwait(false);
                     }
 
@@ -503,6 +493,7 @@ internal static partial class CspPatchBuilder
         HashSuiteId hashSuite,
         CspEncoderPolicy policy,
         EntryBuffers buffers,
+        ICspCandidateTraceSink? traceSink,
         CancellationToken cancellationToken) =>
         policy.CandidateSelection == CspCandidateSelection.Exhaustive
             ? ChooseEntryExhaustiveAsync(
@@ -514,6 +505,7 @@ internal static partial class CspPatchBuilder
                 hashSuite,
                 policy,
                 buffers,
+                traceSink,
                 cancellationToken)
             : ChooseEntryRankedAsync(
                 encoder ?? throw new InvalidOperationException("A ranked selector requires the final encoder."),
@@ -525,6 +517,7 @@ internal static partial class CspPatchBuilder
                 hashSuite,
                 policy,
                 buffers,
+                traceSink,
                 cancellationToken);
 
     /// <summary>
@@ -541,6 +534,7 @@ internal static partial class CspPatchBuilder
         HashSuiteId hashSuite,
         CspEncoderPolicy policy,
         EntryBuffers buffers,
+        ICspCandidateTraceSink? traceSink,
         CancellationToken cancellationToken)
     {
         var best = new EntryChoice(CspFormat.EncodingRaw, bytes, []);
@@ -549,7 +543,8 @@ internal static partial class CspPatchBuilder
         int? selectedOrdinal = null;
         int selectedStart = 0;
         int selectedCount = 0;
-        var traceCandidates = policy.Level == 0 ? null : new List<CspCandidateTraceCandidate>();
+        List<CspCandidateTraceCandidate>? traceCandidates =
+            traceSink is null ? null : new List<CspCandidateTraceCandidate>();
 
         if (encoder is null)
         {
@@ -563,7 +558,7 @@ internal static partial class CspPatchBuilder
                 traceCandidates ?? [],
                 cheapTrials: 0,
                 expensiveTrials: 0,
-                executionTrace: null);
+                traceSink);
             return best;
         }
 
@@ -606,19 +601,21 @@ internal static partial class CspPatchBuilder
                 int cost = dictionaryFrame.Length + (count * CspFormat.DictionaryReferenceSize);
                 expensiveTrials++;
 
-                var traceCandidate = new CspCandidateTraceCandidate
+                if (traceCandidates is not null)
                 {
-                    Ordinal = candidateOrdinal,
-                    StartIndex = start,
-                    StartOffset = baseRecords[start].Offset,
-                    RecordCount = count,
-                    FirstChunkId = baseRecords[start].ChunkId.ToString(),
-                    FinalFrameBytes = dictionaryFrame.Length,
-                    FinalCostBytes = cost,
-                    L19FrameBytes = policy.Level == 19 ? dictionaryFrame.Length : null,
-                    L19CostBytes = policy.Level == 19 ? cost : null,
-                };
-                traceCandidates!.Add(traceCandidate);
+                    traceCandidates.Add(new CspCandidateTraceCandidate
+                    {
+                        Ordinal = candidateOrdinal,
+                        StartIndex = start,
+                        StartOffset = baseRecords[start].Offset,
+                        RecordCount = count,
+                        FirstChunkId = baseRecords[start].ChunkId.ToString(),
+                        FinalFrameBytes = dictionaryFrame.Length,
+                        FinalCostBytes = cost,
+                        L19FrameBytes = policy.Level == 19 ? dictionaryFrame.Length : null,
+                        L19CostBytes = policy.Level == 19 ? cost : null,
+                    });
+                }
 
                 if (cost < bestCost)
                 {
@@ -642,9 +639,12 @@ internal static partial class CspPatchBuilder
                 hashSuite);
 
             best = best with { DictionaryChunkIds = ids };
-            CspCandidateTraceCandidate selected = traceCandidates!
-                .Single(candidate => candidate.Ordinal == selectedOrdinal.Value);
-            selected.Selected = true;
+            if (traceCandidates is not null)
+            {
+                CspCandidateTraceCandidate selected = traceCandidates
+                    .Single(candidate => candidate.Ordinal == selectedOrdinal.Value);
+                selected.Selected = true;
+            }
         }
 
         RecordCandidateTrace(
@@ -657,7 +657,7 @@ internal static partial class CspPatchBuilder
             traceCandidates ?? [],
             cheapTrials: 0,
             expensiveTrials,
-            executionTrace: null);
+            traceSink);
         return best;
     }
 
@@ -676,6 +676,7 @@ internal static partial class CspPatchBuilder
         HashSuiteId hashSuite,
         CspEncoderPolicy policy,
         EntryBuffers buffers,
+        ICspCandidateTraceSink? traceSink,
         CancellationToken cancellationToken)
     {
         var best = new EntryChoice(CspFormat.EncodingRaw, bytes, []);
@@ -825,7 +826,7 @@ internal static partial class CspPatchBuilder
             traceCandidates,
             cheapTrials,
             expensiveTrials,
-            executionTrace: null);
+            traceSink);
         return best;
     }
 
@@ -890,11 +891,9 @@ internal static partial class CspPatchBuilder
         IReadOnlyList<CspCandidateTraceCandidate> candidates,
         int cheapTrials,
         int expensiveTrials,
-        ICspCandidateTraceSink? executionTrace)
+        ICspCandidateTraceSink? traceSink)
     {
-        ICspCandidateTraceSink? sink = executionTrace ?? _candidateTrace.Value;
-
-        if (sink is null)
+        if (traceSink is null)
         {
             return;
         }
@@ -905,7 +904,7 @@ internal static partial class CspPatchBuilder
             ? "raw"
             : choice.DictionaryChunkIds.Length == 0 ? "zstd" : "zstd-dictionary";
 
-        sink.Record(new CspCandidateTraceEntry(
+        traceSink.Record(new CspCandidateTraceEntry(
             targetChunk.Index,
             targetChunk.Id.ToString(),
             targetChunk.Offset,
