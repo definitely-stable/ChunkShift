@@ -1,10 +1,10 @@
 # PATCH-GAP-001 protocol: decompose the remaining CSP size gap
 
-Status: **BLOCKED DRAFT — #216 / PATCH-ENC-005 must be freeze-reviewed and merged first; then this protocol must pin/reconcile that merged producer contract before PATCH-GAP-001 can freeze.**  
+Status: **FREEZE-READY DRAFT — PATCH-ENC-005 is merged and pinned below; repeat freeze review/CI before merging this protocol, and run no PATCH-GAP decision lane before merge.**  
 Issue: [#183](https://github.com/definitely-stable/ChunkShift/issues/183) · Parent: [#7](https://github.com/definitely-stable/ChunkShift/issues/7)  
 ExperimentId: PATCH-GAP-001  
 Protocol baseline commit: e967aeb6d4d467e94c5ac20f85e70ba0035d998d  
-Related candidate-policy protocol: [PR #216](https://github.com/definitely-stable/ChunkShift/pull/216) / PATCH-ENC-005. While #216 is open, its head SHA is intentionally **not pinned here**; only the merged producer commit may become a PATCH-GAP dependency.  
+Related candidate-policy protocol: [PR #216](https://github.com/definitely-stable/ChunkShift/pull/216) / PATCH-ENC-005, merged to `main` at `96fd9b296d6998cac397e61041f22df51e6dd43c` (reviewed PR head `73d7af7e6f30e24922f34bb9da9be86820fcc7f8`).  
 Tree/update-set research is owned by [#184](https://github.com/definitely-stable/ChunkShift/issues/184), not this experiment.
 
 ## 1. Question and decision boundary
@@ -236,43 +236,68 @@ This is not CSP v1 and is not a proposed wire revision; it is the minimal direct
 
 ## 6. G2 — candidate choice, owned by PATCH-ENC-005
 
-### 6.1 Blocking producer dependency
+### 6.1 Pinned producer contract
 
-PATCH-GAP-001 cannot freeze G2 against a mutable producer. While PR #216 remains an unmerged Draft, its head is intentionally not copied or pinned in this protocol. The first durable dependency is the merged PATCH-ENC-005 protocol commit.
+PATCH-ENC-005 is no longer mutable. PR #216 merged to `main` at commit `96fd9b296d6998cac397e61041f22df51e6dd43c`; its reviewed PR head was `73d7af7e6f30e24922f34bb9da9be86820fcc7f8`. PATCH-GAP consumes that merged protocol as the sole authority for selector/oracle semantics.
 
-The freeze order is mandatory:
+Pinned shared evidence contracts:
 
-1. freeze-review and merge #216;
-2. record the merged PATCH-ENC-005 protocol commit and authoritative trace/oracle schema identity here;
-3. reconcile this entire §6 and the G2 run-plan text against that merged contract;
-4. only then mark G2 exact in §17 and freeze #217.
+- candidate trace schema: exactly `chunkshift.patch-candidate-trace.v1`;
+- G2 oracle schema: exactly `chunkshift.patch-g2-oracle.v1`;
+- trace `datasetRole`: exactly `calibration`, `evaluation` or `confirmation`;
+- oracle policy: exactly `L19-K4-ALL-PREFIX-H20C20-REF32`;
+- oracle candidate order: exactly `abs-offset-then-lower-index`;
+- production-real resemblance lane ids: `H5-F12-SF3`, `H6-O12-SF3-S128`, `H6-P12-T3-S128`;
+- H8 is not an independent G2 size lane because the merged producer requires H8 patch SHA-256 to equal its chosen H5/H6 parent on every dataset where H8 is evaluated.
 
-No PATCH-GAP G2 run is authorized before that reconciliation. Whatever #216 eventually merges for progression, evaluation population, H5/H6 availability, trace fields and oracle semantics is authoritative; earlier Draft behavior has no standing in PATCH-GAP.
+Every consumed document must name `protocolCommit = 96fd9b296d6998cac397e61041f22df51e6dd43c` and its actual implementation/evidence `sourceCommit`. A document from an earlier Draft protocol is invalid GAP evidence even if its JSON shape happens to match.
 
 ### 6.2 Boundary
 
-PATCH-GAP-001 does **not** implement Finesse, Odess, Gear-derived retrieval, a new similarity index, or another selector. #181 / PR #216 owns selector semantics, the shared trace, the exact whole-base oracle implementation and production-real H5/H6 work.
+PATCH-GAP-001 does **not** implement Finesse, Odess, Gear-derived retrieval, a new similarity index, or another selector. #181 / merged #216 owns selector semantics, the shared trace, the exact whole-base oracle implementation and production-real H5/H6 work.
 
-G2 answers: **how much size headroom is attributable to dictionary choice under today's K=4 / 1 MiB / one-frame-per-chunk CSP envelope?**
+G2 answers: **how much size headroom is attributable to choosing non-offset dictionaries under today's K=4 / <=1 MiB / one-frame-per-chunk CSP envelope, and how much of that headroom is recovered by the bounded production-real selectors?**
 
-### 6.3 Post-merge consumer handshake
+Phase-A H4/H7 results may be carried as selector-policy context, but they do not constitute the primary G2 resemblance result because they add no non-offset candidate. H8 contributes its parent's bytes only.
 
-While #216 is open, **no selector/oracle/trace details below this boundary are normative in PATCH-GAP**. Duplicating a mutable producer specification here would create two sources of truth.
+### 6.3 Sampled exact oracle populations
 
-After #216 merges, the reconciliation commit on #217 must record all of the following before the G2 freeze-checklist item can be checked:
+The **calibration oracle** is exactly the merged #216 §4 sample. For each of the four calibration pairs, enumerate distinct missing target entries, compute the #216 six-field zero-separated SHA-256 sample key, sort under the merged tie rules, and take the first 64 or all if fewer. Maximum population: 256 entries. GAP consumes the resulting `chunkshift.patch-g2-oracle.v1` artifact and its `oracleSampleSha256`; it does not implement another exhaustive search.
 
-- the exact merged PATCH-ENC-005 protocol commit SHA and the implementation/evidence commit used by any consumed run;
-- the authoritative candidate-trace schema id/version and exact dataset-role vocabulary;
-- the exact calibration-oracle sample identity/lock and any progression/false-negative-guard semantics that determine which production-real resemblance lanes exist;
-- the production-real G2 lane ids whose **full fixed-evaluation population** bytes may participate in the §11 whole-split gate;
-- any fresh-confirmation dataset lock and verdict exported by PATCH-ENC-005, recorded as additional selector evidence but not substituted for #183's fixed-evaluation formula;
-- SHA-256 of every consumed trace/oracle/result document and the upstream policy/lane fingerprint needed to prove it belongs to that merged contract.
+For #183's calibration/evaluation output, GAP additionally freezes one **descriptive evaluation oracle sample** using the same merged sample-key serialization and ordering independently on each of the eight fixed-evaluation pairs. Take the first 64 entries per pair or all if fewer, maximum 512 entries. Materialize and hash that membership list **before** any evaluation-oracle encoding. Produce it through the merged PATCH-ENC-005 oracle implementation/contract with `datasetRole = evaluation`, the same policy/candidate order above, and record its own `oracleSampleSha256`.
 
-PATCH-GAP derives per-entry selected cost only from fields explicitly pinned during the post-merge reconciliation; **no field mapping is normative here until the merged schema is pinned**.
+The sampled oracle is exact only for its named sampled population. Neither calibration nor evaluation oracle bytes are projected to unsampled entries, and neither can directly satisfy the §11 whole-split 15% gate.
 
-The reconciliation must be a documentation-only change in #217 unless the merged producer contract exposes a genuine missing evidence field. In that case, fix/version the producer evidence contract first; #217 must not reconstruct selector decisions or invent a private compatibility shim.
+For oracle rows, GAP consumes the producer's explicit `h0CostBytes`, `oracleCostBytes`, location fields and `savedBytes`; it does not reconstruct costs from candidate traces.
 
-If #216 has already produced valid evidence for the required commit, dataset role/lock and frozen lane, #217 consumes that immutable evidence by digest; it does **not** rerun the same selector/oracle under a new GAP-owned lane identity. A missing required population/result is produced under the merged #216 contract first, then consumed here.
+### 6.4 Production-real whole-population G2 evidence
+
+Merged #216 makes G2 a prioritization gate with one pre-frozen H6-O false-negative guard, then may run the full Phase-B resemblance grid. PATCH-GAP does not alter that progression.
+
+For #183:
+
+- any of `H5-F12-SF3`, `H6-O12-SF3-S128` or `H6-P12-T3-S128` that has full fixed-evaluation per-file patch bytes under the merged producer contract is a production-real G2 result;
+- a lane that #216 never executes on the full fixed-evaluation population is reported `NOT_EVALUATED`, not inferred from calibration or the sampled oracle;
+- the one-platform H6-O false-negative guard may supply deterministic fixed-evaluation **byte** evidence. If that frozen lane alone crosses the §11 15% threshold, GAP may request the additional unchanged-lane cross-platform correctness/runtime/memory characterization required by §11. That is measurement of the existing #216 lane, not a new selector or retuning step;
+- no GAP run may change features, fanout, ranking, L1/L19 trial policy, thresholds or candidate union. Missing selector semantics require a new PATCH-ENC experiment, not a private GAP compatibility shim.
+
+For a production-real trace row, selected entry cost is `storedBytes + 32 * dictionaryRefs`. This is diagnostic/attribution data only. **Whole-file and whole-split G2 physical bytes come from the actual per-file patch-size records/artifacts produced by the lane and H0**, because trace entry sums do not include every fixed CSP byte. H0 and factor rows must match the same dataset lock, family/pair/path, source/protocol contract and target identity before comparison.
+
+The primary whole-split reporting metric is therefore the §11 `reduction_vs_csp` over actual patch bytes. Also report, per lane, incremental resemblance value against its H4-based policy context when that parent/control exists, so an H5/H6 result is not misdescribed as pure retrieval gain if H4's cheap-rank/R=2 policy also changed bytes relative to H0.
+
+### 6.5 Fresh confirmation and evidence lineage
+
+PATCH-ENC-005's separately predeclared Go/Python fresh-confirmation set is useful external selector evidence, but it does **not** replace #183's frozen fixed-evaluation denominator or §11 gate. If available, GAP records the producer's confirmation dataset lock and verdict beside the fixed-evaluation result.
+
+For every consumed trace/oracle/result document GAP records:
+
+- SHA-256 of the complete document;
+- merged `protocolCommit` and actual `sourceCommit`;
+- schema id, datasetRole/datasetSha256 and lane/policy identity;
+- `oracleSampleSha256` where applicable;
+- per-file patch SHA-256/size artifact lineage for production-real lanes.
+
+If valid #216 evidence already exists, GAP consumes it by digest. If a required descriptive evaluation oracle or unchanged-lane characterization is still missing, it is executed using the merged producer implementation/contract and then consumed here; selector logic is never duplicated inside #217.
 
 ## 7. G3 — frame granularity
 
@@ -531,7 +556,7 @@ First run the inventory-only prepass and commit canonically sorted G4/G5 manifes
 - regenerate H0 and validate baseline totals/digest;
 - consume the frozen G4/G5 subset manifests;
 - G1 byte lanes;
-- no G2 lane until #216 is merged and §6 is reconciled/pinned to that merged producer contract; after reconciliation, use only the shared #216 oracle/trace/production-real lanes authorized there;
+- G2: consume the merged #216 calibration oracle; materialize/run the §6.3 descriptive fixed-evaluation oracle sample through the shared oracle implementation; consume any full-population H5-F/H6-O/H6-P patch/trace evidence produced under the merged contract;
 - G3 byte lanes;
 - G4-BCJ byte lane plus Zucchini subset reference;
 - G5 classification plus Puffin subset reference;
@@ -547,7 +572,7 @@ The evaluation set is therefore fixed before any GAP factor bytes are produced:
 
 - G1: G1-B1-R64, G1-B4-R256, G1-B8-R512 and G1-B32-R2048 all receive one calibration byte run and one evaluation byte run.
 - G3: G3-RUN and G3-FILE both receive one calibration byte run and one evaluation byte run.
-- G2: **blocked/provisional until #216 merges**. After §6 reconciliation, use exactly the sampled-oracle and full-population production-real evaluation lanes authorized by the merged producer; GAP adds or drops none.
+- G2: run no new selector family. Report both sampled-oracle populations descriptively; for the §11 gate, evaluate every merged-#216 H5-F/H6-O/H6-P lane for which full fixed-evaluation patch bytes exist. Missing full-population lanes remain NOT_EVALUATED. H8 inherits its parent bytes.
 - G4: G4-BCJ receives one calibration/evaluation byte run over the frozen subset with unchanged H0 bytes outside it.
 - G5: if the frozen subset is non-empty, Puffin plus its AOSP-bsdiff same-backend control receive one calibration/evaluation descriptive run; G5 has no direct RFC-gate lane until a later CSP-costed codec exists. If the subset is empty, report NOT_PRESENT.
 
@@ -572,9 +597,9 @@ External reference tools are timed on pinned Linux x64 primarily. They are not p
 ### 12.3 Frozen evaluation (`holdout`) ordering
 
 1. Run every frozen byte lane on calibration; calibration may prioritize expensive runtime work but may not remove a predeclared size lane.
-2. Before any GAP evaluation-factor bytes are produced, commit the lane definitions, G4/G5 subset fingerprints, all thresholds and the complete list of evaluation lanes; for G2 this list is unavailable until §6's #216 dependency is reconciled.
+2. Before any GAP evaluation-factor bytes are produced, commit the lane definitions, G4/G5 subset fingerprints, all thresholds, the §6.3 G2 evaluation-oracle sample lock and the complete list of production-real G2 lanes whose full-population bytes already exist or are scheduled unchanged under the merged producer contract.
 3. Optionally complete three-platform runtime checks early for any lane already at >=15% on calibration.
-4. Run the fixed evaluation partition exactly once for every committed evaluation lane and H0; run any G2 evaluation oracle/production-real lane only as authorized by the merged #216 contract.
+4. Run the fixed evaluation partition exactly once for every committed GAP-owned factor lane and H0; consume or execute only the §6-pinned G2 evidence under merged #216 semantics, never a GAP-private selector implementation.
 5. Apply the §11 size formula independently to every gate-eligible lane, with no calibration veto and no post-evaluation lane creation.
 6. If a lane first crosses 15% on evaluation, complete its required non-size/runtime checks afterward on the unchanged lane. Never retune its parameters or repeat its evaluation byte run to improve the result.
 
@@ -635,7 +660,7 @@ No combined result may retroactively change an individual factor's verdict.
 - [x] production baseline policy, K/C/radius, execution topology and exact byte anchor are recorded;
 - [x] corpus and split hashes are recorded;
 - [x] G1 byte/ref/window lanes are budget-saturating under the stable 16 KiB minimum and charge all reference metadata;
-- [ ] G2 producer dependency is not yet frozen: merge #216, pin its merged protocol commit/schema here, then reconcile §6/run-plan semantics;
+- [x] G2 is pinned to merged PATCH-ENC-005 commit `96fd9b296d6998cac397e61041f22df51e6dd43c`, shared trace/oracle schemas, exact sample semantics and production-real lane ids;
 - [x] G3 groups, cost formula and lost properties are exact;
 - [x] G4 supported formats/architectures, BCJ counterfactual and Zucchini reference are exact;
 - [x] G5 classifier and Puffin attribution semantics are exact;
@@ -647,7 +672,7 @@ No combined result may retroactively change an individual factor's verdict.
 - [x] interaction studies require a separate identity;
 - [x] production/API/tree/update-set changes remain non-goals.
 
-This PR is **not freeze-ready while #216 is an unmerged/mutable producer**. The next allowed sequence is: resolve and merge #216, pin/reconcile its merged contract here, repeat freeze-review of #217, then merge #217. The protocol authorizes no PATCH-GAP decision run while that dependency/checklist item remains open or while this PR remains unmerged.
+PATCH-ENC-005 is now an immutable merged dependency and §6 is reconciled to it. The remaining action is a final freeze review/CI pass of #217 itself, followed by merge if approved. No PATCH-GAP decision run is authorized while this PR remains unmerged.
 
 ## 18. Primary sources
 
