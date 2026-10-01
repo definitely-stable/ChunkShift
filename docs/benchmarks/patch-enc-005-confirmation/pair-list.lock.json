@@ -1,0 +1,6 @@
+{
+  "experimentId": "PATCH-ENC-005",
+  "manifestSha256": "PENDING",
+  "pairsSha256": "PENDING",
+  "schema": "chunkshift.patch-enc-005-confirmation-lock.v1"
+}
