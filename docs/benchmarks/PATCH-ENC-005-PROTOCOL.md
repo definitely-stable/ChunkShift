@@ -480,7 +480,7 @@ Apply is run **five times per patch** with fresh output. Record wall, process CP
 
 ### 9.3 Memory runs
 
-Memory is a separate group in the same decision dispatch/RunId. Every changed file with target size >=1 MiB is created/applied in a child process, with the same allocator/GC environment and idle-baseline method as PATCH-ENC-004/PATCH-APPLY-001. The evaluator rejects memory evidence from another commit, RunId, lane definition or file set.
+Memory is a separate group in the same decision dispatch/RunId. Its frozen population is every changed same-path file with `max(baseSize, targetSize) >= 1 MiB`, not merely large targets: indexed lanes can have a large base/index even when the new target shrinks below 1 MiB. Every such file is created/applied in a child process, with the same allocator/GC environment and idle-baseline method as PATCH-ENC-004/PATCH-APPLY-001. The evaluator rejects memory evidence from another commit, RunId, lane definition or file set.
 
 ## 10. Eligibility, Pareto selection and complexity preference
 
@@ -528,7 +528,7 @@ There is no weighted score. From the remaining Pareto set, name:
 - **speed finalist**: smallest `max_p(w_p)`, then smaller b, then smaller `max_p(c_p)`, then lexicographically smaller lane id;
 - **size finalist**: smallest b, then smaller `max_p(w_p)`, then smaller `max_p(c_p)`, then lexicographically smaller lane id.
 
-If both names resolve to one lane, it is the sole calibration finalist. If they differ, both are calibration finalists. All calibration finalists next go through the fixed-evaluation stability check in §11; none goes directly to fresh confirmation. This is not a tie: it is an explicit unresolved speed/size tradeoff.
+If the calibration Pareto/complexity process leaves **no finalist**, PATCH-ENC-005 is REJECT for production adoption and H0 remains D15; fixed evaluation/confirmation are not opened for selection. If both names resolve to one lane, it is the sole calibration finalist. If they differ, both are calibration finalists. All calibration finalists next go through the fixed-evaluation stability check in §11; none goes directly to fresh confirmation. This is not a tie: it is an explicit unresolved speed/size tradeoff.
 
 ## 11. Fixed-evaluation stability and fresh confirmation
 
@@ -545,7 +545,7 @@ A calibration finalist survives development evaluation only when:
 
 Because PATCH-ENC-002 results from these families were already known, this step is explicitly a development stability check, not evidence of independent generalization.
 
-The evidence-plan commit then records the surviving lane id(s), their qualification branch(es), protocol/source commits, confirmation manifest lock and any **byte-oracle dependency**: H7 depends on H4; H8 depends on its frozen §6 parent. Only after that commit may the fresh confirmation content be processed by a selector.
+If **no calibration finalist survives fixed evaluation**, the production verdict is REJECT and fresh confirmation remains unopened. Otherwise the evidence-plan commit records the surviving lane id(s), their qualification branch(es), protocol/source commits, confirmation manifest lock and any **byte-oracle dependency**: H7 depends on H4; H8 depends on its frozen §6 parent. Only after that commit may the fresh confirmation content be processed by a selector.
 
 ### 11.2 Fresh confirmation
 
@@ -561,7 +561,7 @@ The paired five-round timing/noise rules of §9 apply unchanged to fresh confirm
 
 If one of two survivors fails its predeclared confirmation gates, the other may be adopted if confirmed. If **both distinct survivors confirm, the result is DEFER regardless of their relative confirmation measurements**. Fresh confirmation is not a model-selection set and is never used to rank two survivors. D15 stays unchanged until a separately frozen product tradeoff experiment/rule selects between the already-confirmed tradeoffs.
 
-A fresh-confirmation failure cannot be repaired by changing thresholds, selector features, index fanout, lane parameters or complexity preference under PATCH-ENC-005. Missing platform/run data yields **INCOMPLETE**.
+A fresh-confirmation failure cannot be repaired by changing thresholds, selector features, index fanout, lane parameters or complexity preference under PATCH-ENC-005. Final verdict state is exact: one survivor and it confirms -> **ADOPT**; one survivor and it fails -> **REJECT**; two survivors with exactly one confirming -> **ADOPT** that survivor; two survivors with neither confirming -> **REJECT**; two distinct survivors both confirming -> **DEFER**; required evidence missing/invalid after the permitted retry -> **INCOMPLETE**. ADOPT here authorizes only the separate default-change PR; this protocol/evidence run does not itself change D15.
 
 ## 12. Correctness and failure oracles
 
