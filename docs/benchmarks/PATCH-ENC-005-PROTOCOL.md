@@ -559,7 +559,7 @@ A survivor is confirmed only when, on the §8.1 Go/Python set:
 
 The paired five-round timing/noise rules of §9 apply unchanged to fresh confirmation. A byte-oracle dependency that is not itself a surviving finalist is **not** inserted into the five-round performance rotation: create it once per changed file/platform outside the timed candidate rounds, verify/decode/apply it, and compare its patch SHA-256 with the dependent survivor. Its timing is correctness-only and cannot affect eligibility or Pareto ordering.
 
-If one of two survivors fails, the other may be adopted if confirmed. If both confirm, recompute dominance on fresh confirmation over `(b, max_p(w_p), max_p(c_p))`: if one survivor is no worse in all three and strictly better in at least one, only that survivor remains; if the two distinct survivors remain non-dominated, the experiment result is **DEFER**, not an invented scalar preference. D15 stays unchanged until a separately frozen product tradeoff rule exists.
+If one of two survivors fails its predeclared confirmation gates, the other may be adopted if confirmed. If **both distinct survivors confirm, the result is DEFER regardless of their relative confirmation measurements**. Fresh confirmation is not a model-selection set and is never used to rank two survivors. D15 stays unchanged until a separately frozen product tradeoff experiment/rule selects between the already-confirmed tradeoffs.
 
 A fresh-confirmation failure cannot be repaired by changing thresholds, selector features, index fanout, lane parameters or complexity preference under PATCH-ENC-005. Missing platform/run data yields **INCOMPLETE**.
 
@@ -666,7 +666,7 @@ The protocol is ready for freeze review when this document and PR metadata agree
 - [x] calibration and fixed-evaluation roles are honest about prior exposure; the fresh Go/Python confirmation assets, checksums and normalization are predeclared;
 - [x] wall/CPU roles, platforms, paired five-round timing and noise invalidation are fixed;
 - [x] create/apply memory bounds and explicit memory runs are fixed;
-- [x] Pareto, complexity preference, fixed-evaluation stability and fresh-confirmation rules are deterministic without a weighted score;
+- [x] Pareto, complexity preference, fixed-evaluation stability and fresh-confirmation rules are deterministic without a weighted score or confirmation-set winner selection;
 - [x] independent decoder, target SHA-256, apply, failure, short-read, cancellation, P6/P9 and vector obligations are explicit;
 - [x] durable compact evidence and raw-artifact SHA-256 manifest requirements are fixed;
 - [x] CSP/Core/Repository/GAP scope boundaries are explicit;
