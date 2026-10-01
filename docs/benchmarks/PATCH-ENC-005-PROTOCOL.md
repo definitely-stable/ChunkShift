@@ -254,7 +254,7 @@ Palantir's generational backup-history machinery is not imported: CSP create has
 
 ### 5.2 Bounded index and deterministic retrieval
 
-The index is rebuilt for every base file/create. The build is a complete **single-threaded sequential prepass before the target payload producer starts**; its wall/CPU time and full base read are charged to create and are not overlapped with H2-W2 encoding. The prepass computes features/postings and discards base payload bytes; later L1/L19 dictionary trials reread candidate bytes through the ordinary H2 base source. Every base record selected for indexing is hashed with the patch HashSuite and must equal its manifest `ChunkId` **before any posting derived from it is published to the in-memory index**. Unindexed records are read/discarded but need no new eager hash. Target features are computed from the already target-hash-verified chunk bytes owned by the payload work item, never by a second target-stream pass. No cross-create cache, Repository service or hidden precomputation is allowed.
+The index is rebuilt for every base file/create. The build is a complete **single-threaded sequential prepass before the target payload producer starts**; it sets the seekable base-content stream to manifest offset zero, reads exactly the manifest-declared records in order, and does not require physical EOF after the final manifest byte (production H0 also ignores trailing base bytes). Its wall/CPU time and full manifest-declared base read are charged to create and are not overlapped with H2-W2 encoding. The prepass computes features/postings and discards base payload bytes; later L1/L19 dictionary trials reread candidate bytes through the ordinary H2 base source. Every base record selected for indexing is hashed with the patch HashSuite and must equal its manifest `ChunkId` **before any posting derived from it is published to the in-memory index**. Unindexed records are read/discarded but need no new eager hash. Target features are computed from the already target-hash-verified chunk bytes owned by the payload work item, never by a second target-stream pass. No cross-create cache, Repository service or hidden precomputation is allowed.
 
 Index format for the experiment is sorted packed postings `(featureKey64, baseStartIndex32)`, sorted first by unsigned `featureKey64`, then ascending base start index. A posting is 12 logical bytes. A 64-bit key collision is deliberately a deterministic false-positive retrieval, never a correctness shortcut; exact L1/L19 trials and chosen-dictionary ChunkId verification remain authoritative.
 
@@ -402,7 +402,9 @@ A failed fresh confirmation is a negative result, not permission to tune on Go/P
 
 ### 9.1 Metrics
 
-Per file, lane, repetition and platform where applicable:
+Decision byte/time aggregates cover the **changed same-normalized-path files only**, matching PATCH-ENC-002/003/004. Identical files, added files and removed files remain inventory: added files are whole-file delivery and are reported separately, but their lane-invariant bytes do not dilute selector percentage thresholds.
+
+Per changed file, lane, repetition and platform where applicable:
 
 - physical patch bytes and SHA-256;
 - create wall seconds and process CPU seconds;
@@ -414,7 +416,7 @@ Per file, lane, repetition and platform where applicable:
 - H5/H6/H8 index build wall/CPU, bytes scanned, posting count, ignored-hot-feature count, index peak bytes and candidate source statistics;
 - peak working set over idle in explicit memory runs.
 
-Aggregates include total patch bytes B, total create wall/CPU, candidate/L19 trials per payload entry, apply totals, maximum RSS over idle, and for H5/H6 the share of selected dictionaries sourced from sketch/both and the share whose start lies outside ±256 KiB.
+Aggregates include total patch bytes `B = sum(PatchBytes)` over changed same-path files, total create wall/CPU, candidate/L19 trials per payload entry, apply totals, maximum RSS over idle, and for H5/H6 the share of selected dictionaries sourced from sketch/both and the share whose start lies outside ±256 KiB. Per-file apply uses the median of five repeats; aggregate apply wall/CPU is the sum of those per-file medians. Apply base reads/bytes are summed over the same one representative median-selected repetition per file, with the earliest repeat winning an exact-time tie.
 
 CPU is a first-class reported/Pareto metric, but the user-visible create eligibility thresholds in #181 are wall-time thresholds. Wall improvement is never inferred from CPU alone.
 
@@ -435,14 +437,14 @@ For one phase/split/platform:
 2. run **five measured rounds**;
 3. every round starts with H0, runs every candidate lane once, and ends with H0;
 4. rotate candidate order cyclically by one position each round;
-5. normalize a candidate in a round to the arithmetic mean of that round's two bracketing H0 totals;
-6. use the median of the five ratios as the platform ratio.
+5. compute **separate wall and CPU ratios**: candidate total wall divided by the arithmetic mean of the two bracketing H0 wall totals, and candidate total process CPU divided by the arithmetic mean of the two bracketing H0 CPU totals;
+6. use the median of the five wall ratios as `w_p` and the median of the five CPU ratios as `c_p`.
 
 A round is invalid if its two H0 wall totals differ by more than **25% of their mean**. Any invalid round invalidates that platform dispatch. Retry the dispatch once; a second invalid dispatch makes timing evidence **INCOMPLETE**, never an automatic pass/fail.
 
 For a threshold to hold on a platform, the median ratio must satisfy it and at least **4 of 5** round ratios must satisfy it.
 
-Apply is run **five times per patch** with fresh output and the per-file median is aggregated. The first apply verifies the target SHA-256. Create is not hidden behind file-level parallelism; H2-W2 is the only intra-create parallelism.
+Apply is run **five times per patch** with fresh output. Record wall, process CPU and base reads/bytes for every repeat; the per-file wall and CPU medians are selected independently and then summed as defined in §9.1. The first apply verifies the target SHA-256. Create is not hidden behind file-level parallelism; H2-W2 is the only intra-create parallelism.
 
 ### 9.3 Memory runs
 
@@ -511,7 +513,7 @@ A calibration finalist survives development evaluation only when:
 
 Because PATCH-ENC-002 results from these families were already known, this step is explicitly a development stability check, not evidence of independent generalization.
 
-The evidence-plan commit then records the surviving lane id(s), their qualification branch(es), protocol/source commits and confirmation manifest lock. Only after that commit may the fresh confirmation content be processed by a selector.
+The evidence-plan commit then records the surviving lane id(s), their qualification branch(es), protocol/source commits, confirmation manifest lock and any **byte-oracle dependency**: H7 depends on H4; H8 depends on its frozen §6 parent. Only after that commit may the fresh confirmation content be processed by a selector.
 
 ### 11.2 Fresh confirmation
 
@@ -523,7 +525,7 @@ A survivor is confirmed only when, on the §8.1 Go/Python set:
 - the **same branch** holds with the same wall/byte thresholds used on calibration and evaluation;
 - H7/H8 retain their parent byte-equality oracle.
 
-The paired five-round timing/noise rules of §9 apply unchanged to fresh confirmation.
+The paired five-round timing/noise rules of §9 apply unchanged to fresh confirmation. A byte-oracle dependency that is not itself a surviving finalist is **not** inserted into the five-round performance rotation: create it once per changed file/platform outside the timed candidate rounds, verify/decode/apply it, and compare its patch SHA-256 with the dependent survivor. Its timing is correctness-only and cannot affect eligibility or Pareto ordering.
 
 If one of two survivors fails, the other may be adopted if confirmed. If both confirm, recompute dominance on fresh confirmation over `(b, max_p(w_p), max_p(c_p))`: if one survivor is no worse in all three and strictly better in at least one, only that survivor remains; if the two distinct survivors remain non-dominated, the experiment result is **DEFER**, not an invented scalar preference. D15 stays unchanged until a separately frozen product tradeoff rule exists.
 
@@ -582,7 +584,7 @@ Implementation order is fixed:
 6. if §4.3 main gate passes, implement H5-F/H6-O/H6-P; if it misses, implement only the mandatory H6-O false-negative guard and stop or expand exactly as §4.3 dictates;
 7. H8 only after a resemblance finalist exists;
 8. freeze surviving finalist lane id(s)/branch(es) in the evidence-plan commit;
-9. open the fresh confirmation set once and run only those survivor(s) plus H0;
+9. open the fresh confirmation set once and run the survivor(s) plus H0; where a survivor is H7 or H8, also run its recorded H4/parent lane once per file/platform as the untimed byte-oracle control defined in §11.2;
 10. only after an ADOPT evidence record: a separate production-default PR updates D15/default and runs JIT + NativeAOT package smoke and vector/fuzz checks.
 
 No final adoption decision run is part of this protocol PR. In particular, the protocol PR performs no Phase-A measurement, G2 oracle, H6-O guard or fresh-confirmation selector run.
