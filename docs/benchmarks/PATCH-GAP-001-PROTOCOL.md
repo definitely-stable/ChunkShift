@@ -317,7 +317,7 @@ G3 instead uses a conservative counterfactual cost model that changes grouping o
 
 For RUN/FILE, input bytes are the concatenation of the group's original target chunks in first-target-record order. **Only groups with at least two payload members are coalesced.** A singleton run/file-payload group has no cross-chunk framing opportunity and remains the exact H0 entry byte-for-byte; forcing it through GroupZstd would change codec choice rather than frame granularity.
 
-A coalesced group uses only the dictionary that H0 selected for the group's first payload entry; if H0 selected raw or no-dictionary zstd there is no base dictionary. No group-level candidate search, larger dictionary or whole-base oracle is allowed. The zstd window remains capped at 1 MiB.
+A coalesced group uses only the dictionary that H0 selected for the group's first payload entry; if H0 selected raw or no-dictionary zstd there is no base dictionary. No group-level candidate search, larger dictionary or whole-base oracle is allowed. The group frame is encoded at **zstd level 19**; when an anchor dictionary exists it is supplied as the same raw-prefix form with dictionary hash/chain caps **H20/C20**. The zstd window remains capped at 1 MiB.
 
 This anchor rule is intentionally conservative: later chunks lose their independent H0 dictionary changes. A single zstd frame cannot swap raw-prefix dictionaries between chunk boundaries, so G3 measures the **net coalescing envelope**: cross-chunk frame context plus the required loss of per-entry dictionary reselection. It must not be described as a pure context-carry gain, and the loss must not be repaired by silently importing G1/G2.
 
@@ -411,7 +411,7 @@ G4 is an **additive encoding relaxation**, not a forced replacement of ordinary 
 
 1. Preserve the exact H0 winning stored form and exact H0 entry cost as the initial winner. It is never re-encoded and remains legal.
 2. Normalize the target bytes once under the frozen first-target-occurrence position rule.
-3. Add one BCJ+zstd L19 no-dictionary trial and one BCJ+zstd L19 trial for each of that entry's **same H0 candidate dictionary sequences**. Candidate starts/order, K=4, C=8, ±256 KiB radius, <=1 MiB original dictionary and 1 MiB zstd window do not change.
+3. Add one BCJ+zstd L19 no-dictionary trial and one BCJ+zstd L19 trial for each of that entry's **same H0 candidate dictionary sequences**. Candidate starts/order, K=4, C=8, ±256 KiB radius, <=1 MiB original dictionary, raw-prefix dictionary mode, H20/C20 dictionary hash/chain caps and 1 MiB zstd window do not change.
 4. Candidate eligibility is decided on the original H0 dictionary bytes using the production K/size/`CspDictionary.IsUsable` rules **before** normalization. An admitted dictionary is then normalized and supplied explicitly as a raw prefix; do not reinterpret transformed bytes as a trained dictionary.
 5. BCJ trials cost `frameBytes + 32 × dictionaryRefs`. Replace H0 only on a strict cost decrease; a tie keeps H0, then the earlier H0 candidate order.
 
