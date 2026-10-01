@@ -22,6 +22,19 @@ FROZEN_PHASE_A = (
     "H9-L15-K4-C16-R1M",
 )
 
+FROZEN_DEVELOPMENT_FAMILIES = {
+    "calibration": {
+        "dotnet-aspnetcore-win-x64",
+        "dotnet-runtime-linux-arm64",
+    },
+    "evaluation": {
+        "node-win-x64",
+        "node-linux-x64",
+        "tzdata",
+        "chunkshift-source",
+    },
+}
+
 
 def rotated(lanes: list[str], round_index: int) -> list[str]:
     if not lanes:
@@ -39,6 +52,23 @@ def bracket_is_noisy(left: float, right: float) -> bool:
     if mean <= 0:
         return True
     return abs(left - right) > 0.25 * mean
+
+
+def median_five(values: list[float]) -> float:
+    if len(values) != 5:
+        raise ValueError("frozen paired timing requires exactly five measured rounds")
+    return sorted(values)[2]
+
+
+def validate_development_families(dataset_role: str, families: str | None) -> None:
+    expected = FROZEN_DEVELOPMENT_FAMILIES.get(dataset_role)
+    if expected is None:
+        return
+    actual = {item.strip() for item in (families or "").split(",") if item.strip()}
+    if actual != expected:
+        raise ValueError(
+            f"{dataset_role}: expected frozen families {sorted(expected)}, got {sorted(actual)}"
+        )
 
 
 def patch_sha_map(result: dict) -> dict[tuple[str, str, str, str], str]:
@@ -95,6 +125,7 @@ def invoke(
     name: str,
     *,
     traces: bool,
+    apply: bool = True,
 ) -> tuple[Path, dict]:
     invocation = args.output / name
     invocation.mkdir(parents=True, exist_ok=False)
@@ -120,12 +151,14 @@ def invoke(
         "1",
         "--execution",
         "h2-w2",
-        "--apply-repeats",
-        "5",
-        "--apply-check-only",
         "--run-id",
         args.run_id,
     ]
+
+    if apply:
+        command += ["--apply-repeats", "5", "--apply-check-only"]
+    else:
+        command += ["--no-apply"]
 
     if args.families:
         command += ["--families", args.families]
@@ -187,11 +220,18 @@ def main() -> int:
         )
     if "H7-L1-R2-E75" in lanes and "H4-L1-R2" not in lanes:
         parser.error("H7-L1-R2-E75 requires H4-L1-R2 for the frozen byte oracle")
+    try:
+        validate_development_families(args.dataset_role, args.families)
+    except ValueError as error:
+        parser.error(str(error))
 
     args.output.mkdir(parents=True, exist_ok=False)
 
-    # Warm-up is deliberately excluded from every recorded ratio.
-    invoke(args, "csp", "warmup-h0", traces=False)
+    # Warm-up exercises create only and is excluded from every recorded ratio
+    # and every five-repeat apply aggregate.
+    _, warmup = invoke(args, "csp", "warmup-h0", traces=False, apply=False)
+    if int(warmup["environment"]["processorCount"]) < 2:
+        raise ValueError("PATCH-ENC-005 requires Environment.ProcessorCount >= 2")
     rounds: list[dict] = []
     invalid = False
     expected_patch_shas: dict[str, dict[tuple[str, str, str, str], str]] = {}
@@ -259,17 +299,15 @@ def main() -> int:
             float(start_aggregate["cpuSeconds"]),
             float(end_aggregate["cpuSeconds"]),
         )
+        if cpu_denominator <= 0:
+            raise ValueError("paired timing requires positive H0 process CPU evidence")
 
         for candidate in candidates:
             aggregate_candidate = candidate["aggregate"]
             candidate["wallRatio"] = (
                 float(aggregate_candidate["wallSeconds"]) / wall_denominator
             )
-            candidate["cpuRatio"] = (
-                float(aggregate_candidate["cpuSeconds"]) / cpu_denominator
-                if cpu_denominator > 0
-                else None
-            )
+            candidate["cpuRatio"] = float(aggregate_candidate["cpuSeconds"]) / cpu_denominator
 
         rounds.append(
             {
@@ -284,6 +322,24 @@ def main() -> int:
             }
         )
 
+    summaries = []
+    for lane in lanes:
+        lane_rows = [
+            next(candidate for candidate in round_item["candidates"] if candidate["lane"] == lane)
+            for round_item in rounds
+        ]
+        wall_ratios = [float(row["wallRatio"]) for row in lane_rows]
+        cpu_ratios = [float(row["cpuRatio"]) for row in lane_rows]
+        summaries.append(
+            {
+                "lane": lane,
+                "wallRatios": wall_ratios,
+                "cpuRatios": cpu_ratios,
+                "wallRatioMedian": median_five(wall_ratios),
+                "cpuRatioMedian": median_five(cpu_ratios),
+            }
+        )
+
     document = {
         "schema": "chunkshift.patch-enc-005-paired.v1",
         "experimentId": "PATCH-ENC-005",
@@ -293,6 +349,7 @@ def main() -> int:
         "platform": args.platform,
         "datasetRole": args.dataset_role,
         "rounds": rounds,
+        "summaries": summaries,
         "valid": not invalid,
         "invalidReason": "h0-bracket-noise" if invalid else None,
     }

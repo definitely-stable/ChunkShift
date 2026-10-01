@@ -22,6 +22,24 @@ class PatchEnc005PairedTests(unittest.TestCase):
         self.assertTrue(MODULE.bracket_is_noisy(0.87, 1.13))
         self.assertTrue(MODULE.bracket_is_noisy(0.0, 0.0))
 
+    def test_median_five_is_the_third_sorted_value(self):
+        self.assertEqual(3.0, MODULE.median_five([5.0, 1.0, 3.0, 4.0, 2.0]))
+        with self.assertRaises(ValueError):
+            MODULE.median_five([1.0, 2.0])
+
+    def test_development_family_sets_are_exact(self):
+        MODULE.validate_development_families(
+            "calibration",
+            "dotnet-runtime-linux-arm64,dotnet-aspnetcore-win-x64",
+        )
+        with self.assertRaises(ValueError):
+            MODULE.validate_development_families(
+                "calibration",
+                "dotnet-aspnetcore-win-x64",
+            )
+        # Confirmation is governed by its separately frozen pair-list lock.
+        MODULE.validate_development_families("confirmation", None)
+
     def test_aggregate_sums_create_and_apply_evidence(self):
         result = {
             "files": [
