@@ -71,15 +71,19 @@ public class PatchEnc005PhaseATests
             targetContent,
             Policy("H4-L1-R2"),
             H2W2());
+        var trace = new TraceSink();
         byte[] h7 = await CreationExecutions.CreateAsync(
             baseManifest,
             baseContent,
             targetManifest,
             targetContent,
             Policy("H7-L1-R2-E75"),
-            H2W2());
+            H2W2() with { CandidateTraceSink = trace });
 
         Assert.Equal(h4, h7);
+        Assert.Contains(
+            trace.Entries,
+            entry => entry.CandidateCount >= 2 && entry.ExpensiveTrialCount == 1);
     }
 
     [Fact]
@@ -234,6 +238,36 @@ public class PatchEnc005PhaseATests
             shortReads,
             new MemoryStream(targetManifest, writable: false),
             new MemoryStream(targetContent, writable: false),
+            policy,
+            H2W2());
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Theory]
+    [MemberData(nameof(PhaseALanes))]
+    public async Task PhaseALane_HandlesShortTargetReadsWithoutChangingBytes(string lane)
+    {
+        (byte[] baseContent, byte[] targetContent) =
+            CreationExecutions.SparseEdits(256 * Kibibyte, 64 * Kibibyte, 0x5EED5006u);
+        (byte[] baseManifest, byte[] targetManifest) =
+            await CreationExecutions.ManifestsAsync(baseContent, targetContent);
+        CspEncoderPolicy policy = Policy(lane);
+
+        byte[] expected = await CreationExecutions.CreateAsync(
+            baseManifest,
+            baseContent,
+            targetManifest,
+            targetContent,
+            policy,
+            H2W2());
+
+        await using var shortReads = new ShortReadSeekableStream(targetContent, maximumRead: 5);
+        byte[] actual = await CreationExecutions.CreateAsync(
+            new MemoryStream(baseManifest, writable: false),
+            new MemoryStream(baseContent, writable: false),
+            new MemoryStream(targetManifest, writable: false),
+            shortReads,
             policy,
             H2W2());
 
