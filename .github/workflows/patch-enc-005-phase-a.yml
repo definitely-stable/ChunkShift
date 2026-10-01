@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: patch-enc-005-phase-a-\${{ inputs.dataset-role }}-\${{ github.ref }}
+  group: patch-enc-005-phase-a-${{ inputs.dataset-role }}-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -27,7 +27,7 @@ env:
 
 jobs:
   timing:
-    name: paired-\${{ inputs.dataset-role }} (\${{ matrix.platform }})
+    name: paired-${{ inputs.dataset-role }} (${{ matrix.platform }})
     strategy:
       fail-fast: false
       matrix:
@@ -38,7 +38,7 @@ jobs:
             platform: linux-arm64
           - os: windows-2025
             platform: win-x64
-    runs-on: \${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 350
 
     steps:
@@ -61,7 +61,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/patch-corpus/sources
-          key: patch-enc-005-sources-\${{ runner.os }}-\${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+          key: patch-enc-005-sources-${{ runner.os }}-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
 
       - name: Materialize frozen development corpus
         shell: bash
@@ -84,8 +84,8 @@ jobs:
       - name: Run frozen paired procedure
         shell: bash
         env:
-          DATASET_ROLE: \${{ inputs.dataset-role }}
-          PLATFORM: \${{ matrix.platform }}
+          DATASET_ROLE: ${{ inputs.dataset-role }}
+          PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
           case "$DATASET_ROLE" in
@@ -103,7 +103,7 @@ jobs:
 
           python=python3
           command -v python3 >/dev/null || python=python
-          run_id="PATCH-ENC-005/RUN-$(date -u +%Y%m%d)-\${{ github.run_number }}-\${GITHUB_SHA::7}-$PLATFORM"
+          run_id="PATCH-ENC-005/RUN-${{ github.run_id }}-${GITHUB_SHA::7}-$PLATFORM"
           mkdir -p artifacts/patch-enc-005
           "$python" benchmarks/scripts/run_patch_enc_005_paired.py \
             --corpus "$HOME/patch-corpus" \
@@ -119,13 +119,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: patch-enc-005-\${{ inputs.dataset-role }}-paired-\${{ matrix.platform }}
+          name: patch-enc-005-${{ inputs.dataset-role }}-paired-${{ matrix.platform }}
           path: artifacts/patch-enc-005
           if-no-files-found: error
           retention-days: 90
 
   memory:
-    name: memory-\${{ inputs.dataset-role }} (\${{ matrix.platform }})
+    name: memory-${{ inputs.dataset-role }} (${{ matrix.platform }})
     strategy:
       fail-fast: false
       matrix:
@@ -136,7 +136,7 @@ jobs:
             platform: linux-arm64
           - os: windows-2025
             platform: win-x64
-    runs-on: \${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 350
 
     steps:
@@ -159,7 +159,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/patch-corpus/sources
-          key: patch-enc-005-sources-\${{ runner.os }}-\${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+          key: patch-enc-005-sources-${{ runner.os }}-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
 
       - name: Materialize frozen development corpus
         shell: bash
@@ -182,8 +182,8 @@ jobs:
       - name: Run frozen Phase-A memory population
         shell: bash
         env:
-          DATASET_ROLE: \${{ inputs.dataset-role }}
-          PLATFORM: \${{ matrix.platform }}
+          DATASET_ROLE: ${{ inputs.dataset-role }}
+          PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
           case "$DATASET_ROLE" in
@@ -199,7 +199,7 @@ jobs:
               ;;
           esac
 
-          run_id="PATCH-ENC-005/RUN-$(date -u +%Y%m%d)-\${{ github.run_number }}-\${GITHUB_SHA::7}-$PLATFORM"
+          run_id="PATCH-ENC-005/RUN-${{ github.run_id }}-${GITHUB_SHA::7}-$PLATFORM"
           mkdir -p artifacts/patch-enc-005/memory
           lanes="csp H4-L1-R2 H7-L1-R2-E75 H9-L9-K4-C16-R1M H9-L12-K4-C16-R1M H9-L15-K4-C16-R1M"
 
@@ -220,7 +220,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: patch-enc-005-\${{ inputs.dataset-role }}-memory-\${{ matrix.platform }}
+          name: patch-enc-005-${{ inputs.dataset-role }}-memory-${{ matrix.platform }}
           path: artifacts/patch-enc-005
           if-no-files-found: error
           retention-days: 90
