@@ -222,7 +222,8 @@ G3 instead uses a conservative counterfactual cost model that changes grouping o
 
 - G3-H0 — exact production CSP: one independent stored form per distinct missing target chunk.
 - G3-RUN — one zstd frame for each maximal run of payload-bearing first-occurrence missing target records that are consecutive in manifest index and physically adjacent in target content. A base-reused record, duplicate already-supplied ChunkId, or discontinuity ends the run.
-- G3-FILE — one zstd frame for the ordered sequence of all payload-bearing first-occurrence missing chunks of a changed file. This is the strongest one-factor within-file framing extreme; it is **not** whole-target --patch-from.\n- G3-REF-PATCHFROM — the pinned whole-file zstd --patch-from lane from §10. It is the requested whole-file/reference extreme, but is descriptive only because it simultaneously changes dictionary scope, candidate choice and framing. It is never substituted for B_G3 and cannot pass the G3 RFC gate.
+- G3-FILE — one zstd frame for the ordered sequence of all payload-bearing first-occurrence missing chunks of a changed file. This is the strongest one-factor within-file framing extreme; it is **not** whole-target --patch-from.
+- G3-REF-PATCHFROM — the pinned whole-file zstd --patch-from lane from §10. It is the requested whole-file/reference extreme, but is descriptive only because it simultaneously changes dictionary scope, candidate choice and framing. It is never substituted for B_G3 and cannot pass the G3 RFC gate.
 
 For RUN/FILE, input bytes are the concatenation of the group's original target chunks in first-target-record order. The group uses only the dictionary that H0 selected for the group's first payload entry; if H0 selected raw or no-dictionary zstd there is no base dictionary. No group-level candidate search, larger dictionary or whole-base oracle is allowed. The zstd window remains capped at 1 MiB.
 
@@ -347,7 +348,7 @@ Every executable/package is pinned by immutable version/tag/commit and is also h
 | HDiffPatch memory | v5.1.3, commit 3b9dca715ca492873bf2c49e22e5d5b7d2a78620 | create: hdiffz -m-4 -SD -d -f -p-1 -c-zstd-21-24 OLD NEW PATCH; apply: hpatchz -f OLD PATCH NEW |
 | HDiffPatch stream | same v5.1.3 | create: hdiffz -s-64 -SD -d -f -p-1 -c-zstd-21-24 OLD NEW PATCH; apply: hpatchz -f OLD PATCH NEW |
 | Zucchini | Chromium component commit 667ffb4e19970939936af2e7a169175ae4c1da5b | -gen / -apply, executable-aware mode, supported G4 subset only |
-| XZ BCJ | XZ Utils v5.8.1, commit d3e650e63c110e830fd5391e7f8b45df0b91d3da | research-only low-level x86/ARM64 reversible transform; no .xz container |
+| XZ BCJ | XZ Utils v5.8.4, commit d3e650e63c110e830fd5391e7f8b45df0b91d3da | research-only low-level x86/ARM64 reversible transform; no .xz container |
 | Puffin | Android 17.0.0_r1 / 343e23db1b4d81045e91a10244244893f5acd73b | puffdiff/puffpatch commands in §9.2, patch_algorithm=0, apply cache 52,428,800 bytes |
 
 HDiffPatch has two deliberately separate lanes. The memory lane uses the documented all-in-memory matcher for ratio-oriented evidence. The -s-64 lane is the streaming/bounded-memory comparator. Both use the same single-compressed-diff format, one thread and identical zstd compressor settings, so the comparison does not silently change compressor or parallelism. HDiffPatch v5.1.3 release archives publish these SHA-256 values: Linux x64 628963bf2ee9108a97260fa5eef44acd9ec94369b76090a957c9182b3abbb558; Linux ARM64 03e404e16d06479deaba645a09ed5c06636778b083b82bc7fc932ba34425430b; Windows x64 77f141386e5d8f785c1c846e10fbbc19b6c05aa00e3f59cc44670fb3f0e2ae94.
