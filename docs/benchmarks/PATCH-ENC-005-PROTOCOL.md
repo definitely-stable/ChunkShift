@@ -171,9 +171,11 @@ Selector bytes must be reproducible independently of a particular .NET implement
 
 **Integer and hash helpers**
 
-- `U32LE(x)` and `U64LE(x)` are exactly 4/8 bytes, least-significant byte first.
+- `U32LE(x)` and `U64LE(x)` **serialize** an unsigned integer to exactly 4/8 bytes, least-significant byte first.
+- `ReadU32LE(bytes4)` and `ReadU64LE(bytes8)` parse exactly 4/8 bytes as an unsigned little-endian integer.
+- `Low32(x) = x & 0xffffffff` as an unsigned 32-bit integer.
 - `SHA256(x)` is the 32 raw digest bytes.
-- `Key64(domain, payload) = UInt64LE(SHA256(ASCII(domain) || 0x00 || payload)[0..8])`.
+- `Key64(domain, payload) = ReadU64LE(SHA256(ASCII(domain) || 0x00 || payload)[0..8])`.
 - A displayed `Key64` is the unsigned integer written as 16 lowercase hexadecimal digits.
 - ChunkId input to a selector hash is the raw 32 ChunkId bytes, not its hex text.
 
@@ -231,11 +233,12 @@ The stable 64 KiB profile has a 16 KiB minimum chunk, so every subchunk is large
 **H6-O — Gear/content-defined sampling.** Lane: `H6-O12-SF3-S128`. This is a ChunkShift-specific Odess-style family:
 
 - use the stable ChunkShift Gear table identified by `chunkshift.fastcdc.gear.v1` / SHA-256 `91a3061015ae351cd3701852712bcd6aa4a1ce26c8a231d3969432b00f028f88`;
+- Patching/lab owns a private selector-table copy; it must not use reflection, `InternalsVisibleTo` or a Core API change to reach `FastCdcGearTable`. A test serializes its 256 `ulong` entries as U64LE in table-index order and requires the pinned SHA-256 above before H6 evidence is accepted;
 - Patching computes its own deterministic pass; it does not expose or depend on Core's internal rolling state;
 - start `h = 0`; for each byte in increasing offset order, `h = ((h << 1) + table[byte]) mod 2^64`;
 - after updating h for a byte, keep that h when `(h & 0x7f) == 0`;
 - if a chunk produces no sample, its terminal h is the sole fallback proxy;
-- for transform i = 0..11, `d = SHA256(ASCII("PATCH-ENC-005/NTRANSFORM/" + decimal-i-with-no-leading-zero))`, `m = UInt32LE(d[0..4]) | 1`, `a = UInt32LE(d[4..8])`; feature i is the minimum unsigned `(m × Low32(h) + a) mod 2^32` over proxies;
+- for transform i = 0..11, `d = SHA256(ASCII("PATCH-ENC-005/NTRANSFORM/" + decimal-i-with-no-leading-zero))`, `m = ReadU32LE(d[0..4]) | 1`, `a = ReadU32LE(d[4..8])`; feature i is the minimum unsigned `(m × Low32(h) + a) mod 2^32` over proxies;
 - group features as `[0..3]`, `[4..7]`, `[8..11]`;
 - group g's key is `Key64("PATCH-ENC-005/H6O/SF3", byte(g) || U32LE(f0) || U32LE(f1) || U32LE(f2) || U32LE(f3))`.
 
