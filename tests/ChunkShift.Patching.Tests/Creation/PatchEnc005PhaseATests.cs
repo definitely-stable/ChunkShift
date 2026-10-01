@@ -360,6 +360,9 @@ public class PatchEnc005PhaseATests
             H2W2() with { CandidateTraceSink = afterTrace });
 
         Assert.NotEmpty(patch);
+        Assert.Equal(
+            targetContent,
+            await CreationTestSupport.ReconstructAsync(patch, baseManifest, baseContent));
         CspCandidateTraceEntry after = afterTrace.Entries.Single(
             entry => entry.TargetChunkId == targetEntry.TargetChunkId);
         Assert.NotEqual(losingCandidate.Ordinal, after.SelectedCandidate);
