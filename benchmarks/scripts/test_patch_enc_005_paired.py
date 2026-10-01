@@ -1,6 +1,8 @@
 import importlib.util
+import os
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 SCRIPT = Path(__file__).with_name("run_patch_enc_005_paired.py")
 SPEC = importlib.util.spec_from_file_location("patch_enc_005_paired", SCRIPT)
@@ -27,7 +29,7 @@ class PatchEnc005PairedTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             MODULE.median_five([1.0, 2.0])
 
-    def test_development_family_sets_are_exact(self):
+    def test_development_family_sets_are_exact_and_confirmation_is_rejected(self):
         MODULE.validate_development_families(
             "calibration",
             "dotnet-runtime-linux-arm64,dotnet-aspnetcore-win-x64",
@@ -37,76 +39,99 @@ class PatchEnc005PairedTests(unittest.TestCase):
                 "calibration",
                 "dotnet-aspnetcore-win-x64",
             )
-        # Confirmation is governed by its separately frozen pair-list lock.
-        MODULE.validate_development_families("confirmation", None)
+        with self.assertRaises(ValueError):
+            MODULE.validate_development_families("confirmation", None)
 
-    def test_aggregate_sums_create_and_apply_evidence(self):
+    def test_run_identity_binds_full_commit_and_platform(self):
+        commit = "a" * 40
+        MODULE.validate_run_identity(
+            f"PATCH-ENC-005/RUN-20261001-007-{commit}-linux-x64",
+            commit,
+            "linux-x64",
+        )
+        with self.assertRaises(ValueError):
+            MODULE.validate_run_identity(
+                f"PATCH-ENC-005/RUN-20261001-007-{'b' * 40}-linux-x64",
+                commit,
+                "linux-x64",
+            )
+
+    def test_ci_binding_requires_checked_out_commit(self):
+        previous = os.environ.get("GITHUB_SHA")
+        try:
+            os.environ["GITHUB_SHA"] = "a" * 40
+            MODULE.validate_ci_binding("a" * 40)
+            with self.assertRaises(ValueError):
+                MODULE.validate_ci_binding("b" * 40)
+        finally:
+            if previous is None:
+                os.environ.pop("GITHUB_SHA", None)
+            else:
+                os.environ["GITHUB_SHA"] = previous
+
+    def test_create_aggregate_excludes_apply(self):
         result = {
             "files": [
                 {
-                    "family": "f",
-                    "base": "1",
-                    "target": "2",
-                    "path": "a",
-                    "patchSha256": "a" * 64,
                     "createSeconds": 1.25,
                     "patchBytes": 10,
-                    "createMetrics": {"cpuSeconds": 0.5},
+                    "createMetrics": {
+                        "cpuSeconds": 0.5,
+                        "allocatedBytes": 100,
+                        "baseReads": 2,
+                        "baseBytesRead": 20,
+                    },
+                },
+                {
+                    "createSeconds": 2.75,
+                    "patchBytes": 20,
+                    "createMetrics": {
+                        "cpuSeconds": 1.5,
+                        "allocatedBytes": 200,
+                        "baseReads": 3,
+                        "baseBytesRead": 30,
+                    },
+                },
+            ]
+        }
+        self.assertEqual(
+            {
+                "wallSeconds": 4.0,
+                "cpuSeconds": 2.0,
+                "allocatedBytes": 300,
+                "baseReads": 5,
+                "baseBytesRead": 50,
+                "patchBytes": 30,
+            },
+            MODULE.aggregate_create(result),
+        )
+
+    def test_apply_aggregate_requires_exactly_five_samples(self):
+        result = {
+            "files": [
+                {
                     "applyMetrics": {
                         "medianWallSeconds": 0.3,
                         "medianCpuSeconds": 0.2,
                         "medianBaseReads": 4,
                         "medianBaseBytesRead": 100,
                         "samples": [{}, {}, {}, {}, {}],
-                    },
-                },
-                {
-                    "family": "f",
-                    "base": "1",
-                    "target": "2",
-                    "path": "b",
-                    "patchSha256": "b" * 64,
-                    "createSeconds": 2.75,
-                    "patchBytes": 20,
-                    "createMetrics": {"cpuSeconds": 1.5},
-                    "applyMetrics": {
-                        "medianWallSeconds": 0.7,
-                        "medianCpuSeconds": 0.4,
-                        "medianBaseReads": 6,
-                        "medianBaseBytesRead": 200,
-                        "samples": [{}, {}, {}, {}, {}],
-                    },
-                },
-            ]
-        }
-        aggregate = MODULE.aggregate(result)
-        self.assertEqual(4.0, aggregate["wallSeconds"])
-        self.assertEqual(2.0, aggregate["cpuSeconds"])
-        self.assertEqual(30, aggregate["patchBytes"])
-        self.assertEqual(1.0, aggregate["applyWallSeconds"])
-        self.assertAlmostEqual(0.6, aggregate["applyCpuSeconds"])
-        self.assertEqual(10, aggregate["applyBaseReads"])
-        self.assertEqual(300, aggregate["applyBaseBytesRead"])
-
-    def test_aggregate_rejects_missing_five_repeat_apply_evidence(self):
-        result = {
-            "files": [
-                {
-                    "createSeconds": 1.0,
-                    "patchBytes": 10,
-                    "createMetrics": {"cpuSeconds": 0.5},
-                    "applyMetrics": {
-                        "medianWallSeconds": 0.1,
-                        "medianCpuSeconds": 0.1,
-                        "medianBaseReads": 1,
-                        "medianBaseBytesRead": 1,
-                        "samples": [{}],
-                    },
+                    }
                 }
             ]
         }
+        self.assertEqual(
+            {
+                "wallSeconds": 0.3,
+                "cpuSeconds": 0.2,
+                "baseReads": 4,
+                "baseBytesRead": 100,
+            },
+            MODULE.aggregate_apply(result),
+        )
+        result["files"][0]["applyMetrics"]["samples"] = [{}]
         with self.assertRaises(ValueError):
-            MODULE.aggregate(result)
+            MODULE.aggregate_apply(result)
 
     def test_h7_h4_byte_oracle_compares_per_file_sha(self):
         base = {
@@ -122,10 +147,30 @@ class PatchEnc005PairedTests(unittest.TestCase):
         }
         same = {"files": [dict(base["files"][0])]}
         MODULE.require_same_patch_bytes("oracle", base, same)
-
         changed = {"files": [dict(base["files"][0], patchSha256="b" * 64)]}
         with self.assertRaises(ValueError):
             MODULE.require_same_patch_bytes("oracle", base, changed)
+
+    def test_result_validation_binds_dataset_source_execution_and_apply_mode(self):
+        commit = "a" * 40
+        args = SimpleNamespace(
+            run_id=f"PATCH-ENC-005/RUN-20261001-001-{commit}-linux-x64",
+            source_commit=commit,
+        )
+        result = {
+            "schema": "chunkshift.patch-lab.v1",
+            "lane": "H4-L1-R2",
+            "runId": args.run_id,
+            "execution": "h2-w2",
+            "corpusPairsSha256": MODULE.FROZEN_DATASET_SHA256,
+            "applyCheck": "boundary",
+            "applyRepeats": 0,
+            "environment": {"gitCommit": commit, "processorCount": 2},
+        }
+        MODULE.validate_result(args, "H4-L1-R2", result, apply=False)
+        result["corpusPairsSha256"] = "0" * 64
+        with self.assertRaises(ValueError):
+            MODULE.validate_result(args, "H4-L1-R2", result, apply=False)
 
 
 if __name__ == "__main__":

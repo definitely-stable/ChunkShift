@@ -1,19 +1,27 @@
 #!/usr/bin/env python3
-"""Run PATCH-ENC-005's frozen five-round paired create procedure.
+"""Run PATCH-ENC-005 Phase-A development evidence without contaminating create timing.
 
-This is infrastructure, not a decision evaluator. It executes H0 brackets and
-the requested frozen candidate lanes, records every raw PatchLab result/trace,
-checks the 25% bracket-noise rule, and reports per-round wall/CPU ratios.
+The driver owns the frozen one-retry rule. Measured create rounds are trace-free
+and apply-free. After one dispatch is accepted, apply, candidate-trace and
+independent-decoder correctness evidence are collected in separate untimed
+passes and are bound back to the accepted per-file patch SHA-256 map.
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime as dt
+import hashlib
 import json
+import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
+EXPERIMENT_ID = "PATCH-ENC-005"
+FROZEN_PROTOCOL_COMMIT = "96fd9b296d6998cac397e61041f22df51e6dd43c"
+FROZEN_DATASET_SHA256 = "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd"
 FROZEN_PHASE_A = (
     "H4-L1-R2",
     "H7-L1-R2-E75",
@@ -21,7 +29,6 @@ FROZEN_PHASE_A = (
     "H9-L12-K4-C16-R1M",
     "H9-L15-K4-C16-R1M",
 )
-
 FROZEN_DEVELOPMENT_FAMILIES = {
     "calibration": {
         "dotnet-aspnetcore-win-x64",
@@ -34,6 +41,12 @@ FROZEN_DEVELOPMENT_FAMILIES = {
         "chunkshift-source",
     },
 }
+PLATFORMS = {"linux-x64", "linux-arm64", "win-x64"}
+COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
+RUN_ID_RE = re.compile(
+    r"^PATCH-ENC-005/RUN-(\d{8})-(\d{3})-([0-9a-f]{40})-"
+    r"(linux-x64|linux-arm64|win-x64)$"
+)
 
 
 def rotated(lanes: list[str], round_index: int) -> list[str]:
@@ -61,14 +74,38 @@ def median_five(values: list[float]) -> float:
 
 
 def validate_development_families(dataset_role: str, families: str | None) -> None:
-    expected = FROZEN_DEVELOPMENT_FAMILIES.get(dataset_role)
-    if expected is None:
-        return
+    if dataset_role not in FROZEN_DEVELOPMENT_FAMILIES:
+        raise ValueError("Phase-A development runner accepts only calibration or evaluation")
+    expected = FROZEN_DEVELOPMENT_FAMILIES[dataset_role]
     actual = {item.strip() for item in (families or "").split(",") if item.strip()}
     if actual != expected:
         raise ValueError(
             f"{dataset_role}: expected frozen families {sorted(expected)}, got {sorted(actual)}"
         )
+
+
+def validate_run_identity(run_id: str, source_commit: str, platform: str) -> None:
+    if not COMMIT_RE.fullmatch(source_commit):
+        raise ValueError("--source-commit must be a lowercase full 40-hex commit")
+    if platform not in PLATFORMS:
+        raise ValueError(f"unsupported platform {platform!r}")
+    match = RUN_ID_RE.fullmatch(run_id)
+    if match is None:
+        raise ValueError(
+            "--run-id must match PATCH-ENC-005/RUN-YYYYMMDD-NNN-<40hex>-<platform>"
+        )
+    date_text, _sequence, embedded_commit, embedded_platform = match.groups()
+    dt.datetime.strptime(date_text, "%Y%m%d")
+    if embedded_commit != source_commit or embedded_platform != platform:
+        raise ValueError("--run-id commit/platform must match source/platform arguments")
+
+
+def validate_ci_binding(source_commit: str) -> None:
+    checked_out = os.environ.get("GITHUB_SHA")
+    if not checked_out:
+        raise ValueError("decision evidence requires GITHUB_SHA binding")
+    if checked_out.lower() != source_commit:
+        raise ValueError("--source-commit does not match GITHUB_SHA")
 
 
 def patch_sha_map(result: dict) -> dict[tuple[str, str, str, str], str]:
@@ -78,58 +115,114 @@ def patch_sha_map(result: dict) -> dict[tuple[str, str, str, str], str]:
     }
 
 
+def serialized_patch_sha_map(
+    mapping: dict[tuple[str, str, str, str], str]
+) -> list[dict[str, str]]:
+    return [
+        {
+            "family": key[0],
+            "base": key[1],
+            "target": key[2],
+            "path": key[3],
+            "patchSha256": value,
+        }
+        for key, value in sorted(mapping.items())
+    ]
+
+
 def require_same_patch_bytes(label: str, left: dict, right: dict) -> None:
     if patch_sha_map(left) != patch_sha_map(right):
         raise ValueError(f"{label}: patch SHA-256 mismatch")
 
 
-def aggregate(result: dict) -> dict[str, float | int]:
+def aggregate_create(result: dict) -> dict[str, float | int]:
     files = result["files"]
     cpu = 0.0
-    apply_wall = 0.0
-    apply_cpu = 0.0
-    apply_reads = 0
-    apply_bytes = 0
-
+    allocations = 0
+    base_reads = 0
+    base_bytes = 0
     for item in files:
         metrics = item.get("createMetrics")
         if metrics is None:
             raise ValueError("paired timing requires measured createMetrics")
-        apply = item.get("applyMetrics")
-        if apply is None:
-            raise ValueError("paired timing requires measured five-repeat applyMetrics")
-        samples = apply.get("samples")
-        if not isinstance(samples, list) or len(samples) != 5:
-            raise ValueError("paired timing requires exactly five apply samples per file")
-
         cpu += float(metrics["cpuSeconds"])
-        apply_wall += float(apply["medianWallSeconds"])
-        apply_cpu += float(apply["medianCpuSeconds"])
-        apply_reads += int(apply["medianBaseReads"])
-        apply_bytes += int(apply["medianBaseBytesRead"])
-
+        allocations += int(metrics["allocatedBytes"])
+        base_reads += int(metrics["baseReads"])
+        base_bytes += int(metrics["baseBytesRead"])
     return {
         "wallSeconds": sum(float(item["createSeconds"]) for item in files),
         "cpuSeconds": cpu,
+        "allocatedBytes": allocations,
+        "baseReads": base_reads,
+        "baseBytesRead": base_bytes,
         "patchBytes": sum(int(item["patchBytes"]) for item in files),
-        "applyWallSeconds": apply_wall,
-        "applyCpuSeconds": apply_cpu,
-        "applyBaseReads": apply_reads,
-        "applyBaseBytesRead": apply_bytes,
     }
+
+
+def aggregate_apply(result: dict) -> dict[str, float | int]:
+    wall = 0.0
+    cpu = 0.0
+    reads = 0
+    bytes_read = 0
+    for item in result["files"]:
+        apply = item.get("applyMetrics")
+        if apply is None:
+            raise ValueError("apply evidence requires measured applyMetrics")
+        samples = apply.get("samples")
+        if not isinstance(samples, list) or len(samples) != 5:
+            raise ValueError("apply evidence requires exactly five samples per file")
+        wall += float(apply["medianWallSeconds"])
+        cpu += float(apply["medianCpuSeconds"])
+        reads += int(apply["medianBaseReads"])
+        bytes_read += int(apply["medianBaseBytesRead"])
+    return {
+        "wallSeconds": wall,
+        "cpuSeconds": cpu,
+        "baseReads": reads,
+        "baseBytesRead": bytes_read,
+    }
+
+
+def validate_result(
+    args: argparse.Namespace,
+    lane: str,
+    result: dict,
+    *,
+    apply: bool,
+) -> None:
+    if result.get("schema") != "chunkshift.patch-lab.v1":
+        raise ValueError(f"{lane}: unexpected PatchLab schema")
+    if result.get("lane") != lane:
+        raise ValueError(f"{lane}: result lane mismatch")
+    if result.get("runId") != args.run_id:
+        raise ValueError(f"{lane}: result RunId mismatch")
+    if result.get("execution") != "h2-w2":
+        raise ValueError(f"{lane}: result is not explicit H2-W2")
+    if result.get("corpusPairsSha256") != FROZEN_DATASET_SHA256:
+        raise ValueError(f"{lane}: development corpus lock mismatch")
+    if result.get("applyCheck") != "boundary":
+        raise ValueError(f"{lane}: apply evidence is not pinned to production boundary check")
+    expected_repeats = 5 if apply else 0
+    if int(result.get("applyRepeats", -1)) != expected_repeats:
+        raise ValueError(f"{lane}: unexpected apply repeat count")
+    environment = result.get("environment") or {}
+    if str(environment.get("gitCommit") or "").lower() != args.source_commit:
+        raise ValueError(f"{lane}: measured environment commit mismatch")
+    if int(environment.get("processorCount") or 0) < 2:
+        raise ValueError("PATCH-ENC-005 requires Environment.ProcessorCount >= 2")
 
 
 def invoke(
     args: argparse.Namespace,
     lane: str,
-    name: str,
+    directory: Path,
     *,
-    traces: bool,
-    apply: bool = True,
+    traces: bool = False,
+    apply: bool = False,
+    preserve_patches: bool = False,
 ) -> tuple[Path, dict]:
-    invocation = args.output / name
-    invocation.mkdir(parents=True, exist_ok=False)
-    output = invocation / "run.json"
+    directory.mkdir(parents=True, exist_ok=False)
+    output = directory / "run.json"
     command = [
         args.dotnet,
         "run",
@@ -151,29 +244,29 @@ def invoke(
         "1",
         "--execution",
         "h2-w2",
+        "--apply-check",
+        "boundary",
         "--run-id",
         args.run_id,
     ]
-
     if apply:
         command += ["--apply-repeats", "5", "--apply-check-only"]
     else:
         command += ["--no-apply"]
-
     if args.families:
         command += ["--families", args.families]
-
     if args.work:
         command += ["--work", str(args.work)]
-
+    if preserve_patches:
+        command += ["--patch-dir", str(directory / "patches")]
     if traces:
         command += [
             "--trace-dir",
-            str(invocation / "traces"),
+            str(directory / "traces"),
             "--experiment-id",
-            "PATCH-ENC-005",
+            EXPERIMENT_ID,
             "--protocol-commit",
-            args.protocol_commit,
+            FROZEN_PROTOCOL_COMMIT,
             "--source-commit",
             args.source_commit,
             "--platform",
@@ -181,82 +274,40 @@ def invoke(
             "--dataset-role",
             args.dataset_role,
         ]
-
     subprocess.run(command, check=True)
-    return output, json.loads(output.read_text(encoding="utf-8"))
+    result = json.loads(output.read_text(encoding="utf-8"))
+    validate_result(args, lane, result, apply=apply)
+    return output, result
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--corpus", type=Path, required=True)
-    parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--run-id", required=True)
-    parser.add_argument("--protocol-commit", required=True)
-    parser.add_argument("--source-commit", required=True)
-    parser.add_argument("--platform", required=True)
-    parser.add_argument(
-        "--dataset-role",
-        choices=("calibration", "evaluation", "confirmation"),
-        required=True,
-    )
-    parser.add_argument("--families")
-    parser.add_argument("--work", type=Path)
-    parser.add_argument("--lanes", default=",".join(FROZEN_PHASE_A))
-    parser.add_argument("--dotnet", default="dotnet")
-    parser.add_argument(
-        "--project",
-        type=Path,
-        default=Path("benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj"),
-    )
-    args = parser.parse_args()
+def run_dispatch(
+    args: argparse.Namespace,
+    lanes: list[str],
+    attempt: int,
+) -> tuple[dict, dict[str, dict[tuple[str, str, str, str], str]]]:
+    root = args.output / f"attempt-{attempt}"
+    root.mkdir(parents=True, exist_ok=False)
 
-    lanes = [lane.strip() for lane in args.lanes.split(",") if lane.strip()]
-    unknown = [lane for lane in lanes if lane not in FROZEN_PHASE_A]
-
-    if unknown or len(set(lanes)) != len(lanes) or not lanes:
-        parser.error(
-            "--lanes must be a non-empty unique subset of frozen Phase-A lanes; "
-            f"invalid={unknown}"
-        )
-    if "H7-L1-R2-E75" in lanes and "H4-L1-R2" not in lanes:
-        parser.error("H7-L1-R2-E75 requires H4-L1-R2 for the frozen byte oracle")
-    try:
-        validate_development_families(args.dataset_role, args.families)
-    except ValueError as error:
-        parser.error(str(error))
-
-    args.output.mkdir(parents=True, exist_ok=False)
-
-    # Warm-up exercises create only and is excluded from every recorded ratio
-    # and every five-repeat apply aggregate.
-    _, warmup = invoke(args, "csp", "warmup-h0", traces=False, apply=False)
-    if int(warmup["environment"]["processorCount"]) < 2:
-        raise ValueError("PATCH-ENC-005 requires Environment.ProcessorCount >= 2")
+    _, warmup = invoke(args, "csp", root / "warmup-h0", apply=False)
+    expected_patch_shas: dict[str, dict[tuple[str, str, str, str], str]] = {
+        "csp": patch_sha_map(warmup)
+    }
     rounds: list[dict] = []
     invalid = False
-    expected_patch_shas: dict[str, dict[tuple[str, str, str, str], str]] = {}
 
     for round_index in range(5):
         round_number = round_index + 1
         start_path, start = invoke(
-            args,
-            "csp",
-            f"round-{round_number}-h0-start",
-            traces=True,
+            args, "csp", root / f"round-{round_number}-h0-start", apply=False
         )
-        baseline_shas = patch_sha_map(start)
-        if "csp" in expected_patch_shas and expected_patch_shas["csp"] != baseline_shas:
+        if patch_sha_map(start) != expected_patch_shas["csp"]:
             raise ValueError("H0 patch SHA-256 changed across measured rounds")
-        expected_patch_shas.setdefault("csp", baseline_shas)
         candidates: list[dict] = []
         candidate_results: dict[str, dict] = {}
 
         for lane in rotated(lanes, round_index):
             path, result = invoke(
-                args,
-                lane,
-                f"round-{round_number}-{lane}",
-                traces=True,
+                args, lane, root / f"round-{round_number}-{lane}", apply=False
             )
             lane_shas = patch_sha_map(result)
             if lane in expected_patch_shas and expected_patch_shas[lane] != lane_shas:
@@ -267,25 +318,25 @@ def main() -> int:
                 {
                     "lane": lane,
                     "result": str(path.relative_to(args.output)),
-                    "aggregate": aggregate(result),
+                    "aggregate": aggregate_create(result),
                 }
             )
 
         end_path, end = invoke(
-            args,
-            "csp",
-            f"round-{round_number}-h0-end",
-            traces=True,
+            args, "csp", root / f"round-{round_number}-h0-end", apply=False
         )
         require_same_patch_bytes("H0 bracket", start, end)
+        if patch_sha_map(end) != expected_patch_shas["csp"]:
+            raise ValueError("H0 patch SHA-256 changed across measured rounds")
         if "H7-L1-R2-E75" in candidate_results:
             require_same_patch_bytes(
                 "H7/H4 frozen byte oracle",
                 candidate_results["H4-L1-R2"],
                 candidate_results["H7-L1-R2-E75"],
             )
-        start_aggregate = aggregate(start)
-        end_aggregate = aggregate(end)
+
+        start_aggregate = aggregate_create(start)
+        end_aggregate = aggregate_create(end)
         noisy = bracket_is_noisy(
             float(start_aggregate["wallSeconds"]),
             float(end_aggregate["wallSeconds"]),
@@ -307,7 +358,9 @@ def main() -> int:
             candidate["wallRatio"] = (
                 float(aggregate_candidate["wallSeconds"]) / wall_denominator
             )
-            candidate["cpuRatio"] = float(aggregate_candidate["cpuSeconds"]) / cpu_denominator
+            candidate["cpuRatio"] = (
+                float(aggregate_candidate["cpuSeconds"]) / cpu_denominator
+            )
 
         rounds.append(
             {
@@ -341,26 +394,253 @@ def main() -> int:
         )
 
     document = {
-        "schema": "chunkshift.patch-enc-005-paired.v1",
-        "experimentId": "PATCH-ENC-005",
+        "schema": "chunkshift.patch-enc-005-dispatch.v1",
+        "experimentId": EXPERIMENT_ID,
         "runId": args.run_id,
-        "protocolCommit": args.protocol_commit.lower(),
-        "sourceCommit": args.source_commit.lower(),
+        "attempt": attempt,
+        "protocolCommit": FROZEN_PROTOCOL_COMMIT,
+        "sourceCommit": args.source_commit,
         "platform": args.platform,
         "datasetRole": args.dataset_role,
+        "datasetSha256": FROZEN_DATASET_SHA256,
         "rounds": rounds,
         "summaries": summaries,
         "valid": not invalid,
         "invalidReason": "h0-bracket-noise" if invalid else None,
+        "patchShas": {
+            lane: serialized_patch_sha_map(mapping)
+            for lane, mapping in sorted(expected_patch_shas.items())
+        },
+    }
+    (root / "dispatch.json").write_text(
+        json.dumps(document, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    return document, expected_patch_shas
+
+
+def pair_index(corpus: Path) -> dict[tuple[str, str, str, str], dict]:
+    document = json.loads((corpus / "pairs.json").read_text(encoding="utf-8"))
+    result: dict[tuple[str, str, str, str], dict] = {}
+    for pair in document["pairs"]:
+        for item in pair["changed"]:
+            result[(pair["family"], pair["base"], pair["target"], item["path"])] = item
+    return result
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def collect_apply_evidence(
+    args: argparse.Namespace,
+    lane_maps: dict[str, dict[tuple[str, str, str, str], str]],
+) -> dict[str, dict]:
+    evidence: dict[str, dict] = {}
+    root = args.output / "apply-evidence"
+    for lane in ["csp", *[item for item in FROZEN_PHASE_A if item in lane_maps]]:
+        path, result = invoke(args, lane, root / lane, apply=True)
+        if patch_sha_map(result) != lane_maps[lane]:
+            raise ValueError(f"{lane}: apply capture patch bytes differ from accepted timing")
+        evidence[lane] = {
+            "result": str(path.relative_to(args.output)),
+            "aggregate": aggregate_apply(result),
+        }
+    return evidence
+
+
+def decode_capture(
+    args: argparse.Namespace,
+    lane: str,
+    result: dict,
+    capture_dir: Path,
+    pair_lookup: dict[tuple[str, str, str, str], dict],
+) -> list[dict]:
+    work = args.work if args.work else args.corpus / "work"
+    rows: list[dict] = []
+    for item in result["files"]:
+        key = (item["family"], item["base"], item["target"], item["path"])
+        pair_file = pair_lookup[key]
+        saved = item.get("savedPatch")
+        if not saved:
+            raise ValueError(f"{lane}/{key}: correctness capture did not preserve patch")
+        patch = capture_dir / "patches" / saved
+        if sha256_file(patch) != item["patchSha256"]:
+            raise ValueError(f"{lane}/{key}: preserved patch digest mismatch")
+        base_manifest = work / "csm" / f'{pair_file["baseSha256"]}.csm'
+        base_content = (
+            args.corpus / "tree" / item["family"] / item["base"] / item["path"]
+        )
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(args.decoder),
+                str(patch),
+                "--base-manifest",
+                str(base_manifest),
+                "--base",
+                str(base_content),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        verdict = json.loads(completed.stdout)
+        if verdict.get("verdict") != "valid":
+            raise ValueError(f"{lane}/{key}: independent decoder verdict is {verdict}")
+        if verdict.get("outputSha256") != pair_file["targetSha256"]:
+            raise ValueError(f"{lane}/{key}: independent decoder target SHA mismatch")
+        rows.append(
+            {
+                "family": item["family"],
+                "base": item["base"],
+                "target": item["target"],
+                "path": item["path"],
+                "patchSha256": item["patchSha256"],
+                "targetSha256": pair_file["targetSha256"],
+                "decoderOutputSha256": verdict["outputSha256"],
+                "verdict": "valid",
+            }
+        )
+    return rows
+
+
+def collect_trace_and_correctness(
+    args: argparse.Namespace,
+    lane_maps: dict[str, dict[tuple[str, str, str, str], str]],
+) -> dict[str, dict]:
+    root = args.output / "trace-correctness"
+    lookup = pair_index(args.corpus)
+    evidence: dict[str, dict] = {}
+    for lane in ["csp", *[item for item in FROZEN_PHASE_A if item in lane_maps]]:
+        capture_dir = root / lane
+        path, result = invoke(
+            args,
+            lane,
+            capture_dir,
+            traces=True,
+            apply=False,
+            preserve_patches=True,
+        )
+        if patch_sha_map(result) != lane_maps[lane]:
+            raise ValueError(f"{lane}: trace capture patch bytes differ from accepted timing")
+        rows = decode_capture(args, lane, result, capture_dir, lookup)
+        evidence[lane] = {
+            "result": str(path.relative_to(args.output)),
+            "traceDirectory": str((capture_dir / "traces").relative_to(args.output)),
+            "correctness": rows,
+        }
+    return evidence
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--corpus", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--run-id", required=True)
+    parser.add_argument("--source-commit", required=True)
+    parser.add_argument("--platform", choices=sorted(PLATFORMS), required=True)
+    parser.add_argument(
+        "--dataset-role",
+        choices=("calibration", "evaluation"),
+        required=True,
+    )
+    parser.add_argument("--families", required=True)
+    parser.add_argument("--work", type=Path)
+    parser.add_argument("--lanes", default=",".join(FROZEN_PHASE_A))
+    parser.add_argument("--dotnet", default="dotnet")
+    parser.add_argument(
+        "--project",
+        type=Path,
+        default=Path("benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj"),
+    )
+    parser.add_argument(
+        "--decoder",
+        type=Path,
+        default=Path("tools/csp-fixtures/decode.py"),
+    )
+    args = parser.parse_args()
+
+    args.source_commit = args.source_commit.lower()
+    lanes = [lane.strip() for lane in args.lanes.split(",") if lane.strip()]
+    unknown = [lane for lane in lanes if lane not in FROZEN_PHASE_A]
+    if unknown or len(set(lanes)) != len(lanes) or not lanes:
+        parser.error(
+            "--lanes must be a non-empty unique subset of frozen Phase-A lanes; "
+            f"invalid={unknown}"
+        )
+    if "H7-L1-R2-E75" in lanes and "H4-L1-R2" not in lanes:
+        parser.error("H7-L1-R2-E75 requires H4-L1-R2 for the frozen byte oracle")
+
+    try:
+        validate_development_families(args.dataset_role, args.families)
+        validate_run_identity(args.run_id, args.source_commit, args.platform)
+        validate_ci_binding(args.source_commit)
+    except ValueError as error:
+        parser.error(str(error))
+
+    args.output.mkdir(parents=True, exist_ok=False)
+    attempts: list[dict] = []
+    accepted: tuple[dict, dict[str, dict[tuple[str, str, str, str], str]]] | None = None
+
+    first = run_dispatch(args, lanes, 1)
+    attempts.append(first[0])
+    if first[0]["valid"]:
+        accepted = first
+    else:
+        second = run_dispatch(args, lanes, 2)
+        attempts.append(second[0])
+        if second[0]["valid"]:
+            accepted = second
+
+    apply_evidence: dict[str, dict] | None = None
+    trace_correctness: dict[str, dict] | None = None
+    accepted_patch_shas: dict[str, list[dict[str, str]]] | None = None
+    if accepted is not None:
+        accepted_patch_shas = {
+            lane: serialized_patch_sha_map(mapping)
+            for lane, mapping in sorted(accepted[1].items())
+        }
+        apply_evidence = collect_apply_evidence(args, accepted[1])
+        trace_correctness = collect_trace_and_correctness(args, accepted[1])
+
+    document = {
+        "schema": "chunkshift.patch-enc-005-paired.v2",
+        "experimentId": EXPERIMENT_ID,
+        "runId": args.run_id,
+        "protocolCommit": FROZEN_PROTOCOL_COMMIT,
+        "sourceCommit": args.source_commit,
+        "platform": args.platform,
+        "datasetRole": args.dataset_role,
+        "datasetSha256": FROZEN_DATASET_SHA256,
+        "githubRunId": os.environ.get("GITHUB_RUN_ID"),
+        "githubRunAttempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
+        "attempts": [
+            {
+                "attempt": item["attempt"],
+                "valid": item["valid"],
+                "invalidReason": item["invalidReason"],
+                "dispatch": f'attempt-{item["attempt"]}/dispatch.json',
+            }
+            for item in attempts
+        ],
+        "acceptedAttempt": accepted[0]["attempt"] if accepted else None,
+        "status": "VALID" if accepted else "INCOMPLETE",
+        "acceptedPatchShas": accepted_patch_shas,
+        "applyEvidence": apply_evidence,
+        "traceCorrectness": trace_correctness,
     }
     (args.output / "paired.json").write_text(
         json.dumps(document, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
         newline="\n",
     )
-
-    # A noisy dispatch is evidence-invalid, not a candidate failure.
-    return 1 if invalid else 0
+    return 0 if accepted is not None else 1
 
 
 if __name__ == "__main__":
