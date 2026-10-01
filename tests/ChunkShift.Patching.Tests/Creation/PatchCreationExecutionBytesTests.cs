@@ -84,13 +84,22 @@ public sealed class PatchCreationExecutionBytesTests
         AssertNothingLeaked(statistics);
     }
 
-    // The public API runs two encode workers (H2-W2, PATCH-ENC-004) and still
-    // makes H0's patch.
-    [Fact]
-    public void DefaultExecution_IsTwoWorkersWithoutTheCache()
+    // The public API runs two encode workers (H2-W2, PATCH-ENC-004) from two
+    // processors on and the sequential pass on one; either makes H0's patch.
+    [Theory]
+    [InlineData(1, 0)]
+    [InlineData(2, 2)]
+    [InlineData(4, 2)]
+    [InlineData(64, 2)]
+    public void DefaultExecution_IsTwoWorkersFromTwoProcessorsOtherwiseSequential(int processors, int workers)
     {
-        Assert.Equal(2, CspCreateExecution.Default.WorkerCount);
-        Assert.False(CspCreateExecution.Default.UseBaseCandidateCache);
+        CspCreateExecution execution = CspCreateExecution.ForProcessorCount(processors);
+
+        Assert.Equal(workers, execution.WorkerCount);
+        Assert.False(execution.UseBaseCandidateCache);
+        Assert.Equal(
+            CspCreateExecution.ForProcessorCount(Environment.ProcessorCount),
+            CspCreateExecution.Default);
     }
 
     [Fact]
