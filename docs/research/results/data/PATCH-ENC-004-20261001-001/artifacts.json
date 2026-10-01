@@ -1,0 +1,417 @@
+{
+ "schema": "chunkshift.raw-artifact-manifest.v1",
+ "experimentId": "PATCH-ENC-004",
+ "repository": "definitely-stable/ChunkShift",
+ "workflow": ".github/workflows/patch-lab.yml",
+ "workflowRunId": 36806102359,
+ "commit": "844d1e7c931877072eea804164fd145defbdd2c8",
+ "note": "zipSha256 is GitHub's artifact digest; files are the documents inside each ZIP.",
+ "download": "gh run download 36806102359 -R definitely-stable/ChunkShift -n <name>",
+ "artifacts": [
+  {
+   "artifactId": 11143870975,
+   "name": "patch-lab-create-throughput-linux-x64-runs",
+   "jobId": 110190672913,
+   "zipBytes": 2003925,
+   "zipSha256": "c1be1f8913096227d6f14b5adec32d706b0a14976c2be9e89eb786d2b09060fb",
+   "expiresUtc": "2026-12-30T02:29:48Z",
+   "files": [
+    {
+     "path": "create-throughput-1-h0-linux-x64.json",
+     "bytes": 2087226,
+     "sha256": "25639133d7f1cc53478620196942c6b13df51c6ce87e81a33ea7b80c9ce07168"
+    },
+    {
+     "path": "create-throughput-10-h3-w8-linux-x64.json",
+     "bytes": 2088052,
+     "sha256": "095f7786e748e1d341426c287b438f00a222ad5ed69c6cdd3e0b93c54f0b36d6"
+    },
+    {
+     "path": "create-throughput-11-h0-linux-x64.json",
+     "bytes": 2068743,
+     "sha256": "e727be49f688273334b641e3bb8af54bff7e9c82a3dcce98bb079be40c71e500"
+    },
+    {
+     "path": "create-throughput-2-h1-linux-x64.json",
+     "bytes": 2075767,
+     "sha256": "96743e41c33c7a138fee4859e2a1c7aeaa77680ad507d56c427f581132ee3978"
+    },
+    {
+     "path": "create-throughput-3-h2-w1-linux-x64.json",
+     "bytes": 2080517,
+     "sha256": "f76ee9ed5039b5144c99b494cd51c38d880e9a4026039aa083efec3e83cd7fc9"
+    },
+    {
+     "path": "create-throughput-4-h2-w2-linux-x64.json",
+     "bytes": 2080740,
+     "sha256": "f03cf0e1fb623933542ad7ea10f11b161b5124c6888fb17540af94794ca0d338"
+    },
+    {
+     "path": "create-throughput-5-h2-w4-linux-x64.json",
+     "bytes": 2080918,
+     "sha256": "a91156f4aaea9d7ff4b174c207bd9d17d239c22532fa202cbba40342c71bb956"
+    },
+    {
+     "path": "create-throughput-6-h2-w8-linux-x64.json",
+     "bytes": 2080866,
+     "sha256": "5b7ca513ef527e1dd5ec6d1bd973fd2d371df1f7c519590e5620ea22e5b0eb58"
+    },
+    {
+     "path": "create-throughput-7-h3-w1-linux-x64.json",
+     "bytes": 2087657,
+     "sha256": "c3dfe5c52ebe0073cddc29b9035708f18de9b159feb90f8d9aec6185223edc67"
+    },
+    {
+     "path": "create-throughput-8-h3-w2-linux-x64.json",
+     "bytes": 2087944,
+     "sha256": "28643aba92b061bd564cf0e4b9f5ac0b39eb9483baa02a753071d77378a3856c"
+    },
+    {
+     "path": "create-throughput-9-h3-w4-linux-x64.json",
+     "bytes": 2088005,
+     "sha256": "4477cb7f85b292de0d468a42253fa3b2defbf112a1c1b44abf0e61c3cf29da56"
+    }
+   ]
+  },
+  {
+   "artifactId": 11141923905,
+   "name": "patch-lab-create-throughput-linux-arm64-runs",
+   "jobId": 110190672878,
+   "zipBytes": 1999712,
+   "zipSha256": "6f2b37a096e2a1b3dbe763a9f5ee99207ce740f1aa7362ffa281deaa15158e02",
+   "expiresUtc": "2026-12-30T02:29:48Z",
+   "files": [
+    {
+     "path": "create-throughput-1-h0-linux-arm64.json",
+     "bytes": 2087267,
+     "sha256": "a93789a6d57d3d62fe40f851e17ccc33155a3d8c8490e04e31815cf3007584bd"
+    },
+    {
+     "path": "create-throughput-10-h3-w8-linux-arm64.json",
+     "bytes": 2088010,
+     "sha256": "b4316eb1319ef700035ece8fb74cf0408ab2798ef9c2e3fa7115718c050a6de8"
+    },
+    {
+     "path": "create-throughput-11-h0-linux-arm64.json",
+     "bytes": 2068737,
+     "sha256": "416e6b3d3b6d7f230038436662b1100cba6fa847a67c5a056e143d4d37b60c80"
+    },
+    {
+     "path": "create-throughput-2-h1-linux-arm64.json",
+     "bytes": 2075794,
+     "sha256": "532b7aa51def9744e8102e89965681866d1820c5c59c14e33f11a5a62fa770ce"
+    },
+    {
+     "path": "create-throughput-3-h2-w1-linux-arm64.json",
+     "bytes": 2080509,
+     "sha256": "742f701b201de37a1b4165fd2c9e02de18f32fff90dadf16548f7beb2175d0a9"
+    },
+    {
+     "path": "create-throughput-4-h2-w2-linux-arm64.json",
+     "bytes": 2080789,
+     "sha256": "9ebb8caee3d47b8234abd68189bd47e09d6621f733f44483051256fb8a8a5ac9"
+    },
+    {
+     "path": "create-throughput-5-h2-w4-linux-arm64.json",
+     "bytes": 2080811,
+     "sha256": "eea6b43cb631eadccfa11373fb71af6317360ac9e7c25945f67dff05e3560f2b"
+    },
+    {
+     "path": "create-throughput-6-h2-w8-linux-arm64.json",
+     "bytes": 2080832,
+     "sha256": "aa60a70677c8b50c037c6b4061b4bccd933d4ce7fe4b669eca82ec0e4fbe58ff"
+    },
+    {
+     "path": "create-throughput-7-h3-w1-linux-arm64.json",
+     "bytes": 2087672,
+     "sha256": "a1890385c34893095a10973ab64e5c6e566070024812eba50261f77c1a3237f7"
+    },
+    {
+     "path": "create-throughput-8-h3-w2-linux-arm64.json",
+     "bytes": 2087936,
+     "sha256": "71d6aac9ae41f54ca249cdf683872353bd146c5cf5f5891759667cc1f452841c"
+    },
+    {
+     "path": "create-throughput-9-h3-w4-linux-arm64.json",
+     "bytes": 2088032,
+     "sha256": "3925d3a533937690e3cac31a5996610acd5de9053612fdb1ba5f1d34165f8cee"
+    }
+   ]
+  },
+  {
+   "artifactId": 11142473735,
+   "name": "patch-lab-create-throughput-win-x64-runs",
+   "jobId": 110190672784,
+   "zipBytes": 1938036,
+   "zipSha256": "453e16754778d4f6c56749793f554cb5f0c2d005d2aa051f6e9025b898cbff88",
+   "expiresUtc": "2026-12-30T02:29:48Z",
+   "files": [
+    {
+     "path": "create-throughput-1-h0-win-x64.json",
+     "bytes": 2150037,
+     "sha256": "df846abee0a530ee913dc1abd9bdcbcb4666bfb39c72660ab41d9230b9d06b38"
+    },
+    {
+     "path": "create-throughput-10-h3-w8-win-x64.json",
+     "bytes": 2150554,
+     "sha256": "90804370246190f131e946a00d84fe75878596212eef4abe91e1ead09e16b11a"
+    },
+    {
+     "path": "create-throughput-11-h0-win-x64.json",
+     "bytes": 2131426,
+     "sha256": "176ded62ad9584a41ed095d4f31cf94f616b463579aeef85c54d6756f95fa189"
+    },
+    {
+     "path": "create-throughput-2-h1-win-x64.json",
+     "bytes": 2138397,
+     "sha256": "692bc738356a856254c629d5cfc6089e3c68a3c74a7312d42de350766d43ad99"
+    },
+    {
+     "path": "create-throughput-3-h2-w1-win-x64.json",
+     "bytes": 2143186,
+     "sha256": "5f8a5cf99957a51a8184106a3659e71c0c9b683b3a0ba6a1ccb8256d5617c812"
+    },
+    {
+     "path": "create-throughput-4-h2-w2-win-x64.json",
+     "bytes": 2143499,
+     "sha256": "97399a88eb79b2ad879c5d25a940df8113a0a6d9a0c497c98e61a8d4aecd209a"
+    },
+    {
+     "path": "create-throughput-5-h2-w4-win-x64.json",
+     "bytes": 2143415,
+     "sha256": "c09675da8038aebe79326c5fa8c43ade5e4e4bbcce379680cdb1b3a5d730fbe1"
+    },
+    {
+     "path": "create-throughput-6-h2-w8-win-x64.json",
+     "bytes": 2143339,
+     "sha256": "9b25b0345f7beaa25c435b5bad5e5a9f7d8c80d5927dcee4dfb194a731fea134"
+    },
+    {
+     "path": "create-throughput-7-h3-w1-win-x64.json",
+     "bytes": 2150426,
+     "sha256": "a06c78439e86a7c49b88e42b12fbaf1429b921e883b9394c137de72023e508a1"
+    },
+    {
+     "path": "create-throughput-8-h3-w2-win-x64.json",
+     "bytes": 2150444,
+     "sha256": "1c5028049da66ebc7432ecaaa8494385628977101c874ba229ac254dfecd4841"
+    },
+    {
+     "path": "create-throughput-9-h3-w4-win-x64.json",
+     "bytes": 2150488,
+     "sha256": "248c9118f7ff428a5033704d70f0aa7781cc91446004c4be98d6d42e621c5e8a"
+    }
+   ]
+  },
+  {
+   "artifactId": 11141589811,
+   "name": "patch-lab-create-memory-linux-x64-runs",
+   "jobId": 110190672869,
+   "zipBytes": 25589,
+   "zipSha256": "c629b46b31367add619b9bb698a4161cf83b390bcb4f318d53b81f4bf28a1634",
+   "expiresUtc": "2026-12-30T02:29:48Z",
+   "files": [
+    {
+     "path": "create-memory-h0-linux-x64.json",
+     "bytes": 22202,
+     "sha256": "539832ddeffa751ee3bbe55239dd0d9ae4710a9b83873f5a47a62c9a27eb2d21"
+    },
+    {
+     "path": "create-memory-h1-linux-x64.json",
+     "bytes": 22202,
+     "sha256": "5fea6d5eb5f0a79be2137def95999a5da018c64fc70dbc9af42b858574322e7b"
+    },
+    {
+     "path": "create-memory-h2-w1-linux-x64.json",
+     "bytes": 22205,
+     "sha256": "c0ea6a5591e3047aa0ef2ff15403907ccee48ba90a2b0799d24df22a0191325b"
+    },
+    {
+     "path": "create-memory-h2-w2-linux-x64.json",
+     "bytes": 22208,
+     "sha256": "794a462539d7e4b1b9ad947c30ecb18a31db3260ee5d00adcebdbf631d69f795"
+    },
+    {
+     "path": "create-memory-h2-w4-linux-x64.json",
+     "bytes": 22276,
+     "sha256": "55ba35eace5f5d32eed24cabbe3bf68f8fef829ecd1523711733ff88d9c322f3"
+    },
+    {
+     "path": "create-memory-h2-w8-linux-x64.json",
+     "bytes": 22277,
+     "sha256": "0c6959b4c5d2f18876af353451e8801046a93a67c3a5cbbddefccbc4d61b2620"
+    },
+    {
+     "path": "create-memory-h3-w1-linux-x64.json",
+     "bytes": 22205,
+     "sha256": "18888bffdee6b9bb4965c330bba321d8eb3cdab93af941c45639fa3defda7a15"
+    },
+    {
+     "path": "create-memory-h3-w2-linux-x64.json",
+     "bytes": 22209,
+     "sha256": "49a54d57351b52f8dca7c7fa61edfe2aa46bed955cc2c6f5fdcb89fe6cbbcfe8"
+    },
+    {
+     "path": "create-memory-h3-w4-linux-x64.json",
+     "bytes": 22277,
+     "sha256": "708dc16a9252f18dd435f79212746a6369c6107548f3a0efd841501af627f7e2"
+    },
+    {
+     "path": "create-memory-h3-w8-linux-x64.json",
+     "bytes": 22278,
+     "sha256": "235e41c1812b995afef88b421e2488b26c99811866e96fa03395f782b6598f85"
+    }
+   ]
+  },
+  {
+   "artifactId": 11141682397,
+   "name": "patch-lab-create-memory-linux-arm64-runs",
+   "jobId": 110190672902,
+   "zipBytes": 25593,
+   "zipSha256": "7a941eb5eb2aeac56f034344a1c0951dd1a28ce1ee6dcb82e8badb052ee74890",
+   "expiresUtc": "2026-12-30T02:29:48Z",
+   "files": [
+    {
+     "path": "create-memory-h0-linux-arm64.json",
+     "bytes": 22203,
+     "sha256": "0d5c3d62c169e96ea7132f5c345a66f82d88b3b5cb6c59483b9608a34b3cb4ba"
+    },
+    {
+     "path": "create-memory-h1-linux-arm64.json",
+     "bytes": 22203,
+     "sha256": "9c1a8002cfe5206d1cf123656389b6851d96c4e492bfbf9b4dfec28c349d5b37"
+    },
+    {
+     "path": "create-memory-h2-w1-linux-arm64.json",
+     "bytes": 22206,
+     "sha256": "d9763021a703194e27968809971e4ba7de8f98aa1288bee784c0cf1139e382c7"
+    },
+    {
+     "path": "create-memory-h2-w2-linux-arm64.json",
+     "bytes": 22210,
+     "sha256": "2676be201c6b9268992efebf531105ab512751c062c6aea51f3755cc8ec37fc1"
+    },
+    {
+     "path": "create-memory-h2-w4-linux-arm64.json",
+     "bytes": 22276,
+     "sha256": "c6008d16d4ca4b52875cdd3b8182b09d586e7c880022790d3002eb09603f978d"
+    },
+    {
+     "path": "create-memory-h2-w8-linux-arm64.json",
+     "bytes": 22276,
+     "sha256": "10e478f72dfd7a2cae74b4c2e83d5e0b7e296ee1a4e3ace7d11616c278f9f4b6"
+    },
+    {
+     "path": "create-memory-h3-w1-linux-arm64.json",
+     "bytes": 22206,
+     "sha256": "0aca11b67c0e07906c44e07d4d25f8cbaf66fa4bdd7f3dac717fd41f86398b61"
+    },
+    {
+     "path": "create-memory-h3-w2-linux-arm64.json",
+     "bytes": 22209,
+     "sha256": "4a25d0c1f5352b24d84526eb694446ccc378d20e55e5b9132daaf095d13a06ef"
+    },
+    {
+     "path": "create-memory-h3-w4-linux-arm64.json",
+     "bytes": 22276,
+     "sha256": "813afbb5e642b5e107fab2ea8b526c1e0bb6f2847b60181513156964130b0c7c"
+    },
+    {
+     "path": "create-memory-h3-w8-linux-arm64.json",
+     "bytes": 22276,
+     "sha256": "beceba696501f07e48fc9de798a40fc92dafdd18b668e170ef9ffc76a1e0ef92"
+    }
+   ]
+  },
+  {
+   "artifactId": 11141822881,
+   "name": "patch-lab-create-memory-win-x64-runs",
+   "jobId": 110190672951,
+   "zipBytes": 25686,
+   "zipSha256": "bb28ecdb585fbf4ab6721297f3c277e550f6b0529187f45c16a3c3ddf5008bc3",
+   "expiresUtc": "2026-12-30T02:29:48Z",
+   "files": [
+    {
+     "path": "create-memory-h0-win-x64.json",
+     "bytes": 22930,
+     "sha256": "7a09acc29bfff22bc68e4ab644a707834642478458a540c0bb25ded4f1eccb77"
+    },
+    {
+     "path": "create-memory-h1-win-x64.json",
+     "bytes": 22930,
+     "sha256": "a9987ca7e07237011dd706fcbf1a77444fcf36b87ac4d8f88141d5dccdf225d1"
+    },
+    {
+     "path": "create-memory-h2-w1-win-x64.json",
+     "bytes": 22933,
+     "sha256": "fc652064aeba69b0e8c2e7d9dd7142368e8c1ea0ad006c0d6e09f835c3cdaaec"
+    },
+    {
+     "path": "create-memory-h2-w2-win-x64.json",
+     "bytes": 22933,
+     "sha256": "d0bfff33805b07939bef73791e63369007612ed50d8fa8e27f7f9680970f4472"
+    },
+    {
+     "path": "create-memory-h2-w4-win-x64.json",
+     "bytes": 22937,
+     "sha256": "79163417ffc122080c08e46326d123007c19747cbabe24870e5eb997b78bbf00"
+    },
+    {
+     "path": "create-memory-h2-w8-win-x64.json",
+     "bytes": 22970,
+     "sha256": "c4c7c1c166f33ccf676b2eefa195a103e4eaaff3d4ad63fc670c67f18eea9f98"
+    },
+    {
+     "path": "create-memory-h3-w1-win-x64.json",
+     "bytes": 22933,
+     "sha256": "7c615fb8ec73b55f84f60f698dcad67423caab00257b04a52034d1f6f4b0d268"
+    },
+    {
+     "path": "create-memory-h3-w2-win-x64.json",
+     "bytes": 22933,
+     "sha256": "2df532a19cea888759f446cdb464c0b8a7d4e6046b9f69cfabaf4775fb9b7ee8"
+    },
+    {
+     "path": "create-memory-h3-w4-win-x64.json",
+     "bytes": 22944,
+     "sha256": "6229cdfff8d4044970439891502992d61902729b6133c1fc7eddbcc08087ca6a"
+    },
+    {
+     "path": "create-memory-h3-w8-win-x64.json",
+     "bytes": 22964,
+     "sha256": "7ef1989f08853f2b25bb2838b32dd1ae11227d7c836e76ff3db2bc9910a45150"
+    }
+   ]
+  },
+  {
+   "artifactId": 11143771305,
+   "name": "patch-lab-summary",
+   "jobId": null,
+   "zipBytes": 7953,
+   "zipSha256": "ad1e3f6bb861d3377fa41e3d849dc02401a2caefee7394ead1a464ea6a879c55",
+   "expiresUtc": "2026-12-30T02:29:48Z",
+   "files": [
+    {
+     "path": "create-throughput-summary.md",
+     "bytes": 5630,
+     "sha256": "24a13a1a3231a11363edbe04d5f5641520313687e326e8539afde498de481c5d"
+    },
+    {
+     "path": "create-throughput-verdict.json",
+     "bytes": 31495,
+     "sha256": "935cfc8c860e454a009898173183c0eeac648a1ecb28f68383a41373f1c6a819"
+    },
+    {
+     "path": "summary.md",
+     "bytes": 2612,
+     "sha256": "ec7c3ab9cfb3ff02190e010b6dd186ff51f6a646ac22c8eb7123796289435357"
+    },
+    {
+     "path": "verdict.json",
+     "bytes": 6346,
+     "sha256": "8b4b7ee29fb1288e645e7a8cf5b4dc54177a4eab47b3727c72726a2c2b570eaf"
+    }
+   ]
+  }
+ ]
+}

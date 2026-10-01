@@ -49,7 +49,18 @@ Raw evidence: the run's artifacts `patch-lab-create-throughput-<platform>-runs` 
 - `totals.json`: per platform and lane (both H0 lanes kept apart) the corpus totals of every §6 metric and `patchesSha256`;
 - `patches.json`: the per-file patch SHA-256 of H0 and, per platform and lane, the number of files that differ from H0;
 - `memory.json`: per platform and lane the per-file create peak over idle for every file of at least 1 MiB, `M` and the bound;
-- `decide.py`: recomputes the §7 verdict from those three files and checks it against `verdict.json`.
+- `decide.py`: recomputes the §7 verdict from those three files and checks it against `verdict.json`;
+- `artifacts.json`: the raw-artifact manifest — per artifact its id, name, job, size, ZIP SHA-256 (GitHub's digest, rechecked on the downloaded ZIPs) and expiry, and the size and SHA-256 of every document inside it.
+
+| artifact | id | ZIP SHA-256 |
+| --- | ---: | --- |
+| `patch-lab-create-throughput-linux-x64-runs` | 11143870975 | `c1be1f8913096227d6f14b5adec32d706b0a14976c2be9e89eb786d2b09060fb` |
+| `patch-lab-create-throughput-linux-arm64-runs` | 11141923905 | `6f2b37a096e2a1b3dbe763a9f5ee99207ce740f1aa7362ffa281deaa15158e02` |
+| `patch-lab-create-throughput-win-x64-runs` | 11142473735 | `453e16754778d4f6c56749793f554cb5f0c2d005d2aa051f6e9025b898cbff88` |
+| `patch-lab-create-memory-linux-x64-runs` | 11141589811 | `c629b46b31367add619b9bb698a4161cf83b390bcb4f318d53b81f4bf28a1634` |
+| `patch-lab-create-memory-linux-arm64-runs` | 11141682397 | `7a941eb5eb2aeac56f034344a1c0951dd1a28ce1ee6dcb82e8badb052ee74890` |
+| `patch-lab-create-memory-win-x64-runs` | 11141822881 | `bb28ecdb585fbf4ab6721297f3c277e550f6b0529187f45c16a3c3ddf5008bc3` |
+| `patch-lab-summary` | 11143771305 | `ad1e3f6bb861d3377fa41e3d849dc02401a2caefee7394ead1a464ea6a879c55` |
 
 ## Reproduction
 
