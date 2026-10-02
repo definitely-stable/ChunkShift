@@ -22,6 +22,13 @@ def positive(value, label):
     return number
 
 
+def nonnegative(value, label):
+    number = float(value)
+    if not math.isfinite(number) or number < 0:
+        raise ValueError(f"{label}: expected finite non-negative value")
+    return number
+
+
 def validate_environment(platform, environment, source_commit, label):
     if platform not in PLATFORMS or not isinstance(environment, dict):
         raise ValueError(f"{label}: invalid apply environment")
@@ -97,7 +104,7 @@ def validate(apply_evidence, accepted, platform, source_commit, lanes, label):
             compact_samples = []
             for sample in samples:
                 swall = positive(sample.get("wallSeconds"), f"{label}/{lane}/{key}/wall")
-                scpu = positive(sample.get("cpuSeconds"), f"{label}/{lane}/{key}/cpu")
+                scpu = nonnegative(sample.get("cpuSeconds"), f"{label}/{lane}/{key}/cpu")
                 sreads = int(sample.get("baseReads", -1))
                 sbytes = int(sample.get("baseBytesRead", -1))
                 sseeks = int(sample.get("baseSeeks", -1))
