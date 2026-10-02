@@ -280,13 +280,39 @@ internal static class PatchGapRunner
             binding.SourceCommit,
             static row => row.DatasetRole,
             static row => row.Key);
+        ValidateInventoryAgainstCorpus(g4, structural, corpus, binding.SourceCommit);
 
         PatchGapSubsetManifest<PatchGapG5LockedRow> g5 =
             PatchGapG5InventoryLock.Finalize(structural, locator, corpus);
 
         string fullEvidenceDirectory = Path.GetFullPath(evidenceDirectory);
         string subsets = Path.Combine(fullEvidenceDirectory, "subsets");
+        string evidenceInputs = Path.Combine(fullEvidenceDirectory, "evidence-input");
+        string toolProvenance = Path.Combine(fullEvidenceDirectory, "tool-provenance");
         Directory.CreateDirectory(subsets);
+        Directory.CreateDirectory(evidenceInputs);
+        Directory.CreateDirectory(toolProvenance);
+
+        string g4InputCopy = Path.Combine(evidenceInputs, "g4.json");
+        string structuralInputCopy = Path.Combine(evidenceInputs, "g5-structural.json");
+        string locatorInputCopy = Path.Combine(evidenceInputs, "puffin-locator.json");
+        CopyExactInput(g4Path, g4InputCopy);
+        CopyExactInput(structuralPath, structuralInputCopy);
+        CopyExactInput(locatorPath, locatorInputCopy);
+
+        byte[] buildProvenance = Convert.FromBase64String(locator.BuildProvenanceBase64);
+        string buildProvenanceOutput = Path.Combine(
+            toolProvenance, "puffin-build-provenance.bin");
+        File.WriteAllBytes(buildProvenanceOutput, buildProvenance);
+        string durableBuildProvenanceSha = PatchGapEvidence.FileSha256(buildProvenanceOutput);
+        if (!string.Equals(
+                durableBuildProvenanceSha,
+                locator.BuildProvenanceSha256,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(
+                "Durable Puffin build provenance differs from the locator record.");
+        }
 
         string g4Output = Path.Combine(subsets, "g4.json");
         string g5Output = Path.Combine(subsets, "g5.json");
@@ -302,9 +328,10 @@ internal static class PatchGapRunner
             PatchGapProtocol.SourceAssetsSha256,
             BuildMaterializedInputDigests(
                 corpus,
-                g4Path,
-                structuralPath,
-                locatorPath));
+                g4InputCopy,
+                structuralInputCopy,
+                locatorInputCopy,
+                buildProvenanceOutput));
         PatchGapEvidenceBundle.WriteInputs(fullEvidenceDirectory, inputs);
 
         PatchGapExternalToolSpec puffin = PatchGapExternalTools.Frozen
@@ -357,6 +384,56 @@ internal static class PatchGapRunner
         return 0;
     }
 
+    private static void ValidateInventoryAgainstCorpus(
+        PatchGapSubsetManifest<PatchGapG4InventoryRow> g4,
+        PatchGapSubsetManifest<PatchGapG5InventoryRow> structural,
+        PatchLabCorpus corpus,
+        string sourceCommit)
+    {
+        (PatchGapG4InventoryRow[] expectedG4Rows, PatchGapG5InventoryRow[] expectedG5Rows) =
+            BuildInventoryAsync(corpus, CancellationToken.None).GetAwaiter().GetResult();
+
+        PatchGapSubsetManifest<PatchGapG4InventoryRow> expectedG4 =
+            PatchGapSubsetManifest.Create(
+                "chunkshift.patch-gap-g4-inventory.v1",
+                sourceCommit,
+                expectedG4Rows,
+                static row => row.DatasetRole,
+                static row => row.Key);
+        PatchGapSubsetManifest<PatchGapG5InventoryRow> expectedStructural =
+            PatchGapSubsetManifest.Create(
+                PatchGapG5InventoryLock.StructuralSchema,
+                sourceCommit,
+                expectedG5Rows,
+                static row => row.DatasetRole,
+                static row => row.Key);
+
+        if (!PatchGapEvidence.CanonicalBytes(expectedG4)
+                .AsSpan()
+                .SequenceEqual(PatchGapEvidence.CanonicalBytes(g4)) ||
+            !PatchGapEvidence.CanonicalBytes(expectedStructural)
+                .AsSpan()
+                .SequenceEqual(PatchGapEvidence.CanonicalBytes(structural)))
+        {
+            throw new InvalidDataException(
+                "PATCH-GAP inventory inputs do not recompute exactly from the frozen materialized corpus.");
+        }
+    }
+
+    private static void CopyExactInput(string source, string destination)
+    {
+        string fullSource = Path.GetFullPath(source);
+        string fullDestination = Path.GetFullPath(destination);
+        StringComparison comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        if (!string.Equals(fullSource, fullDestination, comparison))
+        {
+            File.Copy(fullSource, fullDestination, overwrite: true);
+        }
+    }
+
     private static T DeserializeRequired<T>(string path)
     {
         byte[] bytes = File.ReadAllBytes(path);
@@ -406,7 +483,8 @@ internal static class PatchGapRunner
         PatchLabCorpus corpus,
         string g4Path,
         string structuralPath,
-        string locatorPath)
+        string locatorPath,
+        string buildProvenancePath)
     {
         var result = new SortedDictionary<string, string>(StringComparer.Ordinal)
         {
@@ -414,6 +492,8 @@ internal static class PatchGapRunner
             ["evidence-input/g4.json"] = PatchGapEvidence.FileSha256(g4Path),
             ["evidence-input/g5-structural.json"] = PatchGapEvidence.FileSha256(structuralPath),
             ["evidence-input/puffin-locator.json"] = PatchGapEvidence.FileSha256(locatorPath),
+            ["tool-provenance/puffin-build-provenance.bin"] =
+                PatchGapEvidence.FileSha256(buildProvenancePath),
         };
 
         foreach (PatchLabPair pair in corpus.Pairs)
