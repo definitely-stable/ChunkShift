@@ -180,6 +180,20 @@ def compact_file_rows(
     return result
 
 
+def compact_aggregate(value: dict, label: str) -> dict:
+    result = {
+        "wallSeconds": positive(value.get("wallSeconds"), f"{label}/wall"),
+        "cpuSeconds": positive(value.get("cpuSeconds"), f"{label}/cpu"),
+        "patchBytes": int(value.get("patchBytes", -1)),
+        "allocatedBytes": int(value.get("allocatedBytes", -1)),
+        "baseReads": int(value.get("baseReads", -1)),
+        "baseBytesRead": int(value.get("baseBytesRead", -1)),
+    }
+    if any(result[name] < 0 for name in ("patchBytes", "allocatedBytes", "baseReads", "baseBytesRead")):
+        raise ValueError(f"{label}: aggregate counters must be non-negative")
+    return result
+
+
 def validate_paired(platform: str, path: Path, source_commit: str) -> tuple[dict, list[dict]]:
     document = load_json(path)
     label = f"{platform}:{path}"
@@ -217,23 +231,68 @@ def validate_paired(platform: str, path: Path, source_commit: str) -> tuple[dict
 
     h0_bytes: set[int] = set()
     lane_bytes: dict[str, set[int]] = {lane: set() for lane in LANES}
-    for round_item in rounds:
-        if round_item.get("bracketNoisy") is True:
+    computed_wall: dict[str, list[float]] = {lane: [] for lane in LANES}
+    computed_cpu: dict[str, list[float]] = {lane: [] for lane in LANES}
+    compact_rounds: list[dict] = []
+
+    for expected_round, round_item in enumerate(rounds, 1):
+        if int(round_item.get("round", -1)) != expected_round:
+            raise ValueError(f"{label}: round ordinal mismatch")
+        h0_start = compact_aggregate(round_item["h0Start"], f"{label}/round-{expected_round}/h0-start")
+        h0_end = compact_aggregate(round_item["h0End"], f"{label}/round-{expected_round}/h0-end")
+        h0_bytes.update((h0_start["patchBytes"], h0_end["patchBytes"]))
+
+        wall_denominator = (h0_start["wallSeconds"] + h0_end["wallSeconds"]) / 2.0
+        cpu_denominator = (h0_start["cpuSeconds"] + h0_end["cpuSeconds"]) / 2.0
+        noisy = abs(h0_start["wallSeconds"] - h0_end["wallSeconds"]) > 0.25 * wall_denominator
+        if round_item.get("bracketNoisy") is not noisy:
+            raise ValueError(f"{label}: bracket noise flag does not recompute")
+        if noisy:
             raise ValueError(f"{label}: accepted timing contains a noisy bracket")
-        h0_bytes.add(int(round_item["h0Start"]["patchBytes"]))
-        h0_bytes.add(int(round_item["h0End"]["patchBytes"]))
+
         candidates = round_item.get("candidates")
         if not isinstance(candidates, list):
             raise ValueError(f"{label}: candidate rows missing")
         seen: set[str] = set()
+        compact_candidates: list[dict] = []
         for candidate in candidates:
             lane = candidate.get("lane")
             if lane not in LANES or lane in seen:
                 raise ValueError(f"{label}: invalid/duplicate candidate lane")
             seen.add(lane)
-            lane_bytes[lane].add(int(candidate["aggregate"]["patchBytes"]))
+            aggregate = compact_aggregate(
+                candidate["aggregate"], f"{label}/round-{expected_round}/{lane}"
+            )
+            lane_bytes[lane].add(aggregate["patchBytes"])
+            wall_ratio = aggregate["wallSeconds"] / wall_denominator
+            cpu_ratio = aggregate["cpuSeconds"] / cpu_denominator
+            if not math.isclose(wall_ratio, float(candidate.get("wallRatio")), rel_tol=1e-12, abs_tol=1e-12):
+                raise ValueError(f"{label}/{lane}: round wall ratio does not recompute")
+            if not math.isclose(cpu_ratio, float(candidate.get("cpuRatio")), rel_tol=1e-12, abs_tol=1e-12):
+                raise ValueError(f"{label}/{lane}: round CPU ratio does not recompute")
+            computed_wall[lane].append(wall_ratio)
+            computed_cpu[lane].append(cpu_ratio)
+            compact_candidates.append(
+                {
+                    "lane": lane,
+                    "aggregate": aggregate,
+                    "wallRatio": wall_ratio,
+                    "cpuRatio": cpu_ratio,
+                }
+            )
         if seen != set(LANES):
             raise ValueError(f"{label}: each round must contain all Phase-A lanes")
+
+        compact_rounds.append(
+            {
+                "round": expected_round,
+                "candidateOrder": [row["lane"] for row in compact_candidates],
+                "h0Start": h0_start,
+                "h0End": h0_end,
+                "candidates": compact_candidates,
+            }
+        )
+
     if len(h0_bytes) != 1 or any(len(values) != 1 for values in lane_bytes.values()):
         raise ValueError(f"{label}: patch bytes changed between measured rounds")
     patch_bytes = {"csp": next(iter(h0_bytes))}
@@ -246,15 +305,21 @@ def validate_paired(platform: str, path: Path, source_commit: str) -> tuple[dict
         cpus = [positive(value, f"{label}/{lane}/cpu") for value in row.get("cpuRatios", [])]
         if len(walls) != 5 or len(cpus) != 5:
             raise ValueError(f"{label}/{lane}: five wall/cpu ratios required")
-        wall_median = median_five(walls)
-        cpu_median = median_five(cpus)
+        for actual, expected in zip(walls, computed_wall[lane], strict=True):
+            if not math.isclose(actual, expected, rel_tol=1e-12, abs_tol=1e-12):
+                raise ValueError(f"{label}/{lane}: summary wall ratios differ from raw rounds")
+        for actual, expected in zip(cpus, computed_cpu[lane], strict=True):
+            if not math.isclose(actual, expected, rel_tol=1e-12, abs_tol=1e-12):
+                raise ValueError(f"{label}/{lane}: summary CPU ratios differ from raw rounds")
+        wall_median = median_five(computed_wall[lane])
+        cpu_median = median_five(computed_cpu[lane])
         if not math.isclose(wall_median, float(row.get("wallRatioMedian")), rel_tol=1e-12, abs_tol=1e-12):
             raise ValueError(f"{label}/{lane}: wall median does not recompute")
         if not math.isclose(cpu_median, float(row.get("cpuRatioMedian")), rel_tol=1e-12, abs_tol=1e-12):
             raise ValueError(f"{label}/{lane}: CPU median does not recompute")
         timing[lane] = {
-            "wallRatios": walls,
-            "cpuRatios": cpus,
+            "wallRatios": computed_wall[lane],
+            "cpuRatios": computed_cpu[lane],
             "wallRatioMedian": wall_median,
             "cpuRatioMedian": cpu_median,
         }
@@ -278,6 +343,7 @@ def validate_paired(platform: str, path: Path, source_commit: str) -> tuple[dict
         sums[row["lane"]] += int(row["patchBytes"])
     if sums != patch_bytes:
         raise ValueError(f"{label}: aggregate patch bytes do not match compact per-file rows")
+
     return {
         "runId": run_id,
         "runDate": match.group(1),
@@ -285,11 +351,11 @@ def validate_paired(platform: str, path: Path, source_commit: str) -> tuple[dict
         "githubRunId": str(document.get("githubRunId", "")),
         "githubRunNumber": str(document.get("githubRunNumber", "")),
         "patchBytes": patch_bytes,
+        "rounds": compact_rounds,
         "timing": timing,
         "applyWallSeconds": apply_wall,
         "acceptedPatchShas": accepted,
     }, files
-
 
 def validate_memory(
     platform: str,
