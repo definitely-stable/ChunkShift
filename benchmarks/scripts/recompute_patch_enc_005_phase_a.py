@@ -104,9 +104,26 @@ def recompute(compact: dict) -> dict:
         create_memory = {}
         apply_memory = {}
 
+        speed_round_passes = {}
+        size_round_passes = {}
         for platform in PLATFORMS:
             platform_data = compact["platforms"][platform]
             wall[platform], cpu[platform] = timing_from_rounds(platform_data, lane)
+            round_wall = []
+            for item in platform_data["rounds"]:
+                h0_start = item["h0Start"]
+                h0_end = item["h0End"]
+                denominator = (
+                    float(h0_start["wallSeconds"]) + float(h0_end["wallSeconds"])
+                ) / 2.0
+                candidate = next(
+                    row for row in item["candidates"] if row["lane"] == lane
+                )
+                round_wall.append(
+                    float(candidate["aggregate"]["wallSeconds"]) / denominator
+                )
+            speed_round_passes[platform] = sum(value <= 0.50 for value in round_wall)
+            size_round_passes[platform] = sum(value <= 1.50 for value in round_wall)
             h0_apply = float(platform_data["applyWallSeconds"]["csp"])
             apply[platform] = (
                 float(platform_data["applyWallSeconds"][lane]) / h0_apply
@@ -124,17 +141,23 @@ def recompute(compact: dict) -> dict:
             all(value <= CREATE_BOUND_BYTES for value in create_memory.values())
             and all(value <= APPLY_BOUND_BYTES for value in apply_memory.values())
         )
-        speed = lane_patch_bytes * 100 <= h0 * 102 and all(
-            value <= 0.50 for value in wall.values()
+        speed = (
+            lane_patch_bytes * 100 <= h0 * 102
+            and all(value <= 0.50 for value in wall.values())
+            and all(value >= 4 for value in speed_round_passes.values())
         )
-        size = lane_patch_bytes * 100 <= h0 * 97 and all(
-            value <= 1.50 for value in wall.values()
+        size = (
+            lane_patch_bytes * 100 <= h0 * 97
+            and all(value <= 1.50 for value in wall.values())
+            and all(value >= 4 for value in size_round_passes.values())
         )
         branches = [name for name, ok in (("speed", speed), ("size", size)) if ok]
         rows[lane] = {
             "byteRatio": byte_ratio,
             "maxWallRatio": max(wall.values()),
             "maxCpuRatio": max(cpu.values()),
+            "speedWallRoundPassesByPlatform": speed_round_passes,
+            "sizeWallRoundPassesByPlatform": size_round_passes,
             "maxApplyRatio": max(apply.values()),
             "maxCreatePeakOverIdleBytes": max(create_memory.values()),
             "maxApplyPeakOverIdleBytes": max(apply_memory.values()),
@@ -221,6 +244,12 @@ def expected_projection(verdict: dict) -> dict:
                 "byteRatio": verdict["lanes"][lane]["byteRatio"],
                 "maxWallRatio": verdict["lanes"][lane]["maxWallRatio"],
                 "maxCpuRatio": verdict["lanes"][lane]["maxCpuRatio"],
+                "speedWallRoundPassesByPlatform": verdict["lanes"][lane][
+                    "speedWallRoundPassesByPlatform"
+                ],
+                "sizeWallRoundPassesByPlatform": verdict["lanes"][lane][
+                    "sizeWallRoundPassesByPlatform"
+                ],
                 "maxApplyRatio": max(
                     verdict["lanes"][lane]["applyRatioByPlatform"].values()
                 ),
