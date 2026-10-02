@@ -716,9 +716,16 @@ def write_outputs(output: Path, compact: dict, files: list[dict]) -> None:
         for row in files:
             stream.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
 
+    recompute_source = Path(__file__).with_name("recompute_patch_enc_005_phase_a.py")
+    if not recompute_source.is_file():
+        raise ValueError(f"missing independent recomputation script {recompute_source}")
+    recompute_path = output / "recompute.py"
+    shutil.copyfile(recompute_source, recompute_path)
+
     verdict = evaluate(compact)
     verdict["compactSha256"] = sha256_file(compact_path)
     verdict["filesSha256"] = sha256_file(files_path)
+    verdict["recomputeSha256"] = sha256_file(recompute_path)
     verdict_path = output / "verdict.json"
     verdict_path.write_bytes(canonical_bytes(verdict) + b"\n")
 
@@ -729,6 +736,7 @@ def write_outputs(output: Path, compact: dict, files: list[dict]) -> None:
         "sourceCommit": compact["sourceCommit"],
         "calibrationVerdictSha256": sha256_file(verdict_path),
         "calibrationCompactSha256": verdict["compactSha256"],
+        "recomputeSha256": verdict["recomputeSha256"],
         "status": verdict["status"],
         "finalists": [
             {
@@ -742,11 +750,6 @@ def write_outputs(output: Path, compact: dict, files: list[dict]) -> None:
     (output / "fixed-evaluation-selection.json").write_bytes(
         canonical_bytes(selection) + b"\n"
     )
-
-    recompute = Path(__file__).with_name("recompute_patch_enc_005_phase_a.py")
-    if not recompute.is_file():
-        raise ValueError(f"missing independent recomputation script {recompute}")
-    shutil.copyfile(recompute, output / "recompute.py")
 
     lines = [
         "# PATCH-ENC-005 Phase-A calibration",
