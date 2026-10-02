@@ -85,6 +85,8 @@ Completed release-evidence stage: [#68](https://github.com/definitely-stable/Chu
 - [#152](https://github.com/definitely-stable/ChunkShift/issues/152) is the parallel Core 0.1.1 maintenance/evidence track. It preserves the published 0.1.0 API/profile/format identities by default and does not replace the current #7 Patching product phase.
 - [#7](https://github.com/definitely-stable/ChunkShift/issues/7) Patching: CSP v1 is frozen (PR #178, 2026-09-28) and the plan/create/apply loop, the engineering CLI, the independent decoder, fuzzing and the NativeAOT package consumer are on `main`. The remaining exit items are listed under [Patching gate](#patching-gate).
 
+- Non-blocking Patching R&D frontier: [PATCHING-RND-ROADMAP](docs/research/PATCHING-RND-ROADMAP.md) routes post-v1 work through #220–#225; [RFC-0005](docs/architecture/RFC-0005-patch-compiler-architecture.md) is the **Proposed** architecture synthesis for that research. These experiments do **not** expand or reorder the frozen/current #181 PATCH-ENC-005 and #183 PATCH-GAP-001 work and do not block the first Patching release.
+
 ## Critical path
 
 ```text
@@ -139,6 +141,8 @@ Completed release-evidence stage: [#68](https://github.com/definitely-stable/Chu
 ```
 
 [#14](https://github.com/definitely-stable/ChunkShift/issues/14) remains a parallel research track and cannot silently alter a published profile/format.
+
+The patching frontier in #220–#225 is likewise parallel research. Promotion follows the experiment registry and existing accepted RFCs; proposed RFC-0005 is informative until separately accepted. No result becomes a persisted CSP/API semantic without a separate evidence-backed decision.
 
 Core 0.1.1 maintenance runs in parallel after the published Core node:
 
