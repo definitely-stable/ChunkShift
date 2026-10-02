@@ -94,7 +94,11 @@ def compact(lane_overrides=None):
         }
     return {
         "schema": "chunkshift.patch-enc-005-phase-a-compact.v1",
+        "experimentId": "PATCH-ENC-005",
+        "protocolCommit": EVALUATOR.PROTOCOL_COMMIT,
         "sourceCommit": "a" * 40,
+        "datasetRole": "calibration",
+        "datasetSha256": EVALUATOR.DATASET_SHA256,
         "patchBytes": patch_bytes,
         "platforms": platforms,
     }
