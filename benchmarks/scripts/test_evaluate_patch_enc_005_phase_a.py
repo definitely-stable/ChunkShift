@@ -194,6 +194,7 @@ def synthetic_artifacts(root: Path):
                 paired_root / relative,
                 {
                     "schema": "chunkshift.patch-lab.v1",
+                    "runId": f"PATCH-ENC-005/RUN-20261002-001-{SOURCE}-{platform}",
                     "lane": lane,
                     "files": [
                         {
@@ -223,7 +224,12 @@ def synthetic_artifacts(root: Path):
                     "path": FILE_KEY["path"],
                     "baseManifestId": "sha256:" + "a" * 64,
                     "targetManifestId": "sha256:" + "b" * 64,
-                    "finalLevel": 19,
+                    "finalLevel": (
+                        9 if lane == "H9-L9-K4-C16-R1M"
+                        else 12 if lane == "H9-L12-K4-C16-R1M"
+                        else 15 if lane == "H9-L15-K4-C16-R1M"
+                        else 19
+                    ),
                     "entries": [
                         {
                             "targetIndex": 0,
@@ -234,9 +240,13 @@ def synthetic_artifacts(root: Path):
                             "cheapTrialCount": 0,
                             "expensiveTrialCount": 0,
                             "totalCompressionTrialCount": 1,
-                            "level19TrialCount": 1,
+                            "level19TrialCount": (
+                                0 if lane.startswith("H9-") else 1
+                            ),
                             "noDictionaryFrameBytes": 100,
-                            "l19NoDictionaryFrameBytes": 100,
+                            "l19NoDictionaryFrameBytes": (
+                                None if lane.startswith("H9-") else 100
+                            ),
                             "baselineCostBytes": 100,
                             "selectedEncoding": "zstd",
                             "selectedCandidate": None,
