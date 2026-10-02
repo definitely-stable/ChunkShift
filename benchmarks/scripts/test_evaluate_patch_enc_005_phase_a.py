@@ -86,10 +86,36 @@ def compact(lane_overrides=None):
                     "candidates": candidates,
                 }
             )
+        apply_raw = {}
+        for lane in EVALUATOR.ALL_LANES:
+            wall = apply[lane]
+            apply_raw[lane] = {
+                "aggregate": {
+                    "wallSeconds": wall,
+                    "cpuSeconds": 5.0,
+                    "baseReads": 3,
+                    "baseBytesRead": 4096,
+                },
+                "files": [
+                    {
+                        "samples": [
+                            {
+                                "wallSeconds": wall,
+                                "cpuSeconds": 5.0,
+                                "baseReads": 3,
+                                "baseBytesRead": 4096,
+                                "baseSeeks": 1,
+                            }
+                            for _ in range(5)
+                        ]
+                    }
+                ],
+            }
         platforms[platform] = {
             "rounds": rounds,
             "timing": timing,
             "applyWallSeconds": apply,
+            "applyRaw": apply_raw,
             "memory": memory,
         }
     return {
