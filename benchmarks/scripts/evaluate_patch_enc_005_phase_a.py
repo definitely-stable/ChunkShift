@@ -373,10 +373,21 @@ def validate_cross_platform(
 def evaluate(compact: dict) -> dict:
     patch_bytes = compact["patchBytes"]
     h0_bytes = int(patch_bytes["csp"])
+    if h0_bytes <= 0:
+        raise ValueError("H0 patch bytes must be positive")
+    for platform in PLATFORMS:
+        h0_memory = compact["platforms"][platform]["memory"]["csp"]
+        if (
+            int(h0_memory["createPeakOverIdleBytes"]) > CREATE_BOUND_BYTES
+            or int(h0_memory["applyPeakOverIdleBytes"]) > APPLY_BOUND_BYTES
+        ):
+            raise ValueError(f"{platform}: H0 violates frozen memory bounds")
+
     lanes: dict[str, dict] = {}
 
     for lane in LANES:
-        byte_ratio = int(patch_bytes[lane]) / h0_bytes
+        lane_patch_bytes = int(patch_bytes[lane])
+        byte_ratio = lane_patch_bytes / h0_bytes
         wall = {
             platform: float(compact["platforms"][platform]["timing"][lane]["wallRatioMedian"])
             for platform in PLATFORMS
@@ -400,8 +411,14 @@ def evaluate(compact: dict) -> dict:
             all(value <= CREATE_BOUND_BYTES for value in create_memory.values())
             and all(value <= APPLY_BOUND_BYTES for value in apply_memory.values())
         )
-        speed = byte_ratio <= 1.02 and all(value <= 0.50 for value in wall.values())
-        size = byte_ratio <= 0.97 and all(value <= 1.50 for value in wall.values())
+        speed = (
+            lane_patch_bytes * 100 <= h0_bytes * 102
+            and all(value <= 0.50 for value in wall.values())
+        )
+        size = (
+            lane_patch_bytes * 100 <= h0_bytes * 97
+            and all(value <= 1.50 for value in wall.values())
+        )
         branches = [name for name, ok in (("speed", speed), ("size", size)) if ok]
         eligible = apply_ok and memory_ok and bool(branches)
         reasons = []
@@ -412,7 +429,7 @@ def evaluate(compact: dict) -> dict:
         if not branches:
             reasons.append("no-qualification-branch")
         lanes[lane] = {
-            "patchBytes": int(patch_bytes[lane]),
+            "patchBytes": lane_patch_bytes,
             "byteRatio": byte_ratio,
             "wallRatioByPlatform": wall,
             "cpuRatioByPlatform": cpu,
