@@ -659,6 +659,7 @@ def build_compact(
         maps[platform] = paired["acceptedPatchShas"]
         platforms[platform] = {
             "runId": paired["runId"],
+            "rounds": paired["rounds"],
             "timing": paired["timing"],
             "applyWallSeconds": paired["applyWallSeconds"],
             "memory": validate_memory(
