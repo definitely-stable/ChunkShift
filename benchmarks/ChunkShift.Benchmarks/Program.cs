@@ -105,6 +105,8 @@ internal static class Program
         Console.WriteLine("  patch-lab run --corpus <root> --lane <name> --output <file.json> [--families <id,...>] [--workers <n>] [--apply-repeats <n>] [--no-apply] [--run-id <id>] [--work <dir>]");
         Console.WriteLine("  patch-lab memory --corpus <root> --output <file.json> [--min-bytes <n>] [--families <id,...>] [--run-id <id>] [--work <dir>] [--lane <name>]");
         Console.WriteLine("  patch-lab apply-check <prepare|time|concurrent|memory> --corpus <root> [--work <dir>] [--output <file.json>] [--repetition <r>] [--run-id <id>]");
+        Console.WriteLine("  patch-lab gap h0 --corpus <root> --output <file.json> --source-commit <sha> --run-id <id> [--work <dir>]");
+        Console.WriteLine("  patch-lab gap inventory --corpus <root> --g4-output <file.json> --g5-structural-output <file.json> --run-output <file.json> --source-commit <sha> --run-id <id> [--work <dir>]");
         Console.WriteLine("  verify-lab oracle --output <file.json> [--fixtures <dir>] [--quick] [--scratch <dir>]");
         Console.WriteLine("  verify-lab prepare --dir <dir> [--workloads S1,SL,T] [--corpus <root>] [--work <dir>] [--smoke]");
         Console.WriteLine("  verify-lab run --dir <dir> --oracle <oracle.json> --output <run.json> --platform <name> [--commit <sha>] [--run-id <id>] [--samples <n>]");

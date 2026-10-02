@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using ChunkShift.Benchmarks.Lab;
+using ChunkShift.Benchmarks.PatchLab.PatchGap;
 
 namespace ChunkShift.Benchmarks.PatchLab;
 
@@ -27,7 +28,7 @@ internal static class PatchLabRunner
     {
         if (args.Length == 0)
         {
-            Console.Error.WriteLine("patch-lab needs a mode: run, memory, one or apply-check.");
+            Console.Error.WriteLine("patch-lab needs a mode: run, memory, one, apply-check or gap.");
             return 2;
         }
 
@@ -39,6 +40,7 @@ internal static class PatchLabRunner
                 "memory" => PatchLabMemory.Execute(args[1..]),
                 "one" => PatchLabOne.Execute(args[1..]),
                 "apply-check" => PatchLabApplyCheck.Execute(args[1..]),
+                "gap" => PatchGapRunner.Execute(args[1..]),
                 _ => UnknownMode(args[0]),
             };
         }
@@ -114,7 +116,7 @@ internal static class PatchLabRunner
 
     private static int UnknownMode(string mode)
     {
-        Console.Error.WriteLine($"Unknown patch-lab mode '{mode}'; expected run, memory, one or apply-check.");
+        Console.Error.WriteLine($"Unknown patch-lab mode '{mode}'; expected run, memory, one, apply-check or gap.");
         return 2;
     }
 }
