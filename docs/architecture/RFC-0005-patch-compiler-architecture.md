@@ -9,7 +9,7 @@ Last updated: 2026-10-02
 
 ChunkShift already separates stable content identity, deterministic chunking, CSM manifests, CSP patch semantics and future Repository transport/storage concerns. The next research frontier adds increasingly sophisticated build-side analysis: reusable metadata, resemblance search, structure-aware transforms, learned ranking, composite source material and cost-aware planning.
 
-This RFC defines the architectural constraints that must remain true while that research proceeds.
+This RFC is a **proposal** that collects architectural constraints for that research. Until accepted, existing accepted RFCs, CSP v1 and `PATCHING-DECISIONS.md` remain authoritative where wording conflicts.
 
 It does **not** select a new CSP encoding, change CSP v1, change Core 0.1.x identities, or approve any specific experimental candidate.
 
@@ -27,12 +27,11 @@ may use:
 - executable/container parsers;
 - expensive bounded oracles;
 - learned ranking;
-- parallel/distributed execution;
+- local parallel execution;
 - offline profiling.
 
 WIRE / APPLY SIDE
 must remain:
-- deterministic;
 - bounded-memory;
 - independently verifiable;
 - exact;
@@ -68,9 +67,13 @@ They may not prove that content is correct.
 
 Any candidate selected through approximate search still flows through the exact verification rules required by the active patch format and target identity.
 
-## 5. Deterministic compilation
+## 5. Reproducible semantic selection without making patch bytes a contract
 
-For a fixed semantic policy identity and fixed inputs, scheduler order, thread count, worker placement, cache-hit order and machine timing must not change the resulting canonical patch bytes unless the policy explicitly declares a different versioned output contract.
+`PATCHING-DECISIONS.md` D7 is authoritative: **patch bytes are not a compatibility contract**. Compatible encoder/backend/search improvements may change physical CSP bytes while preserving required semantics.
+
+### 5.1 Semantic reproducibility
+
+For a fixed versioned BuildPolicy and fixed candidate-result set, scheduler order, worker count, cache-hit order and machine timing must not change the **semantic choice** of source/representation or any correctness verdict.
 
 Where parallel execution is used:
 
@@ -78,16 +81,22 @@ Where parallel execution is used:
 parallel candidate computation
         |
         v
-canonical result records
+validated result records
         |
         v
-deterministic selection
+deterministic semantic selection
         |
         v
-ordered/canonical writer
+ordered writer
 ```
 
 Tie-breaking and numeric scoring rules must be frozen before decision-grade runs.
+
+### 5.2 Same-build physical transparency tests
+
+A specific frozen experiment may additionally require byte-identical CSP output between cache-on/cache-off or scheduler variants of the **same implementation/build/backend/policy**. That is a non-normative regression oracle proving that the execution optimization is transparent.
+
+It does not create a cross-version or cross-backend byte contract. Cross-version/backend compatibility is judged by semantic results: target bytes, ManifestId, ChunkIds and required verdicts. Physical CSP bytes and `FileDigest` may legitimately differ under D7.
 
 ## 6. Representation portfolio, not one universal codec
 
@@ -101,7 +110,7 @@ bounded composite dictionary
 executable normalization
 container-aware normalization
 .NET-specific semantic normalization
-future one-hop / declarative delta encodings
+other representations only after an owning issue/ExperimentId exists
 ```
 
 A representation candidate is not adopted because it wins one local byte-count comparison. It must be evaluated with its apply memory, CPU, base-read, request/locality and metadata consequences.
@@ -122,26 +131,21 @@ remote request granularity
 
 This separation already exists in the Core/Repository direction and must remain explicit in Patching research.
 
-A future cost-aware compiler may account for multiple domains, but must not make transport-specific details part of CSP semantic identity unless a later RFC explicitly does so.
+A future cost-aware compiler may account for multiple domains, but must not make transport-specific details part of CSP semantic identity unless a later accepted RFC explicitly does so.
 
-## 8. Multi-objective planning
+## 8. Multi-objective planning and BuildPolicy
 
 Patch bytes remain an important metric, not the only metric.
 
-Research may evaluate a cost vector including:
+Research may measure a cost vector including wire bytes, create/apply wall and CPU, apply peak memory, base bytes read, seek/range count, remote request/overfetch cost, and dependency/locality cost.
 
-- wire bytes;
-- create wall and CPU;
-- apply wall and CPU;
-- apply peak memory;
-- base bytes read;
-- seek/range count;
-- predicted remote request/overfetch cost;
-- dependency/locality cost.
+Those **runtime measurements are offline evidence** used to design and freeze a policy. They are not dynamic online inputs that may change artifact selection according to current machine load.
 
-Initial work should use a small set of named, versioned internal product profiles rather than an unbounded public weight surface.
+A versioned internal **BuildPolicy** may use only deterministic inputs whose semantics are frozen, for example exact encoded byte counts, static representation cost constants derived from prior evidence, deterministic read/range/dependency estimates, and integer/fixed-point score terms.
 
-Any score that affects canonical output must be reproducible and deterministic. Prefer integer/fixed-point scoring or otherwise fully specified arithmetic where feasible.
+Avoid the word `profile` for this concept because ChunkShift already uses `ChunkingProfileId` and `ProfileFingerprint`.
+
+A BuildPolicy must define its identifier/version, representation set, exact scoring formula, arithmetic/overflow semantics and canonical tie-breaking. It governs semantic selection; D7 still permits compatible encoder/backend changes to alter physical CSP bytes.
 
 ## 9. Semantic transforms
 
@@ -151,8 +155,9 @@ Structure-aware transforms are allowed only when all of the following are true:
 - unsupported/malformed inputs fall back to a generic path;
 - inverse reconstruction is exact;
 - transform metadata is bounded and explicitly versioned;
+- every metadata/header/index byte is included in physical accounting;
 - final target identity verification remains authoritative;
-- adoption is supported by holdout evidence.
+- adoption is supported by both eligible-subset and corpus-weighted evidence.
 
 Generic executable/container experiments and .NET-specific semantic research remain separate until evidence justifies convergence.
 
@@ -164,43 +169,34 @@ ML is not allowed to become:
 
 - integrity truth;
 - a mandatory apply dependency;
-- a hidden semantic input to a supposedly stable policy;
-- an excuse for unversioned/non-reproducible output.
+- a hidden semantic input to a supposedly stable BuildPolicy;
+- an excuse for unversioned/non-reproducible semantic selection.
 
-A successful learned experiment may result in:
+A successful learned experiment may result in either a retained versioned build-side model, if it produces material value and deterministic candidate selection can be demonstrated on the supported execution set, or preferably a distilled deterministic scorer without an ML runtime dependency.
 
-1. a retained versioned build-side model, if it produces material value; or
-2. preferably, a distilled deterministic scorer that captures the useful structure without an ML runtime dependency.
+If deterministic canonical inference cannot be demonstrated, the learned model remains research/advisory only.
 
 ## 11. Derived metadata boundary
 
 Reusable patch features may be persisted only as rebuildable derived state.
 
-At minimum, records that affect build behavior must bind the relevant:
+At minimum, records that affect build behavior must bind the relevant source/manifest identity, ProfileFingerprint when boundary-derived, feature schema/version, algorithm/model version, and BuildPolicy/encoder identity where relevant.
 
-- source/manifest identity;
-- ProfileFingerprint when boundary-derived;
-- feature schema/version;
-- algorithm/model version;
-- policy identity.
+Durable records need explicit corruption detection. A checksum/digest failure, truncation or unknown version is a miss/recompute path, not acceptance.
 
 No derived sidecar becomes required to read a CSM or apply a CSP.
 
 ## 12. Execution architecture
 
-Expensive patch construction should evolve toward deterministic task decomposition.
+Expensive patch construction may evolve toward deterministic **local** task decomposition.
 
-A task identity may bind:
+A task identity may bind target identity, base/candidate identities, transform/feature version, codec version, BuildPolicy version, backend/implementation version when cached results contain physical encoded bytes, and dictionary/source-material identity and ordering.
 
-- target identity;
-- base/candidate identities;
-- transform version;
-- codec version;
-- policy fingerprint.
+Caching and retries may reuse task results only if the result is independently validated and canonical semantic selection is preserved.
 
-Caching, retries, parallel workers and future remote execution may reuse such tasks only if the final result is independently validated and canonical collection order is preserved.
+If physical encoded bytes are cached, the cached bytes need their own digest/checksum and must be decoded or otherwise verified against expected output length and ChunkId before inclusion in a newly built patch. Final Apply verification is defense in depth, not the first validation.
 
-Remote execution is not a prerequisite for the local deterministic task model.
+Distributed/remote build execution is a separate hypothesis. If local task decomposition proves valuable, it requires a new ExperimentId and threat/economics protocol rather than being silently added to `PATCH-EXEC-001`.
 
 ## 13. Promotion rule
 
@@ -222,14 +218,14 @@ Negative results remain indexed.
 
 ## 14. Current research map
 
-The first research set governed by this RFC is:
+The first research set associated with this proposal is:
 
-- #220 — `PATCH-META-001`: reusable derived patch features;
-- #221 — `PATCH-DOTNET-001`: .NET semantic normalization;
-- #222 — `PATCH-DICT-001`: bounded composite multi-range dictionaries;
-- #223 — `PATCH-ML-001`: learned reference ranking as a build-side oracle;
-- #224 — `PATCH-COMPILER-001`: deterministic cost-aware representation compiler;
-- #225 — `PATCH-EXEC-001`: adaptive/cacheable deterministic patch compilation.
+- #220 — `PATCH-META-001`: reusable derived features across repeated create;
+- #221 — `PATCH-DOTNET-001`: .NET semantic normalization after completion of generic G4 evidence;
+- #222 — `PATCH-DICT-001`: bounded composite dictionaries built from verified base chunk runs;
+- #223 — `PATCH-ML-001`: learned reference ranking as a build-side oracle/distillation experiment;
+- #224 — `PATCH-COMPILER-001`: deterministic cost-aware representation compiler with a versioned BuildPolicy;
+- #225 — `PATCH-EXEC-001`: local adaptive/cacheable deterministic patch compilation.
 
 These are non-blocking research tracks. They do not expand the frozen scope of PATCH-ENC-005 (#181/#216/#218) or PATCH-GAP-001 (#183/#217/#219).
 
@@ -252,6 +248,7 @@ These references motivate specific questions but do not define ChunkShift semant
 
 This RFC does not approve:
 
+- a physical CSP byte-identity compatibility guarantee;
 - neural compression;
 - LLM-based patch encoding;
 - arbitrary recursive delta chains;
@@ -259,6 +256,8 @@ This RFC does not approve:
 - GPU requirements;
 - trusted-execution or zero-knowledge patch construction;
 - transport semantics inside CSP;
-- a new CDC profile.
+- a new CDC profile;
+- remote/distributed patch compilation under PATCH-EXEC-001.
 
-Those may be revisited only with a concrete product need and separate evidence.
+Those may be revisited only with a concrete product need, an owning issue/ExperimentId and separate evidence.
+
