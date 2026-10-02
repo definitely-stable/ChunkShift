@@ -46,6 +46,12 @@ This table is the human-readable research index. Machine-readable experiment def
 | PATCH-APPLY-003 | Patching | #182, #168, #7 | The PATCH-APPLY-002 check lanes (off, sequential, overlapped; boundary-only if needed) with win-x64 on a GitHub runner (D13) | ADOPT | [PATCH-APPLY-003-EVIDENCE-20260929-001](results/PATCH-APPLY-003-EVIDENCE-20260929-001.md) (A2 adopted; rule 2 requires A1a); [PATCH-APPLY-003-EVIDENCE-20260930-001](results/PATCH-APPLY-003-EVIDENCE-20260930-001.md) (lane `boundary`: rule 2 does not hold after A1a, #168 closes with option 3); frozen protocol: [PATCH-APPLY-003-PROTOCOL](../benchmarks/PATCH-APPLY-003-PROTOCOL.md) |
 | PATCH-GAP-001 | Patching research | #183, #7 | Decompose the CSP size gap to `zstd --patch-from`, bsdiff, HDiffPatch and Zucchini | PLANNED | — |
 | PATCH-TREE-001 | Patching research | #184, #7 | Update sets: cross-file base reuse, tree manifest, atomic tree publication | PLANNED | — |
+| PATCH-META-001 | Patching research | #220, #7, #150, #181 | Reusable derived patch features for metadata-first incremental create | PLANNED | — |
+| PATCH-DOTNET-001 | Patching research | #221, #7, #183 | Reversible .NET/CLR semantic normalization after generic executable evidence | PLANNED | — |
+| PATCH-DICT-001 | Patching research | #222, #7, #183, #184 | Bounded composite multi-range dictionaries under equal total byte budgets | PLANNED | — |
+| PATCH-ML-001 | Patching research | #223, #7, #181, #183 | Learned reference ranking as a build-side oracle / distillation experiment | PLANNED | — |
+| PATCH-COMPILER-001 | Patching research | #224, #7 | Deterministic multi-objective representation compiler | PLANNED | — |
+| PATCH-EXEC-001 | Patching research | #225, #7, #181 | Adaptive/cacheable deterministic patch compilation | PLANNED | — |
 | REPO-INDEX-001 | Repository index | #145 | MPHF/PtrHash exact-key accelerator bake-off | PLANNED | — |
 | REPO-INDEX-002 | Repository index | #145 | Intra-segment partitioned index | PLANNED | — |
 | REPO-INDEX-003 | Repository index/pack | #145, #144 | Direct location vs PackOrdinal+FrameOrdinal indirection | PLANNED | — |
