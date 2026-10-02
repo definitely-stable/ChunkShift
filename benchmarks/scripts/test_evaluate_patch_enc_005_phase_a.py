@@ -119,6 +119,26 @@ class PatchEnc005PhaseAEvaluatorTests(unittest.TestCase):
         self.assertEqual([], result["finalists"])
         self.assertEqual([], result["pareto"])
 
+    def test_exact_byte_thresholds_do_not_depend_on_float_rounding(self):
+        document = compact()
+        document["patchBytes"]["H4-L1-R2"] = 1020
+        for platform in EVALUATOR.PLATFORMS:
+            document["platforms"][platform]["timing"]["H4-L1-R2"]["wallRatioMedian"] = 0.50
+            document["platforms"][platform]["timing"]["H4-L1-R2"]["wallRatios"] = [0.50] * 5
+
+        result = EVALUATOR.evaluate(document)
+
+        self.assertIn("speed", result["lanes"]["H4-L1-R2"]["qualificationBranches"])
+
+    def test_h0_memory_violation_invalidates_calibration_evidence(self):
+        document = compact()
+        document["platforms"]["linux-x64"]["memory"]["csp"][
+            "createPeakOverIdleBytes"
+        ] = EVALUATOR.CREATE_BOUND_BYTES + 1
+
+        with self.assertRaisesRegex(ValueError, "H0 violates frozen memory bounds"):
+            EVALUATOR.evaluate(document)
+
     def test_independent_recompute_matches_selection(self):
         document = compact()
         verdict = EVALUATOR.evaluate(document)
