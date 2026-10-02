@@ -9,6 +9,8 @@ import json
 import math
 import re
 import shutil
+
+import patch_enc_005_apply_evidence as apply_evidence_validator
 from pathlib import Path
 
 EXPERIMENT_ID = "PATCH-ENC-005"
@@ -367,33 +369,16 @@ def validate_paired(platform: str, path: Path, source_commit: str) -> tuple[dict
         f"{label}/timing",
     )
 
-    apply_evidence = document.get("applyEvidence")
-    if not isinstance(apply_evidence, dict) or set(apply_evidence) != set(ALL_LANES):
-        raise ValueError(f"{label}: applyEvidence lane set mismatch")
-    apply_wall: dict[str, float] = {}
-    apply_environment = None
-    for lane in ALL_LANES:
-        lane_apply = apply_evidence[lane]
-        aggregate = lane_apply.get("aggregate")
-        if not isinstance(aggregate, dict):
-            raise ValueError(f"{label}/{lane}: apply aggregate missing")
-        apply_wall[lane] = positive(aggregate.get("wallSeconds"), f"{label}/{lane}/apply")
-        result_path = safe_child(path.parent, str(lane_apply.get("result", "")))
-        apply_result = load_json(result_path)
-        if apply_result.get("lane") != lane or apply_result.get("schema") != "chunkshift.patch-lab.v1":
-            raise ValueError(f"{result_path}: apply result identity mismatch")
-        environment = validate_environment(
-            platform,
-            apply_result.get("environment"),
-            source_commit,
-            f"{label}/{lane}/apply",
-        )
-        if apply_environment is None:
-            apply_environment = environment
-        elif environment != apply_environment:
-            raise ValueError(f"{label}: apply environment differs between lanes")
-
     accepted = projection(document, label)
+    apply_wall, apply_raw, apply_environment = apply_evidence_validator.validate(
+        document.get("applyEvidence"),
+        accepted,
+        platform,
+        source_commit,
+        ALL_LANES,
+        label,
+    )
+
     if accepted["H7-L1-R2-E75"] != accepted["H4-L1-R2"]:
         raise ValueError(f"{label}: H7 is not byte-identical to H4")
     files = compact_file_rows(path, document, accepted)
@@ -413,6 +398,7 @@ def validate_paired(platform: str, path: Path, source_commit: str) -> tuple[dict
         "rounds": compact_rounds,
         "timing": timing,
         "applyWallSeconds": apply_wall,
+        "applyRaw": apply_raw,
         "timingEnvironment": timing_environment,
         "applyEnvironment": apply_environment,
         "acceptedPatchShas": accepted,
@@ -785,6 +771,7 @@ def build_compact(
             "rounds": paired["rounds"],
             "timing": paired["timing"],
             "applyWallSeconds": paired["applyWallSeconds"],
+            "applyRaw": paired["applyRaw"],
             "memory": memory,
         }
 
