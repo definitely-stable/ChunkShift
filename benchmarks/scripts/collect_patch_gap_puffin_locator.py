@@ -306,16 +306,6 @@ def main() -> int:
             if sha256_file(target_path) != expected["targetSha256"]:
                 raise LocatorError(f"target file digest mismatch for {key}")
 
-            with tempfile.TemporaryDirectory(prefix="patch-gap-puffin-") as temporary:
-                work = Path(temporary)
-                base = locate_one(
-                    args.puffin,
-                    base_path,
-                    typ,
-                    expected["baseSha256"],
-                    work / "base",
-                ) if False else None
-
             # Separate directories prevent the second puffhuff from overwriting
             # the first reconstructed output while retaining no large artifacts.
             with tempfile.TemporaryDirectory(prefix="patch-gap-puffin-base-") as temp:
