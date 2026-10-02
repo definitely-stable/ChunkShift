@@ -1,0 +1,389 @@
+name: PATCH-GAP-001 Stage A inventory
+
+on:
+  workflow_dispatch:
+    inputs:
+      run-date:
+        description: "Frozen RunId UTC date (YYYYMMDD)"
+        required: true
+        type: string
+      puffin-url:
+        description: "Public immutable HTTPS URL for the pinned Linux x64 Puffin host executable"
+        required: true
+        type: string
+      puffin-sha256:
+        description: "SHA-256 of the exact Puffin executable"
+        required: true
+        type: string
+      puffin-build-provenance-url:
+        description: "Public immutable HTTPS URL for exact Puffin compiler/build provenance bytes"
+        required: true
+        type: string
+      puffin-build-provenance-sha256:
+        description: "SHA-256 of the exact build-provenance bytes"
+        required: true
+        type: string
+      puffin-build-command:
+        description: "Exact non-secret command used to build the supplied Puffin executable"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: patch-gap-001-stage-a-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+  PUFFIN_COMMIT: 343e23db1b4d81045e91a10244244893f5acd73b
+  PUFFIN_TAG: android-17.0.0_r1
+  PROTOCOL_COMMIT: 5372678ae8451a71cc95eb24f30855cbbd7e0633
+
+jobs:
+  inventory:
+    name: inventory-only
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      RUN_DATE: ${{ inputs.run-date }}
+      PUFFIN_URL: ${{ inputs.puffin-url }}
+      PUFFIN_SHA256: ${{ inputs.puffin-sha256 }}
+      PUFFIN_PROVENANCE_URL: ${{ inputs.puffin-build-provenance-url }}
+      PUFFIN_PROVENANCE_SHA256: ${{ inputs.puffin-build-provenance-sha256 }}
+      PUFFIN_BUILD_COMMAND: ${{ inputs.puffin-build-command }}
+
+    steps:
+      - name: Validate Stage-A evidence identity
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "PATCH-GAP-001 Stage A evidence must run from main." >&2
+            exit 2
+          fi
+          if [[ "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
+            echo "PATCH-GAP-001 Stage A evidence rejects GitHub workflow re-runs." >&2
+            exit 2
+          fi
+          if (( GITHUB_RUN_NUMBER > 999 )); then
+            echo "RunId NNN supports workflow run numbers 001..999." >&2
+            exit 2
+          fi
+          python3 - "$RUN_DATE" "$PUFFIN_SHA256" "$PUFFIN_PROVENANCE_SHA256" "$PUFFIN_URL" "$PUFFIN_PROVENANCE_URL" <<'PY'
+          import datetime as dt
+          import re
+          import sys
+          from urllib.parse import urlsplit
+
+          run_date, binary_sha, provenance_sha, binary_url, provenance_url = sys.argv[1:]
+          if not re.fullmatch(r"\d{8}", run_date):
+              raise SystemExit("run-date must be YYYYMMDD")
+          dt.datetime.strptime(run_date, "%Y%m%d")
+
+          for label, value in (
+              ("puffin-sha256", binary_sha),
+              ("puffin-build-provenance-sha256", provenance_sha),
+          ):
+              if not re.fullmatch(r"[0-9a-fA-F]{64}", value):
+                  raise SystemExit(f"{label} must be exactly 64 hexadecimal characters")
+
+          for label, value in (
+              ("puffin-url", binary_url),
+              ("puffin-build-provenance-url", provenance_url),
+          ):
+              parsed = urlsplit(value)
+              if parsed.scheme != "https" or not parsed.netloc:
+                  raise SystemExit(f"{label} must be an absolute HTTPS URL")
+              if parsed.username or parsed.password or parsed.query or parsed.fragment:
+                  raise SystemExit(
+                      f"{label} must be a public immutable URL without credentials, query, or fragment"
+                  )
+          PY
+
+          sequence="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
+          short_commit="${GITHUB_SHA:0:7}"
+          run_id="PATCH-GAP-001/RUN-${RUN_DATE}-${sequence}-${short_commit}-linux-x64"
+          echo "RUN_ID=$run_id" >> "$GITHUB_ENV"
+          echo "CORPUS_ROOT=$HOME/patch-corpus" >> "$GITHUB_ENV"
+          echo "OUT=$RUNNER_TEMP/patch-gap-001-stage-a" >> "$GITHUB_ENV"
+          echo "PATCH-GAP Stage-A RunId: $run_id"
+
+      - name: Checkout tested main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify clean tested checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=normal)"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Restore frozen patch-corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize and lock frozen patch corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$CORPUS_ROOT" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download \
+            --lock
+
+      - name: Restore benchmark lab
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+
+      - name: Build benchmark lab
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Run structural inventory prepass
+        shell: bash
+        run: |
+          set -euo pipefail
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          prepass="$OUT/prepass"
+          mkdir -p "$prepass"
+          dotnet "$dll" patch-lab gap inventory \
+            --corpus "$CORPUS_ROOT" \
+            --g4-output "$prepass/g4.json" \
+            --g5-structural-output "$prepass/g5-structural.json" \
+            --run-output "$prepass/inventory-run.json" \
+            --source-commit "$GITHUB_SHA" \
+            --run-id "$RUN_ID"
+
+      - name: Acquire and verify pinned Puffin tool inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          tool_dir="$RUNNER_TEMP/patch-gap-puffin"
+          mkdir -p "$tool_dir"
+
+          curl --fail --show-error --silent --location \
+            --proto '=https' --proto-redir '=https' --tlsv1.2 \
+            "$PUFFIN_URL" -o "$tool_dir/puffin"
+          curl --fail --show-error --silent --location \
+            --proto '=https' --proto-redir '=https' --tlsv1.2 \
+            "$PUFFIN_PROVENANCE_URL" -o "$tool_dir/build-provenance.bin"
+
+          expected_binary="$(printf '%s' "$PUFFIN_SHA256" | tr '[:upper:]' '[:lower:]')"
+          expected_provenance="$(printf '%s' "$PUFFIN_PROVENANCE_SHA256" | tr '[:upper:]' '[:lower:]')"
+          actual_binary="$(sha256sum "$tool_dir/puffin" | cut -d' ' -f1)"
+          actual_provenance="$(sha256sum "$tool_dir/build-provenance.bin" | cut -d' ' -f1)"
+          test "$actual_binary" = "$expected_binary"
+          test "$actual_provenance" = "$expected_provenance"
+
+          chmod 0755 "$tool_dir/puffin"
+          "$tool_dir/puffin" --help >/dev/null
+
+          echo "PUFFIN_BIN=$tool_dir/puffin" >> "$GITHUB_ENV"
+          echo "PUFFIN_BUILD_PROVENANCE=$tool_dir/build-provenance.bin" >> "$GITHUB_ENV"
+
+      - name: Materialize frozen Puffin source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$RUNNER_TEMP/puffin-source"
+          git clone \
+            --depth=1 \
+            --branch "$PUFFIN_TAG" \
+            --single-branch \
+            https://android.googlesource.com/platform/external/puffin \
+            "$source_dir"
+          test "$(git -C "$source_dir" rev-parse HEAD)" = "$PUFFIN_COMMIT"
+          test -z "$(git -C "$source_dir" status --porcelain=v1 --untracked-files=normal)"
+          echo "PUFFIN_SOURCE=$source_dir" >> "$GITHUB_ENV"
+
+      - name: Collect Puffin structural locator evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/collect_patch_gap_puffin_locator.py \
+            --corpus "$CORPUS_ROOT" \
+            --structural "$OUT/prepass/g5-structural.json" \
+            --puffin "$PUFFIN_BIN" \
+            --output "$OUT/prepass/puffin-locator.json" \
+            --source-commit "$GITHUB_SHA" \
+            --puffin-source "$PUFFIN_SOURCE" \
+            --build-provenance "$PUFFIN_BUILD_PROVENANCE" \
+            --build-command "$PUFFIN_BUILD_COMMAND" \
+            --logical-artifact "tools/puffin/android-17.0.0_r1/puffin"
+
+      - name: Finalize fail-closed Stage-A inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          dotnet "$dll" patch-lab gap finalize-inventory \
+            --corpus "$CORPUS_ROOT" \
+            --g4 "$OUT/prepass/g4.json" \
+            --g5-structural "$OUT/prepass/g5-structural.json" \
+            --puffin-locator "$OUT/prepass/puffin-locator.json" \
+            --evidence-dir "$OUT/evidence" \
+            --source-commit "$GITHUB_SHA" \
+            --run-id "$RUN_ID"
+
+      - name: Verify complete inventory-only evidence bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          required=(
+            "$OUT/prepass/g4.json"
+            "$OUT/prepass/g5-structural.json"
+            "$OUT/prepass/puffin-locator.json"
+            "$OUT/prepass/inventory-run.json"
+            "$OUT/evidence/subsets/g4.json"
+            "$OUT/evidence/subsets/g5.json"
+            "$OUT/evidence/evidence-input/g4.json"
+            "$OUT/evidence/evidence-input/g5-structural.json"
+            "$OUT/evidence/evidence-input/puffin-locator.json"
+            "$OUT/evidence/tool-provenance/puffin-build-provenance.bin"
+            "$OUT/evidence/inputs.json"
+            "$OUT/evidence/tools.json"
+            "$OUT/evidence/inventory-lock-run.json"
+          )
+          for path in "${required[@]}"; do
+            test -s "$path"
+          done
+
+          cmp "$OUT/prepass/g4.json" "$OUT/evidence/evidence-input/g4.json"
+          cmp "$OUT/prepass/g5-structural.json" "$OUT/evidence/evidence-input/g5-structural.json"
+          cmp "$OUT/prepass/puffin-locator.json" "$OUT/evidence/evidence-input/puffin-locator.json"
+          cmp "$PUFFIN_BUILD_PROVENANCE" "$OUT/evidence/tool-provenance/puffin-build-provenance.bin"
+          cmp "$OUT/prepass/g4.json" "$OUT/evidence/subsets/g4.json"
+
+          python3 - "$OUT" "$PROTOCOL_COMMIT" "$GITHUB_SHA" "$RUN_ID" <<'PY'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          out = Path(sys.argv[1])
+          protocol_commit = sys.argv[2]
+          source_commit = sys.argv[3].lower()
+          run_id = sys.argv[4]
+
+          def load(path):
+              return json.loads(path.read_text(encoding="utf-8"))
+
+          def sha256(path):
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+
+          g4_path = out / "evidence/subsets/g4.json"
+          g5_path = out / "evidence/subsets/g5.json"
+          run_path = out / "evidence/inventory-lock-run.json"
+          g4 = load(g4_path)
+          g5 = load(g5_path)
+          run = load(run_path)
+
+          for name, document in (("G4", g4), ("G5", g5)):
+              if document["protocolCommit"] != protocol_commit:
+                  raise SystemExit(f"{name}: wrong protocolCommit")
+              if document["sourceCommit"].lower() != source_commit:
+                  raise SystemExit(f"{name}: wrong sourceCommit")
+              for field in ("calibrationSha256", "evaluationSha256"):
+                  value = document[field]
+                  if len(value) != 64:
+                      raise SystemExit(f"{name}: malformed {field}")
+
+          provenance = run.get("provenance", {})
+          if provenance.get("runId") != run_id:
+              raise SystemExit("inventory-lock-run.json has the wrong RunId")
+
+          summary = {
+              "schema": "chunkshift.patch-gap-stage-a-summary.v1",
+              "experimentId": "PATCH-GAP-001",
+              "runId": run_id,
+              "protocolCommit": protocol_commit,
+              "sourceCommit": source_commit,
+              "g4": {
+                  "rows": len(g4["rows"]),
+                  "calibrationSha256": g4["calibrationSha256"],
+                  "evaluationSha256": g4["evaluationSha256"],
+                  "fileSha256": sha256(g4_path),
+              },
+              "g5": {
+                  "rows": len(g5["rows"]),
+                  "puffinSupportedRows": sum(
+                      1 for row in g5["rows"] if row.get("puffinSupported") is True
+                  ),
+                  "calibrationSha256": g5["calibrationSha256"],
+                  "evaluationSha256": g5["evaluationSha256"],
+                  "fileSha256": sha256(g5_path),
+              },
+          }
+          summary_path = out / "stage-a-summary.json"
+          summary_path.write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+              newline="\n",
+          )
+
+          md = [
+              "### PATCH-GAP-001 Stage-A inventory",
+              "",
+              f"- RunId: `{run_id}`",
+              f"- sourceCommit: `{source_commit}`",
+              f"- G4 rows: {summary['g4']['rows']}",
+              f"- G4 calibration SHA-256: `{summary['g4']['calibrationSha256']}`",
+              f"- G4 evaluation SHA-256: `{summary['g4']['evaluationSha256']}`",
+              f"- G5 rows: {summary['g5']['rows']}",
+              f"- G5 Puffin-supported rows: {summary['g5']['puffinSupportedRows']}",
+              f"- G5 calibration SHA-256: `{summary['g5']['calibrationSha256']}`",
+              f"- G5 evaluation SHA-256: `{summary['g5']['evaluationSha256']}`",
+              "",
+              "Inventory only: no G1/G2/G3/G4/G5 size codec or external reference patch lane ran.",
+          ]
+          with Path(sys.argv[1]).joinpath("stage-a-summary.md").open(
+              "w", encoding="utf-8", newline="\n"
+          ) as stream:
+              stream.write("\n".join(md) + "\n")
+          PY
+
+          cat "$OUT/stage-a-summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Stage-A inventory evidence
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-001-stage-a-${{ github.run_number }}-${{ github.sha }}
+          path: ${{ env.OUT }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Record raw artifact identity
+        shell: bash
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          {
+            echo
+            echo "- Actions artifact id: \`$ARTIFACT_ID\`"
+            echo "- Actions artifact digest: \`$ARTIFACT_DIGEST\`"
+            echo "- Retention: 90 days"
+            echo
+            echo "The follow-up evidence PR must commit the reviewed compact G4/G5 manifests and durable artifact lineage before any G4/G5 size run."
+          } >> "$GITHUB_STEP_SUMMARY"
