@@ -204,8 +204,52 @@ def synthetic_artifacts(root: Path):
                     ],
                 },
             )
+            trace_directory = f"trace-correctness/{lane}/traces"
+            write_json(
+                paired_root / trace_directory / "trace.json",
+                {
+                    "schema": "chunkshift.patch-candidate-trace.v1",
+                    "experimentId": "PATCH-ENC-005",
+                    "runId": f"PATCH-ENC-005/RUN-20261002-001-{SOURCE}-{platform}",
+                    "protocolCommit": EVALUATOR.PROTOCOL_COMMIT,
+                    "sourceCommit": SOURCE,
+                    "platform": platform,
+                    "lane": lane,
+                    "datasetRole": "calibration",
+                    "datasetSha256": EVALUATOR.DATASET_SHA256,
+                    "family": FILE_KEY["family"],
+                    "baseVersion": FILE_KEY["base"],
+                    "targetVersion": FILE_KEY["target"],
+                    "path": FILE_KEY["path"],
+                    "baseManifestId": "sha256:" + "a" * 64,
+                    "targetManifestId": "sha256:" + "b" * 64,
+                    "finalLevel": 19,
+                    "entries": [
+                        {
+                            "targetIndex": 0,
+                            "targetChunkId": "sha256:" + "c" * 64,
+                            "targetOffset": 0,
+                            "targetLength": 1024,
+                            "candidateCount": 0,
+                            "cheapTrialCount": 0,
+                            "expensiveTrialCount": 0,
+                            "totalCompressionTrialCount": 1,
+                            "level19TrialCount": 1,
+                            "noDictionaryFrameBytes": 100,
+                            "l19NoDictionaryFrameBytes": 100,
+                            "baselineCostBytes": 100,
+                            "selectedEncoding": "zstd",
+                            "selectedCandidate": None,
+                            "storedBytes": 100,
+                            "dictionaryRefs": 0,
+                            "candidates": [],
+                        }
+                    ],
+                },
+            )
             trace[lane] = {
                 "result": relative,
+                "traceDirectory": trace_directory,
                 "correctness": [
                     {
                         **FILE_KEY,
