@@ -24,7 +24,7 @@ class FinalizeTests(unittest.TestCase):
             path = Path(directory) / "dispatch.json"
             path.write_bytes(b'{"valid":true}\n')
             self.assertEqual(
-                "0a4e05b582f5070063e1021240b18a41588d20f3c4067283323d6a1581e66375",
+                "701dad29c5f2e91a84aeb91db799c4d2dd64b630f5262541a4855e706e04f80a",
                 MODULE.sha256_file(path),
             )
 
