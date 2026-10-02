@@ -135,6 +135,7 @@ class PatchEnc005PairedTests(unittest.TestCase):
                         "allocatedBytes": 100,
                         "baseReads": 2,
                         "baseBytesRead": 20,
+                        "baseSeeks": 1,
                     },
                 },
                 {
@@ -145,6 +146,7 @@ class PatchEnc005PairedTests(unittest.TestCase):
                         "allocatedBytes": 200,
                         "baseReads": 3,
                         "baseBytesRead": 30,
+                        "baseSeeks": 2,
                     },
                 },
             ]
@@ -156,6 +158,7 @@ class PatchEnc005PairedTests(unittest.TestCase):
                 "allocatedBytes": 300,
                 "baseReads": 5,
                 "baseBytesRead": 50,
+                "baseSeeks": 3,
                 "patchBytes": 30,
             },
             MODULE.aggregate_create(result),

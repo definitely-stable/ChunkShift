@@ -155,6 +155,7 @@ def aggregate_create(result: dict) -> dict[str, float | int]:
     allocations = 0
     base_reads = 0
     base_bytes = 0
+    base_seeks = 0
     for item in files:
         metrics = item.get("createMetrics")
         if metrics is None:
@@ -163,12 +164,14 @@ def aggregate_create(result: dict) -> dict[str, float | int]:
         allocations += int(metrics["allocatedBytes"])
         base_reads += int(metrics["baseReads"])
         base_bytes += int(metrics["baseBytesRead"])
+        base_seeks += int(metrics["baseSeeks"])
     return {
         "wallSeconds": sum(float(item["createSeconds"]) for item in files),
         "cpuSeconds": cpu,
         "allocatedBytes": allocations,
         "baseReads": base_reads,
         "baseBytesRead": base_bytes,
+        "baseSeeks": base_seeks,
         "patchBytes": sum(int(item["patchBytes"]) for item in files),
     }
 
@@ -464,9 +467,27 @@ def collect_apply_evidence(
         path, result = invoke(args, lane, root / lane, apply=True)
         if patch_sha_map(result) != lane_maps[lane]:
             raise ValueError(f"{lane}: apply capture patch bytes differ from accepted timing")
+        files = []
+        for item in result["files"]:
+            metrics = item.get("applyMetrics")
+            samples = None if not isinstance(metrics, dict) else metrics.get("samples")
+            if not isinstance(samples, list) or len(samples) != 5:
+                raise ValueError(f"{lane}: expected five raw apply samples for {item['path']}")
+            files.append(
+                {
+                    "family": item["family"],
+                    "base": item["base"],
+                    "target": item["target"],
+                    "path": item["path"],
+                    "patchSha256": item["patchSha256"],
+                    "samples": samples,
+                }
+            )
         evidence[lane] = {
             "result": str(path.relative_to(args.output)),
+            "environment": result["environment"],
             "aggregate": aggregate_apply(result),
+            "files": files,
         }
     return evidence
 

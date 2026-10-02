@@ -28,6 +28,91 @@ class FinalizeTests(unittest.TestCase):
                 MODULE.sha256_file(path),
             )
 
+
+    def test_timing_environment_is_loaded_from_all_measured_runs(self):
+        import json
+        import tempfile
+
+        commit = "a" * 40
+        environment = {
+            "osDescription": "Linux test",
+            "osArchitecture": "X64",
+            "processArchitecture": "X64",
+            "frameworkDescription": ".NET 10.0.0 test",
+            "processorCount": 4,
+            "gitCommit": commit,
+            "processorDescription": "test cpu",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            result = root / "measured.json"
+            result.write_text(
+                json.dumps({"environment": environment}),
+                encoding="utf-8",
+            )
+            rounds = []
+            for index in range(5):
+                rounds.append(
+                    {
+                        "round": index + 1,
+                        "h0StartResult": "measured.json",
+                        "h0EndResult": "measured.json",
+                        "candidates": [
+                            {"lane": lane, "result": "measured.json"}
+                            for lane in MODULE.paired.FROZEN_PHASE_A
+                        ],
+                    }
+                )
+            dispatch = root / "dispatch.json"
+            dispatch.write_text("{}", encoding="utf-8")
+
+            actual = MODULE.timing_environment(
+                dispatch,
+                {"rounds": rounds},
+                commit,
+            )
+
+            self.assertEqual(environment, actual)
+
+    def test_timing_environment_rejects_mixed_runner_snapshot(self):
+        import json
+        import tempfile
+
+        commit = "a" * 40
+        base = {
+            "osDescription": "Linux test",
+            "osArchitecture": "X64",
+            "processArchitecture": "X64",
+            "frameworkDescription": ".NET 10.0.0 test",
+            "processorCount": 4,
+            "gitCommit": commit,
+            "processorDescription": "test cpu",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first = root / "first.json"
+            second = root / "second.json"
+            first.write_text(json.dumps({"environment": base}), encoding="utf-8")
+            second.write_text(
+                json.dumps({"environment": {**base, "processorCount": 8}}),
+                encoding="utf-8",
+            )
+            rounds = [
+                {
+                    "round": index + 1,
+                    "h0StartResult": "first.json",
+                    "h0EndResult": "second.json" if index == 4 else "first.json",
+                    "candidates": [],
+                }
+                for index in range(5)
+            ]
+            dispatch = root / "dispatch.json"
+            dispatch.write_text("{}", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "timing environment changed"):
+                MODULE.timing_environment(dispatch, {"rounds": rounds}, commit)
+
+
     def test_patch_map_requires_exact_phase_a_lane_and_file_sets(self):
         row = {
             "family": "f",
