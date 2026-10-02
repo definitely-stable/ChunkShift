@@ -12,6 +12,7 @@ The exact Puffin pin is Android-17.0.0_r1 /
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import re
@@ -217,6 +218,8 @@ def help_output(puffin: Path) -> tuple[str, str]:
         stderr=subprocess.PIPE,
         check=False,
     )
+    if completed.returncode != 0:
+        raise LocatorError(f"puffin --help exited with {completed.returncode}")
     text = (
         completed.stdout.decode("utf-8", errors="replace")
         + "\n---stderr---\n"
@@ -271,6 +274,13 @@ def source_checkout_archive_sha256(source: Path) -> str:
     return sha256_bytes(archive)
 
 
+def encode_build_provenance(path: Path) -> tuple[str, str]:
+    raw = path.read_bytes()
+    if not raw:
+        raise LocatorError("Puffin build provenance must not be empty")
+    return base64.b64encode(raw).decode("ascii"), sha256_bytes(raw)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--corpus", type=Path, required=True)
@@ -301,6 +311,9 @@ def main() -> int:
                 f"build provenance {args.build_provenance} does not exist"
             )
 
+        build_provenance_base64, build_provenance_sha = encode_build_provenance(
+            args.build_provenance
+        )
         structural = load_structural(args.structural, args.source_commit)
         pairs_sha, changed = corpus_index(args.corpus)
         rows = []
@@ -408,7 +421,8 @@ def main() -> int:
             "executableSha256": sha256_file(args.puffin),
             "executableBytes": args.puffin.stat().st_size,
             "sourceArchiveSha256": source_archive_sha,
-            "buildProvenanceSha256": sha256_file(args.build_provenance),
+            "buildProvenanceBase64": build_provenance_base64,
+            "buildProvenanceSha256": build_provenance_sha,
             "helpOutputSha256": help_sha,
             "rows": rows,
         }
