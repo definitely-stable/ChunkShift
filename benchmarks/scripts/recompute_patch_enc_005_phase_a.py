@@ -76,7 +76,12 @@ def recompute(compact: dict) -> dict:
             "byteRatio": b,
             "maxWallRatio": max(wall.values()),
             "maxCpuRatio": max(cpu.values()),
+            "maxApplyRatio": max(apply.values()),
+            "maxCreatePeakOverIdleBytes": max(create_memory.values()),
+            "maxApplyPeakOverIdleBytes": max(apply_memory.values()),
             "qualificationBranches": branches,
+            "applyOk": apply_ok,
+            "memoryOk": memory_ok,
             "eligible": apply_ok and memory_ok and bool(branches),
         }
 
@@ -137,6 +142,7 @@ def recompute(compact: dict) -> dict:
         "sizeFinalist": size_finalist,
         "finalists": finalists,
         "status": "READY_FOR_FIXED_EVALUATION" if finalists else "REJECT",
+        "lanes": rows,
         "qualificationBranches": {
             lane: rows[lane]["qualificationBranches"] for lane in finalists
         },
@@ -159,6 +165,25 @@ def main() -> int:
             "sizeFinalist": expected.get("sizeFinalist"),
             "finalists": expected.get("finalists"),
             "status": expected.get("status"),
+            "lanes": {
+                lane: {
+                    "byteRatio": expected["lanes"][lane]["byteRatio"],
+                    "maxWallRatio": expected["lanes"][lane]["maxWallRatio"],
+                    "maxCpuRatio": expected["lanes"][lane]["maxCpuRatio"],
+                    "maxApplyRatio": max(expected["lanes"][lane]["applyRatioByPlatform"].values()),
+                    "maxCreatePeakOverIdleBytes": max(
+                        expected["lanes"][lane]["createPeakOverIdleBytesByPlatform"].values()
+                    ),
+                    "maxApplyPeakOverIdleBytes": max(
+                        expected["lanes"][lane]["applyPeakOverIdleBytesByPlatform"].values()
+                    ),
+                    "qualificationBranches": expected["lanes"][lane]["qualificationBranches"],
+                    "applyOk": expected["lanes"][lane]["applyOk"],
+                    "memoryOk": expected["lanes"][lane]["memoryOk"],
+                    "eligible": expected["lanes"][lane]["eligible"],
+                }
+                for lane in LANES
+            },
             "qualificationBranches": {
                 lane: expected["lanes"][lane]["qualificationBranches"]
                 for lane in expected.get("finalists", [])
