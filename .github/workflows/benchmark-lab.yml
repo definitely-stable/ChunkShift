@@ -89,13 +89,15 @@ jobs:
             benchmarks/scripts/run_cdc_runtime_guardrail.py \
             benchmarks/scripts/summarize_apply_check.py \
             benchmarks/scripts/evaluate_patch_enc_005_phase_a.py \
-            benchmarks/scripts/recompute_patch_enc_005_phase_a.py
+            benchmarks/scripts/recompute_patch_enc_005_phase_a.py \
+            benchmarks/scripts/collect_patch_gap_puffin_locator.py
           python3 -m unittest \
             benchmarks/scripts/test_summarize_apply_check.py \
             benchmarks/scripts/test_patch_enc_005_paired.py \
             benchmarks/scripts/test_finalize_patch_enc_005_phase_a.py \
             benchmarks/scripts/test_check_patch_enc_005_cross_platform.py \
-            benchmarks/scripts/test_evaluate_patch_enc_005_phase_a.py
+            benchmarks/scripts/test_evaluate_patch_enc_005_phase_a.py \
+            benchmarks/scripts/test_collect_patch_gap_puffin_locator.py
 
       - name: 'Validate #8 runtime guardrail plan'
         shell: bash
