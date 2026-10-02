@@ -402,7 +402,7 @@ internal static class PatchGapRunner
         }
     }
 
-    private static IReadOnlyDictionary<string, string> BuildMaterializedInputDigests(
+    private static SortedDictionary<string, string> BuildMaterializedInputDigests(
         PatchLabCorpus corpus,
         string g4Path,
         string structuralPath,
@@ -437,7 +437,7 @@ internal static class PatchGapRunner
     }
 
     private static void AddMaterialized(
-        IDictionary<string, string> result,
+        SortedDictionary<string, string> result,
         string physicalPath,
         string logicalPath,
         string expectedSha256)
