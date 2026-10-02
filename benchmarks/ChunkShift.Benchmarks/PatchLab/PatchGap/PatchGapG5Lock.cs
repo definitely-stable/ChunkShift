@@ -307,12 +307,7 @@ internal static class PatchGapG5InventoryLock
             return false;
         }
 
-        PatchGapDeflateExtent[] byteExtents =
-        [
-            .. structural.DeflateExtents
-                .OrderBy(static extent => extent.ByteOffset)
-                .ThenBy(static extent => extent.ByteLength),
-        ];
+        PatchGapDeflateExtent[] byteExtents = structural.DeflateExtents;
 
         if (bitExtents.Length != byteExtents.Length)
         {
