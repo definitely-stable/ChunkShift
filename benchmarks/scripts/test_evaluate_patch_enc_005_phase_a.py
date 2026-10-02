@@ -1,4 +1,6 @@
 import importlib.util
+import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -68,7 +70,200 @@ def compact(lane_overrides=None):
     }
 
 
+SOURCE = "a" * 40
+FILE_KEY = {
+    "family": "dotnet-runtime-linux-arm64",
+    "base": "10.0.10",
+    "target": "10.0.11",
+    "path": "shared/test.dll",
+}
+PATCH_BYTES = {
+    "csp": 1000,
+    "H4-L1-R2": 1000,
+    "H7-L1-R2-E75": 1000,
+    "H9-L9-K4-C16-R1M": 960,
+    "H9-L12-K4-C16-R1M": 950,
+    "H9-L15-K4-C16-R1M": 940,
+}
+PATCH_SHA = {
+    "csp": "1" * 64,
+    "H4-L1-R2": "2" * 64,
+    "H7-L1-R2-E75": "2" * 64,
+    "H9-L9-K4-C16-R1M": "3" * 64,
+    "H9-L12-K4-C16-R1M": "4" * 64,
+    "H9-L15-K4-C16-R1M": "5" * 64,
+}
+
+
+def write_json(path: Path, value: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def synthetic_artifacts(root: Path):
+    paired_paths = {}
+    memory_paths = {}
+    accepted = {
+        lane: [{**FILE_KEY, "patchSha256": PATCH_SHA[lane]}]
+        for lane in EVALUATOR.ALL_LANES
+    }
+
+    for platform in EVALUATOR.PLATFORMS:
+        paired_root = root / "paired" / platform
+        trace = {}
+        for lane in EVALUATOR.ALL_LANES:
+            relative = f"trace-correctness/{lane}/run.json"
+            write_json(
+                paired_root / relative,
+                {
+                    "schema": "chunkshift.patch-lab.v1",
+                    "lane": lane,
+                    "files": [
+                        {
+                            **FILE_KEY,
+                            "patchBytes": PATCH_BYTES[lane],
+                            "patchSha256": PATCH_SHA[lane],
+                        }
+                    ],
+                },
+            )
+            trace[lane] = {
+                "result": relative,
+                "correctness": [
+                    {
+                        **FILE_KEY,
+                        "patchSha256": PATCH_SHA[lane],
+                        "targetSha256": "f" * 64,
+                        "decoderOutputSha256": "f" * 64,
+                        "verdict": "valid",
+                    }
+                ],
+            }
+
+        candidates = [
+            {
+                "lane": lane,
+                "aggregate": {"patchBytes": PATCH_BYTES[lane]},
+                "wallRatio": 0.45 if lane in ("H4-L1-R2", "H7-L1-R2-E75") else 1.2,
+                "cpuRatio": 0.7 if lane in ("H4-L1-R2", "H7-L1-R2-E75") else 0.9,
+            }
+            for lane in EVALUATOR.LANES
+        ]
+        summaries = []
+        for lane in EVALUATOR.LANES:
+            wall = next(row["wallRatio"] for row in candidates if row["lane"] == lane)
+            cpu = next(row["cpuRatio"] for row in candidates if row["lane"] == lane)
+            summaries.append(
+                {
+                    "lane": lane,
+                    "wallRatios": [wall] * 5,
+                    "cpuRatios": [cpu] * 5,
+                    "wallRatioMedian": wall,
+                    "cpuRatioMedian": cpu,
+                }
+            )
+        rounds = [
+            {
+                "round": index + 1,
+                "h0Start": {"patchBytes": 1000},
+                "h0End": {"patchBytes": 1000},
+                "bracketNoisy": False,
+                "candidates": candidates,
+            }
+            for index in range(5)
+        ]
+        apply = {
+            lane: {"aggregate": {"wallSeconds": 10.0 if lane == "csp" else 10.2}}
+            for lane in EVALUATOR.ALL_LANES
+        }
+        run_id = f"PATCH-ENC-005/RUN-20261002-001-{SOURCE}-{platform}"
+        paired = {
+            "schema": "chunkshift.patch-enc-005-paired.v2",
+            "experimentId": "PATCH-ENC-005",
+            "runId": run_id,
+            "protocolCommit": EVALUATOR.PROTOCOL_COMMIT,
+            "sourceCommit": SOURCE,
+            "platform": platform,
+            "datasetRole": "calibration",
+            "datasetSha256": EVALUATOR.DATASET_SHA256,
+            "githubRunId": "123",
+            "githubRunNumber": "1",
+            "githubRunAttempt": "1",
+            "status": "VALID",
+            "acceptedTiming": {"rounds": rounds, "summaries": summaries},
+            "acceptedPatchShas": accepted,
+            "applyEvidence": apply,
+            "traceCorrectness": trace,
+        }
+        paired_path = paired_root / "paired.json"
+        write_json(paired_path, paired)
+        paired_paths[platform] = paired_path
+
+        memory_root = root / "memory" / platform
+        memory_paths[platform] = memory_root
+        for lane in EVALUATOR.ALL_LANES:
+            write_json(
+                memory_root / f"{lane}.json",
+                {
+                    "schema": "chunkshift.patch-lab-memory.v1",
+                    "runId": run_id,
+                    "lane": lane,
+                    "corpusPairsSha256": EVALUATOR.DATASET_SHA256,
+                    "execution": "h2-w2",
+                    "population": "max-base-target",
+                    "applyCheck": "boundary",
+                    "environment": {"gitCommit": SOURCE, "processorCount": 4},
+                    "idleBaselineBytes": 20 * 1024 * 1024,
+                    "files": [
+                        {
+                            **FILE_KEY,
+                            "createPeakBytes": 60 * 1024 * 1024,
+                            "applyPeakBytes": 50 * 1024 * 1024,
+                        }
+                    ],
+                },
+            )
+
+    cross_path = root / "cross-platform.json"
+    write_json(
+        cross_path,
+        {
+            "schema": "chunkshift.patch-enc-005-cross-platform.v1",
+            "experimentId": "PATCH-ENC-005",
+            "date": "20261002",
+            "sequence": "001",
+            "sourceCommit": SOURCE,
+            "protocolCommit": EVALUATOR.PROTOCOL_COMMIT,
+            "dataset": f"calibration:{EVALUATOR.DATASET_SHA256}",
+            "githubRunId": "123",
+            "githubRunNumber": "1",
+            "githubRunAttempt": "1",
+            "platforms": sorted(EVALUATOR.PLATFORMS),
+            "patchBytesEqual": True,
+            "acceptedPatchShas": accepted,
+        },
+    )
+    return paired_paths, memory_paths, cross_path
+
+
 class PatchEnc005PhaseAEvaluatorTests(unittest.TestCase):
+
+    def test_full_synthetic_artifact_chain_compiles(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            paired, memory, cross = synthetic_artifacts(root)
+
+            compiled, files = EVALUATOR.build_compact(
+                paired, memory, cross, SOURCE
+            )
+            verdict = EVALUATOR.evaluate(compiled)
+
+            self.assertEqual(6, len(files))
+            self.assertEqual("READY_FOR_FIXED_EVALUATION", verdict["status"])
+            self.assertEqual(1000, verdict["h0PatchBytes"])
+            self.assertTrue(compiled["byteOracles"]["crossPlatformPatchSha256Equal"])
+
+
     def test_speed_and_size_finalists_follow_frozen_order(self):
         result = EVALUATOR.evaluate(compact())
 
