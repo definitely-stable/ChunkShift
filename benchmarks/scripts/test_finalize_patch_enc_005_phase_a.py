@@ -28,22 +28,27 @@ class FinalizeTests(unittest.TestCase):
                 MODULE.sha256_file(path),
             )
 
-    def test_patch_map_round_trips_dispatch_projection(self):
-        document = {
-            "patchShas": {
-                "H4-L1-R2": [
-                    {
-                        "family": "f",
-                        "base": "1",
-                        "target": "2",
-                        "path": "a",
-                        "patchSha256": "a" * 64,
-                    }
-                ]
-            }
+    def test_patch_map_requires_exact_phase_a_lane_and_file_sets(self):
+        row = {
+            "family": "f",
+            "base": "1",
+            "target": "2",
+            "path": "a",
+            "patchSha256": "a" * 64,
         }
+        lanes = ["csp", *MODULE.paired.FROZEN_PHASE_A]
+        document = {"patchShas": {lane: [dict(row)] for lane in lanes}}
         maps = MODULE.patch_map_from_document(document)
         self.assertEqual("a" * 64, maps["H4-L1-R2"][("f", "1", "2", "a")])
+
+        del document["patchShas"]["H9-L15-K4-C16-R1M"]
+        with self.assertRaises(ValueError):
+            MODULE.patch_map_from_document(document)
+
+        document = {"patchShas": {lane: [dict(row)] for lane in lanes}}
+        document["patchShas"]["H9-L12-K4-C16-R1M"][0]["path"] = "different"
+        with self.assertRaises(ValueError):
+            MODULE.patch_map_from_document(document)
 
     def test_skip_marker_validation_binds_identity(self):
         paired = MODULE.paired
@@ -111,6 +116,8 @@ class FinalizeTests(unittest.TestCase):
             document = {
                 "schema": "chunkshift.patch-enc-005-dispatch.v1",
                 "attempt": 1,
+                "valid": True,
+                "invalidReason": None,
                 "experimentId": paired.EXPERIMENT_ID,
                 "runId": run_id,
                 "protocolCommit": paired.FROZEN_PROTOCOL_COMMIT,

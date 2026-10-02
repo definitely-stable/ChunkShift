@@ -22,12 +22,37 @@ def sha256_file(path: Path) -> str:
 
 
 def patch_map_from_document(document: dict) -> dict[str, dict[tuple[str, str, str, str], str]]:
+    projection = document.get("patchShas")
+    if not isinstance(projection, dict):
+        raise ValueError("accepted dispatch has no patchShas projection")
+
+    expected_lanes = {"csp", *paired.FROZEN_PHASE_A}
+    if set(projection) != expected_lanes:
+        raise ValueError(
+            "accepted dispatch lane set mismatch: "
+            f"expected {sorted(expected_lanes)}, got {sorted(projection)}"
+        )
+
     result: dict[str, dict[tuple[str, str, str, str], str]] = {}
-    for lane, rows in document["patchShas"].items():
-        result[lane] = {
+    expected_files: set[tuple[str, str, str, str]] | None = None
+    for lane, rows in projection.items():
+        if not isinstance(rows, list):
+            raise ValueError(f"{lane}: patch SHA projection must be a list")
+        lane_map = {
             (row["family"], row["base"], row["target"], row["path"]): row["patchSha256"]
             for row in rows
         }
+        if len(lane_map) != len(rows):
+            raise ValueError(f"{lane}: duplicate file identity in patch SHA projection")
+        files = set(lane_map)
+        if expected_files is None:
+            expected_files = files
+        elif files != expected_files:
+            raise ValueError(f"{lane}: patch SHA file set differs from the other lanes")
+        result[lane] = lane_map
+
+    if not expected_files:
+        raise ValueError("accepted dispatch patch SHA projection is empty")
     return result
 
 
@@ -36,6 +61,12 @@ def validate_attempt(args: argparse.Namespace, document: dict, attempt: int) -> 
         raise ValueError(f"attempt {attempt}: unexpected schema")
     if document.get("attempt") != attempt:
         raise ValueError(f"attempt {attempt}: ordinal mismatch")
+    if not isinstance(document.get("valid"), bool):
+        raise ValueError(f"attempt {attempt}: valid must be boolean")
+    if document["valid"] is True and document.get("invalidReason") is not None:
+        raise ValueError(f"attempt {attempt}: valid dispatch cannot have invalidReason")
+    if document["valid"] is False and document.get("invalidReason") != "h0-bracket-noise":
+        raise ValueError(f"attempt {attempt}: invalid dispatch must record h0-bracket-noise")
     for field, expected in (
         ("experimentId", paired.EXPERIMENT_ID),
         ("runId", args.run_id),
