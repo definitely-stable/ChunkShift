@@ -32,7 +32,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: patch-gap-001-stage-a-${{ github.run_number }}-${{ github.sha }}
+  group: patch-gap-001-stage-a-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -343,17 +343,17 @@ jobs:
           md = [
               "### PATCH-GAP-001 Stage-A inventory",
               "",
-              f"- RunId: \`{run_id}\`",
-              f"- sourceCommit: \`{source_commit}\`",
+              f"- RunId: `{run_id}`",
+              f"- sourceCommit: `{source_commit}`",
               f"- G4 rows: {summary['g4']['rows']}",
-              f"- G4 calibration SHA-256: \`{summary['g4']['calibrationSha256']}\`",
-              f"- G4 evaluation SHA-256: \`{summary['g4']['evaluationSha256']}\`",
+              f"- G4 calibration SHA-256: `{summary['g4']['calibrationSha256']}`",
+              f"- G4 evaluation SHA-256: `{summary['g4']['evaluationSha256']}`",
               f"- G5 rows: {summary['g5']['rows']}",
               f"- G5 Puffin-supported rows: {summary['g5']['puffinSupportedRows']}",
-              f"- G5 calibration SHA-256: \`{summary['g5']['calibrationSha256']}\`",
-              f"- G5 evaluation SHA-256: \`{summary['g5']['evaluationSha256']}\`",
+              f"- G5 calibration SHA-256: `{summary['g5']['calibrationSha256']}`",
+              f"- G5 evaluation SHA-256: `{summary['g5']['evaluationSha256']}`",
               "",
-              "Inventory only: no G1/G2/G4/G5 size codec or external reference patch lane ran.",
+              "Inventory only: no G1/G2/G3/G4/G5 size codec or external reference patch lane ran.",
           ]
           with Path(sys.argv[1]).joinpath("stage-a-summary.md").open(
               "w", encoding="utf-8", newline="\n"
