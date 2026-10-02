@@ -84,6 +84,38 @@ public class PatchGapInventoryLockTests
     }
 
     [Fact]
+    public void PuffinAgreementRejectsNonCanonicalLocatorOrder()
+    {
+        string fileSha = new('a', 64);
+        var structural = new PatchGapG5Classification(
+            PatchGapG5Kind.Gzip,
+            2,
+            new string('b', 64),
+            "TEST",
+            [
+                new PatchGapDeflateExtent(5, 3),
+                new PatchGapDeflateExtent(20, 5),
+            ]);
+        var locator = new PatchGapPuffinFileLocator(
+            true,
+            "OK",
+            [
+                new PatchGapBitExtent(20UL * 8UL, (5UL * 8UL) - 1UL),
+                new PatchGapBitExtent(5UL * 8UL, (3UL * 8UL) - 1UL),
+            ],
+            fileSha,
+            new string('c', 64));
+
+        Assert.False(PatchGapG5InventoryLock.TryValidatePuffinAgreement(
+            structural,
+            locator,
+            fileBytes: 32,
+            fileSha,
+            out string? reason));
+        Assert.Equal("bit-extent-byte-envelope-mismatch", reason);
+    }
+
+    [Fact]
     public void PuffinAgreementRejectsOverlapAndReconstructionMismatch()
     {
         string fileSha = new('a', 64);
