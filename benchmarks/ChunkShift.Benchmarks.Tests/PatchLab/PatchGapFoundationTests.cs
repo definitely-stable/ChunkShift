@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using ChunkShift.Benchmarks.PatchLab;
 using ChunkShift.Benchmarks.PatchLab.PatchGap;
 
@@ -546,6 +547,90 @@ public class PatchGapFoundationTests
         wrong["datasetSha256"] = new string('b', 64);
         File.WriteAllText(badDataset, JsonSerializer.Serialize(wrong));
         Assert.Throws<InvalidDataException>(() => PatchGapG2Consumer.Read(badDataset));
+    }
+
+    [Fact]
+    public void CandidateTraceProducerRoundTripsThroughStrictConsumer()
+    {
+        using var scope = new PatchLabRunTests.TempDirectory();
+        _ = PatchLabRunTests.WriteCorpus(scope.Path);
+
+        const string frozenFamily = "dotnet-runtime-linux-arm64";
+        string syntheticFamily = Path.Combine(scope.Path, "tree", "synthetic");
+        string frozenFamilyPath = Path.Combine(scope.Path, "tree", frozenFamily);
+        Directory.Move(syntheticFamily, frozenFamilyPath);
+
+        string pairsPath = Path.Combine(scope.Path, "pairs.json");
+        JsonNode pairs = JsonNode.Parse(File.ReadAllText(pairsPath))
+            ?? throw new InvalidDataException("Synthetic pairs.json did not parse.");
+        JsonObject pair = pairs["pairs"]?[0]?.AsObject()
+            ?? throw new InvalidDataException("Synthetic pairs.json has no first pair.");
+        pair["family"] = frozenFamily;
+        File.WriteAllText(pairsPath, pairs.ToJsonString());
+
+        string datasetSha256 = Sha256(File.ReadAllBytes(pairsPath));
+        string output = Path.Combine(scope.Path, "run.json");
+        string traces = Path.Combine(scope.Path, "traces");
+        const string sourceCommit = "2222222222222222222222222222222222222222";
+        string runId = $"PATCH-ENC-005/RUN-20261002-001-{sourceCommit}-linux-x64";
+
+        string? previousSha = Environment.GetEnvironmentVariable("GITHUB_SHA");
+        string? previousRunNumber = Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER");
+        string? previousRunAttempt = Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT");
+
+        int exit;
+        try
+        {
+            Environment.SetEnvironmentVariable("GITHUB_SHA", sourceCommit);
+            Environment.SetEnvironmentVariable("GITHUB_RUN_NUMBER", "1");
+            Environment.SetEnvironmentVariable("GITHUB_RUN_ATTEMPT", "1");
+
+            exit = PatchLabRunner.Run(
+            [
+                "run",
+                "--corpus", scope.Path,
+                "--lane", "H4-L1-R2",
+                "--output", output,
+                "--workers", "1",
+                "--execution", "h2-w2",
+                "--no-apply",
+                "--run-id", runId,
+                "--trace-dir", traces,
+                "--protocol-commit", PatchGapProtocol.PatchEnc005ProtocolCommit,
+                "--source-commit", sourceCommit,
+                "--platform", "linux-x64",
+                "--dataset-role", "calibration",
+            ]);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("GITHUB_SHA", previousSha);
+            Environment.SetEnvironmentVariable("GITHUB_RUN_NUMBER", previousRunNumber);
+            Environment.SetEnvironmentVariable("GITHUB_RUN_ATTEMPT", previousRunAttempt);
+        }
+
+        Assert.Equal(0, exit);
+        string tracePath = Assert.Single(Directory.GetFiles(traces, "*.json"));
+
+        // Decision consumption remains bound to the frozen development corpus.
+        Assert.Throws<InvalidDataException>(() => PatchGapG2Consumer.Read(tracePath));
+
+        PatchGapConsumedG2Evidence consumed =
+            PatchGapG2Consumer.ReadContract(tracePath, datasetSha256);
+        Assert.Equal(PatchGapProtocol.PatchEnc005ExperimentId, consumed.ExperimentId);
+        Assert.Equal("H4-L1-R2", consumed.Lane);
+        Assert.Equal("calibration", consumed.DatasetRole);
+        Assert.Equal(datasetSha256, consumed.DatasetSha256);
+        Assert.True(consumed.RowCount > 0);
+
+        JsonNode mutated = JsonNode.Parse(File.ReadAllText(tracePath))
+            ?? throw new InvalidDataException("Producer trace did not parse.");
+        Assert.True(mutated.AsObject().Remove("platform"));
+        string badTrace = Path.Combine(scope.Path, "trace-missing-platform.json");
+        File.WriteAllText(badTrace, mutated.ToJsonString());
+
+        Assert.Throws<InvalidDataException>(() =>
+            PatchGapG2Consumer.ReadContract(badTrace, datasetSha256));
     }
 
     [Fact]
