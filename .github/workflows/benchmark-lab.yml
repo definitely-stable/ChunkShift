@@ -87,8 +87,11 @@ jobs:
             benchmarks/scripts/summarize_scanner_freeze.py \
             benchmarks/scripts/summarize_boundary_scan_f08.py \
             benchmarks/scripts/run_cdc_runtime_guardrail.py \
-            benchmarks/scripts/summarize_apply_check.py
-          python3 -m unittest benchmarks/scripts/test_summarize_apply_check.py
+            benchmarks/scripts/summarize_apply_check.py \
+            benchmarks/scripts/collect_patch_gap_puffin_locator.py
+          python3 -m unittest \
+            benchmarks/scripts/test_summarize_apply_check.py \
+            benchmarks/scripts/test_collect_patch_gap_puffin_locator.py
 
       - name: 'Validate #8 runtime guardrail plan'
         shell: bash
