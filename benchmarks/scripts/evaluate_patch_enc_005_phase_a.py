@@ -592,6 +592,23 @@ def evaluate(compact: dict) -> dict:
             platform: float(compact["platforms"][platform]["timing"][lane]["cpuRatioMedian"])
             for platform in PLATFORMS
         }
+        wall_rounds = {
+            platform: [
+                float(value)
+                for value in compact["platforms"][platform]["timing"][lane]["wallRatios"]
+            ]
+            for platform in PLATFORMS
+        }
+        if any(len(values) != 5 for values in wall_rounds.values()):
+            raise ValueError(f"{lane}: frozen five-round wall ratios are missing")
+        speed_round_passes = {
+            platform: sum(value <= 0.50 for value in values)
+            for platform, values in wall_rounds.items()
+        }
+        size_round_passes = {
+            platform: sum(value <= 1.50 for value in values)
+            for platform, values in wall_rounds.items()
+        }
         apply_ratio = {}
         create_memory = {}
         apply_memory = {}
@@ -610,10 +627,12 @@ def evaluate(compact: dict) -> dict:
         speed = (
             lane_patch_bytes * 100 <= h0_bytes * 102
             and all(value <= 0.50 for value in wall.values())
+            and all(value >= 4 for value in speed_round_passes.values())
         )
         size = (
             lane_patch_bytes * 100 <= h0_bytes * 97
             and all(value <= 1.50 for value in wall.values())
+            and all(value >= 4 for value in size_round_passes.values())
         )
         branches = [name for name, ok in (("speed", speed), ("size", size)) if ok]
         eligible = apply_ok and memory_ok and bool(branches)
@@ -629,6 +648,8 @@ def evaluate(compact: dict) -> dict:
             "byteRatio": byte_ratio,
             "wallRatioByPlatform": wall,
             "cpuRatioByPlatform": cpu,
+            "speedWallRoundPassesByPlatform": speed_round_passes,
+            "sizeWallRoundPassesByPlatform": size_round_passes,
             "applyRatioByPlatform": apply_ratio,
             "createPeakOverIdleBytesByPlatform": create_memory,
             "applyPeakOverIdleBytesByPlatform": apply_memory,
