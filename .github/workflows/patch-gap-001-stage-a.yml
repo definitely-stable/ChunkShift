@@ -7,28 +7,13 @@ on:
         description: "Frozen RunId UTC date (YYYYMMDD)"
         required: true
         type: string
-      puffin-url:
-        description: "Public immutable HTTPS URL for the pinned Linux x64 Puffin host executable"
-        required: true
-        type: string
-      puffin-sha256:
-        description: "SHA-256 of the exact Puffin executable"
-        required: true
-        type: string
-      puffin-build-provenance-url:
-        description: "Public immutable HTTPS URL for exact Puffin compiler/build provenance bytes"
-        required: true
-        type: string
-      puffin-build-provenance-sha256:
-        description: "SHA-256 of the exact build-provenance bytes"
-        required: true
-        type: string
-      puffin-build-command:
-        description: "Exact non-secret command used to build the supplied Puffin executable"
+      puffin-producer-run-id:
+        description: "Successful PATCH-GAP-001 Puffin toolchain workflow run ID"
         required: true
         type: string
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -41,6 +26,11 @@ env:
   NUGET_XMLDOC_MODE: skip
   PUFFIN_COMMIT: 343e23db1b4d81045e91a10244244893f5acd73b
   PUFFIN_TAG: android-17.0.0_r1
+  AOSP_BUILD_ID: CP2A.260605.016
+  AOSP_LUNCH_TARGET: aosp_x86_64-trunk_staging-eng
+  PLATFORM_BUILD_COMMIT: 5ce6f787337d0223710bf7d4a16dbe6d2a35f777
+  PUFFIN_PRODUCER_WORKFLOW: .github/workflows/patch-gap-001-puffin-toolchain.yml
+  PUFFIN_ARTIFACT_NAME: patch-gap-001-puffin-toolchain
   PROTOCOL_COMMIT: 5372678ae8451a71cc95eb24f30855cbbd7e0633
 
 jobs:
@@ -50,11 +40,7 @@ jobs:
     timeout-minutes: 240
     env:
       RUN_DATE: ${{ inputs.run-date }}
-      PUFFIN_URL: ${{ inputs.puffin-url }}
-      PUFFIN_SHA256: ${{ inputs.puffin-sha256 }}
-      PUFFIN_PROVENANCE_URL: ${{ inputs.puffin-build-provenance-url }}
-      PUFFIN_PROVENANCE_SHA256: ${{ inputs.puffin-build-provenance-sha256 }}
-      PUFFIN_BUILD_COMMAND: ${{ inputs.puffin-build-command }}
+      PUFFIN_PRODUCER_RUN_ID: ${{ inputs.puffin-producer-run-id }}
 
     steps:
       - name: Validate Stage-A evidence identity
@@ -74,35 +60,17 @@ jobs:
             echo "RunId NNN supports workflow run numbers 001..999." >&2
             exit 2
           fi
-          python3 - "$RUN_DATE" "$PUFFIN_SHA256" "$PUFFIN_PROVENANCE_SHA256" "$PUFFIN_URL" "$PUFFIN_PROVENANCE_URL" <<'PY'
+          python3 - "$RUN_DATE" "$PUFFIN_PRODUCER_RUN_ID" <<'PY'
           import datetime as dt
           import re
           import sys
-          from urllib.parse import urlsplit
 
-          run_date, binary_sha, provenance_sha, binary_url, provenance_url = sys.argv[1:]
+          run_date, producer_run_id = sys.argv[1:]
           if not re.fullmatch(r"\d{8}", run_date):
               raise SystemExit("run-date must be YYYYMMDD")
           dt.datetime.strptime(run_date, "%Y%m%d")
-
-          for label, value in (
-              ("puffin-sha256", binary_sha),
-              ("puffin-build-provenance-sha256", provenance_sha),
-          ):
-              if not re.fullmatch(r"[0-9a-fA-F]{64}", value):
-                  raise SystemExit(f"{label} must be exactly 64 hexadecimal characters")
-
-          for label, value in (
-              ("puffin-url", binary_url),
-              ("puffin-build-provenance-url", provenance_url),
-          ):
-              parsed = urlsplit(value)
-              if parsed.scheme != "https" or not parsed.netloc:
-                  raise SystemExit(f"{label} must be an absolute HTTPS URL")
-              if parsed.username or parsed.password or parsed.query or parsed.fragment:
-                  raise SystemExit(
-                      f"{label} must be a public immutable URL without credentials, query, or fragment"
-                  )
+          if not re.fullmatch(r"[1-9]\d*", producer_run_id):
+              raise SystemExit("puffin-producer-run-id must be a positive integer")
           PY
 
           sequence="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
@@ -134,6 +102,354 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
+
+
+      - name: Resolve and verify pinned Puffin producer artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          for command in gh curl python3 sha256sum unzip git; do
+            command -v "$command" >/dev/null || {
+              echo "Required command is unavailable: $command" >&2
+              exit 2
+            }
+          done
+
+          run_json="$RUNNER_TEMP/puffin-producer-run.json"
+          artifacts_json="$RUNNER_TEMP/puffin-producer-artifacts.json"
+          tool_dir="$RUNNER_TEMP/puffin-toolchain"
+          archive="$RUNNER_TEMP/puffin-toolchain.zip"
+          mkdir -p "$tool_dir" "$OUT"
+
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/$GITHUB_REPOSITORY/actions/runs/$PUFFIN_PRODUCER_RUN_ID" \
+            > "$run_json"
+
+          producer_head_sha="$(
+            python3 - "$run_json" "$GITHUB_REPOSITORY" "$PUFFIN_PRODUCER_RUN_ID" "$PUFFIN_PRODUCER_WORKFLOW" <<'PY'
+          import json
+          import re
+          import sys
+
+          path, repository, run_id, workflow_path = sys.argv[1:]
+          document = json.load(open(path, encoding="utf-8"))
+          expected_id = int(run_id)
+
+          checks = {
+              "id": document.get("id") == expected_id,
+              "repository": document.get("repository", {}).get("full_name") == repository,
+              "event": document.get("event") == "workflow_dispatch",
+              "status": document.get("status") == "completed",
+              "conclusion": document.get("conclusion") == "success",
+              "attempt": document.get("run_attempt") == 1,
+              "branch": document.get("head_branch") == "main",
+              "workflow": document.get("path") == workflow_path,
+          }
+          failed = [name for name, ok in checks.items() if not ok]
+          if failed:
+              raise SystemExit("producer run contract mismatch: " + ", ".join(failed))
+
+          head_sha = str(document.get("head_sha") or "").lower()
+          if not re.fullmatch(r"[0-9a-f]{40}", head_sha):
+              raise SystemExit("producer run has malformed head_sha")
+          print(head_sha)
+          PY
+          )"
+
+          if ! git merge-base --is-ancestor "$producer_head_sha" "$GITHUB_SHA"; then
+            echo "Puffin producer head is not an ancestor of the Stage-A source commit." >&2
+            exit 2
+          fi
+
+          producer_workflow_blob="$(git rev-parse "$producer_head_sha:$PUFFIN_PRODUCER_WORKFLOW")"
+          consumer_workflow_blob="$(git rev-parse "$GITHUB_SHA:$PUFFIN_PRODUCER_WORKFLOW")"
+          if [[ "$producer_workflow_blob" != "$consumer_workflow_blob" ]]; then
+            echo "Puffin producer workflow changed after the selected producer run." >&2
+            exit 2
+          fi
+
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/$GITHUB_REPOSITORY/actions/runs/$PUFFIN_PRODUCER_RUN_ID/artifacts?per_page=100" \
+            > "$artifacts_json"
+
+          mapfile -t artifact_meta < <(
+            python3 - "$artifacts_json" "$PUFFIN_ARTIFACT_NAME" <<'PY'
+          import json
+          import re
+          import sys
+
+          path, expected_name = sys.argv[1:]
+          document = json.load(open(path, encoding="utf-8"))
+          matches = [
+              item for item in document.get("artifacts", [])
+              if item.get("name") == expected_name
+          ]
+          if len(matches) != 1:
+              raise SystemExit(
+                  f"expected exactly one {expected_name!r} artifact, found {len(matches)}"
+              )
+          artifact = matches[0]
+          if artifact.get("expired") is not False:
+              raise SystemExit("selected Puffin artifact is expired")
+          artifact_id = artifact.get("id")
+          size = artifact.get("size_in_bytes")
+          digest = str(artifact.get("digest") or "").lower()
+          if not isinstance(artifact_id, int) or artifact_id <= 0:
+              raise SystemExit("Puffin artifact has invalid id")
+          if not isinstance(size, int) or size <= 0 or size > 1024 * 1024 * 1024:
+              raise SystemExit("Puffin artifact size is invalid or exceeds 1 GiB")
+          if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+              raise SystemExit("Puffin artifact is missing a valid GitHub SHA-256 digest")
+          print(artifact_id)
+          print(digest)
+          print(size)
+          PY
+          )
+
+          artifact_id="${artifact_meta[0]}"
+          artifact_digest="${artifact_meta[1]}"
+          artifact_size="${artifact_meta[2]}"
+
+          curl \
+            --fail \
+            --show-error \
+            --silent \
+            --location \
+            --proto '=https' \
+            --proto-redir '=https' \
+            --tlsv1.2 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" \
+            -o "$archive"
+
+          actual_artifact_digest="sha256:$(sha256sum "$archive" | cut -d' ' -f1)"
+          if [[ "$actual_artifact_digest" != "$artifact_digest" ]]; then
+            echo "Downloaded Puffin artifact digest mismatch." >&2
+            exit 2
+          fi
+
+          python3 - "$archive" "$tool_dir" <<'PY'
+          import pathlib
+          import stat
+          import sys
+          import zipfile
+
+          archive = pathlib.Path(sys.argv[1])
+          destination = pathlib.Path(sys.argv[2])
+          seen = set()
+          total = 0
+
+          with zipfile.ZipFile(archive) as bundle:
+              for info in bundle.infolist():
+                  raw = info.filename
+                  if "\\" in raw or "\x00" in raw:
+                      raise SystemExit(f"unsafe artifact member name: {raw!r}")
+                  path = pathlib.PurePosixPath(raw)
+                  if path.is_absolute() or ".." in path.parts:
+                      raise SystemExit(f"unsafe artifact member path: {raw!r}")
+                  normalized = path.as_posix().rstrip("/")
+                  if normalized:
+                      if normalized in seen:
+                          raise SystemExit(f"duplicate artifact member: {normalized}")
+                      seen.add(normalized)
+                  mode = (info.external_attr >> 16) & 0o170000
+                  if mode == stat.S_IFLNK:
+                      raise SystemExit(f"symlink artifact member is forbidden: {raw!r}")
+                  total += info.file_size
+                  if total > 1024 * 1024 * 1024:
+                      raise SystemExit("expanded Puffin artifact exceeds 1 GiB")
+              bundle.extractall(destination)
+          PY
+
+          required=(
+            "$tool_dir/SHA256SUMS"
+            "$tool_dir/bin/puffin"
+            "$tool_dir/build-provenance.json"
+            "$tool_dir/build-command.txt"
+            "$tool_dir/source-manifest.xml"
+            "$tool_dir/puffin-help.txt"
+            "$tool_dir/ldd.txt"
+            "$tool_dir/host-environment.txt"
+          )
+          for path in "${required[@]}"; do
+            test -s "$path"
+          done
+
+          (
+            cd "$tool_dir"
+            sha256sum -c SHA256SUMS
+          )
+
+          python3 - \
+            "$tool_dir" \
+            "$producer_head_sha" \
+            "$PUFFIN_PRODUCER_RUN_ID" \
+            "$PUFFIN_TAG" \
+            "$AOSP_BUILD_ID" \
+            "$AOSP_LUNCH_TARGET" \
+            "$PUFFIN_COMMIT" \
+            "$PLATFORM_BUILD_COMMIT" <<'PY'
+          import hashlib
+          import json
+          import pathlib
+          import sys
+
+          (
+              root_text,
+              producer_head_sha,
+              producer_run_id,
+              aosp_tag,
+              aosp_build_id,
+              lunch_target,
+              puffin_commit,
+              platform_build_commit,
+          ) = sys.argv[1:]
+          root = pathlib.Path(root_text)
+          document = json.loads(
+              (root / "build-provenance.json").read_text(encoding="utf-8")
+          )
+
+          def sha(path):
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+
+          expected = {
+              "schema": "chunkshift.patch-gap-puffin-toolchain.v1",
+              "chunkShiftSourceCommit": producer_head_sha,
+              "producerRunId": int(producer_run_id),
+              "aospTag": aosp_tag,
+              "aospBuildId": aosp_build_id,
+              "aospLunchTarget": lunch_target,
+              "puffinCommit": puffin_commit,
+              "platformBuildCommit": platform_build_commit,
+              "syncJobs": 16,
+              "buildJobs": 16,
+              "binarySha256": sha(root / "bin/puffin"),
+              "sourceManifestSha256": sha(root / "source-manifest.xml"),
+              "buildCommandSha256": sha(root / "build-command.txt"),
+              "helpOutputSha256": sha(root / "puffin-help.txt"),
+              "lddSha256": sha(root / "ldd.txt"),
+              "hostEnvironmentSha256": sha(root / "host-environment.txt"),
+          }
+          mismatches = [
+              key for key, value in expected.items()
+              if document.get(key) != value
+          ]
+          if mismatches:
+              raise SystemExit(
+                  "Puffin build provenance mismatch: " + ", ".join(mismatches)
+              )
+
+          expected_command = (
+              f"source build/envsetup.sh && lunch {lunch_target} "
+              "&& m -j16 puffin\n"
+          ).encode("utf-8")
+          if (root / "build-command.txt").read_bytes() != expected_command:
+              raise SystemExit("Puffin build command differs from the frozen producer contract")
+          PY
+
+          chmod 0755 "$tool_dir/bin/puffin"
+          env -i \
+            HOME="$HOME" \
+            PATH="/usr/bin:/bin" \
+            LD_LIBRARY_PATH="$tool_dir/lib64" \
+            "$tool_dir/bin/puffin" --help \
+            > "$RUNNER_TEMP/puffin-consumer-help.txt" 2>&1
+          cmp "$tool_dir/puffin-help.txt" "$RUNNER_TEMP/puffin-consumer-help.txt"
+
+          binary_sha="$(sha256sum "$tool_dir/bin/puffin" | cut -d' ' -f1)"
+          provenance_sha="$(sha256sum "$tool_dir/build-provenance.json" | cut -d' ' -f1)"
+
+          python3 - \
+            "$OUT/toolchain-producer.json" \
+            "$GITHUB_REPOSITORY" \
+            "$GITHUB_SHA" \
+            "$PUFFIN_PRODUCER_WORKFLOW" \
+            "$producer_workflow_blob" \
+            "$PUFFIN_PRODUCER_RUN_ID" \
+            "$producer_head_sha" \
+            "$PUFFIN_ARTIFACT_NAME" \
+            "$artifact_id" \
+            "$artifact_digest" \
+            "$artifact_size" \
+            "$binary_sha" \
+            "$provenance_sha" \
+            "$PUFFIN_TAG" \
+            "$AOSP_BUILD_ID" \
+            "$AOSP_LUNCH_TARGET" \
+            "$PUFFIN_COMMIT" \
+            "$PLATFORM_BUILD_COMMIT" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          (
+              output,
+              repository,
+              consumer_source_commit,
+              workflow_path,
+              workflow_blob_sha,
+              producer_run_id,
+              producer_head_sha,
+              artifact_name,
+              artifact_id,
+              artifact_digest,
+              artifact_size,
+              binary_sha,
+              provenance_sha,
+              aosp_tag,
+              aosp_build_id,
+              lunch_target,
+              puffin_commit,
+              platform_build_commit,
+          ) = sys.argv[1:]
+
+          document = {
+              "schema": "chunkshift.patch-gap-puffin-producer-lineage.v1",
+              "repository": repository,
+              "consumerSourceCommit": consumer_source_commit.lower(),
+              "producerWorkflow": workflow_path,
+              "producerWorkflowBlobSha": workflow_blob_sha,
+              "producerRunId": int(producer_run_id),
+              "producerHeadSha": producer_head_sha,
+              "artifactName": artifact_name,
+              "artifactId": int(artifact_id),
+              "artifactDigest": artifact_digest,
+              "artifactSizeBytes": int(artifact_size),
+              "binarySha256": binary_sha,
+              "buildProvenanceSha256": provenance_sha,
+              "aospTag": aosp_tag,
+              "aospBuildId": aosp_build_id,
+              "aospLunchTarget": lunch_target,
+              "puffinCommit": puffin_commit,
+              "platformBuildCommit": platform_build_commit,
+          }
+          pathlib.Path(output).write_text(
+              json.dumps(document, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+              newline="\n",
+          )
+          PY
+
+          {
+            echo "PUFFIN_BIN=$tool_dir/bin/puffin"
+            echo "PUFFIN_BUILD_PROVENANCE=$tool_dir/build-provenance.json"
+            echo "PUFFIN_BUILD_COMMAND_FILE=$tool_dir/build-command.txt"
+            echo "PUFFIN_PRODUCER_HEAD_SHA=$producer_head_sha"
+            echo "PUFFIN_ARTIFACT_ID=$artifact_id"
+            echo "PUFFIN_ARTIFACT_DIGEST=$artifact_digest"
+            echo "PUFFIN_BINARY_SHA256=$binary_sha"
+            echo "PUFFIN_BUILD_PROVENANCE_SHA256=$provenance_sha"
+            echo "PUFFIN_LIB_DIR=$tool_dir/lib64"
+          } >> "$GITHUB_ENV"
 
       - name: Restore frozen patch-corpus sources
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -172,33 +488,6 @@ jobs:
             --source-commit "$GITHUB_SHA" \
             --run-id "$RUN_ID"
 
-      - name: Acquire and verify pinned Puffin tool inputs
-        shell: bash
-        run: |
-          set -euo pipefail
-          tool_dir="$RUNNER_TEMP/patch-gap-puffin"
-          mkdir -p "$tool_dir"
-
-          curl --fail --show-error --silent --location \
-            --proto '=https' --proto-redir '=https' --tlsv1.2 \
-            "$PUFFIN_URL" -o "$tool_dir/puffin"
-          curl --fail --show-error --silent --location \
-            --proto '=https' --proto-redir '=https' --tlsv1.2 \
-            "$PUFFIN_PROVENANCE_URL" -o "$tool_dir/build-provenance.bin"
-
-          expected_binary="$(printf '%s' "$PUFFIN_SHA256" | tr '[:upper:]' '[:lower:]')"
-          expected_provenance="$(printf '%s' "$PUFFIN_PROVENANCE_SHA256" | tr '[:upper:]' '[:lower:]')"
-          actual_binary="$(sha256sum "$tool_dir/puffin" | cut -d' ' -f1)"
-          actual_provenance="$(sha256sum "$tool_dir/build-provenance.bin" | cut -d' ' -f1)"
-          test "$actual_binary" = "$expected_binary"
-          test "$actual_provenance" = "$expected_provenance"
-
-          chmod 0755 "$tool_dir/puffin"
-          "$tool_dir/puffin" --help >/dev/null
-
-          echo "PUFFIN_BIN=$tool_dir/puffin" >> "$GITHUB_ENV"
-          echo "PUFFIN_BUILD_PROVENANCE=$tool_dir/build-provenance.bin" >> "$GITHUB_ENV"
-
       - name: Materialize frozen Puffin source identity
         shell: bash
         run: |
@@ -216,6 +505,8 @@ jobs:
 
       - name: Collect Puffin structural locator evidence
         shell: bash
+        env:
+          LD_LIBRARY_PATH: ${{ env.PUFFIN_LIB_DIR }}
         run: |
           set -euo pipefail
           python3 benchmarks/scripts/collect_patch_gap_puffin_locator.py \
@@ -226,7 +517,7 @@ jobs:
             --source-commit "$GITHUB_SHA" \
             --puffin-source "$PUFFIN_SOURCE" \
             --build-provenance "$PUFFIN_BUILD_PROVENANCE" \
-            --build-command "$PUFFIN_BUILD_COMMAND" \
+            --build-command "$(cat "$PUFFIN_BUILD_COMMAND_FILE")" \
             --logical-artifact "tools/puffin/android-17.0.0_r1/puffin"
 
       - name: Finalize fail-closed Stage-A inventory
@@ -253,6 +544,7 @@ jobs:
             "$OUT/prepass/g5-structural.json"
             "$OUT/prepass/puffin-locator.json"
             "$OUT/prepass/inventory-run.json"
+            "$OUT/toolchain-producer.json"
             "$OUT/evidence/subsets/g4.json"
             "$OUT/evidence/subsets/g5.json"
             "$OUT/evidence/evidence-input/g4.json"
@@ -273,7 +565,7 @@ jobs:
           cmp "$PUFFIN_BUILD_PROVENANCE" "$OUT/evidence/tool-provenance/puffin-build-provenance.bin"
           cmp "$OUT/prepass/g4.json" "$OUT/evidence/subsets/g4.json"
 
-          python3 - "$OUT" "$PROTOCOL_COMMIT" "$GITHUB_SHA" "$RUN_ID" <<'PY'
+          python3 - "$OUT" "$PROTOCOL_COMMIT" "$GITHUB_SHA" "$RUN_ID" "$PUFFIN_PRODUCER_RUN_ID" <<'PY'
           import hashlib
           import json
           import sys
@@ -283,6 +575,7 @@ jobs:
           protocol_commit = sys.argv[2]
           source_commit = sys.argv[3].lower()
           run_id = sys.argv[4]
+          producer_run_id = int(sys.argv[5])
 
           def load(path):
               return json.loads(path.read_text(encoding="utf-8"))
@@ -296,6 +589,11 @@ jobs:
           g4 = load(g4_path)
           g5 = load(g5_path)
           run = load(run_path)
+          producer = load(out / "toolchain-producer.json")
+          if producer.get("producerRunId") != producer_run_id:
+              raise SystemExit("toolchain-producer.json has the wrong producerRunId")
+          if producer.get("consumerSourceCommit") != source_commit:
+              raise SystemExit("toolchain-producer.json has the wrong consumer source commit")
 
           for name, document in (("G4", g4), ("G5", g5)):
               if document["protocolCommit"] != protocol_commit:
@@ -317,6 +615,7 @@ jobs:
               "runId": run_id,
               "protocolCommit": protocol_commit,
               "sourceCommit": source_commit,
+              "puffinProducer": producer,
               "g4": {
                   "rows": len(g4["rows"]),
                   "calibrationSha256": g4["calibrationSha256"],
@@ -345,6 +644,10 @@ jobs:
               "",
               f"- RunId: `{run_id}`",
               f"- sourceCommit: `{source_commit}`",
+              f"- Puffin producer run: `{producer['producerRunId']}`",
+              f"- Puffin producer head: `{producer['producerHeadSha']}`",
+              f"- Puffin artifact digest: `{producer['artifactDigest']}`",
+              f"- Puffin binary SHA-256: `{producer['binarySha256']}`",
               f"- G4 rows: {summary['g4']['rows']}",
               f"- G4 calibration SHA-256: `{summary['g4']['calibrationSha256']}`",
               f"- G4 evaluation SHA-256: `{summary['g4']['evaluationSha256']}`",
