@@ -438,7 +438,7 @@ internal static class PatchGapG5InventoryLock
             .ThenBy(static extent => extent.BitLength),
     ];
 
-    private static PatchGapZipMemberAttribution[] AttributeZipMembers(
+    internal static PatchGapZipMemberAttribution[] AttributeZipMembers(
         ReadOnlySpan<byte> baseBytes,
         ReadOnlySpan<byte> targetBytes)
     {
