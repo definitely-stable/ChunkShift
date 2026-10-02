@@ -75,6 +75,12 @@ def median_five(values: list[float]) -> float:
     return sorted(values)[2]
 
 
+def rotated_lanes(round_index: int) -> list[str]:
+    lanes = list(LANES)
+    offset = round_index % len(lanes)
+    return lanes[offset:] + lanes[:offset]
+
+
 def positive(value: object, label: str) -> float:
     number = float(value)
     if not math.isfinite(number) or number <= 0:
@@ -117,6 +123,236 @@ def safe_child(root: Path, relative: str) -> Path:
     return candidate
 
 
+def compact_trace_projection(
+    paired_path: Path,
+    document: dict,
+    lane: str,
+    accepted: dict[tuple[str, str, str, str], str],
+) -> dict[tuple[str, str, str, str], dict]:
+    lane_trace = document["traceCorrectness"][lane]
+    trace_directory = safe_child(
+        paired_path.parent, str(lane_trace.get("traceDirectory", ""))
+    )
+    if not trace_directory.is_dir():
+        raise ValueError(f"{paired_path}/{lane}: candidate trace directory is missing")
+
+    result: dict[tuple[str, str, str, str], dict] = {}
+    for trace_path in sorted(trace_directory.glob("*.json")):
+        trace = load_json(trace_path)
+        label = f"{paired_path}/{lane}/{trace_path.name}"
+        if (
+            trace.get("schema") != "chunkshift.patch-candidate-trace.v1"
+            or trace.get("experimentId") != EXPERIMENT_ID
+            or trace.get("runId") != document.get("runId")
+            or trace.get("protocolCommit") != PROTOCOL_COMMIT
+            or str(trace.get("sourceCommit", "")).lower()
+            != str(document.get("sourceCommit", "")).lower()
+            or trace.get("platform") != document.get("platform")
+            or trace.get("lane") != lane
+            or trace.get("datasetRole") != "calibration"
+            or trace.get("datasetSha256") != DATASET_SHA256
+        ):
+            raise ValueError(f"{label}: candidate trace identity mismatch")
+
+        key = (
+            trace.get("family"),
+            trace.get("baseVersion"),
+            trace.get("targetVersion"),
+            trace.get("path"),
+        )
+        if key in result:
+            raise ValueError(f"{label}: duplicate candidate trace file identity")
+        if key not in accepted:
+            raise ValueError(f"{label}: candidate trace file is outside accepted timing")
+
+        entries = trace.get("entries")
+        if not isinstance(entries, list):
+            raise ValueError(f"{label}: candidate trace entries missing")
+        final_level = int(trace.get("finalLevel", -1))
+        if final_level <= 0:
+            raise ValueError(f"{label}: invalid finalLevel")
+
+        totals = {
+            "entryCount": 0,
+            "candidateCount": 0,
+            "cheapTrialCount": 0,
+            "expensiveTrialCount": 0,
+            "totalCompressionTrialCount": 0,
+            "level19TrialCount": 0,
+            "storedBytes": 0,
+            "dictionaryRefs": 0,
+            "sourceCounts": {"offset": 0, "sketch": 0, "both": 0},
+        }
+        compact_entries: list[dict] = []
+        previous_target_index = -1
+
+        for entry in entries:
+            target_index = int(entry.get("targetIndex", -1))
+            if target_index <= previous_target_index:
+                raise ValueError(
+                    f"{label}: targetIndex is not in production first-occurrence order"
+                )
+            previous_target_index = target_index
+
+            candidates = entry.get("candidates")
+            if not isinstance(candidates, list):
+                raise ValueError(f"{label}: candidate rows missing")
+            candidate_count = int(entry.get("candidateCount", -1))
+            cheap_trials = int(entry.get("cheapTrialCount", -1))
+            expensive_trials = int(entry.get("expensiveTrialCount", -1))
+            total_trials = int(entry.get("totalCompressionTrialCount", -1))
+            level19_trials = int(entry.get("level19TrialCount", -1))
+            stored_bytes = int(entry.get("storedBytes", -1))
+            dictionary_refs = int(entry.get("dictionaryRefs", -1))
+            if (
+                candidate_count != len(candidates)
+                or min(
+                    candidate_count,
+                    cheap_trials,
+                    expensive_trials,
+                    total_trials,
+                    level19_trials,
+                    stored_bytes,
+                    dictionary_refs,
+                ) < 0
+            ):
+                raise ValueError(f"{label}: invalid candidate/trial counters")
+            if total_trials != 1 + cheap_trials + expensive_trials:
+                raise ValueError(
+                    f"{label}: totalCompressionTrialCount does not recompute"
+                )
+
+            compact_candidates = []
+            selected_ordinals = []
+            seen_ordinals = set()
+            for candidate in candidates:
+                ordinal = int(candidate.get("ordinal", -1))
+                source = candidate.get("source")
+                if (
+                    ordinal < 0
+                    or ordinal in seen_ordinals
+                    or source not in totals["sourceCounts"]
+                ):
+                    raise ValueError(f"{label}: invalid candidate ordinal/source")
+                seen_ordinals.add(ordinal)
+                selected = candidate.get("selected")
+                if not isinstance(selected, bool):
+                    raise ValueError(f"{label}: candidate selected flag is not boolean")
+                if selected:
+                    selected_ordinals.append(ordinal)
+                totals["sourceCounts"][source] += 1
+                compact_candidates.append(
+                    {
+                        "ordinal": ordinal,
+                        "startIndex": candidate.get("startIndex"),
+                        "startOffset": candidate.get("startOffset"),
+                        "recordCount": candidate.get("recordCount"),
+                        "firstChunkId": candidate.get("firstChunkId"),
+                        "source": source,
+                        "cheapLevel": candidate.get("cheapLevel"),
+                        "cheapFrameBytes": candidate.get("cheapFrameBytes"),
+                        "cheapCostBytes": candidate.get("cheapCostBytes"),
+                        "finalFrameBytes": candidate.get("finalFrameBytes"),
+                        "finalCostBytes": candidate.get("finalCostBytes"),
+                        "l19FrameBytes": candidate.get("l19FrameBytes"),
+                        "l19CostBytes": candidate.get("l19CostBytes"),
+                        "selected": selected,
+                    }
+                )
+
+            selected_candidate = entry.get("selectedCandidate")
+            if selected_candidate is None:
+                if selected_ordinals:
+                    raise ValueError(f"{label}: selected candidate marker is inconsistent")
+            elif selected_ordinals != [int(selected_candidate)]:
+                raise ValueError(f"{label}: selected candidate marker is inconsistent")
+
+            selected_encoding = entry.get("selectedEncoding")
+            if selected_encoding not in ("raw", "zstd", "zstd-dictionary"):
+                raise ValueError(f"{label}: invalid selectedEncoding")
+
+            compact_entries.append(
+                {
+                    "targetIndex": target_index,
+                    "targetChunkId": entry.get("targetChunkId"),
+                    "targetOffset": entry.get("targetOffset"),
+                    "targetLength": entry.get("targetLength"),
+                    "candidateCount": candidate_count,
+                    "cheapTrialCount": cheap_trials,
+                    "expensiveTrialCount": expensive_trials,
+                    "totalCompressionTrialCount": total_trials,
+                    "level19TrialCount": level19_trials,
+                    "noDictionaryFrameBytes": entry.get("noDictionaryFrameBytes"),
+                    "l19NoDictionaryFrameBytes": entry.get(
+                        "l19NoDictionaryFrameBytes"
+                    ),
+                    "baselineCostBytes": entry.get("baselineCostBytes"),
+                    "selectedEncoding": selected_encoding,
+                    "selectedCandidate": selected_candidate,
+                    "storedBytes": stored_bytes,
+                    "dictionaryRefs": dictionary_refs,
+                    "candidates": compact_candidates,
+                }
+            )
+            totals["entryCount"] += 1
+            totals["candidateCount"] += candidate_count
+            totals["cheapTrialCount"] += cheap_trials
+            totals["expensiveTrialCount"] += expensive_trials
+            totals["totalCompressionTrialCount"] += total_trials
+            totals["level19TrialCount"] += level19_trials
+            totals["storedBytes"] += stored_bytes
+            totals["dictionaryRefs"] += dictionary_refs
+
+        result[key] = {
+            "baseManifestId": trace.get("baseManifestId"),
+            "targetManifestId": trace.get("targetManifestId"),
+            "finalLevel": final_level,
+            "totals": totals,
+            "entries": compact_entries,
+        }
+
+    if set(result) != set(accepted):
+        raise ValueError(f"{paired_path}/{lane}: candidate trace file set mismatch")
+    return result
+
+
+def trace_aggregates(files: list[dict]) -> dict[str, dict]:
+    result: dict[str, dict] = {}
+    for lane in ALL_LANES:
+        totals = {
+            "fileCount": 0,
+            "entryCount": 0,
+            "candidateCount": 0,
+            "cheapTrialCount": 0,
+            "expensiveTrialCount": 0,
+            "totalCompressionTrialCount": 0,
+            "level19TrialCount": 0,
+            "storedBytes": 0,
+            "dictionaryRefs": 0,
+            "sourceCounts": {"offset": 0, "sketch": 0, "both": 0},
+        }
+        for row in files:
+            if row["lane"] != lane:
+                continue
+            totals["fileCount"] += 1
+            trace = row["trace"]["totals"]
+            for name in (
+                "entryCount",
+                "candidateCount",
+                "cheapTrialCount",
+                "expensiveTrialCount",
+                "totalCompressionTrialCount",
+                "level19TrialCount",
+                "storedBytes",
+                "dictionaryRefs",
+            ):
+                totals[name] += int(trace[name])
+            for source in ("offset", "sketch", "both"):
+                totals["sourceCounts"][source] += int(trace["sourceCounts"][source])
+        result[lane] = totals
+    return result
+
+
 def compact_file_rows(
     paired_path: Path,
     document: dict,
@@ -130,6 +366,9 @@ def compact_file_rows(
     trace_digests: dict[str, list[dict]] = {}
     for lane in ALL_LANES:
         lane_trace = trace[lane]
+        trace_rows = compact_trace_projection(
+            paired_path, document, lane, accepted[lane]
+        )
         run_path = safe_child(paired_path.parent, str(lane_trace.get("result", "")))
         run = load_json(run_path)
         if (
@@ -216,6 +455,7 @@ def compact_file_rows(
                     "patchSha256": patch_sha,
                     "targetSha256": target_sha,
                     "correctness": "valid",
+                    "trace": trace_rows[key],
                     "trace": trace_summary,
                 }
             )
@@ -334,6 +574,13 @@ def validate_paired(platform: str, path: Path, source_commit: str) -> tuple[dict
         candidates = round_item.get("candidates")
         if not isinstance(candidates, list):
             raise ValueError(f"{label}: candidate rows missing")
+        expected_order = rotated_lanes(expected_round - 1)
+        actual_order = [candidate.get("lane") for candidate in candidates]
+        if (
+            round_item.get("candidateOrder") != expected_order
+            or actual_order != expected_order
+        ):
+            raise ValueError(f"{label}: frozen candidate rotation mismatch")
         seen: set[str] = set()
         compact_candidates: list[dict] = []
         for candidate in candidates:
@@ -849,6 +1096,7 @@ def build_compact(
         "githubRunNumber": identity[3],
         "patchBytes": patch_bytes,
         "platforms": platforms,
+        "traceAggregates": trace_aggregates(canonical_files),
         "byteOracles": {
             "H7-L1-R2-E75==H4-L1-R2": True,
             "crossPlatformPatchSha256Equal": True,
