@@ -235,7 +235,7 @@ def compact_file_rows(
                 raise ValueError(f"{paired_path}/{lane}/{key}: correctness oracle failed")
 
             trace_summary = dict(traces[key])
-            trace_sha = str(trace_summary["documentSha256"])
+            trace_sha = str(trace_summary.pop("documentSha256"))
             payload_entries = int(
                 run_row.get("payloadEntries", trace_summary["totals"]["entryCount"])
             )
