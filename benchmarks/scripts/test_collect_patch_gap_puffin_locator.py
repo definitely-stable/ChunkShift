@@ -71,6 +71,25 @@ class PatchGapPuffinLocatorTests(unittest.TestCase):
             self.assertEqual([{"bitOffset": 0, "bitLength": 8}], result["deflateBitExtents"])
             self.assertEqual(MODULE.sha256_file(source), result["reconstructedSha256"])
 
+    def test_build_provenance_preserves_exact_bytes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "build-provenance.bin"
+            raw = b"compiler=clang\r\nflags=-O2\x00toolchain"
+            path.write_bytes(raw)
+
+            encoded, digest = MODULE.encode_build_provenance(path)
+
+            import base64
+            self.assertEqual(raw, base64.b64decode(encoded))
+            self.assertEqual(MODULE.sha256_bytes(raw), digest)
+
+    def test_empty_build_provenance_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "empty"
+            path.write_bytes(b"")
+            with self.assertRaises(MODULE.LocatorError):
+                MODULE.encode_build_provenance(path)
+
     def test_canonical_bytes_have_no_trailing_newline(self):
         payload = MODULE.canonical_bytes({"z": 1, "a": 2})
         self.assertEqual(b'{"a":2,"z":1}', payload)
