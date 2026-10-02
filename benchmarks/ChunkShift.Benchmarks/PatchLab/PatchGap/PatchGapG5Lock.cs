@@ -35,6 +35,9 @@ internal sealed record PatchGapPuffinLocatorDocument(
     string CorpusPairsSha256,
     string ToolVersion,
     string ToolCommit,
+    string LogicalArtifact,
+    string BuildCommand,
+    string HelpOutput,
     string ExecutableSha256,
     long ExecutableBytes,
     string SourceArchiveSha256,
@@ -360,9 +363,20 @@ internal static class PatchGapG5InventoryLock
             throw new InvalidDataException("Puffin locator document has foreign protocol/source/corpus/tool identity.");
         }
 
-        if (locator.ExecutableBytes <= 0)
+        if (locator.ExecutableBytes <= 0 ||
+            string.IsNullOrWhiteSpace(locator.LogicalArtifact) ||
+            Path.IsPathRooted(locator.LogicalArtifact) ||
+            string.IsNullOrWhiteSpace(locator.BuildCommand) ||
+            string.IsNullOrWhiteSpace(locator.HelpOutput))
         {
-            throw new InvalidDataException("Puffin locator document has no executable size.");
+            throw new InvalidDataException("Puffin locator document has incomplete durable tool provenance.");
+        }
+
+        string helpSha = Convert.ToHexStringLower(
+            SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(locator.HelpOutput)));
+        if (!string.Equals(helpSha, locator.HelpOutputSha256, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("Puffin help output SHA-256 does not match its recorded content.");
         }
 
         PatchGapEvidence.RequireSha256(locator.ExecutableSha256, "Puffin executable SHA-256");
