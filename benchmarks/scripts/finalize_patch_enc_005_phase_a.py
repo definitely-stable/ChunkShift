@@ -21,6 +21,60 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def safe_child(root: Path, relative: str) -> Path:
+    root = root.resolve()
+    candidate = (root / relative).resolve()
+    if candidate != root and root not in candidate.parents:
+        raise ValueError(f"timing evidence path escapes dispatch root: {relative}")
+    return candidate
+
+
+def timing_environment(dispatch_path: Path, document: dict, source_commit: str) -> dict:
+    root = dispatch_path.parent
+    environments: list[dict] = []
+    rounds = document.get("rounds")
+    if not isinstance(rounds, list) or len(rounds) != 5:
+        raise ValueError("accepted dispatch must retain exactly five timing rounds")
+
+    for round_item in rounds:
+        paths = [
+            round_item.get("h0StartResult"),
+            round_item.get("h0EndResult"),
+        ]
+        candidates = round_item.get("candidates")
+        if not isinstance(candidates, list):
+            raise ValueError("accepted dispatch candidate result paths are missing")
+        paths.extend(candidate.get("result") for candidate in candidates)
+        for relative in paths:
+            if not isinstance(relative, str) or not relative:
+                raise ValueError("accepted dispatch contains an invalid timing result path")
+            result = json.loads(safe_child(root, relative).read_text(encoding="utf-8"))
+            environment = result.get("environment")
+            if not isinstance(environment, dict):
+                raise ValueError(f"{relative}: timing result has no environment snapshot")
+            environments.append(environment)
+
+    if not environments:
+        raise ValueError("accepted dispatch contains no timing environments")
+    canonical = environments[0]
+    if any(environment != canonical for environment in environments[1:]):
+        raise ValueError("timing environment changed inside one accepted dispatch")
+    if str(canonical.get("gitCommit") or "").lower() != source_commit:
+        raise ValueError("timing environment commit differs from bound source commit")
+    if int(canonical.get("processorCount") or 0) < 2:
+        raise ValueError("PATCH-ENC-005 timing requires at least two processors")
+    for field in (
+        "osDescription",
+        "osArchitecture",
+        "processArchitecture",
+        "frameworkDescription",
+        "processorDescription",
+    ):
+        if not str(canonical.get(field) or "").strip():
+            raise ValueError(f"timing environment field {field} is empty")
+    return canonical
+
+
 def patch_map_from_document(document: dict) -> dict[str, dict[tuple[str, str, str, str], str]]:
     projection = document.get("patchShas")
     if not isinstance(projection, dict):
@@ -160,7 +214,14 @@ def main() -> int:
     apply_evidence = None
     trace_correctness = None
     accepted_patch_shas = None
+    accepted_timing_environment = None
     if accepted is not None:
+        accepted_path = args.attempt_one if accepted.get("attempt") == 1 else args.attempt_two
+        accepted_timing_environment = timing_environment(
+            accepted_path,
+            accepted,
+            args.source_commit,
+        )
         lane_maps = patch_map_from_document(accepted)
         accepted_patch_shas = {
             lane: paired.serialized_patch_sha_map(mapping)
@@ -206,6 +267,7 @@ def main() -> int:
             "summaries": accepted["summaries"],
         },
         "acceptedPatchShas": accepted_patch_shas,
+        "timingEnvironment": accepted_timing_environment,
         "applyEvidence": apply_evidence,
         "traceCorrectness": trace_correctness,
     }
