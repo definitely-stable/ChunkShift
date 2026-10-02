@@ -41,6 +41,7 @@ internal sealed record PatchGapPuffinLocatorDocument(
     string ExecutableSha256,
     long ExecutableBytes,
     string SourceArchiveSha256,
+    string BuildProvenanceBase64,
     string BuildProvenanceSha256,
     string HelpOutputSha256,
     PatchGapPuffinLocatorRow[] Rows);
@@ -296,17 +297,7 @@ internal static class PatchGapG5InventoryLock
             return false;
         }
 
-        PatchGapBitExtent[] bitExtents;
-        try
-        {
-            bitExtents = CanonicalExtents(locator.DeflateBitExtents);
-        }
-        catch (InvalidDataException exception)
-        {
-            reason = exception.Message;
-            return false;
-        }
-
+        PatchGapBitExtent[] bitExtents = locator.DeflateBitExtents;
         PatchGapDeflateExtent[] byteExtents = structural.DeflateExtents;
 
         if (bitExtents.Length != byteExtents.Length)
@@ -325,10 +316,15 @@ internal static class PatchGapG5InventoryLock
 
             if (bit.BitLength == 0 ||
                 bit.BitOffset > fileBits ||
-                bit.BitLength > fileBits - bit.BitOffset ||
-                (index > 0 && bit.BitOffset < previousEnd))
+                bit.BitLength > fileBits - bit.BitOffset)
             {
                 reason = "invalid-or-overlapping-bit-extent";
+                return false;
+            }
+
+            if (index > 0 && bit.BitOffset < previousEnd)
+            {
+                reason = "invalid-or-noncanonical-bit-extent-order";
                 return false;
             }
 
@@ -390,6 +386,27 @@ internal static class PatchGapG5InventoryLock
         PatchGapEvidence.RequireSha256(locator.SourceArchiveSha256, "Puffin source archive SHA-256");
         PatchGapEvidence.RequireSha256(locator.BuildProvenanceSha256, "Puffin build provenance SHA-256");
         PatchGapEvidence.RequireSha256(locator.HelpOutputSha256, "Puffin help output SHA-256");
+
+        byte[] buildProvenance;
+        try
+        {
+            buildProvenance = Convert.FromBase64String(locator.BuildProvenanceBase64);
+        }
+        catch (FormatException exception)
+        {
+            throw new InvalidDataException(
+                "Puffin build provenance is not valid base64.", exception);
+        }
+
+        if (buildProvenance.Length == 0 ||
+            !string.Equals(
+                Convert.ToHexStringLower(SHA256.HashData(buildProvenance)),
+                locator.BuildProvenanceSha256,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(
+                "Puffin build provenance bytes do not match their recorded SHA-256.");
+        }
     }
 
     private static void ValidateLocatorIdentity(
