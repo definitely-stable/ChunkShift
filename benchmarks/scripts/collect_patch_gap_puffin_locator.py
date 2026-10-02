@@ -209,7 +209,7 @@ def locate_one(
     }
 
 
-def help_digest(puffin: Path) -> str:
+def help_output(puffin: Path) -> tuple[str, str]:
     completed = subprocess.run(
         [str(puffin), "--help"],
         stdin=subprocess.DEVNULL,
@@ -217,10 +217,14 @@ def help_digest(puffin: Path) -> str:
         stderr=subprocess.PIPE,
         check=False,
     )
-    output = completed.stdout + b"\0" + completed.stderr
-    if not output.strip(b"\0\r\n\t "):
+    text = (
+        completed.stdout.decode("utf-8", errors="replace")
+        + "\n---stderr---\n"
+        + completed.stderr.decode("utf-8", errors="replace")
+    )
+    if not text.strip():
         raise LocatorError("puffin --help produced no output")
-    return sha256_bytes(output)
+    return text, sha256_bytes(text.encode("utf-8"))
 
 
 def load_structural(path: Path, source_commit: str) -> dict:
@@ -246,6 +250,11 @@ def main() -> int:
     parser.add_argument("--source-commit", required=True)
     parser.add_argument("--source-archive-sha256", required=True)
     parser.add_argument("--build-provenance", type=Path, required=True)
+    parser.add_argument("--build-command", required=True)
+    parser.add_argument(
+        "--logical-artifact",
+        default="tools/puffin/android-17.0.0_r1/puffin",
+    )
     args = parser.parse_args()
 
     try:
@@ -351,6 +360,13 @@ def main() -> int:
             )
         )
 
+        help_text, help_sha = help_output(args.puffin)
+        logical_artifact = args.logical_artifact.replace("\\", "/")
+        if not logical_artifact or logical_artifact.startswith("/"):
+            raise LocatorError("--logical-artifact must be a stable relative artifact identity")
+        if not args.build_command.strip():
+            raise LocatorError("--build-command must not be empty")
+
         document = {
             "schema": SCHEMA,
             "protocolCommit": PROTOCOL_COMMIT,
@@ -358,11 +374,14 @@ def main() -> int:
             "corpusPairsSha256": pairs_sha,
             "toolVersion": PUFFIN_VERSION,
             "toolCommit": PUFFIN_COMMIT,
+            "logicalArtifact": logical_artifact,
+            "buildCommand": args.build_command,
+            "helpOutput": help_text,
             "executableSha256": sha256_file(args.puffin),
             "executableBytes": args.puffin.stat().st_size,
             "sourceArchiveSha256": source_archive_sha,
             "buildProvenanceSha256": sha256_file(args.build_provenance),
-            "helpOutputSha256": help_digest(args.puffin),
+            "helpOutputSha256": help_sha,
             "rows": rows,
         }
 
