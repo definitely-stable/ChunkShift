@@ -155,6 +155,7 @@ def aggregate_create(result: dict) -> dict[str, float | int]:
     allocations = 0
     base_reads = 0
     base_bytes = 0
+    base_seeks = 0
     for item in files:
         metrics = item.get("createMetrics")
         if metrics is None:
@@ -163,12 +164,14 @@ def aggregate_create(result: dict) -> dict[str, float | int]:
         allocations += int(metrics["allocatedBytes"])
         base_reads += int(metrics["baseReads"])
         base_bytes += int(metrics["baseBytesRead"])
+        base_seeks += int(metrics["baseSeeks"])
     return {
         "wallSeconds": sum(float(item["createSeconds"]) for item in files),
         "cpuSeconds": cpu,
         "allocatedBytes": allocations,
         "baseReads": base_reads,
         "baseBytesRead": base_bytes,
+        "baseSeeks": base_seeks,
         "patchBytes": sum(int(item["patchBytes"]) for item in files),
     }
 
