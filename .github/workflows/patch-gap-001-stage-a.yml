@@ -109,7 +109,7 @@ jobs:
           short_commit="${GITHUB_SHA:0:7}"
           run_id="PATCH-GAP-001/RUN-${RUN_DATE}-${sequence}-${short_commit}-linux-x64"
           echo "RUN_ID=$run_id" >> "$GITHUB_ENV"
-          echo "CORPUS_ROOT=$RUNNER_TEMP/chunkshift-patch-corpus" >> "$GITHUB_ENV"
+          echo "CORPUS_ROOT=$HOME/patch-corpus" >> "$GITHUB_ENV"
           echo "OUT=$RUNNER_TEMP/patch-gap-001-stage-a" >> "$GITHUB_ENV"
           echo "PATCH-GAP Stage-A RunId: $run_id"
 
@@ -138,7 +138,7 @@ jobs:
       - name: Restore frozen patch-corpus sources
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ~/.cache/chunkshift/patch-corpus-sources
+          path: ~/patch-corpus/sources
           key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
 
       - name: Materialize and lock frozen patch corpus
@@ -147,7 +147,7 @@ jobs:
           set -euo pipefail
           python3 benchmarks/scripts/materialize_patch_corpus.py \
             --root "$CORPUS_ROOT" \
-            --sources "$HOME/.cache/chunkshift/patch-corpus-sources" \
+            --sources "$HOME/patch-corpus/sources" \
             --download \
             --lock
 
