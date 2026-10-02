@@ -71,6 +71,23 @@ def memory_max(memory: dict, field: str) -> int:
     return value
 
 
+def apply_wall_from_raw(platform_data: dict, lane: str) -> float:
+    lane_data = platform_data["applyRaw"][lane]
+    files = lane_data.get("files")
+    if not isinstance(files, list) or not files:
+        raise ValueError(f"{lane}: compact apply evidence has no per-file samples")
+    total = 0.0
+    for row in files:
+        samples = row.get("samples")
+        if not isinstance(samples, list) or len(samples) != 5:
+            raise ValueError(f"{lane}: compact apply evidence requires five samples")
+        total += median_five([float(sample["wallSeconds"]) for sample in samples])
+    published = float(lane_data["aggregate"]["wallSeconds"])
+    if abs(total - published) > 1e-12:
+        raise ValueError(f"{lane}: published apply wall does not recompute")
+    return total
+
+
 def recompute(compact: dict) -> dict:
     if (
         compact.get("schema") != "chunkshift.patch-enc-005-phase-a-compact.v1"
@@ -124,10 +141,8 @@ def recompute(compact: dict) -> dict:
                 )
             speed_round_passes[platform] = sum(value <= 0.50 for value in round_wall)
             size_round_passes[platform] = sum(value <= 1.50 for value in round_wall)
-            h0_apply = float(platform_data["applyWallSeconds"]["csp"])
-            apply[platform] = (
-                float(platform_data["applyWallSeconds"][lane]) / h0_apply
-            )
+            h0_apply = apply_wall_from_raw(platform_data, "csp")
+            apply[platform] = apply_wall_from_raw(platform_data, lane) / h0_apply
             lane_memory = platform_data["memory"][lane]
             create_memory[platform] = memory_max(
                 lane_memory, "createPeakOverIdleBytes"
