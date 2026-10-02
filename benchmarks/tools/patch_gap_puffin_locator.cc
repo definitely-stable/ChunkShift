@@ -8,7 +8,9 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
