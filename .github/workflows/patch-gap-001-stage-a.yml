@@ -26,9 +26,7 @@ env:
   NUGET_XMLDOC_MODE: skip
   PUFFIN_COMMIT: 343e23db1b4d81045e91a10244244893f5acd73b
   PUFFIN_TAG: android-17.0.0_r1
-  AOSP_BUILD_ID: CP2A.260605.016
-  AOSP_LUNCH_TARGET: aosp_x86_64-trunk_staging-eng
-  PLATFORM_BUILD_COMMIT: 5ce6f787337d0223710bf7d4a16dbe6d2a35f777
+  PUFFIN_ADAPTER: benchmarks/tools/patch_gap_puffin_locator.cc
   PUFFIN_PRODUCER_WORKFLOW: .github/workflows/patch-gap-001-puffin-toolchain.yml
   PUFFIN_ARTIFACT_NAME: patch-gap-001-puffin-toolchain
   PROTOCOL_COMMIT: 5372678ae8451a71cc95eb24f30855cbbd7e0633
@@ -173,6 +171,13 @@ jobs:
             exit 2
           fi
 
+          producer_adapter_blob="$(git rev-parse "$producer_head_sha:$PUFFIN_ADAPTER")"
+          consumer_adapter_blob="$(git rev-parse "$GITHUB_SHA:$PUFFIN_ADAPTER")"
+          if [[ "$producer_adapter_blob" != "$consumer_adapter_blob" ]]; then
+            echo "Puffin locator adapter changed after the selected producer run." >&2
+            exit 2
+          fi
+
           gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -275,9 +280,12 @@ jobs:
             "$tool_dir/bin/puffin"
             "$tool_dir/build-provenance.json"
             "$tool_dir/build-command.txt"
-            "$tool_dir/source-manifest.xml"
+            "$tool_dir/adapter-source.cc"
+            "$tool_dir/puffin-source-identity.txt"
             "$tool_dir/puffin-help.txt"
-            "$tool_dir/ldd.txt"
+            "$tool_dir/ldd-packaged.txt"
+            "$tool_dir/package-versions.txt"
+            "$tool_dir/compiler-version.txt"
             "$tool_dir/host-environment.txt"
           )
           for path in "${required[@]}"; do
@@ -289,30 +297,22 @@ jobs:
             sha256sum -c SHA256SUMS
           )
 
-          python3 - \
-            "$tool_dir" \
-            "$producer_head_sha" \
-            "$PUFFIN_PRODUCER_RUN_ID" \
-            "$PUFFIN_TAG" \
-            "$AOSP_BUILD_ID" \
-            "$AOSP_LUNCH_TARGET" \
-            "$PUFFIN_COMMIT" \
-            "$PLATFORM_BUILD_COMMIT" <<'PY'
+          cmp "$tool_dir/adapter-source.cc" "$GITHUB_WORKSPACE/$PUFFIN_ADAPTER"
+
+          mapfile -t producer_meta < <(
+            python3 - \
+              "$tool_dir" \
+              "$producer_head_sha" \
+              "$PUFFIN_PRODUCER_RUN_ID" \
+              "$PUFFIN_TAG" \
+              "$PUFFIN_COMMIT" <<'PY'
           import hashlib
           import json
           import pathlib
+          import re
           import sys
 
-          (
-              root_text,
-              producer_head_sha,
-              producer_run_id,
-              aosp_tag,
-              aosp_build_id,
-              lunch_target,
-              puffin_commit,
-              platform_build_commit,
-          ) = sys.argv[1:]
+          root_text, producer_head_sha, producer_run_id, puffin_tag, puffin_commit = sys.argv[1:]
           root = pathlib.Path(root_text)
           document = json.loads(
               (root / "build-provenance.json").read_text(encoding="utf-8")
@@ -321,22 +321,36 @@ jobs:
           def sha(path):
               return hashlib.sha256(path.read_bytes()).hexdigest()
 
+          source_identity = {}
+          for line in (root / "puffin-source-identity.txt").read_text(encoding="utf-8").splitlines():
+              key, sep, value = line.partition("=")
+              if not sep or not key or not value:
+                  raise SystemExit("malformed puffin-source-identity.txt")
+              source_identity[key] = value
+
+          source_archive_sha = source_identity.get("archiveSha256", "").lower()
+          if source_identity.get("tag") != puffin_tag:
+              raise SystemExit("Puffin source identity has the wrong tag")
+          if source_identity.get("commit", "").lower() != puffin_commit.lower():
+              raise SystemExit("Puffin source identity has the wrong commit")
+          if not re.fullmatch(r"[0-9a-f]{64}", source_archive_sha):
+              raise SystemExit("Puffin source identity has malformed archive SHA-256")
+
           expected = {
-              "schema": "chunkshift.patch-gap-puffin-toolchain.v1",
-              "chunkShiftSourceCommit": producer_head_sha,
+              "schema": "chunkshift.patch-gap-puffin-toolchain.v2",
+              "chunkShiftSourceCommit": producer_head_sha.lower(),
               "producerRunId": int(producer_run_id),
-              "aospTag": aosp_tag,
-              "aospBuildId": aosp_build_id,
-              "aospLunchTarget": lunch_target,
-              "puffinCommit": puffin_commit,
-              "platformBuildCommit": platform_build_commit,
-              "syncJobs": 16,
-              "buildJobs": 16,
+              "runnerImage": "ubuntu-24.04",
+              "puffinTag": puffin_tag,
+              "puffinCommit": puffin_commit.lower(),
+              "sourceArchiveSha256": source_archive_sha,
+              "adapterSha256": sha(root / "adapter-source.cc"),
               "binarySha256": sha(root / "bin/puffin"),
-              "sourceManifestSha256": sha(root / "source-manifest.xml"),
               "buildCommandSha256": sha(root / "build-command.txt"),
               "helpOutputSha256": sha(root / "puffin-help.txt"),
-              "lddSha256": sha(root / "ldd.txt"),
+              "lddSha256": sha(root / "ldd-packaged.txt"),
+              "packageVersionsSha256": sha(root / "package-versions.txt"),
+              "compilerVersionSha256": sha(root / "compiler-version.txt"),
               "hostEnvironmentSha256": sha(root / "host-environment.txt"),
           }
           mismatches = [
@@ -348,13 +362,13 @@ jobs:
                   "Puffin build provenance mismatch: " + ", ".join(mismatches)
               )
 
-          expected_command = (
-              f"source build/envsetup.sh && lunch {lunch_target} "
-              "&& m -j16 puffin\n"
-          ).encode("utf-8")
-          if (root / "build-command.txt").read_bytes() != expected_command:
-              raise SystemExit("Puffin build command differs from the frozen producer contract")
+          print(source_archive_sha)
+          print(expected["adapterSha256"])
           PY
+          )
+
+          source_archive_sha="${producer_meta[0]}"
+          adapter_sha="${producer_meta[1]}"
 
           chmod 0755 "$tool_dir/bin/puffin"
           env -i \
@@ -374,6 +388,7 @@ jobs:
             "$GITHUB_SHA" \
             "$PUFFIN_PRODUCER_WORKFLOW" \
             "$producer_workflow_blob" \
+            "$producer_adapter_blob" \
             "$PUFFIN_PRODUCER_RUN_ID" \
             "$producer_head_sha" \
             "$PUFFIN_ARTIFACT_NAME" \
@@ -383,10 +398,9 @@ jobs:
             "$binary_sha" \
             "$provenance_sha" \
             "$PUFFIN_TAG" \
-            "$AOSP_BUILD_ID" \
-            "$AOSP_LUNCH_TARGET" \
             "$PUFFIN_COMMIT" \
-            "$PLATFORM_BUILD_COMMIT" <<'PY'
+            "$source_archive_sha" \
+            "$adapter_sha" <<'PY'
           import json
           import pathlib
           import sys
@@ -397,6 +411,7 @@ jobs:
               consumer_source_commit,
               workflow_path,
               workflow_blob_sha,
+              adapter_blob_sha,
               producer_run_id,
               producer_head_sha,
               artifact_name,
@@ -405,32 +420,32 @@ jobs:
               artifact_size,
               binary_sha,
               provenance_sha,
-              aosp_tag,
-              aosp_build_id,
-              lunch_target,
+              puffin_tag,
               puffin_commit,
-              platform_build_commit,
+              source_archive_sha,
+              adapter_sha,
           ) = sys.argv[1:]
 
           document = {
-              "schema": "chunkshift.patch-gap-puffin-producer-lineage.v1",
+              "schema": "chunkshift.patch-gap-puffin-producer-lineage.v2",
               "repository": repository,
               "consumerSourceCommit": consumer_source_commit.lower(),
               "producerWorkflow": workflow_path,
               "producerWorkflowBlobSha": workflow_blob_sha,
+              "producerAdapterBlobSha": adapter_blob_sha,
               "producerRunId": int(producer_run_id),
-              "producerHeadSha": producer_head_sha,
+              "producerHeadSha": producer_head_sha.lower(),
               "artifactName": artifact_name,
               "artifactId": int(artifact_id),
               "artifactDigest": artifact_digest,
               "artifactSizeBytes": int(artifact_size),
               "binarySha256": binary_sha,
               "buildProvenanceSha256": provenance_sha,
-              "aospTag": aosp_tag,
-              "aospBuildId": aosp_build_id,
-              "aospLunchTarget": lunch_target,
-              "puffinCommit": puffin_commit,
-              "platformBuildCommit": platform_build_commit,
+              "runnerImage": "ubuntu-24.04",
+              "puffinTag": puffin_tag,
+              "puffinCommit": puffin_commit.lower(),
+              "sourceArchiveSha256": source_archive_sha,
+              "adapterSha256": adapter_sha,
           }
           pathlib.Path(output).write_text(
               json.dumps(document, indent=2, sort_keys=True) + "\n",
@@ -448,6 +463,8 @@ jobs:
             echo "PUFFIN_ARTIFACT_DIGEST=$artifact_digest"
             echo "PUFFIN_BINARY_SHA256=$binary_sha"
             echo "PUFFIN_BUILD_PROVENANCE_SHA256=$provenance_sha"
+            echo "PUFFIN_SOURCE_ARCHIVE_SHA256=$source_archive_sha"
+            echo "PUFFIN_ADAPTER_SHA256=$adapter_sha"
             echo "PUFFIN_LIB_DIR=$tool_dir/lib64"
           } >> "$GITHUB_ENV"
 
@@ -501,6 +518,22 @@ jobs:
             "$source_dir"
           test "$(git -C "$source_dir" rev-parse HEAD)" = "$PUFFIN_COMMIT"
           test -z "$(git -C "$source_dir" status --porcelain=v1 --untracked-files=normal)"
+
+          actual_source_archive_sha="$(
+            git -C "$source_dir" archive --format=tar HEAD \
+              | sha256sum | cut -d' ' -f1
+          )"
+          if [[ "$actual_source_archive_sha" != "$PUFFIN_SOURCE_ARCHIVE_SHA256" ]]; then
+            echo "Pinned Puffin source archive SHA-256 differs from producer provenance." >&2
+            exit 2
+          fi
+
+          actual_adapter_sha="$(sha256sum "$GITHUB_WORKSPACE/$PUFFIN_ADAPTER" | cut -d' ' -f1)"
+          if [[ "$actual_adapter_sha" != "$PUFFIN_ADAPTER_SHA256" ]]; then
+            echo "Pinned Puffin adapter SHA-256 differs from producer provenance." >&2
+            exit 2
+          fi
+
           echo "PUFFIN_SOURCE=$source_dir" >> "$GITHUB_ENV"
 
       - name: Collect Puffin structural locator evidence
