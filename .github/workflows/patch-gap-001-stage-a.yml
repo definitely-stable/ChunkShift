@@ -40,10 +40,8 @@ env:
   DOTNET_NOLOGO: "1"
   NUGET_XMLDOC_MODE: skip
   PUFFIN_COMMIT: 343e23db1b4d81045e91a10244244893f5acd73b
-  PUFFIN_VERSION: Android-17.0.0_r1
+  PUFFIN_TAG: android-17.0.0_r1
   PROTOCOL_COMMIT: 5372678ae8451a71cc95eb24f30855cbbd7e0633
-  CORPUS_ROOT: ${{ github.workspace }}/.patch-gap-corpus
-  OUT: ${{ github.workspace }}/artifacts/patch-gap-001-stage-a
 
 jobs:
   inventory:
@@ -111,6 +109,8 @@ jobs:
           short_commit="${GITHUB_SHA:0:7}"
           run_id="PATCH-GAP-001/RUN-${RUN_DATE}-${sequence}-${short_commit}-linux-x64"
           echo "RUN_ID=$run_id" >> "$GITHUB_ENV"
+          echo "CORPUS_ROOT=$RUNNER_TEMP/chunkshift-patch-corpus" >> "$GITHUB_ENV"
+          echo "OUT=$RUNNER_TEMP/patch-gap-001-stage-a" >> "$GITHUB_ENV"
           echo "PATCH-GAP Stage-A RunId: $run_id"
 
       - name: Checkout tested main commit
@@ -206,7 +206,7 @@ jobs:
           source_dir="$RUNNER_TEMP/puffin-source"
           git clone \
             --depth=1 \
-            --branch "$PUFFIN_VERSION" \
+            --branch "$PUFFIN_TAG" \
             --single-branch \
             https://android.googlesource.com/platform/external/puffin \
             "$source_dir"
