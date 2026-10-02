@@ -11,6 +11,7 @@ import re
 import shutil
 
 import patch_enc_005_apply_evidence as apply_evidence_validator
+import patch_enc_005_trace_evidence as trace_evidence_validator
 from pathlib import Path
 
 EXPERIMENT_ID = "PATCH-ENC-005"
@@ -120,17 +121,24 @@ def compact_file_rows(
     paired_path: Path,
     document: dict,
     accepted: dict[str, dict[tuple[str, str, str, str], str]],
-) -> list[dict]:
+) -> tuple[list[dict], dict[str, list[dict]]]:
     trace = document.get("traceCorrectness")
     if not isinstance(trace, dict) or set(trace) != set(ALL_LANES):
         raise ValueError(f"{paired_path}: traceCorrectness lane set mismatch")
+
     result: list[dict] = []
+    trace_digests: dict[str, list[dict]] = {}
     for lane in ALL_LANES:
         lane_trace = trace[lane]
         run_path = safe_child(paired_path.parent, str(lane_trace.get("result", "")))
         run = load_json(run_path)
-        if run.get("schema") != "chunkshift.patch-lab.v1" or run.get("lane") != lane:
+        if (
+            run.get("schema") != "chunkshift.patch-lab.v1"
+            or run.get("lane") != lane
+            or run.get("runId") != document.get("runId")
+        ):
             raise ValueError(f"{run_path}: trace run identity mismatch")
+
         run_rows: dict[tuple[str, str, str, str], dict] = {}
         for row in run.get("files", []):
             key = (row["family"], row["base"], row["target"], row["path"])
@@ -139,6 +147,21 @@ def compact_file_rows(
             run_rows[key] = row
         if set(run_rows) != set(accepted[lane]):
             raise ValueError(f"{run_path}: file set differs from accepted timing")
+
+        traces = trace_evidence_validator.load(
+            paired_path.parent,
+            lane_trace,
+            experiment_id=EXPERIMENT_ID,
+            run_id=str(document["runId"]),
+            protocol_commit=PROTOCOL_COMMIT,
+            source_commit=str(document["sourceCommit"]),
+            platform=str(document["platform"]),
+            lane=lane,
+            dataset_role="calibration",
+            dataset_sha256=DATASET_SHA256,
+        )
+        if set(traces) != set(run_rows):
+            raise ValueError(f"{paired_path}/{lane}: trace file set mismatch")
 
         correctness_rows = lane_trace.get("correctness")
         if not isinstance(correctness_rows, list):
@@ -150,6 +173,7 @@ def compact_file_rows(
         if len(correctness) != len(correctness_rows) or set(correctness) != set(run_rows):
             raise ValueError(f"{paired_path}/{lane}: correctness file set mismatch")
 
+        trace_digests[lane] = []
         for key in sorted(run_rows):
             run_row = run_rows[key]
             patch_sha = str(run_row.get("patchSha256", "")).lower()
@@ -166,6 +190,21 @@ def compact_file_rows(
                 or target_sha != decoder_sha
             ):
                 raise ValueError(f"{paired_path}/{lane}/{key}: correctness oracle failed")
+
+            trace_summary = dict(traces[key])
+            trace_sha = trace_summary.pop("documentSha256")
+            payload_entries = int(run_row.get("payloadEntries", trace_summary["entryCount"]))
+            if payload_entries != trace_summary["entryCount"]:
+                raise ValueError(f"{paired_path}/{lane}/{key}: trace entry count mismatch")
+            trace_digests[lane].append(
+                {
+                    "family": key[0],
+                    "base": key[1],
+                    "target": key[2],
+                    "path": key[3],
+                    "sha256": trace_sha,
+                }
+            )
             result.append(
                 {
                     "lane": lane,
@@ -177,10 +216,10 @@ def compact_file_rows(
                     "patchSha256": patch_sha,
                     "targetSha256": target_sha,
                     "correctness": "valid",
+                    "trace": trace_summary,
                 }
             )
-    return result
-
+    return result, trace_digests
 
 def compact_aggregate(value: dict, label: str) -> dict:
     result = {
@@ -385,7 +424,7 @@ def validate_paired(platform: str, path: Path, source_commit: str) -> tuple[dict
 
     if accepted["H7-L1-R2-E75"] != accepted["H4-L1-R2"]:
         raise ValueError(f"{label}: H7 is not byte-identical to H4")
-    files = compact_file_rows(path, document, accepted)
+    files, trace_digests = compact_file_rows(path, document, accepted)
     sums = {lane: 0 for lane in ALL_LANES}
     for row in files:
         sums[row["lane"]] += int(row["patchBytes"])
@@ -405,6 +444,7 @@ def validate_paired(platform: str, path: Path, source_commit: str) -> tuple[dict
         "applyRaw": apply_raw,
         "timingEnvironment": timing_environment,
         "applyEnvironment": apply_environment,
+        "traceDocumentSha256": trace_digests,
         "acceptedPatchShas": accepted,
     }, files
 
@@ -772,6 +812,7 @@ def build_compact(
             "applyEnvironment": paired["applyEnvironment"],
             "memoryEnvironment": memory_environment,
             "memoryPopulationSha256": population_sha256,
+            "traceDocumentSha256": paired["traceDocumentSha256"],
             "rounds": paired["rounds"],
             "timing": paired["timing"],
             "applyWallSeconds": paired["applyWallSeconds"],
