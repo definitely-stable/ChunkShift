@@ -307,12 +307,12 @@ internal static class PatchGapG5InventoryLock
         }
 
         ulong fileBits = checked((ulong)fileBytes * 8UL);
+        ulong previousOffset = 0;
         ulong previousEnd = 0;
 
         for (int index = 0; index < bitExtents.Length; index++)
         {
             PatchGapBitExtent bit = bitExtents[index];
-            PatchGapDeflateExtent bytes = byteExtents[index];
 
             if (bit.BitLength == 0 ||
                 bit.BitOffset > fileBits ||
@@ -322,16 +322,33 @@ internal static class PatchGapG5InventoryLock
                 return false;
             }
 
-            if (index > 0 && bit.BitOffset < previousEnd)
+            if (index > 0)
             {
-                reason = "invalid-or-noncanonical-bit-extent-order";
-                return false;
+                if (bit.BitOffset < previousOffset)
+                {
+                    reason = "invalid-or-noncanonical-bit-extent-order";
+                    return false;
+                }
+
+                if (bit.BitOffset < previousEnd)
+                {
+                    reason = "invalid-or-overlapping-bit-extent";
+                    return false;
+                }
             }
 
+            previousOffset = bit.BitOffset;
             previousEnd = bit.BitOffset + bit.BitLength;
+        }
+
+        for (int index = 0; index < bitExtents.Length; index++)
+        {
+            PatchGapBitExtent bit = bitExtents[index];
+            PatchGapDeflateExtent bytes = byteExtents[index];
+            ulong extentEnd = bit.BitOffset + bit.BitLength;
             ulong expectedStart = checked((ulong)bytes.ByteOffset * 8UL);
             ulong expectedByteEnd = checked((ulong)(bytes.ByteOffset + bytes.ByteLength));
-            ulong actualByteEnd = checked((previousEnd + 7UL) / 8UL);
+            ulong actualByteEnd = checked((extentEnd + 7UL) / 8UL);
 
             if (bit.BitOffset != expectedStart || actualByteEnd != expectedByteEnd)
             {
