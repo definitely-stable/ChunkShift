@@ -241,6 +241,36 @@ def load_structural(path: Path, source_commit: str) -> dict:
     return document
 
 
+def source_checkout_archive_sha256(source: Path) -> str:
+    if not source.is_dir():
+        raise LocatorError(f"Puffin source checkout {source} does not exist")
+    head = subprocess.run(
+        ["git", "-C", str(source), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    if head != PUFFIN_COMMIT:
+        raise LocatorError(
+            f"Puffin source HEAD {head} does not match frozen {PUFFIN_COMMIT}"
+        )
+    dirty = subprocess.run(
+        ["git", "-C", str(source), "status", "--porcelain=v1", "--untracked-files=normal"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    if dirty:
+        raise LocatorError("Puffin source checkout must be clean")
+    archive = subprocess.run(
+        ["git", "-C", str(source), "archive", "--format=tar", "HEAD"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+    ).stdout
+    return sha256_bytes(archive)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--corpus", type=Path, required=True)
@@ -248,7 +278,7 @@ def main() -> int:
     parser.add_argument("--puffin", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--source-commit", required=True)
-    parser.add_argument("--source-archive-sha256", required=True)
+    parser.add_argument("--puffin-source", type=Path, required=True)
     parser.add_argument("--build-provenance", type=Path, required=True)
     parser.add_argument("--build-command", required=True)
     parser.add_argument(
@@ -263,9 +293,7 @@ def main() -> int:
         ):
             raise LocatorError("--source-commit must be a full 40-hex commit")
 
-        source_archive_sha = require_sha256(
-            args.source_archive_sha256, "--source-archive-sha256"
-        )
+        source_archive_sha = source_checkout_archive_sha256(args.puffin_source)
         if not args.puffin.is_file():
             raise LocatorError(f"pinned Puffin executable {args.puffin} does not exist")
         if not args.build_provenance.is_file():
@@ -388,7 +416,13 @@ def main() -> int:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_bytes(canonical_bytes(document))
         return 0
-    except (LocatorError, OSError, ValueError, json.JSONDecodeError) as exc:
+    except (
+        LocatorError,
+        OSError,
+        ValueError,
+        json.JSONDecodeError,
+        subprocess.CalledProcessError,
+    ) as exc:
         print(f"PATCH-GAP Puffin locator failed: {exc}", file=sys.stderr)
         return 1
 
