@@ -472,6 +472,14 @@ def validate_cross_platform(
 
 
 def evaluate(compact: dict) -> dict:
+    if (
+        compact.get("schema") != "chunkshift.patch-enc-005-phase-a-compact.v1"
+        or compact.get("experimentId") != EXPERIMENT_ID
+        or compact.get("protocolCommit") != PROTOCOL_COMMIT
+        or compact.get("datasetRole") != "calibration"
+        or compact.get("datasetSha256") != DATASET_SHA256
+    ):
+        raise ValueError("compact evidence identity does not match frozen PATCH-ENC-005 calibration")
     patch_bytes = compact["patchBytes"]
     h0_bytes = int(patch_bytes["csp"])
     if h0_bytes <= 0:
