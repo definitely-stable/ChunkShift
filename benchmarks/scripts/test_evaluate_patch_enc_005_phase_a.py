@@ -227,6 +227,7 @@ def synthetic_artifacts(root: Path):
                     "allocatedBytes": 1,
                     "baseReads": 1,
                     "baseBytesRead": 1,
+                    "baseSeeks": 1,
                 },
                 "wallRatio": 0.45 if lane in ("H4-L1-R2", "H7-L1-R2-E75") else 1.2,
                 "cpuRatio": 0.7 if lane in ("H4-L1-R2", "H7-L1-R2-E75") else 0.9,
@@ -256,6 +257,7 @@ def synthetic_artifacts(root: Path):
                     "allocatedBytes": 1,
                     "baseReads": 1,
                     "baseBytesRead": 1,
+                    "baseSeeks": 1,
                 },
                 "h0End": {
                     "wallSeconds": 100.0,
@@ -264,6 +266,7 @@ def synthetic_artifacts(root: Path):
                     "allocatedBytes": 1,
                     "baseReads": 1,
                     "baseBytesRead": 1,
+                    "baseSeeks": 1,
                 },
                 "bracketNoisy": False,
                 "candidates": candidates,
