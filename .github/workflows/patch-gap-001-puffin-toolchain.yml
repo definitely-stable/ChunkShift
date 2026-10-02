@@ -331,22 +331,36 @@ jobs:
             echo "- Retention: 90 days"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Clean AOSP workspace
+      - name: Clean producer workspace
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "${AOSP_ROOT:-}" || -z "${AOSP_WORK_BASE:-}" ]]; then
-            exit 0
+
+          if [[ -n "${AOSP_ROOT:-}" && -n "${AOSP_WORK_BASE:-}" ]]; then
+            base="$(realpath -m "$AOSP_WORK_BASE")"
+            root="$(realpath -m "$AOSP_ROOT")"
+            case "$root" in
+              "$base"/chunkshift-aosp-"$GITHUB_RUN_ID")
+                rm -rf -- "$root"
+                ;;
+              *)
+                echo "Refusing unsafe AOSP cleanup path: $root" >&2
+                exit 2
+                ;;
+            esac
           fi
-          base="$(realpath -m "$AOSP_WORK_BASE")"
-          root="$(realpath -m "$AOSP_ROOT")"
-          case "$root" in
-            "$base"/chunkshift-aosp-"$GITHUB_RUN_ID")
-              rm -rf -- "$root"
-              ;;
-            *)
-              echo "Refusing unsafe AOSP cleanup path: $root" >&2
-              exit 2
-              ;;
-          esac
+
+          if [[ -n "${PACKAGE_DIR:-}" ]]; then
+            package="$(realpath -m "$PACKAGE_DIR")"
+            runner_temp="$(realpath -m "$RUNNER_TEMP")"
+            case "$package" in
+              "$runner_temp"/patch-gap-001-puffin-toolchain-"$GITHUB_RUN_ID")
+                rm -rf -- "$package"
+                ;;
+              *)
+                echo "Refusing unsafe package cleanup path: $package" >&2
+                exit 2
+                ;;
+            esac
+          fi
