@@ -10,7 +10,7 @@ internal static class PatchGapRunner
     {
         if (args.Length == 0)
         {
-            Console.Error.WriteLine("patch-lab gap needs a mode: h0 or inventory.");
+            Console.Error.WriteLine("patch-lab gap needs a mode: h0, inventory or finalize-inventory.");
             return 2;
         }
 
@@ -18,6 +18,7 @@ internal static class PatchGapRunner
         {
             "h0" => RunH0(args[1..]),
             "inventory" => RunInventory(args[1..]),
+            "finalize-inventory" => RunFinalizeInventory(args[1..]),
             _ => Unknown(args[0]),
         };
     }
@@ -241,6 +242,224 @@ internal static class PatchGapRunner
         return 0;
     }
 
+    private static int RunFinalizeInventory(string[] args)
+    {
+        if (!PatchLabArguments.TryValue(args, "--corpus", out string corpusRoot) ||
+            !PatchLabArguments.TryValue(args, "--g4", out string g4Path) ||
+            !PatchLabArguments.TryValue(args, "--g5-structural", out string structuralPath) ||
+            !PatchLabArguments.TryValue(args, "--puffin-locator", out string locatorPath) ||
+            !PatchLabArguments.TryValue(args, "--evidence-dir", out string evidenceDirectory) ||
+            !PatchLabArguments.TryValue(args, "--source-commit", out string sourceCommit) ||
+            !PatchLabArguments.TryValue(args, "--run-id", out string runId))
+        {
+            throw new PatchLabUsageException(
+                "patch-lab gap finalize-inventory requires --corpus, --g4, --g5-structural, "
+                + "--puffin-locator, --evidence-dir, --source-commit and --run-id.");
+        }
+
+        DateTimeOffset startedUtc = DateTimeOffset.UtcNow;
+        PatchGapSourceBinding binding = PatchGapSourceBindingProbe.Capture(sourceCommit);
+        PatchLabCorpus corpus = LoadFrozenCorpus(corpusRoot, args);
+
+        PatchGapSubsetManifest<PatchGapG4InventoryRow> g4 =
+            DeserializeRequired<PatchGapSubsetManifest<PatchGapG4InventoryRow>>(g4Path);
+        PatchGapSubsetManifest<PatchGapG5InventoryRow> structural =
+            DeserializeRequired<PatchGapSubsetManifest<PatchGapG5InventoryRow>>(structuralPath);
+        PatchGapPuffinLocatorDocument locator =
+            DeserializeRequired<PatchGapPuffinLocatorDocument>(locatorPath);
+
+        ValidateSubset(
+            g4,
+            "chunkshift.patch-gap-g4-inventory.v1",
+            binding.SourceCommit,
+            static row => row.DatasetRole,
+            static row => row.Key);
+        ValidateSubset(
+            structural,
+            PatchGapG5InventoryLock.StructuralSchema,
+            binding.SourceCommit,
+            static row => row.DatasetRole,
+            static row => row.Key);
+
+        PatchGapSubsetManifest<PatchGapG5LockedRow> g5 =
+            PatchGapG5InventoryLock.Finalize(structural, locator, corpus);
+
+        string fullEvidenceDirectory = Path.GetFullPath(evidenceDirectory);
+        string subsets = Path.Combine(fullEvidenceDirectory, "subsets");
+        Directory.CreateDirectory(subsets);
+
+        string g4Output = Path.Combine(subsets, "g4.json");
+        string g5Output = Path.Combine(subsets, "g5.json");
+        string g4Sha = PatchGapEvidence.WriteCanonical(g4Output, g4);
+        string g5Sha = PatchGapEvidence.WriteCanonical(g5Output, g5);
+
+        var inputs = new PatchGapInputsDocument(
+            "chunkshift.patch-gap-inputs.v1",
+            PatchGapProtocol.ProtocolCommit,
+            binding.SourceCommit,
+            PatchGapProtocol.CorpusPairsSha256,
+            PatchGapProtocol.CorpusManifestSha256,
+            PatchGapProtocol.SourceAssetsSha256,
+            BuildMaterializedInputDigests(
+                corpus,
+                g4Path,
+                structuralPath,
+                locatorPath));
+        PatchGapEvidenceBundle.WriteInputs(fullEvidenceDirectory, inputs);
+
+        PatchGapExternalToolSpec puffin = PatchGapExternalTools.Frozen
+            .Single(static tool => tool.Id == "puffin");
+        var tool = new PatchGapToolFile(
+            puffin.Id,
+            puffin.Version,
+            puffin.UpstreamCommit,
+            locator.ToolVersion,
+            locator.ToolCommit,
+            puffin.CreateCommandTemplate,
+            puffin.ApplyCommandTemplate,
+            locator.LogicalArtifact,
+            locator.BuildCommand,
+            locator.HelpOutput,
+            locator.SourceArchiveSha256,
+            locator.ExecutableSha256,
+            locator.ExecutableSha256,
+            locator.ExecutableBytes);
+        PatchGapEvidenceBundle.WriteTools(
+            fullEvidenceDirectory,
+            new PatchGapToolsDocument(
+                "chunkshift.patch-gap-tools.v1",
+                PatchGapProtocol.ProtocolCommit,
+                [tool]));
+
+        DateTimeOffset completedUtc = DateTimeOffset.UtcNow;
+        var run = new PatchGapInventoryLockRun(
+            "chunkshift.patch-gap-inventory-lock-run.v1",
+            PatchGapProtocol.ExperimentId,
+            PatchGapProvenance.Create(
+                runId,
+                binding,
+                startedUtc,
+                completedUtc,
+                "patch-lab gap finalize-inventory " + string.Join(' ', args),
+                g5.Rows.Length),
+            completedUtc,
+            g4Sha,
+            PatchGapEvidence.FileSha256(structuralPath),
+            PatchGapEvidence.FileSha256(locatorPath),
+            g5Sha,
+            g5.Rows.Length,
+            g5.Rows.Count(static row => row.PuffinSupported));
+
+        _ = PatchGapEvidence.WriteCanonical(
+            Path.Combine(fullEvidenceDirectory, "inventory-lock-run.json"),
+            run);
+
+        return 0;
+    }
+
+    private static T DeserializeRequired<T>(string path)
+    {
+        byte[] bytes = File.ReadAllBytes(path);
+        return JsonSerializer.Deserialize<T>(bytes, PatchLabRunner.JsonOptions)
+            ?? throw new InvalidDataException($"Could not deserialize required PATCH-GAP evidence '{path}'.");
+    }
+
+    private static void ValidateSubset<TRow>(
+        PatchGapSubsetManifest<TRow> document,
+        string schema,
+        string sourceCommit,
+        Func<TRow, string> role,
+        Func<TRow, string> key)
+    {
+        if (!string.Equals(document.Schema, schema, StringComparison.Ordinal) ||
+            !string.Equals(document.ProtocolCommit, PatchGapProtocol.ProtocolCommit, StringComparison.Ordinal) ||
+            !string.Equals(document.SourceCommit, sourceCommit, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(document.CorpusPairsSha256, PatchGapProtocol.CorpusPairsSha256, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException($"{schema} has foreign protocol/source/corpus identity.");
+        }
+
+        PatchGapSubsetManifest<TRow> recomputed = PatchGapSubsetManifest.Create(
+            schema,
+            sourceCommit,
+            document.Rows,
+            role,
+            key);
+
+        if (!string.Equals(
+                recomputed.CalibrationSha256,
+                document.CalibrationSha256,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                recomputed.EvaluationSha256,
+                document.EvaluationSha256,
+                StringComparison.Ordinal) ||
+            !PatchGapEvidence.CanonicalBytes(recomputed.Rows)
+                .AsSpan()
+                .SequenceEqual(PatchGapEvidence.CanonicalBytes(document.Rows)))
+        {
+            throw new InvalidDataException($"{schema} split/order fingerprint does not recompute.");
+        }
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildMaterializedInputDigests(
+        PatchLabCorpus corpus,
+        string g4Path,
+        string structuralPath,
+        string locatorPath)
+    {
+        var result = new SortedDictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["pairs.json"] = PatchGapEvidence.FileSha256(Path.Combine(corpus.RootDirectory, "pairs.json")),
+            ["evidence-input/g4.json"] = PatchGapEvidence.FileSha256(g4Path),
+            ["evidence-input/g5-structural.json"] = PatchGapEvidence.FileSha256(structuralPath),
+            ["evidence-input/puffin-locator.json"] = PatchGapEvidence.FileSha256(locatorPath),
+        };
+
+        foreach (PatchLabPair pair in corpus.Pairs)
+        {
+            foreach (PatchLabChangedFile file in pair.Changed)
+            {
+                AddMaterialized(
+                    result,
+                    corpus.ContentPath(pair, pair.Base, file.Path),
+                    $"tree/{pair.Family}/{pair.Base}/{file.Path}",
+                    file.BaseSha256);
+                AddMaterialized(
+                    result,
+                    corpus.ContentPath(pair, pair.Target, file.Path),
+                    $"tree/{pair.Family}/{pair.Target}/{file.Path}",
+                    file.TargetSha256);
+            }
+        }
+
+        return result;
+    }
+
+    private static void AddMaterialized(
+        IDictionary<string, string> result,
+        string physicalPath,
+        string logicalPath,
+        string expectedSha256)
+    {
+        string actual = PatchGapEvidence.FileSha256(physicalPath);
+        if (!string.Equals(actual, expectedSha256, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException(
+                $"Materialized PATCH-GAP input '{logicalPath}' hashes to {actual}, expected {expectedSha256}.");
+        }
+
+        string normalized = logicalPath.Replace('\\', '/');
+        if (result.TryGetValue(normalized, out string? existing) &&
+            !string.Equals(existing, actual, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"Materialized PATCH-GAP input '{normalized}' has conflicting identities.");
+        }
+
+        result[normalized] = actual;
+    }
+
     internal static async Task<(PatchGapG4InventoryRow[] G4, PatchGapG5InventoryRow[] G5)> BuildInventoryAsync(
         PatchLabCorpus corpus,
         CancellationToken cancellationToken)
@@ -346,7 +565,7 @@ internal static class PatchGapRunner
 
     private static int Unknown(string mode)
     {
-        Console.Error.WriteLine($"Unknown patch-lab gap mode '{mode}'; expected h0 or inventory.");
+        Console.Error.WriteLine($"Unknown patch-lab gap mode '{mode}'; expected h0, inventory or finalize-inventory.");
         return 2;
     }
 }
