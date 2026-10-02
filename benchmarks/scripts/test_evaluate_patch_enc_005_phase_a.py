@@ -2,9 +2,12 @@ import importlib.util
 import json
 import tempfile
 import unittest
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 EVALUATOR_PATH = ROOT / "evaluate_patch_enc_005_phase_a.py"
 RECOMPUTE_PATH = ROOT / "recompute_patch_enc_005_phase_a.py"
 
@@ -436,6 +439,21 @@ class PatchEnc005PhaseAEvaluatorTests(unittest.TestCase):
         self.assertEqual("REJECT", result["status"])
         self.assertEqual([], result["finalists"])
         self.assertEqual([], result["pareto"])
+
+    def test_wall_threshold_requires_four_of_five_rounds(self):
+        document = compact()
+        values = [0.49, 0.49, 0.49, 0.60, 0.60]
+        for platform in EVALUATOR.PLATFORMS:
+            document["platforms"][platform]["timing"]["H4-L1-R2"]["wallRatios"] = values
+            document["platforms"][platform]["timing"]["H4-L1-R2"]["wallRatioMedian"] = 0.49
+
+        result = EVALUATOR.evaluate(document)
+
+        self.assertNotIn("speed", result["lanes"]["H4-L1-R2"]["qualificationBranches"])
+        self.assertEqual(
+            {"linux-x64": 3, "linux-arm64": 3, "win-x64": 3},
+            result["lanes"]["H4-L1-R2"]["speedWallRoundPassesByPlatform"],
+        )
 
     def test_exact_byte_thresholds_do_not_depend_on_float_rounding(self):
         document = compact()
