@@ -292,7 +292,14 @@ internal static class PatchGapG5InventoryLock
             return false;
         }
 
-        if (bitExtents.Length != structural.DeflateExtents.Length)
+        PatchGapDeflateExtent[] byteExtents =
+        [
+            .. structural.DeflateExtents
+                .OrderBy(static extent => extent.ByteOffset)
+                .ThenBy(static extent => extent.ByteLength),
+        ];
+
+        if (bitExtents.Length != byteExtents.Length)
         {
             reason = "deflate-count-mismatch";
             return false;
@@ -304,7 +311,7 @@ internal static class PatchGapG5InventoryLock
         for (int index = 0; index < bitExtents.Length; index++)
         {
             PatchGapBitExtent bit = bitExtents[index];
-            PatchGapDeflateExtent bytes = structural.DeflateExtents[index];
+            PatchGapDeflateExtent bytes = byteExtents[index];
 
             if (bit.BitLength == 0 ||
                 bit.BitOffset > fileBits ||
