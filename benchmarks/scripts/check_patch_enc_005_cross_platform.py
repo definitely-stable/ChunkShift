@@ -33,7 +33,7 @@ def canonical_patch_map(document: dict) -> str:
 
 def validate(documents: list[tuple[Path, dict]]) -> dict:
     platforms: dict[str, tuple[Path, dict]] = {}
-    identity: tuple[str, str, str, str, str] | None = None
+    identity: tuple[str, str, str, str, str, str, str, str] | None = None
     patch_map: str | None = None
 
     for path, document in documents:

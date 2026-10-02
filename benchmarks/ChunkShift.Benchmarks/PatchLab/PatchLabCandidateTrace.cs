@@ -65,17 +65,22 @@ internal sealed record PatchLabTraceOptions(
 
         string? checkedOutCommit = System.Environment.GetEnvironmentVariable("GITHUB_SHA");
 
-        if (!string.IsNullOrWhiteSpace(checkedOutCommit) &&
-            !string.Equals(sourceCommit, checkedOutCommit, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(checkedOutCommit))
         {
             throw new PatchLabUsageException(
-                "--source-commit must match GITHUB_SHA for CI evidence.");
+                "PATCH-ENC-005 decision traces require GITHUB_SHA provenance binding.");
         }
 
-        if (datasetRole is not ("calibration" or "evaluation" or "confirmation"))
+        if (!string.Equals(sourceCommit, checkedOutCommit, StringComparison.OrdinalIgnoreCase))
         {
             throw new PatchLabUsageException(
-                "--dataset-role must be calibration, evaluation or confirmation.");
+                "--source-commit must match GITHUB_SHA for PATCH-ENC-005 decision traces.");
+        }
+
+        if (datasetRole is not ("calibration" or "evaluation"))
+        {
+            throw new PatchLabUsageException(
+                "--dataset-role must be calibration or evaluation for the Phase-A trace producer.");
         }
 
         return new PatchLabTraceOptions(

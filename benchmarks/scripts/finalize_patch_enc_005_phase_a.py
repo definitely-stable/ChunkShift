@@ -117,6 +117,7 @@ def main() -> int:
         "datasetRole": args.dataset_role,
         "datasetSha256": paired.FROZEN_DATASET_SHA256,
         "githubRunId": os.environ.get("GITHUB_RUN_ID"),
+        "githubRunNumber": os.environ.get("GITHUB_RUN_NUMBER"),
         "githubRunAttempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
         "attempts": [
             {

@@ -250,6 +250,60 @@ public class PatchLabRunTests
         }
     }
 
+    [Fact]
+    public void PhaseATraceRejectsUnboundAndConfirmationEvidence()
+    {
+        using var scope = new TempDirectory();
+        _ = WriteCorpus(scope.Path);
+        const string SourceCommit = "2222222222222222222222222222222222222222";
+        string? previousSha = System.Environment.GetEnvironmentVariable("GITHUB_SHA");
+
+        try
+        {
+            System.Environment.SetEnvironmentVariable("GITHUB_SHA", null);
+            int unbound = PatchLabRunner.Run(
+            [
+                "run",
+                "--corpus", scope.Path,
+                "--lane", "H4-L1-R2",
+                "--output", Path.Combine(scope.Path, "unbound.json"),
+                "--workers", "1",
+                "--execution", "h2-w2",
+                "--no-apply",
+                "--run-id", "PATCH-ENC-005/TEST",
+                "--trace-dir", Path.Combine(scope.Path, "unbound-traces"),
+                "--protocol-commit", PatchLabTraceOptions.FrozenProtocolCommit,
+                "--source-commit", SourceCommit,
+                "--platform", "test-x64",
+                "--dataset-role", "calibration",
+            ]);
+            Assert.Equal(2, unbound);
+
+            System.Environment.SetEnvironmentVariable("GITHUB_SHA", SourceCommit);
+            int confirmation = PatchLabRunner.Run(
+            [
+                "run",
+                "--corpus", scope.Path,
+                "--lane", "H4-L1-R2",
+                "--output", Path.Combine(scope.Path, "confirmation.json"),
+                "--workers", "1",
+                "--execution", "h2-w2",
+                "--no-apply",
+                "--run-id", "PATCH-ENC-005/TEST",
+                "--trace-dir", Path.Combine(scope.Path, "confirmation-traces"),
+                "--protocol-commit", PatchLabTraceOptions.FrozenProtocolCommit,
+                "--source-commit", SourceCommit,
+                "--platform", "test-x64",
+                "--dataset-role", "confirmation",
+            ]);
+            Assert.Equal(2, confirmation);
+        }
+        finally
+        {
+            System.Environment.SetEnvironmentVariable("GITHUB_SHA", previousSha);
+        }
+    }
+
     /// <summary>
     /// Writes the two versions of a one-family corpus with two files, one of
     /// them changed, and a pairs.json in the materializer's format.
