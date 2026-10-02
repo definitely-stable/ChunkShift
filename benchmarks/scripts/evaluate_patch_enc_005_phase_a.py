@@ -194,6 +194,42 @@ def compact_aggregate(value: dict, label: str) -> dict:
     return result
 
 
+def validate_environment(
+    platform: str,
+    environment: object,
+    source_commit: str,
+    label: str,
+) -> dict:
+    if not isinstance(environment, dict):
+        raise ValueError(f"{label}: environment snapshot is missing")
+    if (
+        str(environment.get("gitCommit") or "").lower() != source_commit
+        or int(environment.get("processorCount") or 0) < 2
+    ):
+        raise ValueError(f"{label}: environment source/processor binding mismatch")
+
+    expected_arch = {
+        "linux-x64": "x64",
+        "linux-arm64": "arm64",
+        "win-x64": "x64",
+    }[platform]
+    process_arch = str(environment.get("processArchitecture") or "").lower()
+    os_arch = str(environment.get("osArchitecture") or "").lower()
+    os_description = str(environment.get("osDescription") or "")
+    framework = str(environment.get("frameworkDescription") or "")
+    processor = str(environment.get("processorDescription") or "")
+    if process_arch != expected_arch or os_arch != expected_arch:
+        raise ValueError(f"{label}: architecture does not match platform {platform}")
+    if platform.startswith("linux-"):
+        if "linux" not in os_description.lower():
+            raise ValueError(f"{label}: OS does not match Linux platform")
+    elif "windows" not in os_description.lower():
+        raise ValueError(f"{label}: OS does not match Windows platform")
+    if not framework.strip() or not processor.strip():
+        raise ValueError(f"{label}: runtime/processor provenance is incomplete")
+    return environment
+
+
 def validate_paired(platform: str, path: Path, source_commit: str) -> tuple[dict, list[dict]]:
     document = load_json(path)
     label = f"{platform}:{path}"
@@ -324,15 +360,38 @@ def validate_paired(platform: str, path: Path, source_commit: str) -> tuple[dict
             "cpuRatioMedian": cpu_median,
         }
 
+    timing_environment = validate_environment(
+        platform,
+        document.get("timingEnvironment"),
+        source_commit,
+        f"{label}/timing",
+    )
+
     apply_evidence = document.get("applyEvidence")
     if not isinstance(apply_evidence, dict) or set(apply_evidence) != set(ALL_LANES):
         raise ValueError(f"{label}: applyEvidence lane set mismatch")
     apply_wall: dict[str, float] = {}
+    apply_environment = None
     for lane in ALL_LANES:
-        aggregate = apply_evidence[lane].get("aggregate")
+        lane_apply = apply_evidence[lane]
+        aggregate = lane_apply.get("aggregate")
         if not isinstance(aggregate, dict):
             raise ValueError(f"{label}/{lane}: apply aggregate missing")
         apply_wall[lane] = positive(aggregate.get("wallSeconds"), f"{label}/{lane}/apply")
+        result_path = safe_child(path.parent, str(lane_apply.get("result", "")))
+        apply_result = load_json(result_path)
+        if apply_result.get("lane") != lane or apply_result.get("schema") != "chunkshift.patch-lab.v1":
+            raise ValueError(f"{result_path}: apply result identity mismatch")
+        environment = validate_environment(
+            platform,
+            apply_result.get("environment"),
+            source_commit,
+            f"{label}/{lane}/apply",
+        )
+        if apply_environment is None:
+            apply_environment = environment
+        elif environment != apply_environment:
+            raise ValueError(f"{label}: apply environment differs between lanes")
 
     accepted = projection(document, label)
     if accepted["H7-L1-R2-E75"] != accepted["H4-L1-R2"]:
@@ -354,6 +413,8 @@ def validate_paired(platform: str, path: Path, source_commit: str) -> tuple[dict
         "rounds": compact_rounds,
         "timing": timing,
         "applyWallSeconds": apply_wall,
+        "timingEnvironment": timing_environment,
+        "applyEnvironment": apply_environment,
         "acceptedPatchShas": accepted,
     }, files
 
@@ -362,8 +423,11 @@ def validate_memory(
     directory: Path,
     source_commit: str,
     expected_run_id: str,
-) -> dict[str, dict]:
+) -> tuple[dict[str, dict], dict, str]:
     result: dict[str, dict] = {}
+    common_environment = None
+    common_population: list[dict] | None = None
+
     for lane in ALL_LANES:
         path = directory / f"{lane}.json"
         document = load_json(path)
@@ -378,19 +442,27 @@ def validate_memory(
             or document.get("applyCheck") != "boundary"
         ):
             raise ValueError(f"{label}: memory identity/configuration mismatch")
-        environment = document.get("environment") or {}
-        if (
-            str(environment.get("gitCommit") or "").lower() != source_commit
-            or int(environment.get("processorCount") or 0) < 2
-        ):
-            raise ValueError(f"{label}: memory environment mismatch")
+
+        environment = validate_environment(
+            platform,
+            document.get("environment"),
+            source_commit,
+            f"{label}/memory",
+        )
+        if common_environment is None:
+            common_environment = environment
+        elif environment != common_environment:
+            raise ValueError(f"{label}: memory environment differs between lanes")
+
         idle = int(document.get("idleBaselineBytes", -1))
         files = document.get("files")
         if idle <= 0 or not isinstance(files, list) or not files:
             raise ValueError(f"{label}: incomplete memory population")
+
         create: list[int] = []
         apply: list[int] = []
         compact_files: list[dict] = []
+        population_rows: list[dict] = []
         seen_files: set[tuple[str, str, str, str]] = set()
         for row in files:
             key = (row["family"], row["base"], row["target"], row["path"])
@@ -411,21 +483,34 @@ def validate_memory(
             apply_over_idle = apply_peak - idle
             create.append(create_over_idle)
             apply.append(apply_over_idle)
+            identity = {
+                "family": key[0],
+                "base": key[1],
+                "target": key[2],
+                "path": key[3],
+                "baseSize": base_size,
+                "targetSize": target_size,
+            }
+            population_rows.append(identity)
             compact_files.append(
                 {
-                    "family": key[0],
-                    "base": key[1],
-                    "target": key[2],
-                    "path": key[3],
-                    "baseSize": base_size,
-                    "targetSize": target_size,
+                    **identity,
                     "createPeakOverIdleBytes": create_over_idle,
                     "applyPeakOverIdleBytes": apply_over_idle,
                 }
             )
+
+        population_rows.sort(
+            key=lambda row: (row["family"], row["base"], row["target"], row["path"])
+        )
         compact_files.sort(
             key=lambda row: (row["family"], row["base"], row["target"], row["path"])
         )
+        if common_population is None:
+            common_population = population_rows
+        elif population_rows != common_population:
+            raise ValueError(f"{label}: memory population differs between lanes")
+
         result[lane] = {
             "fileCount": len(files),
             "idleBaselineBytes": idle,
@@ -433,8 +518,10 @@ def validate_memory(
             "applyPeakOverIdleBytes": max(apply),
             "files": compact_files,
         }
-    return result
 
+    assert common_environment is not None and common_population is not None
+    population_sha256 = hashlib.sha256(canonical_bytes(common_population)).hexdigest()
+    return result, common_environment, population_sha256
 
 def validate_cross_platform(
     path: Path,
@@ -665,17 +752,27 @@ def build_compact(
             raise ValueError(f"per-file compact evidence differs across platforms ({platform})")
 
         maps[platform] = paired["acceptedPatchShas"]
+        memory, memory_environment, population_sha256 = validate_memory(
+            platform, memory_paths[platform], source_commit, paired["runId"]
+        )
         platforms[platform] = {
             "runId": paired["runId"],
+            "timingEnvironment": paired["timingEnvironment"],
+            "applyEnvironment": paired["applyEnvironment"],
+            "memoryEnvironment": memory_environment,
+            "memoryPopulationSha256": population_sha256,
             "rounds": paired["rounds"],
             "timing": paired["timing"],
             "applyWallSeconds": paired["applyWallSeconds"],
-            "memory": validate_memory(
-                platform, memory_paths[platform], source_commit, paired["runId"]
-            ),
+            "memory": memory,
         }
 
     assert identity is not None and patch_bytes is not None and canonical_files is not None
+    population_hashes = {
+        platforms[platform]["memoryPopulationSha256"] for platform in PLATFORMS
+    }
+    if len(population_hashes) != 1:
+        raise ValueError("memory population differs across platforms")
     cross = load_json(cross_platform)
     validate_cross_platform(cross_platform, source_commit, maps)
     if (
