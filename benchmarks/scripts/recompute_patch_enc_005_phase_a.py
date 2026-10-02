@@ -29,10 +29,18 @@ def recompute(compact: dict) -> dict:
     h0 = int(patch_bytes["csp"])
     if h0 <= 0:
         raise ValueError("H0 patch bytes must be positive")
+    for platform in PLATFORMS:
+        h0_memory = compact["platforms"][platform]["memory"]["csp"]
+        if (
+            int(h0_memory["createPeakOverIdleBytes"]) > CREATE_BOUND_BYTES
+            or int(h0_memory["applyPeakOverIdleBytes"]) > APPLY_BOUND_BYTES
+        ):
+            raise ValueError(f"{platform}: H0 violates frozen memory bounds")
 
     rows = {}
     for lane in LANES:
-        b = int(patch_bytes[lane]) / h0
+        lane_patch_bytes = int(patch_bytes[lane])
+        b = lane_patch_bytes / h0
         wall = {}
         cpu = {}
         apply = {}
@@ -57,8 +65,12 @@ def recompute(compact: dict) -> dict:
             all(value <= CREATE_BOUND_BYTES for value in create_memory.values())
             and all(value <= APPLY_BOUND_BYTES for value in apply_memory.values())
         )
-        speed = b <= 1.02 and all(value <= 0.50 for value in wall.values())
-        size = b <= 0.97 and all(value <= 1.50 for value in wall.values())
+        speed = lane_patch_bytes * 100 <= h0 * 102 and all(
+            value <= 0.50 for value in wall.values()
+        )
+        size = lane_patch_bytes * 100 <= h0 * 97 and all(
+            value <= 1.50 for value in wall.values()
+        )
         branches = [name for name, ok in (("speed", speed), ("size", size)) if ok]
         rows[lane] = {
             "byteRatio": b,
