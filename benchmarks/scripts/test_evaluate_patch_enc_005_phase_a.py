@@ -291,32 +291,36 @@ def synthetic_artifacts(root: Path):
                     "cpuRatioMedian": cpu,
                 }
             )
-        rounds = [
-            {
-                "round": index + 1,
-                "h0Start": {
-                    "wallSeconds": 100.0,
-                    "cpuSeconds": 100.0,
-                    "patchBytes": 1000,
-                    "allocatedBytes": 1,
-                    "baseReads": 1,
-                    "baseBytesRead": 1,
-                    "baseSeeks": 1,
-                },
-                "h0End": {
-                    "wallSeconds": 100.0,
-                    "cpuSeconds": 100.0,
-                    "patchBytes": 1000,
-                    "allocatedBytes": 1,
-                    "baseReads": 1,
-                    "baseBytesRead": 1,
-                    "baseSeeks": 1,
-                },
-                "bracketNoisy": False,
-                "candidates": candidates,
-            }
-            for index in range(5)
-        ]
+        rounds = []
+        for index in range(5):
+            offset = index % len(candidates)
+            ordered = candidates[offset:] + candidates[:offset]
+            rounds.append(
+                {
+                    "round": index + 1,
+                    "candidateOrder": [row["lane"] for row in ordered],
+                    "h0Start": {
+                        "wallSeconds": 100.0,
+                        "cpuSeconds": 100.0,
+                        "patchBytes": 1000,
+                        "allocatedBytes": 1,
+                        "baseReads": 1,
+                        "baseBytesRead": 1,
+                        "baseSeeks": 1,
+                    },
+                    "h0End": {
+                        "wallSeconds": 100.0,
+                        "cpuSeconds": 100.0,
+                        "patchBytes": 1000,
+                        "allocatedBytes": 1,
+                        "baseReads": 1,
+                        "baseBytesRead": 1,
+                        "baseSeeks": 1,
+                    },
+                    "bracketNoisy": False,
+                    "candidates": ordered,
+                }
+            )
         apply = {}
         for lane in EVALUATOR.ALL_LANES:
             wall = 10.0 if lane == "csp" else 10.2
@@ -435,6 +439,57 @@ class PatchEnc005PhaseAEvaluatorTests(unittest.TestCase):
             self.assertEqual("READY_FOR_FIXED_EVALUATION", verdict["status"])
             self.assertEqual(1000, verdict["h0PatchBytes"])
             self.assertTrue(compiled["byteOracles"]["crossPlatformPatchSha256Equal"])
+            self.assertEqual(1, compiled["traceAggregates"]["csp"]["entryCount"])
+            self.assertTrue(files[0]["trace"]["entries"])
+
+
+    def test_frozen_candidate_rotation_is_required(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            paired, memory, cross = synthetic_artifacts(root)
+            path = paired["linux-x64"]
+            document = json.loads(path.read_text(encoding="utf-8"))
+            document["acceptedTiming"]["rounds"][1]["candidateOrder"] = list(
+                EVALUATOR.LANES
+            )
+            write_json(path, document)
+
+            with self.assertRaisesRegex(ValueError, "frozen candidate rotation mismatch"):
+                EVALUATOR.build_compact(paired, memory, cross, SOURCE)
+
+
+    def test_apply_aggregate_must_recompute_from_raw_samples(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            paired, memory, cross = synthetic_artifacts(root)
+            path = paired["linux-x64"]
+            document = json.loads(path.read_text(encoding="utf-8"))
+            document["applyEvidence"]["csp"]["aggregate"]["wallSeconds"] += 1.0
+            write_json(path, document)
+
+            with self.assertRaisesRegex(ValueError, "apply wall aggregate does not recompute"):
+                EVALUATOR.build_compact(paired, memory, cross, SOURCE)
+
+
+    def test_speed_branch_requires_four_of_five_rounds(self):
+        document = compact()
+        ratios = [0.49, 0.49, 0.49, 0.51, 0.51]
+        for platform in EVALUATOR.PLATFORMS:
+            timing = document["platforms"][platform]["timing"]["H4-L1-R2"]
+            timing["wallRatios"] = ratios
+            timing["wallRatioMedian"] = 0.49
+
+        result = EVALUATOR.evaluate(document)
+
+        self.assertNotIn(
+            "speed", result["lanes"]["H4-L1-R2"]["qualificationBranches"]
+        )
+        self.assertEqual(
+            3,
+            result["lanes"]["H4-L1-R2"][
+                "speedWallRoundPassesByPlatform"
+            ]["linux-x64"],
+        )
 
 
     def test_speed_and_size_finalists_follow_frozen_order(self):
