@@ -134,6 +134,20 @@ def write_json(path: Path, value: object) -> None:
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def environment(platform: str) -> dict:
+    arch = "Arm64" if platform == "linux-arm64" else "X64"
+    os_description = "Linux test" if platform.startswith("linux-") else "Microsoft Windows test"
+    return {
+        "osDescription": os_description,
+        "osArchitecture": arch,
+        "processArchitecture": arch,
+        "frameworkDescription": ".NET 10.0.0 test",
+        "processorCount": 4,
+        "gitCommit": SOURCE,
+        "processorDescription": "test cpu",
+    }
+
+
 def synthetic_artifacts(root: Path):
     paired_paths = {}
     memory_paths = {}
@@ -227,10 +241,21 @@ def synthetic_artifacts(root: Path):
             }
             for index in range(5)
         ]
-        apply = {
-            lane: {"aggregate": {"wallSeconds": 10.0 if lane == "csp" else 10.2}}
-            for lane in EVALUATOR.ALL_LANES
-        }
+        apply = {}
+        for lane in EVALUATOR.ALL_LANES:
+            relative = f"apply-evidence/{lane}/run.json"
+            write_json(
+                paired_root / relative,
+                {
+                    "schema": "chunkshift.patch-lab.v1",
+                    "lane": lane,
+                    "environment": environment(platform),
+                },
+            )
+            apply[lane] = {
+                "result": relative,
+                "aggregate": {"wallSeconds": 10.0 if lane == "csp" else 10.2},
+            }
         run_id = f"PATCH-ENC-005/RUN-20261002-001-{SOURCE}-{platform}"
         paired = {
             "schema": "chunkshift.patch-enc-005-paired.v2",
@@ -247,6 +272,7 @@ def synthetic_artifacts(root: Path):
             "status": "VALID",
             "acceptedTiming": {"rounds": rounds, "summaries": summaries},
             "acceptedPatchShas": accepted,
+            "timingEnvironment": environment(platform),
             "applyEvidence": apply,
             "traceCorrectness": trace,
         }
@@ -267,7 +293,7 @@ def synthetic_artifacts(root: Path):
                     "execution": "h2-w2",
                     "population": "max-base-target",
                     "applyCheck": "boundary",
-                    "environment": {"gitCommit": SOURCE, "processorCount": 4},
+                    "environment": environment(platform),
                     "idleBaselineBytes": 20 * 1024 * 1024,
                     "files": [
                         {
