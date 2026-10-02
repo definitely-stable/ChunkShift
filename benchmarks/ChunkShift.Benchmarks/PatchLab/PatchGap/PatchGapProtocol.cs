@@ -307,7 +307,33 @@ internal static class PatchGapG2Consumer
 {
     internal static PatchGapConsumedG2Evidence Read(
         string path,
+        string? expectedOracleSampleSha256 = null) =>
+        ReadCore(
+            path,
+            expectedOracleSampleSha256,
+            expectedDatasetSha256: null);
+
+    /// <summary>
+    /// Uses the same strict schema parser against a caller-supplied dataset lock.
+    /// This exists for producer/consumer contract integration tests over a
+    /// synthetic corpus; decision evidence must always use <see cref="Read"/>.
+    /// </summary>
+    internal static PatchGapConsumedG2Evidence ReadContract(
+        string path,
+        string expectedDatasetSha256,
         string? expectedOracleSampleSha256 = null)
+    {
+        PatchGapEvidence.RequireSha256(expectedDatasetSha256, "contract dataset SHA-256");
+        return ReadCore(
+            path,
+            expectedOracleSampleSha256,
+            expectedDatasetSha256.ToLowerInvariant());
+    }
+
+    private static PatchGapConsumedG2Evidence ReadCore(
+        string path,
+        string? expectedOracleSampleSha256,
+        string? expectedDatasetSha256)
     {
         byte[] bytes = File.ReadAllBytes(path);
         using JsonDocument document = JsonDocument.Parse(bytes);
@@ -321,15 +347,26 @@ internal static class PatchGapG2Consumer
         string schema = RequiredString(root, "schema");
         return schema switch
         {
-            PatchGapProtocol.CandidateTraceSchema => ReadTrace(root, bytes),
-            PatchGapProtocol.G2OracleSchema => ReadOracle(root, bytes, expectedOracleSampleSha256),
+            PatchGapProtocol.CandidateTraceSchema => ReadTrace(root, bytes, expectedDatasetSha256),
+            PatchGapProtocol.G2OracleSchema => ReadOracle(
+                root,
+                bytes,
+                expectedOracleSampleSha256,
+                expectedDatasetSha256),
             _ => throw new InvalidDataException($"Unsupported PATCH-ENC-005 evidence schema '{schema}'."),
         };
     }
 
-    private static PatchGapConsumedG2Evidence ReadTrace(JsonElement root, byte[] bytes)
+    private static PatchGapConsumedG2Evidence ReadTrace(
+        JsonElement root,
+        byte[] bytes,
+        string? expectedDatasetSha256)
     {
-        Header header = ReadCommonHeader(root, requirePlatform: true, requireLane: true);
+        Header header = ReadCommonHeader(
+            root,
+            requirePlatform: true,
+            requireLane: true,
+            expectedDatasetSha256);
         string lane = header.Lane!;
         int expectedLevel = PatchGapProtocol.ExpectedTraceFinalLevel(lane);
         int finalLevel = RequiredInt32(root, "finalLevel", minimum: 1);
@@ -374,9 +411,14 @@ internal static class PatchGapG2Consumer
     private static PatchGapConsumedG2Evidence ReadOracle(
         JsonElement root,
         byte[] bytes,
-        string? expectedOracleSampleSha256)
+        string? expectedOracleSampleSha256,
+        string? expectedDatasetSha256)
     {
-        Header header = ReadCommonHeader(root, requirePlatform: false, requireLane: false);
+        Header header = ReadCommonHeader(
+            root,
+            requirePlatform: false,
+            requireLane: false,
+            expectedDatasetSha256);
 
         if (!string.Equals(RequiredString(root, "policy"), PatchGapProtocol.G2OraclePolicy, StringComparison.Ordinal) ||
             !string.Equals(RequiredString(root, "candidateOrder"), PatchGapProtocol.G2OracleCandidateOrder, StringComparison.Ordinal))
@@ -461,7 +503,8 @@ internal static class PatchGapG2Consumer
     private static Header ReadCommonHeader(
         JsonElement root,
         bool requirePlatform,
-        bool requireLane)
+        bool requireLane,
+        string? expectedDatasetSha256)
     {
         string experimentId = RequiredNonEmptyString(root, "experimentId");
         if (!string.Equals(experimentId, PatchGapProtocol.PatchEnc005ExperimentId, StringComparison.Ordinal))
@@ -489,7 +532,8 @@ internal static class PatchGapG2Consumer
 
         string datasetSha256 = RequiredString(root, "datasetSha256");
         RequireHex(datasetSha256, 64, "datasetSha256");
-        string expectedDataset = PatchGapProtocol.ExpectedG2DatasetSha256(datasetRole);
+        string expectedDataset =
+            expectedDatasetSha256 ?? PatchGapProtocol.ExpectedG2DatasetSha256(datasetRole);
         if (!string.Equals(datasetSha256, expectedDataset, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidDataException(
