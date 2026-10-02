@@ -92,6 +92,7 @@ internal sealed record PatchGapInventoryLockRun(
     string ExperimentId,
     PatchGapEvidenceProvenance Provenance,
     DateTimeOffset CompletedUtc,
+    string G4DocumentSha256,
     string StructuralInputSha256,
     string PuffinLocatorSha256,
     string G5DocumentSha256,
