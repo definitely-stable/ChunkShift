@@ -34,6 +34,51 @@ class FinalizeTests(unittest.TestCase):
         maps = MODULE.patch_map_from_document(document)
         self.assertEqual("a" * 64, maps["H4-L1-R2"][("f", "1", "2", "a")])
 
+    def test_skip_marker_validation_binds_identity(self):
+        paired = MODULE.paired
+        commit = "a" * 40
+        run_id = f"PATCH-ENC-005/RUN-20261001-001-{commit}-linux-x64"
+        args = SimpleNamespace(
+            run_id=run_id,
+            source_commit=commit,
+            platform="linux-x64",
+            dataset_role="calibration",
+        )
+        previous = {
+            name: os.environ.get(name)
+            for name in ("GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ATTEMPT")
+        }
+        try:
+            os.environ["GITHUB_RUN_ID"] = "123"
+            os.environ["GITHUB_RUN_NUMBER"] = "1"
+            os.environ["GITHUB_RUN_ATTEMPT"] = "1"
+            marker = {
+                "schema": "chunkshift.patch-enc-005-retry.v1",
+                "experimentId": paired.EXPERIMENT_ID,
+                "runId": run_id,
+                "attempt": 2,
+                "protocolCommit": paired.FROZEN_PROTOCOL_COMMIT,
+                "sourceCommit": commit,
+                "platform": "linux-x64",
+                "datasetRole": "calibration",
+                "datasetSha256": paired.FROZEN_DATASET_SHA256,
+                "githubRunId": "123",
+                "githubRunNumber": "1",
+                "githubRunAttempt": "1",
+                "skipped": True,
+                "reason": "attempt-1-valid",
+            }
+            MODULE.validate_skip_marker(args, marker)
+            marker["sourceCommit"] = "b" * 40
+            with self.assertRaises(ValueError):
+                MODULE.validate_skip_marker(args, marker)
+        finally:
+            for name, value in previous.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
+
     def test_attempt_validation_binds_identity(self):
         paired = MODULE.paired
         commit = "a" * 40

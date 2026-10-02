@@ -43,6 +43,29 @@ def validate_attempt(args: argparse.Namespace, document: dict, attempt: int) -> 
             raise ValueError(f"attempt {attempt}: {field} mismatch")
 
 
+def validate_skip_marker(args: argparse.Namespace, document: dict) -> None:
+    if document.get("schema") != "chunkshift.patch-enc-005-retry.v1":
+        raise ValueError("attempt 2 skip marker has unexpected schema")
+    if document.get("attempt") != 2 or document.get("skipped") is not True:
+        raise ValueError("attempt 2 must be an explicit skip marker")
+    if document.get("reason") != "attempt-1-valid":
+        raise ValueError("attempt 2 skip marker has unexpected reason")
+    for field, expected in (
+        ("experimentId", paired.EXPERIMENT_ID),
+        ("runId", args.run_id),
+        ("protocolCommit", paired.FROZEN_PROTOCOL_COMMIT),
+        ("sourceCommit", args.source_commit),
+        ("platform", args.platform),
+        ("datasetRole", args.dataset_role),
+        ("datasetSha256", paired.FROZEN_DATASET_SHA256),
+        ("githubRunId", os.environ.get("GITHUB_RUN_ID")),
+        ("githubRunNumber", os.environ.get("GITHUB_RUN_NUMBER")),
+        ("githubRunAttempt", os.environ.get("GITHUB_RUN_ATTEMPT")),
+    ):
+        if document.get(field) != expected:
+            raise ValueError(f"attempt 2 skip marker: {field} mismatch")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--corpus", type=Path, required=True)
@@ -86,8 +109,7 @@ def main() -> int:
 
     accepted = None
     if first.get("valid") is True:
-        if second.get("schema") != "chunkshift.patch-enc-005-retry.v1" or second.get("skipped") is not True:
-            raise ValueError("attempt 2 must be an explicit skip marker when attempt 1 is valid")
+        validate_skip_marker(args, second)
         accepted = first
     else:
         validate_attempt(args, second, 2)
