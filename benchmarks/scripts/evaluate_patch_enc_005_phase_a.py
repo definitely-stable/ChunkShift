@@ -957,7 +957,7 @@ def write_outputs(output: Path, compact: dict, files: list[dict]) -> None:
     lines = [
         "# PATCH-ENC-005 Phase-A calibration",
         "",
-        f"- source: \`{compact['sourceCommit']}\`",
+        f"- source: `{compact['sourceCommit']}`",
         f"- status: **{verdict['status']}**",
         f"- H0 bytes: {verdict['h0PatchBytes']}",
         f"- Pareto: {', '.join(verdict['pareto']) if verdict['pareto'] else 'none'}",
