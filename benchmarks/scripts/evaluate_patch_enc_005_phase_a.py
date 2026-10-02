@@ -390,18 +390,48 @@ def validate_memory(
             raise ValueError(f"{label}: incomplete memory population")
         create: list[int] = []
         apply: list[int] = []
+        compact_files: list[dict] = []
+        seen_files: set[tuple[str, str, str, str]] = set()
         for row in files:
+            key = (row["family"], row["base"], row["target"], row["path"])
+            if key in seen_files:
+                raise ValueError(f"{label}: duplicate memory file {key}")
+            seen_files.add(key)
             create_peak = int(row.get("createPeakBytes", -1))
             apply_peak = int(row.get("applyPeakBytes", -1))
-            if create_peak < idle or apply_peak < idle:
-                raise ValueError(f"{label}: peak below idle baseline")
-            create.append(create_peak - idle)
-            apply.append(apply_peak - idle)
+            base_size = int(row.get("baseSize", -1))
+            target_size = int(row.get("targetSize", -1))
+            if (
+                create_peak < idle
+                or apply_peak < idle
+                or max(base_size, target_size) < 1048576
+            ):
+                raise ValueError(f"{label}: invalid memory population row {key}")
+            create_over_idle = create_peak - idle
+            apply_over_idle = apply_peak - idle
+            create.append(create_over_idle)
+            apply.append(apply_over_idle)
+            compact_files.append(
+                {
+                    "family": key[0],
+                    "base": key[1],
+                    "target": key[2],
+                    "path": key[3],
+                    "baseSize": base_size,
+                    "targetSize": target_size,
+                    "createPeakOverIdleBytes": create_over_idle,
+                    "applyPeakOverIdleBytes": apply_over_idle,
+                }
+            )
+        compact_files.sort(
+            key=lambda row: (row["family"], row["base"], row["target"], row["path"])
+        )
         result[lane] = {
             "fileCount": len(files),
             "idleBaselineBytes": idle,
             "createPeakOverIdleBytes": max(create),
             "applyPeakOverIdleBytes": max(apply),
+            "files": compact_files,
         }
     return result
 
