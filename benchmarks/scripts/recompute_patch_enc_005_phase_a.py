@@ -19,6 +19,55 @@ CREATE_BOUND_BYTES = 96 * 1024 * 1024
 APPLY_BOUND_BYTES = 64 * 1024 * 1024
 
 
+def median_five(values: list[float]) -> float:
+    if len(values) != 5:
+        raise ValueError("expected exactly five paired rounds")
+    return sorted(values)[2]
+
+
+def timing_from_rounds(platform_data: dict, lane: str) -> tuple[float, float]:
+    wall = []
+    cpu = []
+    rounds = platform_data["rounds"]
+    if len(rounds) != 5:
+        raise ValueError("compact evidence must retain five raw rounds")
+    for item in rounds:
+        h0_start = item["h0Start"]
+        h0_end = item["h0End"]
+        wall_denominator = (
+            float(h0_start["wallSeconds"]) + float(h0_end["wallSeconds"])
+        ) / 2.0
+        cpu_denominator = (
+            float(h0_start["cpuSeconds"]) + float(h0_end["cpuSeconds"])
+        ) / 2.0
+        candidate = next(
+            (row for row in item["candidates"] if row["lane"] == lane),
+            None,
+        )
+        if candidate is None:
+            raise ValueError(f"{lane}: missing from raw round")
+        wall.append(float(candidate["aggregate"]["wallSeconds"]) / wall_denominator)
+        cpu.append(float(candidate["aggregate"]["cpuSeconds"]) / cpu_denominator)
+    return median_five(wall), median_five(cpu)
+
+
+def memory_max(memory: dict, field: str) -> int:
+    files = memory.get("files")
+    if not isinstance(files, list) or not files:
+        raise ValueError("compact memory evidence has no per-file rows")
+    value = max(int(row[field]) for row in files)
+    published = int(
+        memory[
+            "createPeakOverIdleBytes"
+            if field == "createPeakOverIdleBytes"
+            else "applyPeakOverIdleBytes"
+        ]
+    )
+    if value != published:
+        raise ValueError("published memory maximum does not recompute")
+    return value
+
+
 def recompute(compact: dict) -> dict:
     if compact.get("schema") != "chunkshift.patch-enc-005-phase-a-compact.v1":
         raise ValueError("unexpected compact schema")
@@ -29,35 +78,38 @@ def recompute(compact: dict) -> dict:
     h0 = int(patch_bytes["csp"])
     if h0 <= 0:
         raise ValueError("H0 patch bytes must be positive")
+
     for platform in PLATFORMS:
         h0_memory = compact["platforms"][platform]["memory"]["csp"]
         if (
-            int(h0_memory["createPeakOverIdleBytes"]) > CREATE_BOUND_BYTES
-            or int(h0_memory["applyPeakOverIdleBytes"]) > APPLY_BOUND_BYTES
+            memory_max(h0_memory, "createPeakOverIdleBytes") > CREATE_BOUND_BYTES
+            or memory_max(h0_memory, "applyPeakOverIdleBytes") > APPLY_BOUND_BYTES
         ):
             raise ValueError(f"{platform}: H0 violates frozen memory bounds")
 
     rows = {}
     for lane in LANES:
         lane_patch_bytes = int(patch_bytes[lane])
-        b = lane_patch_bytes / h0
+        byte_ratio = lane_patch_bytes / h0
         wall = {}
         cpu = {}
         apply = {}
         create_memory = {}
         apply_memory = {}
+
         for platform in PLATFORMS:
             platform_data = compact["platforms"][platform]
-            timing = platform_data["timing"][lane]
-            wall[platform] = float(timing["wallRatioMedian"])
-            cpu[platform] = float(timing["cpuRatioMedian"])
+            wall[platform], cpu[platform] = timing_from_rounds(platform_data, lane)
             h0_apply = float(platform_data["applyWallSeconds"]["csp"])
-            apply[platform] = float(platform_data["applyWallSeconds"][lane]) / h0_apply
-            create_memory[platform] = int(
-                platform_data["memory"][lane]["createPeakOverIdleBytes"]
+            apply[platform] = (
+                float(platform_data["applyWallSeconds"][lane]) / h0_apply
             )
-            apply_memory[platform] = int(
-                platform_data["memory"][lane]["applyPeakOverIdleBytes"]
+            lane_memory = platform_data["memory"][lane]
+            create_memory[platform] = memory_max(
+                lane_memory, "createPeakOverIdleBytes"
+            )
+            apply_memory[platform] = memory_max(
+                lane_memory, "applyPeakOverIdleBytes"
             )
 
         apply_ok = all(value <= 1.10 for value in apply.values())
@@ -73,7 +125,7 @@ def recompute(compact: dict) -> dict:
         )
         branches = [name for name, ok in (("speed", speed), ("size", size)) if ok]
         rows[lane] = {
-            "byteRatio": b,
+            "byteRatio": byte_ratio,
             "maxWallRatio": max(wall.values()),
             "maxCpuRatio": max(cpu.values()),
             "maxApplyRatio": max(apply.values()),
@@ -131,6 +183,7 @@ def recompute(compact: dict) -> dict:
                 lane,
             ),
         )
+
     finalists = []
     for lane in (speed_finalist, size_finalist):
         if lane is not None and lane not in finalists:
@@ -149,6 +202,47 @@ def recompute(compact: dict) -> dict:
     }
 
 
+def expected_projection(verdict: dict) -> dict:
+    return {
+        "pareto": verdict.get("pareto"),
+        "speedFinalist": verdict.get("speedFinalist"),
+        "sizeFinalist": verdict.get("sizeFinalist"),
+        "finalists": verdict.get("finalists"),
+        "status": verdict.get("status"),
+        "lanes": {
+            lane: {
+                "byteRatio": verdict["lanes"][lane]["byteRatio"],
+                "maxWallRatio": verdict["lanes"][lane]["maxWallRatio"],
+                "maxCpuRatio": verdict["lanes"][lane]["maxCpuRatio"],
+                "maxApplyRatio": max(
+                    verdict["lanes"][lane]["applyRatioByPlatform"].values()
+                ),
+                "maxCreatePeakOverIdleBytes": max(
+                    verdict["lanes"][lane][
+                        "createPeakOverIdleBytesByPlatform"
+                    ].values()
+                ),
+                "maxApplyPeakOverIdleBytes": max(
+                    verdict["lanes"][lane][
+                        "applyPeakOverIdleBytesByPlatform"
+                    ].values()
+                ),
+                "qualificationBranches": verdict["lanes"][lane][
+                    "qualificationBranches"
+                ],
+                "applyOk": verdict["lanes"][lane]["applyOk"],
+                "memoryOk": verdict["lanes"][lane]["memoryOk"],
+                "eligible": verdict["lanes"][lane]["eligible"],
+            }
+            for lane in LANES
+        },
+        "qualificationBranches": {
+            lane: verdict["lanes"][lane]["qualificationBranches"]
+            for lane in verdict.get("finalists", [])
+        },
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--compact", type=Path, required=True)
@@ -159,40 +253,15 @@ def main() -> int:
     actual = recompute(compact)
     if args.expected_verdict is not None:
         expected = json.loads(args.expected_verdict.read_text(encoding="utf-8"))
-        comparison = {
-            "pareto": expected.get("pareto"),
-            "speedFinalist": expected.get("speedFinalist"),
-            "sizeFinalist": expected.get("sizeFinalist"),
-            "finalists": expected.get("finalists"),
-            "status": expected.get("status"),
-            "lanes": {
-                lane: {
-                    "byteRatio": expected["lanes"][lane]["byteRatio"],
-                    "maxWallRatio": expected["lanes"][lane]["maxWallRatio"],
-                    "maxCpuRatio": expected["lanes"][lane]["maxCpuRatio"],
-                    "maxApplyRatio": max(expected["lanes"][lane]["applyRatioByPlatform"].values()),
-                    "maxCreatePeakOverIdleBytes": max(
-                        expected["lanes"][lane]["createPeakOverIdleBytesByPlatform"].values()
-                    ),
-                    "maxApplyPeakOverIdleBytes": max(
-                        expected["lanes"][lane]["applyPeakOverIdleBytesByPlatform"].values()
-                    ),
-                    "qualificationBranches": expected["lanes"][lane]["qualificationBranches"],
-                    "applyOk": expected["lanes"][lane]["applyOk"],
-                    "memoryOk": expected["lanes"][lane]["memoryOk"],
-                    "eligible": expected["lanes"][lane]["eligible"],
-                }
-                for lane in LANES
-            },
-            "qualificationBranches": {
-                lane: expected["lanes"][lane]["qualificationBranches"]
-                for lane in expected.get("finalists", [])
-            },
-        }
+        comparison = expected_projection(expected)
         if actual != comparison:
             raise SystemExit(
                 "independent recomputation differs from verdict:\n"
-                + json.dumps({"actual": actual, "expected": comparison}, indent=2, sort_keys=True)
+                + json.dumps(
+                    {"actual": actual, "expected": comparison},
+                    indent=2,
+                    sort_keys=True,
+                )
             )
     print(json.dumps(actual, indent=2, sort_keys=True))
     return 0
