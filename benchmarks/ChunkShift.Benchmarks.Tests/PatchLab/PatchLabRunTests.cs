@@ -184,7 +184,12 @@ public class PatchLabRunTests
         const string ProtocolCommit = PatchLabTraceOptions.FrozenProtocolCommit;
         const string SourceCommit = "2222222222222222222222222222222222222222";
         string? previousSha = System.Environment.GetEnvironmentVariable("GITHUB_SHA");
+        string? previousRunNumber = System.Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER");
+        string? previousRunAttempt = System.Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT");
         System.Environment.SetEnvironmentVariable("GITHUB_SHA", SourceCommit);
+        System.Environment.SetEnvironmentVariable("GITHUB_RUN_NUMBER", "1");
+        System.Environment.SetEnvironmentVariable("GITHUB_RUN_ATTEMPT", "1");
+        string runId = $"PATCH-ENC-005/RUN-20261001-001-{SourceCommit}-linux-x64";
 
         int exit;
         try
@@ -198,17 +203,19 @@ public class PatchLabRunTests
             "--workers", "1",
             "--execution", "h2-w2",
             "--no-apply",
-            "--run-id", "PATCH-ENC-005/TEST",
+            "--run-id", runId,
             "--trace-dir", traces,
             "--protocol-commit", ProtocolCommit,
             "--source-commit", SourceCommit,
-            "--platform", "test-x64",
+            "--platform", "linux-x64",
             "--dataset-role", "calibration",
         ]);
         }
         finally
         {
             System.Environment.SetEnvironmentVariable("GITHUB_SHA", previousSha);
+            System.Environment.SetEnvironmentVariable("GITHUB_RUN_NUMBER", previousRunNumber);
+            System.Environment.SetEnvironmentVariable("GITHUB_RUN_ATTEMPT", previousRunAttempt);
         }
 
         Assert.Equal(0, exit);
@@ -218,10 +225,10 @@ public class PatchLabRunTests
         JsonElement root = document.RootElement;
         Assert.Equal("chunkshift.patch-candidate-trace.v1", root.GetProperty("schema").GetString());
         Assert.Equal("PATCH-ENC-005", root.GetProperty("experimentId").GetString());
-        Assert.Equal("PATCH-ENC-005/TEST", root.GetProperty("runId").GetString());
+        Assert.Equal(runId, root.GetProperty("runId").GetString());
         Assert.Equal(ProtocolCommit, root.GetProperty("protocolCommit").GetString());
         Assert.Equal(SourceCommit, root.GetProperty("sourceCommit").GetString());
-        Assert.Equal("test-x64", root.GetProperty("platform").GetString());
+        Assert.Equal("linux-x64", root.GetProperty("platform").GetString());
         Assert.Equal("H4-L1-R2", root.GetProperty("lane").GetString());
         Assert.Equal("calibration", root.GetProperty("datasetRole").GetString());
         Assert.Equal(corpus.PairsSha256, root.GetProperty("datasetSha256").GetString());
@@ -257,6 +264,11 @@ public class PatchLabRunTests
         _ = WriteCorpus(scope.Path);
         const string SourceCommit = "2222222222222222222222222222222222222222";
         string? previousSha = System.Environment.GetEnvironmentVariable("GITHUB_SHA");
+        string? previousRunNumber = System.Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER");
+        string? previousRunAttempt = System.Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT");
+        System.Environment.SetEnvironmentVariable("GITHUB_RUN_NUMBER", "1");
+        System.Environment.SetEnvironmentVariable("GITHUB_RUN_ATTEMPT", "1");
+        string runId = $"PATCH-ENC-005/RUN-20261001-001-{SourceCommit}-linux-x64";
 
         try
         {
@@ -270,11 +282,11 @@ public class PatchLabRunTests
                 "--workers", "1",
                 "--execution", "h2-w2",
                 "--no-apply",
-                "--run-id", "PATCH-ENC-005/TEST",
+                "--run-id", runId,
                 "--trace-dir", Path.Combine(scope.Path, "unbound-traces"),
                 "--protocol-commit", PatchLabTraceOptions.FrozenProtocolCommit,
                 "--source-commit", SourceCommit,
-                "--platform", "test-x64",
+                "--platform", "linux-x64",
                 "--dataset-role", "calibration",
             ]);
             Assert.Equal(2, unbound);
@@ -289,11 +301,11 @@ public class PatchLabRunTests
                 "--workers", "1",
                 "--execution", "h2-w2",
                 "--no-apply",
-                "--run-id", "PATCH-ENC-005/TEST",
+                "--run-id", runId,
                 "--trace-dir", Path.Combine(scope.Path, "confirmation-traces"),
                 "--protocol-commit", PatchLabTraceOptions.FrozenProtocolCommit,
                 "--source-commit", SourceCommit,
-                "--platform", "test-x64",
+                "--platform", "linux-x64",
                 "--dataset-role", "confirmation",
             ]);
             Assert.Equal(2, confirmation);
@@ -301,6 +313,8 @@ public class PatchLabRunTests
         finally
         {
             System.Environment.SetEnvironmentVariable("GITHUB_SHA", previousSha);
+            System.Environment.SetEnvironmentVariable("GITHUB_RUN_NUMBER", previousRunNumber);
+            System.Environment.SetEnvironmentVariable("GITHUB_RUN_ATTEMPT", previousRunAttempt);
         }
     }
 

@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using ChunkShift.Patching;
 using ChunkShift.Patching.Creation;
 
@@ -17,6 +19,10 @@ internal sealed record PatchLabTraceOptions(
 {
     internal const string FrozenProtocolCommit = "96fd9b296d6998cac397e61041f22df51e6dd43c";
     internal const string FrozenExperimentId = "PATCH-ENC-005";
+
+    private static readonly Regex RunIdPattern = new(
+        @"^PATCH-ENC-005/RUN-(\d{8})-(\d{3})-([0-9a-f]{40})-(linux-x64|linux-arm64|win-x64)$",
+        RegexOptions.CultureInvariant);
 
     internal static PatchLabTraceOptions? Parse(string[] args, string? runId, string? executionName)
     {
@@ -83,6 +89,8 @@ internal sealed record PatchLabTraceOptions(
                 "--dataset-role must be calibration or evaluation for the Phase-A trace producer.");
         }
 
+        ValidateDecisionRunIdentity(runId, sourceCommit, platform);
+
         return new PatchLabTraceOptions(
             Path.GetFullPath(directory),
             experimentId,
@@ -91,6 +99,50 @@ internal sealed record PatchLabTraceOptions(
             sourceCommit.ToLowerInvariant(),
             platform,
             datasetRole);
+    }
+
+    private static void ValidateDecisionRunIdentity(
+        string runId,
+        string sourceCommit,
+        string platform)
+    {
+        Match match = RunIdPattern.Match(runId);
+
+        if (!match.Success ||
+            !DateTime.TryParseExact(
+                match.Groups[1].Value,
+                "yyyyMMdd",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out _))
+        {
+            throw new PatchLabUsageException(
+                "--run-id must match PATCH-ENC-005/RUN-YYYYMMDD-NNN-<40hex>-<platform>.");
+        }
+
+        if (!string.Equals(match.Groups[3].Value, sourceCommit, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(match.Groups[4].Value, platform, StringComparison.Ordinal))
+        {
+            throw new PatchLabUsageException(
+                "--run-id commit/platform must match --source-commit/--platform.");
+        }
+
+        string? runNumber = System.Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER");
+        string? runAttempt = System.Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT");
+
+        if (!int.TryParse(runNumber, NumberStyles.None, CultureInfo.InvariantCulture, out int sequence) ||
+            sequence is < 0 or > 999 ||
+            !string.Equals(match.Groups[2].Value, sequence.ToString("000", CultureInfo.InvariantCulture), StringComparison.Ordinal))
+        {
+            throw new PatchLabUsageException(
+                "PATCH-ENC-005 decision trace RunId NNN must match GITHUB_RUN_NUMBER 000..999.");
+        }
+
+        if (!string.Equals(runAttempt, "1", StringComparison.Ordinal))
+        {
+            throw new PatchLabUsageException(
+                "PATCH-ENC-005 decision traces reject GitHub workflow re-run attempts.");
+        }
     }
 
     private static string Required(string[] args, string name) =>
