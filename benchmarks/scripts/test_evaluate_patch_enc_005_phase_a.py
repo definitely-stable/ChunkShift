@@ -243,18 +243,32 @@ def synthetic_artifacts(root: Path):
         ]
         apply = {}
         for lane in EVALUATOR.ALL_LANES:
-            relative = f"apply-evidence/{lane}/run.json"
-            write_json(
-                paired_root / relative,
+            wall = 10.0 if lane == "csp" else 10.2
+            samples = [
                 {
-                    "schema": "chunkshift.patch-lab.v1",
-                    "lane": lane,
-                    "environment": environment(platform),
-                },
-            )
+                    "wallSeconds": wall,
+                    "cpuSeconds": 5.0,
+                    "baseReads": 3,
+                    "baseBytesRead": 4096,
+                    "baseSeeks": 1,
+                }
+                for _ in range(5)
+            ]
             apply[lane] = {
-                "result": relative,
-                "aggregate": {"wallSeconds": 10.0 if lane == "csp" else 10.2},
+                "environment": environment(platform),
+                "aggregate": {
+                    "wallSeconds": wall,
+                    "cpuSeconds": 5.0,
+                    "baseReads": 3,
+                    "baseBytesRead": 4096,
+                },
+                "files": [
+                    {
+                        **FILE_KEY,
+                        "patchSha256": PATCH_SHA[lane],
+                        "samples": samples,
+                    }
+                ],
             }
         run_id = f"PATCH-ENC-005/RUN-20261002-001-{SOURCE}-{platform}"
         paired = {
