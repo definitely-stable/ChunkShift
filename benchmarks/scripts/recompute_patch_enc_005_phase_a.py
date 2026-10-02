@@ -7,6 +7,9 @@ import argparse
 import json
 from pathlib import Path
 
+EXPERIMENT_ID = "PATCH-ENC-005"
+PROTOCOL_COMMIT = "96fd9b296d6998cac397e61041f22df51e6dd43c"
+DATASET_SHA256 = "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd"
 PLATFORMS = ("linux-x64", "linux-arm64", "win-x64")
 LANES = (
     "H4-L1-R2",
@@ -69,10 +72,14 @@ def memory_max(memory: dict, field: str) -> int:
 
 
 def recompute(compact: dict) -> dict:
-    if compact.get("schema") != "chunkshift.patch-enc-005-phase-a-compact.v1":
-        raise ValueError("unexpected compact schema")
-    if compact.get("datasetRole") != "calibration":
-        raise ValueError("only calibration evidence is accepted")
+    if (
+        compact.get("schema") != "chunkshift.patch-enc-005-phase-a-compact.v1"
+        or compact.get("experimentId") != EXPERIMENT_ID
+        or compact.get("protocolCommit") != PROTOCOL_COMMIT
+        or compact.get("datasetRole") != "calibration"
+        or compact.get("datasetSha256") != DATASET_SHA256
+    ):
+        raise ValueError("compact evidence identity does not match frozen PATCH-ENC-005 calibration")
 
     patch_bytes = compact["patchBytes"]
     h0 = int(patch_bytes["csp"])
