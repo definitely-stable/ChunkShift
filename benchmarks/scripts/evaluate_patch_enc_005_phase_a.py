@@ -273,6 +273,11 @@ def validate_paired(platform: str, path: Path, source_commit: str) -> tuple[dict
     if accepted["H7-L1-R2-E75"] != accepted["H4-L1-R2"]:
         raise ValueError(f"{label}: H7 is not byte-identical to H4")
     files = compact_file_rows(path, document, accepted)
+    sums = {lane: 0 for lane in ALL_LANES}
+    for row in files:
+        sums[row["lane"]] += int(row["patchBytes"])
+    if sums != patch_bytes:
+        raise ValueError(f"{label}: aggregate patch bytes do not match compact per-file rows")
     return {
         "runId": run_id,
         "runDate": match.group(1),
@@ -565,8 +570,17 @@ def build_compact(
             ),
         }
 
-    validate_cross_platform(cross_platform, source_commit, maps)
     assert identity is not None and patch_bytes is not None and canonical_files is not None
+    cross = load_json(cross_platform)
+    validate_cross_platform(cross_platform, source_commit, maps)
+    if (
+        str(cross.get("date", "")) != identity[0]
+        or str(cross.get("sequence", "")) != identity[1]
+        or str(cross.get("githubRunId", "")) != identity[2]
+        or str(cross.get("githubRunNumber", "")) != identity[3]
+        or str(cross.get("githubRunAttempt", "")) != "1"
+    ):
+        raise ValueError("cross-platform gate run identity differs from paired evidence")
     return {
         "schema": "chunkshift.patch-enc-005-phase-a-compact.v1",
         "experimentId": EXPERIMENT_ID,
