@@ -4,12 +4,21 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
 from pathlib import Path
 
 import run_patch_enc_005_paired as paired
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def patch_map_from_document(document: dict) -> dict[str, dict[tuple[str, str, str, str], str]]:
@@ -147,6 +156,7 @@ def main() -> int:
                 "valid": first.get("valid"),
                 "invalidReason": first.get("invalidReason"),
                 "dispatch": str(args.attempt_one),
+                "dispatchSha256": sha256_file(args.attempt_one),
             },
             {
                 "attempt": 2,
@@ -154,10 +164,16 @@ def main() -> int:
                 "invalidReason": second.get("invalidReason"),
                 "skipped": second.get("skipped", False),
                 "dispatch": str(args.attempt_two),
+                "dispatchSha256": sha256_file(args.attempt_two),
             },
         ],
         "acceptedAttempt": accepted.get("attempt") if accepted else None,
         "status": "VALID" if accepted else "INCOMPLETE",
+        "acceptedTiming": None if accepted is None else {
+            "attempt": accepted["attempt"],
+            "rounds": accepted["rounds"],
+            "summaries": accepted["summaries"],
+        },
         "acceptedPatchShas": accepted_patch_shas,
         "applyEvidence": apply_evidence,
         "traceCorrectness": trace_correctness,

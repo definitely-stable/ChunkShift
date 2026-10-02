@@ -17,6 +17,17 @@ SPEC.loader.exec_module(MODULE)
 
 
 class FinalizeTests(unittest.TestCase):
+    def test_sha256_file_binds_raw_dispatch(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "dispatch.json"
+            path.write_bytes(b'{"valid":true}\n')
+            self.assertEqual(
+                "0a4e05b582f5070063e1021240b18a41588d20f3c4067283323d6a1581e66375",
+                MODULE.sha256_file(path),
+            )
+
     def test_patch_map_round_trips_dispatch_projection(self):
         document = {
             "patchShas": {
