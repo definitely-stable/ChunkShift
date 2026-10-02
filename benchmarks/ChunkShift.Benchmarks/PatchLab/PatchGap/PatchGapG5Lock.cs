@@ -118,8 +118,14 @@ internal static class PatchGapG5InventoryLock
     {
         ValidateDocuments(structural, locator, corpus);
 
-        Dictionary<string, PatchGapPuffinLocatorRow> locatorRows =
-            locator.Rows.ToDictionary(static row => row.Key, StringComparer.Ordinal);
+        var locatorRows = new Dictionary<string, PatchGapPuffinLocatorRow>(StringComparer.Ordinal);
+        foreach (PatchGapPuffinLocatorRow row in locator.Rows)
+        {
+            if (!locatorRows.TryAdd(row.Key, row))
+            {
+                throw new InvalidDataException($"Puffin locator contains duplicate row '{row.Key}'.");
+            }
+        }
         HashSet<string> required =
         [
             .. structural.Rows
@@ -415,6 +421,32 @@ internal static class PatchGapG5InventoryLock
 
         PatchGapEvidence.RequireSha256(locator.BaseSha256, "Puffin base file SHA-256");
         PatchGapEvidence.RequireSha256(locator.TargetSha256, "Puffin target file SHA-256");
+        ValidateFileLocatorEnvelope(locator.Base, "base");
+        ValidateFileLocatorEnvelope(locator.Target, "target");
+    }
+
+    private static void ValidateFileLocatorEnvelope(
+        PatchGapPuffinFileLocator locator,
+        string role)
+    {
+        if (string.IsNullOrWhiteSpace(locator.Detail))
+        {
+            throw new InvalidDataException($"Puffin {role} locator detail must not be empty.");
+        }
+
+        PatchGapEvidence.RequireSha256(locator.LogSha256, $"Puffin {role} locator log SHA-256");
+        if (locator.ReconstructedSha256 is not null)
+        {
+            PatchGapEvidence.RequireSha256(
+                locator.ReconstructedSha256,
+                $"Puffin {role} reconstructed SHA-256");
+        }
+
+        if (locator.Succeeded && locator.ReconstructedSha256 is null)
+        {
+            throw new InvalidDataException(
+                $"Successful Puffin {role} locator must record reconstructed SHA-256.");
+        }
     }
 
     private static Dictionary<string, (PatchLabPair Pair, PatchLabChangedFile File)> BuildCorpusIndex(
