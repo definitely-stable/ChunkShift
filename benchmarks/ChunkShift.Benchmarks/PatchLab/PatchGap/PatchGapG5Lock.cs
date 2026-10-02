@@ -183,21 +183,26 @@ internal static class PatchGapG5InventoryLock
                 supported = false;
                 supportDetail = "UNSUPPORTED/PUFFIN_LOCATOR_FAILURE";
             }
-            else if (!TryValidatePuffinAgreement(
-                row.Base,
-                located.Base,
-                baseBytes.LongLength,
-                input.File.BaseSha256,
-                out string? baseReason) ||
-                !TryValidatePuffinAgreement(
+            else
+            {
+                bool baseAgrees = TryValidatePuffinAgreement(
+                    row.Base,
+                    located.Base,
+                    baseBytes.LongLength,
+                    input.File.BaseSha256,
+                    out string? baseReason);
+                bool targetAgrees = TryValidatePuffinAgreement(
                     row.Target,
                     located.Target,
                     targetBytes.LongLength,
                     input.File.TargetSha256,
-                    out string? targetReason))
-            {
-                supported = false;
-                supportDetail = $"UNSUPPORTED/PARSER_DISAGREEMENT:{baseReason ?? targetReason}";
+                    out string? targetReason);
+
+                if (!baseAgrees || !targetAgrees)
+                {
+                    supported = false;
+                    supportDetail = $"UNSUPPORTED/PARSER_DISAGREEMENT:{baseReason ?? targetReason}";
+                }
             }
 
             PatchGapZipMemberAttribution[] zipMembers = [];
