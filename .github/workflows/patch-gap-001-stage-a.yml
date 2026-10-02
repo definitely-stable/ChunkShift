@@ -448,7 +448,7 @@ jobs:
             echo "PUFFIN_ARTIFACT_DIGEST=$artifact_digest"
             echo "PUFFIN_BINARY_SHA256=$binary_sha"
             echo "PUFFIN_BUILD_PROVENANCE_SHA256=$provenance_sha"
-            echo "LD_LIBRARY_PATH=$tool_dir/lib64"
+            echo "PUFFIN_LIB_DIR=$tool_dir/lib64"
           } >> "$GITHUB_ENV"
 
       - name: Restore frozen patch-corpus sources
@@ -505,6 +505,8 @@ jobs:
 
       - name: Collect Puffin structural locator evidence
         shell: bash
+        env:
+          LD_LIBRARY_PATH: ${{ env.PUFFIN_LIB_DIR }}
         run: |
           set -euo pipefail
           python3 benchmarks/scripts/collect_patch_gap_puffin_locator.py \
