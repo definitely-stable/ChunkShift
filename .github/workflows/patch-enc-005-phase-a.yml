@@ -10,7 +10,6 @@ on:
         type: choice
         options:
           - calibration
-          - evaluation
       run-date:
         description: "Frozen RunId UTC date (YYYYMMDD)"
         required: true
@@ -454,5 +453,65 @@ jobs:
         with:
           name: patch-enc-005-${{ inputs.dataset-role }}-memory-${{ matrix.platform }}
           path: artifacts/patch-enc-005/memory
+          if-no-files-found: error
+          retention-days: 90
+
+  evaluate-calibration:
+    name: calibration-evaluator
+    needs: [cross-platform, memory]
+    if: inputs.dataset-role == 'calibration' && needs.cross-platform.result == 'success' && needs.memory.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Download paired evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: patch-enc-005-calibration-paired-*
+          path: artifacts/paired
+
+      - name: Download memory evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: patch-enc-005-calibration-memory-*
+          path: artifacts/memory
+
+      - name: Download cross-platform gate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: patch-enc-005-calibration-cross-platform
+          path: artifacts/cross
+
+      - name: Compile frozen Phase-A calibration verdict
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/evaluate_patch_enc_005_phase_a.py \
+            --source-commit "$GITHUB_SHA" \
+            --paired linux-x64=artifacts/paired/patch-enc-005-calibration-paired-linux-x64/paired.json \
+            --paired linux-arm64=artifacts/paired/patch-enc-005-calibration-paired-linux-arm64/paired.json \
+            --paired win-x64=artifacts/paired/patch-enc-005-calibration-paired-win-x64/paired.json \
+            --memory linux-x64=artifacts/memory/patch-enc-005-calibration-memory-linux-x64 \
+            --memory linux-arm64=artifacts/memory/patch-enc-005-calibration-memory-linux-arm64 \
+            --memory win-x64=artifacts/memory/patch-enc-005-calibration-memory-win-x64 \
+            --cross-platform artifacts/cross/cross-platform.json \
+            --output artifacts/evaluation
+          python3 artifacts/evaluation/recompute.py \
+            --compact artifacts/evaluation/compact.json \
+            --expected-verdict artifacts/evaluation/verdict.json
+          cat artifacts/evaluation/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload calibration decision inputs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-enc-005-calibration-evaluation
+          path: artifacts/evaluation
           if-no-files-found: error
           retention-days: 90
