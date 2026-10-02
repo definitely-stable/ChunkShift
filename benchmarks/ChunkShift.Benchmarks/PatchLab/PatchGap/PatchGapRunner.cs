@@ -410,7 +410,7 @@ internal static class PatchGapRunner
     {
         var result = new SortedDictionary<string, string>(StringComparer.Ordinal)
         {
-            ["pairs.json"] = PatchGapEvidence.FileSha256(Path.Combine(corpus.RootDirectory, "pairs.json")),
+            ["pairs.json"] = PatchGapEvidence.FileSha256(Path.Combine(corpus.Root, "pairs.json")),
             ["evidence-input/g4.json"] = PatchGapEvidence.FileSha256(g4Path),
             ["evidence-input/g5-structural.json"] = PatchGapEvidence.FileSha256(structuralPath),
             ["evidence-input/puffin-locator.json"] = PatchGapEvidence.FileSha256(locatorPath),
