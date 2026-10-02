@@ -496,17 +496,28 @@ internal static partial class CspPatchBuilder
         ICspCandidateTraceSink? traceSink,
         CancellationToken cancellationToken) =>
         policy.CandidateSelection == CspCandidateSelection.Exhaustive
-            ? ChooseEntryExhaustiveAsync(
-                encoder,
-                baseRecords,
-                baseChunks,
-                targetChunk,
-                bytes,
-                hashSuite,
-                policy,
-                buffers,
-                traceSink,
-                cancellationToken)
+            ? traceSink is null
+                ? ChooseEntryExhaustiveUntracedAsync(
+                    encoder,
+                    baseRecords,
+                    baseChunks,
+                    targetChunk.Offset,
+                    bytes,
+                    hashSuite,
+                    policy,
+                    buffers,
+                    cancellationToken)
+                : ChooseEntryExhaustiveTracedAsync(
+                    encoder,
+                    baseRecords,
+                    baseChunks,
+                    targetChunk,
+                    bytes,
+                    hashSuite,
+                    policy,
+                    buffers,
+                    traceSink,
+                    cancellationToken)
             : ChooseEntryRankedAsync(
                 encoder ?? throw new InvalidOperationException("A ranked selector requires the final encoder."),
                 cheapEncoder ?? throw new InvalidOperationException("A ranked selector requires the cheap encoder."),
@@ -521,11 +532,111 @@ internal static partial class CspPatchBuilder
                 cancellationToken);
 
     /// <summary>
-    /// Production exhaustive chooser, kept structurally equivalent to the
-    /// pre-PATCH-ENC-005 path. Trace collection observes trials but cannot
-    /// affect their order or the strict-decrease choice.
+    /// Production/default exhaustive chooser. Keep this path structurally
+    /// equivalent to the pre-PATCH-ENC-005 implementation so a null trace sink
+    /// adds no research bookkeeping to H0/H9 create timing.
     /// </summary>
-    private static async Task<EntryChoice> ChooseEntryExhaustiveAsync(
+    private static async Task<EntryChoice> ChooseEntryExhaustiveUntracedAsync(
+        CspPayloadEncoder? encoder,
+        List<BaseRecord> baseRecords,
+        BaseChunkSource? baseChunks,
+        long targetOffset,
+        ReadOnlyMemory<byte> bytes,
+        HashSuiteId hashSuite,
+        CspEncoderPolicy policy,
+        EntryBuffers buffers,
+        CancellationToken cancellationToken)
+    {
+        var best = new EntryChoice(CspFormat.EncodingRaw, bytes, []);
+
+        if (encoder is null)
+        {
+            return best;
+        }
+
+        int bestCost = bytes.Length;
+        ReadOnlySpan<byte> frame = encoder.EncodeZstd(bytes.Span, ReadOnlySpan<byte>.Empty);
+
+        if (frame.Length < bestCost)
+        {
+            best = new EntryChoice(CspFormat.EncodingZstd, buffers.KeepFrame(frame), []);
+            bestCost = frame.Length;
+        }
+
+        if (policy.DictionaryChunks == 0 || baseChunks is null)
+        {
+            return best;
+        }
+
+        buffers.EnsureDictionaries();
+        bool haveDictionary = false;
+        int bestStart = 0;
+        int bestCount = 0;
+
+        foreach (int start in FindCandidateStarts(baseRecords, targetOffset, policy))
+        {
+            if (!TryMeasureCandidate(baseRecords, start, policy, out int count, out int length))
+            {
+                continue;
+            }
+
+            Memory<byte> dictionary = buffers.Candidate.AsMemory(0, length);
+            await baseChunks
+                .ReadAsync(start, count, dictionary, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!CspDictionary.IsUsable(dictionary.Span))
+            {
+                continue;
+            }
+
+            ReadOnlySpan<byte> dictionaryFrame = encoder.EncodeZstd(bytes.Span, dictionary.Span);
+            int cost = dictionaryFrame.Length + (count * CspFormat.DictionaryReferenceSize);
+
+            if (cost < bestCost)
+            {
+                bestCost = cost;
+                best = new EntryChoice(CspFormat.EncodingZstd, buffers.KeepFrame(dictionaryFrame), []);
+                buffers.KeepCandidateAsBest();
+                haveDictionary = true;
+                bestStart = start;
+                bestCount = count;
+            }
+        }
+
+        if (!haveDictionary)
+        {
+            return best;
+        }
+
+        var dictionaryIds = new ChunkId[bestCount];
+        int verified = 0;
+
+        for (int index = 0; index < bestCount; index++)
+        {
+            BaseRecord record = baseRecords[bestStart + index];
+
+            if (PatchHashing.Hash(hashSuite, buffers.Best.AsSpan(verified, record.Length))
+                != record.ChunkId.Value)
+            {
+                throw new InvalidDataException(
+                    "The base content does not match the base manifest: a dictionary " +
+                    "chunk does not hash to its ChunkId.");
+            }
+
+            dictionaryIds[index] = record.ChunkId;
+            verified += record.Length;
+        }
+
+        return best with { DictionaryChunkIds = dictionaryIds };
+    }
+
+    /// <summary>
+    /// Traced exhaustive chooser used only by untimed evidence capture.
+    /// It observes the same candidate order and strict-decrease choice as the
+    /// production/default path, and its patch bytes are SHA-bound back to it.
+    /// </summary>
+    private static async Task<EntryChoice> ChooseEntryExhaustiveTracedAsync(
         CspPayloadEncoder? encoder,
         List<BaseRecord> baseRecords,
         BaseChunkSource? baseChunks,

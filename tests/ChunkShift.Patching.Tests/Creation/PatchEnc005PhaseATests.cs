@@ -18,6 +18,35 @@ public class PatchEnc005PhaseATests
         "H9-L15-K4-C16-R1M",
     };
 
+    [Fact]
+    public async Task H0_TraceObserverPreservesUntracedPatchBytes()
+    {
+        (byte[] baseContent, byte[] targetContent) =
+            CreationExecutions.SparseEdits(384 * Kibibyte, 96 * Kibibyte, 0x5EED5000u);
+        (byte[] baseManifest, byte[] targetManifest) =
+            await CreationExecutions.ManifestsAsync(baseContent, targetContent);
+
+        byte[] untraced = await CreationExecutions.CreateAsync(
+            baseManifest,
+            baseContent,
+            targetManifest,
+            targetContent,
+            CspEncoderPolicy.Default,
+            H2W2());
+
+        var trace = new TraceSink();
+        byte[] traced = await CreationExecutions.CreateAsync(
+            baseManifest,
+            baseContent,
+            targetManifest,
+            targetContent,
+            CspEncoderPolicy.Default,
+            H2W2() with { CandidateTraceSink = trace });
+
+        Assert.Equal(untraced, traced);
+        Assert.NotEmpty(trace.Entries);
+    }
+
     [Theory]
     [MemberData(nameof(PhaseALanes))]
     public async Task PhaseALane_IsDeterministicAndReconstructsExactly(string lane)
