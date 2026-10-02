@@ -12,6 +12,16 @@ public class PatchLabLaneTests
             ["csp"] = new PatchLabPolicy(19, 4, 8, 256 * 1024, "prefix", 20, 20),
             ["csp-zstd"] = new PatchLabPolicy(19, 0, 8, 256 * 1024, "prefix", 20, 20),
             ["csp-raw"] = new PatchLabPolicy(0, 4, 8, 256 * 1024, "prefix", 20, 20),
+            ["H4-L1-R2"] = new PatchLabPolicy(
+                19, 4, 8, 256 * 1024, "prefix", 20, 20, "l1-r2"),
+            ["H7-L1-R2-E75"] = new PatchLabPolicy(
+                19, 4, 8, 256 * 1024, "prefix", 20, 20, "l1-r2-e75"),
+            ["H9-L9-K4-C16-R1M"] = new PatchLabPolicy(
+                9, 4, 16, 1024 * 1024, "prefix", 20, 20),
+            ["H9-L12-K4-C16-R1M"] = new PatchLabPolicy(
+                12, 4, 16, 1024 * 1024, "prefix", 20, 20),
+            ["H9-L15-K4-C16-R1M"] = new PatchLabPolicy(
+                15, 4, 16, 1024 * 1024, "prefix", 20, 20),
         };
 
         foreach (int level in (int[])[9, 19])
@@ -25,7 +35,7 @@ public class PatchLabLaneTests
             }
         }
 
-        Assert.Equal(15, expected.Count);
+        Assert.Equal(20, expected.Count);
         Assert.Equal(
             [.. expected.Keys.Order(StringComparer.Ordinal)],
             [.. PatchLabLane.Names.Order(StringComparer.Ordinal)]);

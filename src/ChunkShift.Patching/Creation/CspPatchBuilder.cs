@@ -255,6 +255,7 @@ internal static partial class CspPatchBuilder
         // Level zero is raw-only: no encoder is created and the stored forms
         // are never compared with the raw bytes.
         using CspPayloadEncoder? encoder = CreateEncoder(policy);
+        using CspPayloadEncoder? cheapEncoder = CreateCheapEncoder(policy);
 
         var entryBuffers = new EntryBuffers();
         CreateBufferPool? pool = null;
@@ -291,13 +292,15 @@ internal static partial class CspPatchBuilder
                     {
                         choice = await ChooseEntryAsync(
                             encoder,
+                            cheapEncoder,
                             baseRecords,
                             source,
-                            chunk.Offset,
+                            chunk,
                             bytes,
                             hashSuite,
                             policy,
                             entryBuffers,
+                            execution.CandidateTraceSink,
                             cancellationToken).ConfigureAwait(false);
                     }
                     else
@@ -310,13 +313,15 @@ internal static partial class CspPatchBuilder
                             .ConfigureAwait(false);
                         choice = await ChooseEntryAsync(
                             encoder,
+                            cheapEncoder,
                             baseRecords,
                             window,
-                            chunk.Offset,
+                            chunk,
                             bytes,
                             hashSuite,
                             policy,
                             entryBuffers,
+                            execution.CandidateTraceSink,
                             cancellationToken).ConfigureAwait(false);
                     }
 
@@ -461,20 +466,77 @@ internal static partial class CspPatchBuilder
                 policy.DictionaryHashLog,
                 policy.DictionaryChainLog);
 
+    private static CspPayloadEncoder? CreateCheapEncoder(CspEncoderPolicy policy) =>
+        policy.CandidateSelection == CspCandidateSelection.Exhaustive
+            ? null
+            : new CspPayloadEncoder(
+                1,
+                policy.DictionaryLoad,
+                policy.DictionaryHashLog,
+                policy.DictionaryChainLog);
+
     /// <summary>Gets whether any entry may try a dictionary, and so read the base.</summary>
     private static bool UsesDictionaries(CspEncoderPolicy policy) =>
         policy.Level != 0 && policy.DictionaryChunks != 0;
 
     /// <summary>
-    /// Chooses the lowest-cost stored form of one target chunk among raw, zstd
-    /// without a dictionary and zstd against each dictionary candidate, where a
-    /// dictionary costs 32 bytes per named chunk. Ties prefer raw, then zstd
-    /// without a dictionary, so a stored form never exceeds the chunk length.
-    /// A null <paramref name="encoder"/> selects the raw form without encoding.
-    /// The returned stored bytes may live in <paramref name="buffers"/> and are
-    /// valid until the next call.
+    /// Chooses one stored form. Exhaustive selection is the production H0/H9
+    /// path; the two ranked modes are PATCH-ENC-005 Phase-A research policies.
     /// </summary>
-    private static async Task<EntryChoice> ChooseEntryAsync(
+    private static Task<EntryChoice> ChooseEntryAsync(
+        CspPayloadEncoder? encoder,
+        CspPayloadEncoder? cheapEncoder,
+        List<BaseRecord> baseRecords,
+        BaseChunkSource? baseChunks,
+        ChunkInfo targetChunk,
+        ReadOnlyMemory<byte> bytes,
+        HashSuiteId hashSuite,
+        CspEncoderPolicy policy,
+        EntryBuffers buffers,
+        ICspCandidateTraceSink? traceSink,
+        CancellationToken cancellationToken) =>
+        policy.CandidateSelection == CspCandidateSelection.Exhaustive
+            ? traceSink is null
+                ? ChooseEntryExhaustiveUntracedAsync(
+                    encoder,
+                    baseRecords,
+                    baseChunks,
+                    targetChunk.Offset,
+                    bytes,
+                    hashSuite,
+                    policy,
+                    buffers,
+                    cancellationToken)
+                : ChooseEntryExhaustiveTracedAsync(
+                    encoder,
+                    baseRecords,
+                    baseChunks,
+                    targetChunk,
+                    bytes,
+                    hashSuite,
+                    policy,
+                    buffers,
+                    traceSink,
+                    cancellationToken)
+            : ChooseEntryRankedAsync(
+                encoder ?? throw new InvalidOperationException("A ranked selector requires the final encoder."),
+                cheapEncoder ?? throw new InvalidOperationException("A ranked selector requires the cheap encoder."),
+                baseRecords,
+                baseChunks,
+                targetChunk,
+                bytes,
+                hashSuite,
+                policy,
+                buffers,
+                traceSink,
+                cancellationToken);
+
+    /// <summary>
+    /// Production/default exhaustive chooser. Keep this path structurally
+    /// equivalent to the pre-PATCH-ENC-005 implementation so a null trace sink
+    /// adds no research bookkeeping to H0/H9 create timing.
+    /// </summary>
+    private static async Task<EntryChoice> ChooseEntryExhaustiveUntracedAsync(
         CspPayloadEncoder? encoder,
         List<BaseRecord> baseRecords,
         BaseChunkSource? baseChunks,
@@ -493,7 +555,6 @@ internal static partial class CspPatchBuilder
         }
 
         int bestCost = bytes.Length;
-
         ReadOnlySpan<byte> frame = encoder.EncodeZstd(bytes.Span, ReadOnlySpan<byte>.Empty);
 
         if (frame.Length < bestCost)
@@ -519,8 +580,6 @@ internal static partial class CspPatchBuilder
                 continue;
             }
 
-            // Every candidate is read into the same buffer; the best one so far
-            // is kept by swapping buffers, not by allocating one per candidate.
             Memory<byte> dictionary = buffers.Candidate.AsMemory(0, length);
             await baseChunks
                 .ReadAsync(start, count, dictionary, cancellationToken)
@@ -550,8 +609,6 @@ internal static partial class CspPatchBuilder
             return best;
         }
 
-        // Only the chosen dictionary is verified, from the bytes already read:
-        // a candidate that is not used cannot affect the patch.
         var dictionaryIds = new ChunkId[bestCount];
         int verified = 0;
 
@@ -573,6 +630,441 @@ internal static partial class CspPatchBuilder
 
         return best with { DictionaryChunkIds = dictionaryIds };
     }
+
+    /// <summary>
+    /// Traced exhaustive chooser used only by untimed evidence capture.
+    /// It observes the same candidate order and strict-decrease choice as the
+    /// production/default path, and its patch bytes are SHA-bound back to it.
+    /// </summary>
+    private static async Task<EntryChoice> ChooseEntryExhaustiveTracedAsync(
+        CspPayloadEncoder? encoder,
+        List<BaseRecord> baseRecords,
+        BaseChunkSource? baseChunks,
+        ChunkInfo targetChunk,
+        ReadOnlyMemory<byte> bytes,
+        HashSuiteId hashSuite,
+        CspEncoderPolicy policy,
+        EntryBuffers buffers,
+        ICspCandidateTraceSink? traceSink,
+        CancellationToken cancellationToken)
+    {
+        var best = new EntryChoice(CspFormat.EncodingRaw, bytes, []);
+        int bestCost = bytes.Length;
+        int noDictionaryFrameBytes = bytes.Length;
+        int? selectedOrdinal = null;
+        int selectedStart = 0;
+        int selectedCount = 0;
+        List<CspCandidateTraceCandidate>? traceCandidates =
+            traceSink is null ? null : new List<CspCandidateTraceCandidate>();
+
+        if (encoder is null)
+        {
+            RecordCandidateTrace(
+                policy,
+                targetChunk,
+                bytes.Length,
+                noDictionaryFrameBytes,
+                best,
+                selectedOrdinal,
+                traceCandidates,
+                cheapTrials: 0,
+                expensiveTrials: 0,
+                traceSink);
+            return best;
+        }
+
+        ReadOnlySpan<byte> frame = encoder.EncodeZstd(bytes.Span, ReadOnlySpan<byte>.Empty);
+        noDictionaryFrameBytes = frame.Length;
+
+        if (frame.Length < bestCost)
+        {
+            best = new EntryChoice(CspFormat.EncodingZstd, buffers.KeepFrame(frame), []);
+            bestCost = frame.Length;
+        }
+
+        int expensiveTrials = 0;
+
+        if (policy.DictionaryChunks != 0 && baseChunks is not null)
+        {
+            buffers.EnsureDictionaries();
+            int ordinal = 0;
+
+            foreach (int start in FindCandidateStarts(baseRecords, targetChunk.Offset, policy))
+            {
+                int candidateOrdinal = ordinal++;
+
+                if (!TryMeasureCandidate(baseRecords, start, policy, out int count, out int length))
+                {
+                    continue;
+                }
+
+                Memory<byte> dictionary = buffers.Candidate.AsMemory(0, length);
+                await baseChunks
+                    .ReadAsync(start, count, dictionary, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (!CspDictionary.IsUsable(dictionary.Span))
+                {
+                    continue;
+                }
+
+                ReadOnlySpan<byte> dictionaryFrame = encoder.EncodeZstd(bytes.Span, dictionary.Span);
+                int cost = DictionaryCandidateCost(dictionaryFrame.Length, count);
+                expensiveTrials++;
+
+                if (traceCandidates is not null)
+                {
+                    traceCandidates.Add(new CspCandidateTraceCandidate
+                    {
+                        Ordinal = candidateOrdinal,
+                        StartIndex = start,
+                        StartOffset = baseRecords[start].Offset,
+                        RecordCount = count,
+                        FirstChunkId = baseRecords[start].ChunkId.ToString(),
+                        FinalFrameBytes = dictionaryFrame.Length,
+                        FinalCostBytes = cost,
+                        L19FrameBytes = policy.Level == 19 ? dictionaryFrame.Length : null,
+                        L19CostBytes = policy.Level == 19 ? cost : null,
+                    });
+                }
+
+                if (cost < bestCost)
+                {
+                    bestCost = cost;
+                    best = new EntryChoice(CspFormat.EncodingZstd, buffers.KeepFrame(dictionaryFrame), []);
+                    buffers.KeepCandidateAsBest();
+                    selectedOrdinal = candidateOrdinal;
+                    selectedStart = start;
+                    selectedCount = count;
+                }
+            }
+        }
+
+        if (selectedOrdinal is not null)
+        {
+            ChunkId[] ids = VerifyDictionary(
+                baseRecords,
+                selectedStart,
+                selectedCount,
+                buffers.Best,
+                hashSuite);
+
+            best = best with { DictionaryChunkIds = ids };
+            if (traceCandidates is not null)
+            {
+                CspCandidateTraceCandidate selected = traceCandidates
+                    .Single(candidate => candidate.Ordinal == selectedOrdinal.Value);
+                selected.Selected = true;
+            }
+        }
+
+        RecordCandidateTrace(
+            policy,
+            targetChunk,
+            bytes.Length,
+            noDictionaryFrameBytes,
+            best,
+            selectedOrdinal,
+            traceCandidates,
+            cheapTrials: 0,
+            expensiveTrials,
+            traceSink);
+        return best;
+    }
+
+    /// <summary>
+    /// PATCH-ENC-005 H4/H7: rank every production offset candidate at L1,
+    /// retain only the best two dictionary byte windows, and run at most two
+    /// L19 dictionary trials without re-reading a retained winner.
+    /// </summary>
+    private static async Task<EntryChoice> ChooseEntryRankedAsync(
+        CspPayloadEncoder encoder,
+        CspPayloadEncoder cheapEncoder,
+        List<BaseRecord> baseRecords,
+        BaseChunkSource? baseChunks,
+        ChunkInfo targetChunk,
+        ReadOnlyMemory<byte> bytes,
+        HashSuiteId hashSuite,
+        CspEncoderPolicy policy,
+        EntryBuffers buffers,
+        ICspCandidateTraceSink? traceSink,
+        CancellationToken cancellationToken)
+    {
+        var best = new EntryChoice(CspFormat.EncodingRaw, bytes, []);
+        int bestCost = bytes.Length;
+
+        ReadOnlySpan<byte> noDictionaryFrame = encoder.EncodeZstd(bytes.Span, ReadOnlySpan<byte>.Empty);
+        int noDictionaryFrameBytes = noDictionaryFrame.Length;
+
+        if (noDictionaryFrame.Length < bestCost)
+        {
+            bestCost = noDictionaryFrame.Length;
+            best = new EntryChoice(CspFormat.EncodingZstd, buffers.KeepFrame(noDictionaryFrame), []);
+        }
+
+        List<CspCandidateTraceCandidate>? traceCandidates =
+            traceSink is null ? null : new List<CspCandidateTraceCandidate>();
+        RankedCandidate? first = null;
+        RankedCandidate? second = null;
+        int cheapTrials = 0;
+
+        if (policy.DictionaryChunks != 0 && baseChunks is not null)
+        {
+            buffers.EnsureRankedDictionaries();
+            int ordinal = 0;
+
+            foreach (int start in FindCandidateStarts(baseRecords, targetChunk.Offset, policy))
+            {
+                int candidateOrdinal = ordinal++;
+
+                if (!TryMeasureCandidate(baseRecords, start, policy, out int count, out int length))
+                {
+                    continue;
+                }
+
+                Memory<byte> dictionary = buffers.Candidate.AsMemory(0, length);
+                await baseChunks
+                    .ReadAsync(start, count, dictionary, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (!CspDictionary.IsUsable(dictionary.Span))
+                {
+                    continue;
+                }
+
+                ReadOnlySpan<byte> cheapFrame = cheapEncoder.EncodeZstd(bytes.Span, dictionary.Span);
+                int cheapCost = DictionaryCandidateCost(cheapFrame.Length, count);
+                cheapTrials++;
+
+                if (traceCandidates is not null)
+                {
+                    traceCandidates.Add(new CspCandidateTraceCandidate
+                    {
+                        Ordinal = candidateOrdinal,
+                        StartIndex = start,
+                        StartOffset = baseRecords[start].Offset,
+                        RecordCount = count,
+                        FirstChunkId = baseRecords[start].ChunkId.ToString(),
+                        CheapLevel = 1,
+                        CheapFrameBytes = cheapFrame.Length,
+                        CheapCostBytes = cheapCost,
+                    });
+                }
+
+                var candidate = new RankedCandidate(candidateOrdinal, start, count, length, cheapCost);
+
+                if (first is null || CompareRank(candidate, first.Value) < 0)
+                {
+                    second = first;
+                    buffers.KeepCandidateAsRank1();
+                    first = candidate;
+                }
+                else if (second is null || CompareRank(candidate, second.Value) < 0)
+                {
+                    buffers.KeepCandidateAsRank2();
+                    second = candidate;
+                }
+            }
+        }
+
+        int expensiveTrials = 0;
+        int? selectedOrdinal = null;
+        RankedCandidate? selected = null;
+
+        if (first is { } firstCandidate)
+        {
+            ReadOnlySpan<byte> firstFrame = encoder.EncodeZstd(
+                bytes.Span,
+                buffers.Rank1.AsSpan(0, firstCandidate.Length));
+            int firstCost = DictionaryCandidateCost(firstFrame.Length, firstCandidate.RecordCount);
+            expensiveTrials++;
+            SetFinalTrace(traceCandidates, firstCandidate.Ordinal, firstFrame.Length, firstCost, finalLevel: 19);
+
+            if (firstCost < bestCost)
+            {
+                bestCost = firstCost;
+                best = new EntryChoice(CspFormat.EncodingZstd, buffers.KeepFrame(firstFrame), []);
+                selectedOrdinal = firstCandidate.Ordinal;
+                selected = firstCandidate;
+            }
+
+            bool skipSecond =
+                policy.CandidateSelection == CspCandidateSelection.RankLevel1Top2EarlyExit75 &&
+                second is not null &&
+                4L * firstCost <= 3L * Math.Min(bytes.Length, noDictionaryFrameBytes);
+
+            if (second is { } secondCandidate && !skipSecond)
+            {
+                ReadOnlySpan<byte> secondFrame = encoder.EncodeZstd(
+                    bytes.Span,
+                    buffers.Rank2.AsSpan(0, secondCandidate.Length));
+                int secondCost = DictionaryCandidateCost(secondFrame.Length, secondCandidate.RecordCount);
+                expensiveTrials++;
+                SetFinalTrace(traceCandidates, secondCandidate.Ordinal, secondFrame.Length, secondCost, finalLevel: 19);
+
+                if (secondCost < bestCost)
+                {
+                    bestCost = secondCost;
+                    best = new EntryChoice(CspFormat.EncodingZstd, buffers.KeepFrame(secondFrame), []);
+                    selectedOrdinal = secondCandidate.Ordinal;
+                    selected = secondCandidate;
+                }
+            }
+        }
+
+        if (selected is { } selectedCandidate)
+        {
+            ReadOnlySpan<byte> dictionary = selectedOrdinal == first?.Ordinal
+                ? buffers.Rank1.AsSpan(0, selectedCandidate.Length)
+                : buffers.Rank2.AsSpan(0, selectedCandidate.Length);
+            best = best with
+            {
+                DictionaryChunkIds = VerifyDictionary(
+                    baseRecords,
+                    selectedCandidate.Start,
+                    selectedCandidate.RecordCount,
+                    dictionary,
+                    hashSuite),
+            };
+            if (traceCandidates is not null)
+            {
+                traceCandidates.Single(candidate => candidate.Ordinal == selectedCandidate.Ordinal).Selected = true;
+            }
+        }
+
+        RecordCandidateTrace(
+            policy,
+            targetChunk,
+            bytes.Length,
+            noDictionaryFrameBytes,
+            best,
+            selectedOrdinal,
+            traceCandidates,
+            cheapTrials,
+            expensiveTrials,
+            traceSink);
+        return best;
+    }
+
+    internal static int DictionaryCandidateCost(int frameBytes, int referenceCount) =>
+        checked(frameBytes + (referenceCount * CspFormat.DictionaryReferenceSize));
+
+    internal static int CompareRankKeys(
+        int leftCost,
+        int leftOrdinal,
+        int rightCost,
+        int rightOrdinal)
+    {
+        int cost = leftCost.CompareTo(rightCost);
+        return cost != 0 ? cost : leftOrdinal.CompareTo(rightOrdinal);
+    }
+
+    private static int CompareRank(RankedCandidate left, RankedCandidate right) =>
+        CompareRankKeys(left.CheapCost, left.Ordinal, right.CheapCost, right.Ordinal);
+
+    private static void SetFinalTrace(
+        List<CspCandidateTraceCandidate>? candidates,
+        int ordinal,
+        int frameBytes,
+        int costBytes,
+        int finalLevel)
+    {
+        if (candidates is null)
+        {
+            return;
+        }
+
+        CspCandidateTraceCandidate candidate =
+            candidates.Single(candidate => candidate.Ordinal == ordinal);
+        candidate.FinalFrameBytes = frameBytes;
+        candidate.FinalCostBytes = costBytes;
+
+        if (finalLevel == 19)
+        {
+            candidate.L19FrameBytes = frameBytes;
+            candidate.L19CostBytes = costBytes;
+        }
+    }
+
+    private static ChunkId[] VerifyDictionary(
+        List<BaseRecord> baseRecords,
+        int start,
+        int count,
+        ReadOnlySpan<byte> dictionary,
+        HashSuiteId hashSuite)
+    {
+        var ids = new ChunkId[count];
+        int verified = 0;
+
+        for (int index = 0; index < count; index++)
+        {
+            BaseRecord record = baseRecords[start + index];
+
+            if (PatchHashing.Hash(hashSuite, dictionary.Slice(verified, record.Length))
+                != record.ChunkId.Value)
+            {
+                throw new InvalidDataException(
+                    "The base content does not match the base manifest: a dictionary " +
+                    "chunk does not hash to its ChunkId.");
+            }
+
+            ids[index] = record.ChunkId;
+            verified += record.Length;
+        }
+
+        return ids;
+    }
+
+    private static void RecordCandidateTrace(
+        CspEncoderPolicy policy,
+        ChunkInfo targetChunk,
+        int targetLength,
+        int noDictionaryFrameBytes,
+        EntryChoice choice,
+        int? selectedOrdinal,
+        List<CspCandidateTraceCandidate>? candidates,
+        int cheapTrials,
+        int expensiveTrials,
+        ICspCandidateTraceSink? traceSink)
+    {
+        if (traceSink is null)
+        {
+            return;
+        }
+
+        candidates ??= [];
+        int totalTrials = policy.Level == 0 ? 0 : 1 + cheapTrials + expensiveTrials;
+        int level19Trials = policy.Level == 19 ? 1 + expensiveTrials : 0;
+        string encoding = choice.Encoding == CspFormat.EncodingRaw
+            ? "raw"
+            : choice.DictionaryChunkIds.Length == 0 ? "zstd" : "zstd-dictionary";
+
+        traceSink.Record(new CspCandidateTraceEntry(
+            targetChunk.Index,
+            targetChunk.Id.ToString(),
+            targetChunk.Offset,
+            targetLength,
+            candidates.Count,
+            cheapTrials,
+            expensiveTrials,
+            totalTrials,
+            level19Trials,
+            noDictionaryFrameBytes,
+            policy.Level == 19 ? noDictionaryFrameBytes : null,
+            Math.Min(targetLength, noDictionaryFrameBytes),
+            encoding,
+            selectedOrdinal,
+            choice.Stored.Length,
+            choice.DictionaryChunkIds.Length,
+            candidates));
+    }
+
+    private readonly record struct RankedCandidate(
+        int Ordinal,
+        int Start,
+        int RecordCount,
+        int Length,
+        int CheapCost);
 
     /// <summary>
     /// Measures the candidate that starts at base record <paramref name="start"/>:
@@ -700,6 +1192,25 @@ internal static partial class CspPatchBuilder
 
         ValidateTableLog(policy.DictionaryHashLog);
         ValidateTableLog(policy.DictionaryChainLog);
+
+        if (!Enum.IsDefined(policy.CandidateSelection))
+        {
+            throw new ArgumentOutOfRangeException(nameof(policy), "Unknown candidate-selection mode.");
+        }
+
+        if (policy.CandidateSelection != CspCandidateSelection.Exhaustive &&
+            (policy.Level != 19 ||
+             policy.DictionaryChunks != 4 ||
+             policy.MaxCandidates != 8 ||
+             policy.SearchRadius != 256 * 1024 ||
+             policy.DictionaryLoad != CspDictionaryLoad.Prefix ||
+             policy.DictionaryHashLog != 20 ||
+             policy.DictionaryChainLog != 20))
+        {
+            throw new ArgumentException(
+                "PATCH-ENC-005 ranked selectors require frozen L19/K4/C8/R256K/Prefix/H20C20 settings.",
+                nameof(policy));
+        }
     }
 
     private static void ValidateExecution(CspCreateExecution execution)
@@ -736,9 +1247,12 @@ internal static partial class CspPatchBuilder
 
         internal byte[] Best { get; private set; } = [];
 
+        internal byte[] Rank1 { get; private set; } = [];
+
+        internal byte[] Rank2 { get; private set; } = [];
+
         /// <summary>
-        /// Allocates both dictionary buffers at their maximum on first use,
-        /// so a later, longer dictionary never reallocates them.
+        /// Allocates the exhaustive chooser's scratch and selected dictionary.
         /// </summary>
         internal void EnsureDictionaries()
         {
@@ -749,7 +1263,25 @@ internal static partial class CspPatchBuilder
             }
         }
 
+        /// <summary>
+        /// Allocates exactly one scratch plus two retained dictionaries for H4/H7.
+        /// </summary>
+        internal void EnsureRankedDictionaries()
+        {
+            if (Candidate.Length == 0)
+            {
+                Candidate = new byte[CspDictionary.MaximumBytes];
+                Rank1 = new byte[CspDictionary.MaximumBytes];
+                Rank2 = new byte[CspDictionary.MaximumBytes];
+            }
+        }
+
         internal void KeepCandidateAsBest() => (Candidate, Best) = (Best, Candidate);
+
+        internal void KeepCandidateAsRank1() =>
+            (Candidate, Rank1, Rank2) = (Rank2, Candidate, Rank1);
+
+        internal void KeepCandidateAsRank2() => (Candidate, Rank2) = (Rank2, Candidate);
 
         /// <summary>Copies <paramref name="frame"/> out of the encoder's buffer.</summary>
         internal ReadOnlyMemory<byte> KeepFrame(ReadOnlySpan<byte> frame)

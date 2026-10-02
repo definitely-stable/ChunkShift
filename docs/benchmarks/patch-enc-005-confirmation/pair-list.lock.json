@@ -1,0 +1,6 @@
+{
+  "experimentId": "PATCH-ENC-005",
+  "manifestSha256": "03984dfe402076ec57cd7f95e6b225e69a06220eda8eb2be3425632a7cb562c7",
+  "pairsSha256": "9430bf48e8df82f7397686567a42cf24e775e396ab108ea4c2df3527c3a66dd6",
+  "schema": "chunkshift.patch-enc-005-confirmation-lock.v1"
+}

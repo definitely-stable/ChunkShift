@@ -275,6 +275,7 @@ internal static partial class CspPatchBuilder
         try
         {
             using CspPayloadEncoder? encoder = CreateEncoder(context.Policy);
+            using CspPayloadEncoder? cheapEncoder = CreateCheapEncoder(context.Policy);
             var buffers = new EntryBuffers();
 
             // The producer always completes the queue, so waiting needs no token.
@@ -282,7 +283,7 @@ internal static partial class CspPatchBuilder
             {
                 while (queue.TryRead(out WorkItem? item))
                 {
-                    context.Reorder.Post(item.Sequence, await EncodeAsync(context, state, encoder, buffers, item)
+                    context.Reorder.Post(item.Sequence, await EncodeAsync(context, state, encoder, cheapEncoder, buffers, item)
                         .ConfigureAwait(false));
                 }
             }
@@ -301,6 +302,7 @@ internal static partial class CspPatchBuilder
         PipelineContext context,
         WorkerState state,
         CspPayloadEncoder? encoder,
+        CspPayloadEncoder? cheapEncoder,
         EntryBuffers buffers,
         WorkItem item)
     {
@@ -325,13 +327,15 @@ internal static partial class CspPatchBuilder
             int length = item.Chunk.Length;
             EntryChoice choice = await ChooseEntryAsync(
                 encoder,
+                cheapEncoder,
                 context.BaseRecords,
                 (BaseChunkSource?)item.BaseWindow ?? context.SharedBase,
-                item.Chunk.Offset,
+                item.Chunk,
                 item.Target.AsMemory(0, length),
                 context.HashSuite,
                 context.Policy,
                 buffers,
+                context.Execution.CandidateTraceSink,
                 cancellationToken).ConfigureAwait(false);
 
             item.BaseWindow?.Dispose();

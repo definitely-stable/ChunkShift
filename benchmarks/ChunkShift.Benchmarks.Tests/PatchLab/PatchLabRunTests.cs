@@ -47,6 +47,7 @@ public class PatchLabRunTests
         Assert.Equal(1, run.ApplyRepeats);
         Assert.Equal(corpus.PairsSha256, run.CorpusPairsSha256);
         Assert.Null(run.RunId);
+        Assert.Equal("seq", run.ApplyCheck);
 
         PatchLabFileResult file = Assert.Single(run.Files);
 
@@ -69,6 +70,16 @@ public class PatchLabRunTests
         Assert.True(file.ApplyNoCheckSeconds is not null);
         Assert.True(file.ApplySeconds is >= 0);
         Assert.True(file.ApplyNoCheckSeconds is >= 0);
+        Assert.NotNull(file.ApplyMetrics);
+        Assert.NotNull(file.ApplyNoCheckMetrics);
+        Assert.Single(file.ApplyMetrics.Samples);
+        Assert.Single(file.ApplyNoCheckMetrics.Samples);
+        Assert.Equal(file.ApplySeconds.Value, file.ApplyMetrics.MedianWallSeconds);
+        Assert.Equal(file.ApplyNoCheckSeconds.Value, file.ApplyNoCheckMetrics.MedianWallSeconds);
+        Assert.True(file.ApplyMetrics.MedianCpuSeconds >= 0);
+        Assert.True(file.ApplyMetrics.MedianBaseReads >= 0);
+        Assert.True(file.ApplyMetrics.MedianBaseBytesRead >= 0);
+        Assert.True(file.ApplyMetrics.MedianBaseSeeks >= 0);
 
         Assert.Equal(file.PayloadEntries, file.RawEntries + file.ZstdEntries);
 
@@ -98,6 +109,213 @@ public class PatchLabRunTests
                 Path.Combine(scope.Path, "work", "csm", corpus.TargetSha256 + ".csm"),
             ],
             cached);
+    }
+
+    [Fact]
+    public void ApplyCheckOnlySkipsLegacyNoCheckRepeats()
+    {
+        using var scope = new TempDirectory();
+        _ = WriteCorpus(scope.Path);
+        string output = Path.Combine(scope.Path, "phase-a.json");
+
+        int exit = PatchLabRunner.Run(
+        [
+            "run",
+            "--corpus", scope.Path,
+            "--lane", "H4-L1-R2",
+            "--output", output,
+            "--workers", "1",
+            "--execution", "h2-w2",
+            "--apply-repeats", "1",
+            "--apply-check", "boundary",
+            "--apply-check-only",
+        ]);
+
+        Assert.Equal(0, exit);
+        PatchLabRunResult run = JsonSerializer.Deserialize<PatchLabRunResult>(
+            File.ReadAllText(output),
+            Json)!;
+        Assert.Equal("boundary", run.ApplyCheck);
+        PatchLabFileResult file = Assert.Single(run.Files);
+        Assert.NotNull(file.ApplyMetrics);
+        Assert.Null(file.ApplyNoCheckMetrics);
+        Assert.NotNull(file.ApplySeconds);
+        Assert.Null(file.ApplyNoCheckSeconds);
+    }
+
+    [Fact]
+    public void PatchDirectoryPreservesUntimedPatchForIndependentDecoder()
+    {
+        using var scope = new TempDirectory();
+        _ = WriteCorpus(scope.Path);
+        string output = Path.Combine(scope.Path, "capture.json");
+        string patches = Path.Combine(scope.Path, "patches");
+
+        int exit = PatchLabRunner.Run(
+        [
+            "run",
+            "--corpus", scope.Path,
+            "--lane", "H4-L1-R2",
+            "--output", output,
+            "--workers", "1",
+            "--execution", "h2-w2",
+            "--no-apply",
+            "--patch-dir", patches,
+        ]);
+
+        Assert.Equal(0, exit);
+        PatchLabRunResult run = JsonSerializer.Deserialize<PatchLabRunResult>(
+            File.ReadAllText(output),
+            Json)!;
+        PatchLabFileResult file = Assert.Single(run.Files);
+        Assert.NotNull(file.SavedPatch);
+        string saved = Path.Combine(patches, file.SavedPatch);
+        Assert.True(File.Exists(saved));
+        Assert.Equal(file.PatchSha256, Sha256(saved));
+    }
+
+    [Fact]
+    public void PhaseATraceWritesFrozenSchemaAndProvenance()
+    {
+        using var scope = new TempDirectory();
+        SyntheticCorpus corpus = WriteCorpus(scope.Path);
+        string output = Path.Combine(scope.Path, "run.json");
+        string traces = Path.Combine(scope.Path, "traces");
+        const string ProtocolCommit = PatchLabTraceOptions.FrozenProtocolCommit;
+        const string SourceCommit = "2222222222222222222222222222222222222222";
+        string? previousSha = System.Environment.GetEnvironmentVariable("GITHUB_SHA");
+        string? previousRunNumber = System.Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER");
+        string? previousRunAttempt = System.Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT");
+        System.Environment.SetEnvironmentVariable("GITHUB_SHA", SourceCommit);
+        System.Environment.SetEnvironmentVariable("GITHUB_RUN_NUMBER", "1");
+        System.Environment.SetEnvironmentVariable("GITHUB_RUN_ATTEMPT", "1");
+        string runId = $"PATCH-ENC-005/RUN-20261001-001-{SourceCommit}-linux-x64";
+
+        int exit;
+        try
+        {
+            exit = PatchLabRunner.Run(
+        [
+            "run",
+            "--corpus", scope.Path,
+            "--lane", "H4-L1-R2",
+            "--output", output,
+            "--workers", "1",
+            "--execution", "h2-w2",
+            "--no-apply",
+            "--run-id", runId,
+            "--trace-dir", traces,
+            "--protocol-commit", ProtocolCommit,
+            "--source-commit", SourceCommit,
+            "--platform", "linux-x64",
+            "--dataset-role", "calibration",
+        ]);
+        }
+        finally
+        {
+            System.Environment.SetEnvironmentVariable("GITHUB_SHA", previousSha);
+            System.Environment.SetEnvironmentVariable("GITHUB_RUN_NUMBER", previousRunNumber);
+            System.Environment.SetEnvironmentVariable("GITHUB_RUN_ATTEMPT", previousRunAttempt);
+        }
+
+        Assert.Equal(0, exit);
+        string tracePath = Assert.Single(Directory.GetFiles(traces, "*.json"));
+
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllBytes(tracePath));
+        JsonElement root = document.RootElement;
+        Assert.Equal("chunkshift.patch-candidate-trace.v1", root.GetProperty("schema").GetString());
+        Assert.Equal("PATCH-ENC-005", root.GetProperty("experimentId").GetString());
+        Assert.Equal(runId, root.GetProperty("runId").GetString());
+        Assert.Equal(ProtocolCommit, root.GetProperty("protocolCommit").GetString());
+        Assert.Equal(SourceCommit, root.GetProperty("sourceCommit").GetString());
+        Assert.Equal("linux-x64", root.GetProperty("platform").GetString());
+        Assert.Equal("H4-L1-R2", root.GetProperty("lane").GetString());
+        Assert.Equal("calibration", root.GetProperty("datasetRole").GetString());
+        Assert.Equal(corpus.PairsSha256, root.GetProperty("datasetSha256").GetString());
+        Assert.Equal(Family, root.GetProperty("family").GetString());
+        Assert.Equal(BaseVersion, root.GetProperty("baseVersion").GetString());
+        Assert.Equal(TargetVersion, root.GetProperty("targetVersion").GetString());
+        Assert.Equal(ChangedPath, root.GetProperty("path").GetString());
+        Assert.Equal(19, root.GetProperty("finalLevel").GetInt32());
+
+        JsonElement entries = root.GetProperty("entries");
+        Assert.True(entries.GetArrayLength() > 0);
+
+        foreach (JsonElement entry in entries.EnumerateArray())
+        {
+            Assert.Equal(
+                entry.GetProperty("candidateCount").GetInt32(),
+                entry.GetProperty("cheapTrialCount").GetInt32());
+            Assert.Equal(
+                1 +
+                entry.GetProperty("cheapTrialCount").GetInt32() +
+                entry.GetProperty("expensiveTrialCount").GetInt32(),
+                entry.GetProperty("totalCompressionTrialCount").GetInt32());
+            Assert.False(entry.TryGetProperty("targetBytes", out _));
+            Assert.False(entry.TryGetProperty("dictionaryBytes", out _));
+            Assert.False(entry.TryGetProperty("frameBytes", out _));
+        }
+    }
+
+    [Fact]
+    public void PhaseATraceRejectsUnboundAndConfirmationEvidence()
+    {
+        using var scope = new TempDirectory();
+        _ = WriteCorpus(scope.Path);
+        const string SourceCommit = "2222222222222222222222222222222222222222";
+        string? previousSha = System.Environment.GetEnvironmentVariable("GITHUB_SHA");
+        string? previousRunNumber = System.Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER");
+        string? previousRunAttempt = System.Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT");
+        System.Environment.SetEnvironmentVariable("GITHUB_RUN_NUMBER", "1");
+        System.Environment.SetEnvironmentVariable("GITHUB_RUN_ATTEMPT", "1");
+        string runId = $"PATCH-ENC-005/RUN-20261001-001-{SourceCommit}-linux-x64";
+
+        try
+        {
+            System.Environment.SetEnvironmentVariable("GITHUB_SHA", null);
+            int unbound = PatchLabRunner.Run(
+            [
+                "run",
+                "--corpus", scope.Path,
+                "--lane", "H4-L1-R2",
+                "--output", Path.Combine(scope.Path, "unbound.json"),
+                "--workers", "1",
+                "--execution", "h2-w2",
+                "--no-apply",
+                "--run-id", runId,
+                "--trace-dir", Path.Combine(scope.Path, "unbound-traces"),
+                "--protocol-commit", PatchLabTraceOptions.FrozenProtocolCommit,
+                "--source-commit", SourceCommit,
+                "--platform", "linux-x64",
+                "--dataset-role", "calibration",
+            ]);
+            Assert.Equal(2, unbound);
+
+            System.Environment.SetEnvironmentVariable("GITHUB_SHA", SourceCommit);
+            int confirmation = PatchLabRunner.Run(
+            [
+                "run",
+                "--corpus", scope.Path,
+                "--lane", "H4-L1-R2",
+                "--output", Path.Combine(scope.Path, "confirmation.json"),
+                "--workers", "1",
+                "--execution", "h2-w2",
+                "--no-apply",
+                "--run-id", runId,
+                "--trace-dir", Path.Combine(scope.Path, "confirmation-traces"),
+                "--protocol-commit", PatchLabTraceOptions.FrozenProtocolCommit,
+                "--source-commit", SourceCommit,
+                "--platform", "linux-x64",
+                "--dataset-role", "confirmation",
+            ]);
+            Assert.Equal(2, confirmation);
+        }
+        finally
+        {
+            System.Environment.SetEnvironmentVariable("GITHUB_SHA", previousSha);
+            System.Environment.SetEnvironmentVariable("GITHUB_RUN_NUMBER", previousRunNumber);
+            System.Environment.SetEnvironmentVariable("GITHUB_RUN_ATTEMPT", previousRunAttempt);
+        }
     }
 
     /// <summary>

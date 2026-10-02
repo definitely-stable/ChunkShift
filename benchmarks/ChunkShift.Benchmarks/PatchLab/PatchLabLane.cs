@@ -26,6 +26,27 @@ internal static class PatchLabLane
             case "csp":
                 policy = CspEncoderPolicy.Default;
                 return true;
+            case "H4-L1-R2":
+                policy = CspEncoderPolicy.Default with
+                {
+                    CandidateSelection = CspCandidateSelection.RankLevel1Top2,
+                };
+                return true;
+            case "H7-L1-R2-E75":
+                policy = CspEncoderPolicy.Default with
+                {
+                    CandidateSelection = CspCandidateSelection.RankLevel1Top2EarlyExit75,
+                };
+                return true;
+            case "H9-L9-K4-C16-R1M":
+                policy = PhaseAH9(9);
+                return true;
+            case "H9-L12-K4-C16-R1M":
+                policy = PhaseAH9(12);
+                return true;
+            case "H9-L15-K4-C16-R1M":
+                policy = PhaseAH9(15);
+                return true;
             case "csp-zstd":
                 policy = CspEncoderPolicy.Default with { DictionaryChunks = 0 };
                 return true;
@@ -107,7 +128,8 @@ internal static class PatchLabLane
             policy.SearchRadius,
             LoadName(policy.DictionaryLoad),
             policy.DictionaryHashLog,
-            policy.DictionaryChainLog);
+            policy.DictionaryChainLog,
+            SelectionName(policy.CandidateSelection));
 
     private static string LoadName(CspDictionaryLoad load) => load switch
     {
@@ -115,6 +137,21 @@ internal static class PatchLabLane
         CspDictionaryLoad.Prefix => "prefix",
         _ => "copy",
     };
+
+    private static string SelectionName(CspCandidateSelection selection) => selection switch
+    {
+        CspCandidateSelection.RankLevel1Top2 => "l1-r2",
+        CspCandidateSelection.RankLevel1Top2EarlyExit75 => "l1-r2-e75",
+        _ => "exhaustive",
+    };
+
+    private static CspEncoderPolicy PhaseAH9(int level) =>
+        new(level, DictionaryChunks: 4, MaxCandidates: 16, SearchRadius: WideRadius)
+        {
+            DictionaryLoad = CspDictionaryLoad.Prefix,
+            DictionaryHashLog = 20,
+            DictionaryChainLog = 20,
+        };
 
     private static bool TryLoad(string part, out CspDictionaryLoad load)
     {
@@ -152,7 +189,17 @@ internal static class PatchLabLane
 
     private static string[] CreateNames()
     {
-        var names = new List<string> { "csp", "csp-zstd", "csp-raw" };
+        var names = new List<string>
+        {
+            "csp",
+            "csp-zstd",
+            "csp-raw",
+            "H4-L1-R2",
+            "H7-L1-R2-E75",
+            "H9-L9-K4-C16-R1M",
+            "H9-L12-K4-C16-R1M",
+            "H9-L15-K4-C16-R1M",
+        };
 
         foreach (int level in (int[])[9, 19])
         {

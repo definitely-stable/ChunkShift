@@ -62,6 +62,12 @@ internal sealed record CspCreateExecution(int WorkerCount, bool UseBaseCandidate
     internal CspCreateStatistics? Statistics { get; init; }
 
     /// <summary>
+    /// Gets an optional research-only sink for per-entry candidate metadata.
+    /// Null in the public create path.
+    /// </summary>
+    internal ICspCandidateTraceSink? CandidateTraceSink { get; init; }
+
+    /// <summary>
     /// Gets an optional test hook a worker awaits before it encodes the entry
     /// with the given sequence number, so tests can reorder completions.
     /// </summary>

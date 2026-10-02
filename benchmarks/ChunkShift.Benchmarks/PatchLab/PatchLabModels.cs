@@ -10,7 +10,8 @@ internal sealed record PatchLabPolicy(
     int SearchRadius,
     string DictionaryLoad = "copy",
     int DictionaryHashLog = 0,
-    int DictionaryChainLog = 0);
+    int DictionaryChainLog = 0,
+    string CandidateSelection = "exhaustive");
 
 /// <summary>One <c>patch-lab run</c> result document (<c>chunkshift.patch-lab.v1</c>).</summary>
 internal sealed record PatchLabRunResult(
@@ -25,7 +26,8 @@ internal sealed record PatchLabRunResult(
     DateTimeOffset StartedUtc,
     double ElapsedSeconds,
     PatchLabFileResult[] Files,
-    string? Execution = null);
+    string? Execution = null,
+    string ApplyCheck = "seq");
 
 /// <summary>One changed file of one lane, in corpus order.</summary>
 /// <remarks>
@@ -52,7 +54,10 @@ internal sealed record PatchLabFileResult(
     double? ApplySeconds,
     double? ApplyNoCheckSeconds,
     string? PatchSha256 = null,
-    PatchLabCreateMetrics? CreateMetrics = null);
+    PatchLabCreateMetrics? CreateMetrics = null,
+    PatchLabApplyMetrics? ApplyMetrics = null,
+    PatchLabApplyMetrics? ApplyNoCheckMetrics = null,
+    string? SavedPatch = null);
 
 /// <summary>
 /// What one create cost beyond its wall time
@@ -75,6 +80,26 @@ internal sealed record PatchLabCreateMetrics(
     long ReorderPeakEntries,
     long ReorderPeakBytes);
 
+/// <summary>One measured production-apply repeat for PATCH-ENC-005 evidence.</summary>
+internal sealed record PatchLabApplySample(
+    double WallSeconds,
+    double CpuSeconds,
+    long BaseReads,
+    long BaseBytesRead,
+    long BaseSeeks);
+
+/// <summary>
+/// Apply evidence whose medians are selected independently, matching
+/// PATCH-ENC-005 section 9.1; raw samples remain durable and recomputable.
+/// </summary>
+internal sealed record PatchLabApplyMetrics(
+    double MedianWallSeconds,
+    double MedianCpuSeconds,
+    long MedianBaseReads,
+    long MedianBaseBytesRead,
+    long MedianBaseSeeks,
+    PatchLabApplySample[] Samples);
+
 /// <summary>One <c>patch-lab memory</c> result document (<c>chunkshift.patch-lab-memory.v1</c>).</summary>
 /// <remarks>
 /// <see cref="Lane"/> and <see cref="Policy"/> name the encoder policy of the
@@ -91,7 +116,9 @@ internal sealed record PatchLabMemoryResult(
     IReadOnlyDictionary<string, string> MemoryEnvironment,
     long IdleBaselineBytes,
     PatchLabMemoryFile[] Files,
-    string? Execution = null);
+    string? Execution = null,
+    string Population = "target",
+    string ApplyCheck = "seq");
 
 /// <summary>The peak working set of one file's create and apply children.</summary>
 internal sealed record PatchLabMemoryFile(
@@ -99,6 +126,7 @@ internal sealed record PatchLabMemoryFile(
     string Base,
     string Target,
     string Path,
+    long BaseSize,
     long TargetSize,
     long CreatePeakBytes,
     long ApplyPeakBytes);
