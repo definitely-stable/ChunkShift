@@ -112,7 +112,7 @@ public class PatchGapInventoryLockTests
             fileBytes: 32,
             fileSha,
             out string? reason));
-        Assert.Equal("bit-extent-byte-envelope-mismatch", reason);
+        Assert.Equal("invalid-or-noncanonical-bit-extent-order", reason);
     }
 
     [Fact]
