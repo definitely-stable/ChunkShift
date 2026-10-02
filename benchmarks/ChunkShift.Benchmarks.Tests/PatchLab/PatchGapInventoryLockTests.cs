@@ -8,7 +8,7 @@ namespace ChunkShift.Benchmarks.Tests.PatchLab;
 public class PatchGapInventoryLockTests
 {
     [Fact]
-    public void PuffinBitExtentsMatchCanonicalStructuralByteEnvelopes()
+    public void PuffinBitExtentsMatchStructuralMemberOrderAndByteEnvelopes()
     {
         string fileSha = new('a', 64);
         var structural = new PatchGapG5Classification(
@@ -17,8 +17,8 @@ public class PatchGapInventoryLockTests
             new string('b', 64),
             "TEST",
             [
-                new PatchGapDeflateExtent(20, 5),
                 new PatchGapDeflateExtent(5, 3),
+                new PatchGapDeflateExtent(20, 5),
             ]);
         var locator = new PatchGapPuffinFileLocator(
             true,
@@ -37,6 +37,22 @@ public class PatchGapInventoryLockTests
             fileSha,
             out string? reason));
         Assert.Null(reason);
+
+        var reorderedStructural = structural with
+        {
+            DeflateExtents =
+            [
+                structural.DeflateExtents[1],
+                structural.DeflateExtents[0],
+            ],
+        };
+        Assert.False(PatchGapG5InventoryLock.TryValidatePuffinAgreement(
+            reorderedStructural,
+            locator,
+            fileBytes: 32,
+            fileSha,
+            out reason));
+        Assert.Equal("bit-extent-byte-envelope-mismatch", reason);
 
         PatchGapPuffinFileLocator wrongEnvelope = locator with
         {
