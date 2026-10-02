@@ -56,8 +56,38 @@ def compact(lane_overrides=None):
             memory[lane] = {
                 "createPeakOverIdleBytes": 40 * 1024 * 1024,
                 "applyPeakOverIdleBytes": 30 * 1024 * 1024,
+                "files": [
+                    {
+                        "createPeakOverIdleBytes": 40 * 1024 * 1024,
+                        "applyPeakOverIdleBytes": 30 * 1024 * 1024,
+                    }
+                ],
             }
+        rounds = []
+        for index in range(5):
+            candidates = []
+            for lane in EVALUATOR.LANES:
+                wall, cpu, _ = lane_overrides.get(lane, defaults[lane])
+                candidates.append(
+                    {
+                        "lane": lane,
+                        "aggregate": {
+                            "wallSeconds": 100.0 * wall,
+                            "cpuSeconds": 100.0 * cpu,
+                            "patchBytes": patch_bytes[lane],
+                        },
+                    }
+                )
+            rounds.append(
+                {
+                    "round": index + 1,
+                    "h0Start": {"wallSeconds": 100.0, "cpuSeconds": 100.0},
+                    "h0End": {"wallSeconds": 100.0, "cpuSeconds": 100.0},
+                    "candidates": candidates,
+                }
+            )
         platforms[platform] = {
+            "rounds": rounds,
             "timing": timing,
             "applyWallSeconds": apply,
             "memory": memory,
@@ -143,7 +173,14 @@ def synthetic_artifacts(root: Path):
         candidates = [
             {
                 "lane": lane,
-                "aggregate": {"patchBytes": PATCH_BYTES[lane]},
+                "aggregate": {
+                    "wallSeconds": 45.0 if lane in ("H4-L1-R2", "H7-L1-R2-E75") else 120.0,
+                    "cpuSeconds": 70.0 if lane in ("H4-L1-R2", "H7-L1-R2-E75") else 90.0,
+                    "patchBytes": PATCH_BYTES[lane],
+                    "allocatedBytes": 1,
+                    "baseReads": 1,
+                    "baseBytesRead": 1,
+                },
                 "wallRatio": 0.45 if lane in ("H4-L1-R2", "H7-L1-R2-E75") else 1.2,
                 "cpuRatio": 0.7 if lane in ("H4-L1-R2", "H7-L1-R2-E75") else 0.9,
             }
@@ -165,8 +202,22 @@ def synthetic_artifacts(root: Path):
         rounds = [
             {
                 "round": index + 1,
-                "h0Start": {"patchBytes": 1000},
-                "h0End": {"patchBytes": 1000},
+                "h0Start": {
+                    "wallSeconds": 100.0,
+                    "cpuSeconds": 100.0,
+                    "patchBytes": 1000,
+                    "allocatedBytes": 1,
+                    "baseReads": 1,
+                    "baseBytesRead": 1,
+                },
+                "h0End": {
+                    "wallSeconds": 100.0,
+                    "cpuSeconds": 100.0,
+                    "patchBytes": 1000,
+                    "allocatedBytes": 1,
+                    "baseReads": 1,
+                    "baseBytesRead": 1,
+                },
                 "bracketNoisy": False,
                 "candidates": candidates,
             }
@@ -217,6 +268,8 @@ def synthetic_artifacts(root: Path):
                     "files": [
                         {
                             **FILE_KEY,
+                            "baseSize": 2 * 1024 * 1024,
+                            "targetSize": 2 * 1024 * 1024,
                             "createPeakBytes": 60 * 1024 * 1024,
                             "applyPeakBytes": 50 * 1024 * 1024,
                         }
