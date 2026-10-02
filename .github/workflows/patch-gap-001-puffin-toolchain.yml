@@ -130,7 +130,7 @@ jobs:
           )
 
           printf '%s\n' \
-            'c++ -O2 -g0 -Wall -Wextra -Werror -std=c++17 -D_FILE_OFFSET_BITS=64' \
+            'c++ -O2 -g0 -Wall -Wextra -Werror -std=c++17 -D_FILE_OFFSET_BITS=64 -include cstdint -include limits.h' \
             '-I"$RUNNER_TEMP" -I"$PUFFIN_SOURCE/src/include"' \
             '"$GITHUB_WORKSPACE/benchmarks/tools/patch_gap_puffin_locator.cc"' \
             '"$PUFFIN_SOURCE/src/{bit_reader,bit_writer,file_stream,huffer,huffman_table,memory_stream,puff_reader,puff_writer,puffer,puffin_stream,utils}.cc"' \
@@ -145,6 +145,8 @@ jobs:
             -Werror \
             -std=c++17 \
             -D_FILE_OFFSET_BITS=64 \
+            -include cstdint \
+            -include limits.h \
             -I"$RUNNER_TEMP" \
             -I"$PUFFIN_SOURCE/src/include" \
             "$GITHUB_WORKSPACE/benchmarks/tools/patch_gap_puffin_locator.cc" \
