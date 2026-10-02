@@ -142,7 +142,6 @@ jobs:
             -g0 \
             -Wall \
             -Wextra \
-            \
             -std=c++17 \
             -D_FILE_OFFSET_BITS=64 \
             -include cstdint \
