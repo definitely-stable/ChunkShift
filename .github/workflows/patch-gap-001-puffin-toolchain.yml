@@ -1,0 +1,352 @@
+name: PATCH-GAP-001 Puffin toolchain
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: patch-gap-001-puffin-toolchain
+  cancel-in-progress: false
+
+env:
+  AOSP_TAG: android-17.0.0_r1
+  AOSP_BUILD_ID: CP2A.260605.016
+  AOSP_LUNCH_TARGET: aosp_x86_64-trunk_staging-eng
+  PUFFIN_COMMIT: 343e23db1b4d81045e91a10244244893f5acd73b
+  PLATFORM_BUILD_COMMIT: 5ce6f787337d0223710bf7d4a16dbe6d2a35f777
+  SYNC_JOBS: "16"
+  BUILD_JOBS: "16"
+
+jobs:
+  build:
+    name: build-stock-puffin
+    runs-on: [self-hosted, linux, x64, aosp-build]
+    timeout-minutes: 720
+
+    steps:
+      - name: Validate producer identity and runner capacity
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "The pinned Puffin producer must run from main." >&2
+            exit 2
+          fi
+          if [[ "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
+            echo "The pinned Puffin producer rejects GitHub workflow re-runs." >&2
+            exit 2
+          fi
+
+          for command in repo git python3 sha256sum ldd readelf; do
+            command -v "$command" >/dev/null || {
+              echo "Required command is unavailable: $command" >&2
+              exit 2
+            }
+          done
+
+          work_base="${CHUNKSHIFT_AOSP_WORK_ROOT:-$RUNNER_TEMP}"
+          mkdir -p "$work_base"
+          work_base="$(realpath "$work_base")"
+
+          memory_kib="$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)"
+          disk_kib="$(df -Pk "$work_base" | awk 'NR == 2 {print $4}')"
+          min_memory_kib=$((64 * 1024 * 1024))
+          min_disk_kib=$((400 * 1024 * 1024))
+          if (( memory_kib < min_memory_kib )); then
+            echo "AOSP producer requires at least 64 GiB RAM; found ${memory_kib} KiB." >&2
+            exit 2
+          fi
+          if (( disk_kib < min_disk_kib )); then
+            echo "AOSP producer requires at least 400 GiB free workspace; found ${disk_kib} KiB." >&2
+            exit 2
+          fi
+
+          aosp_root="$work_base/chunkshift-aosp-$GITHUB_RUN_ID"
+          package_dir="$RUNNER_TEMP/patch-gap-001-puffin-toolchain-$GITHUB_RUN_ID"
+          if [[ -e "$aosp_root" || -e "$package_dir" ]]; then
+            echo "Producer workspace already exists; refusing to reuse mutable state." >&2
+            exit 2
+          fi
+          mkdir -p "$aosp_root" "$package_dir"
+
+          {
+            echo "AOSP_WORK_BASE=$work_base"
+            echo "AOSP_ROOT=$aosp_root"
+            echo "PACKAGE_DIR=$package_dir"
+          } >> "$GITHUB_ENV"
+
+      - name: Checkout ChunkShift producer definition
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify clean producer checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=normal)"
+
+      - name: Sync frozen AOSP source
+        shell: bash
+        working-directory: ${{ env.AOSP_ROOT }}
+        run: |
+          set -euo pipefail
+          repo init \
+            -u https://android.googlesource.com/platform/manifest \
+            -b "$AOSP_TAG" \
+            --depth=1
+          repo sync \
+            -c \
+            --no-tags \
+            --no-clone-bundle \
+            --fail-fast \
+            -j"$SYNC_JOBS"
+
+          test "$(git -C external/puffin rev-parse HEAD)" = "$PUFFIN_COMMIT"
+          test "$(git -C build/make rev-parse HEAD)" = "$PLATFORM_BUILD_COMMIT"
+
+          actual_build_id="$(
+            sed -n 's/^[[:space:]]*BUILD_ID[[:space:]]*[:?+]*=[[:space:]]*//p' \
+              build/make/core/build_id.mk | head -n1
+          )"
+          test "$actual_build_id" = "$AOSP_BUILD_ID"
+
+          repo manifest -r -o "$PACKAGE_DIR/source-manifest.xml"
+
+      - name: Build stock AOSP Puffin host binary
+        shell: bash
+        working-directory: ${{ env.AOSP_ROOT }}
+        run: |
+          set -euo pipefail
+
+          build_command="source build/envsetup.sh && lunch $AOSP_LUNCH_TARGET && m -j$BUILD_JOBS puffin"
+          printf '%s\n' "$build_command" > "$PACKAGE_DIR/build-command.txt"
+
+          source build/envsetup.sh
+          lunch "$AOSP_LUNCH_TARGET" | tee "$PACKAGE_DIR/lunch.txt"
+          m -j"$BUILD_JOBS" puffin 2>&1 | tee "$PACKAGE_DIR/build.log"
+
+          puffin="$AOSP_ROOT/out/host/linux-x86/bin/puffin"
+          test -x "$puffin"
+          "$puffin" --help > "$PACKAGE_DIR/puffin-help.txt" 2>&1
+          ldd "$puffin" > "$PACKAGE_DIR/ldd.txt"
+          if grep -F "not found" "$PACKAGE_DIR/ldd.txt"; then
+            echo "Stock Puffin has unresolved runtime dependencies." >&2
+            exit 2
+          fi
+          readelf -p .comment "$puffin" > "$PACKAGE_DIR/readelf-comment.txt" 2>&1 || true
+
+          mkdir -p "$PACKAGE_DIR/bin" "$PACKAGE_DIR/lib64"
+          cp -- "$puffin" "$PACKAGE_DIR/bin/puffin"
+          chmod 0755 "$PACKAGE_DIR/bin/puffin"
+
+          python3 - "$PACKAGE_DIR/ldd.txt" "$AOSP_ROOT/out/host/linux-x86" "$PACKAGE_DIR/lib64" <<'PY'
+          import pathlib
+          import shutil
+          import sys
+
+          ldd_path = pathlib.Path(sys.argv[1])
+          host_root = pathlib.Path(sys.argv[2]).resolve()
+          destination = pathlib.Path(sys.argv[3])
+          copied = set()
+
+          for line in ldd_path.read_text(encoding="utf-8", errors="strict").splitlines():
+              fields = line.strip().split()
+              candidate = None
+              if "=>" in fields:
+                  pos = fields.index("=>")
+                  if pos + 1 < len(fields) and fields[pos + 1].startswith("/"):
+                      candidate = fields[pos + 1]
+              elif fields and fields[0].startswith("/"):
+                  candidate = fields[0]
+
+              if candidate is None:
+                  continue
+              source = pathlib.Path(candidate).resolve()
+              try:
+                  source.relative_to(host_root)
+              except ValueError:
+                  continue
+
+              target = destination / pathlib.Path(candidate).name
+              if target.name in copied:
+                  if target.read_bytes() != source.read_bytes():
+                      raise SystemExit(f"runtime library basename collision: {target.name}")
+                  continue
+              shutil.copy2(source, target)
+              copied.add(target.name)
+          PY
+
+      - name: Capture exact build provenance
+        shell: bash
+        working-directory: ${{ env.AOSP_ROOT }}
+        run: |
+          set -euo pipefail
+
+          {
+            echo "repo:"
+            repo version
+            echo
+            echo "git:"
+            git --version
+            echo
+            echo "python:"
+            python3 --version
+            echo
+            echo "kernel:"
+            uname -a
+            echo
+            echo "os-release:"
+            cat /etc/os-release
+          } > "$PACKAGE_DIR/host-environment.txt"
+
+          binary_sha="$(sha256sum "$PACKAGE_DIR/bin/puffin" | cut -d' ' -f1)"
+          manifest_sha="$(sha256sum "$PACKAGE_DIR/source-manifest.xml" | cut -d' ' -f1)"
+          command_sha="$(sha256sum "$PACKAGE_DIR/build-command.txt" | cut -d' ' -f1)"
+          help_sha="$(sha256sum "$PACKAGE_DIR/puffin-help.txt" | cut -d' ' -f1)"
+          ldd_sha="$(sha256sum "$PACKAGE_DIR/ldd.txt" | cut -d' ' -f1)"
+          environment_sha="$(sha256sum "$PACKAGE_DIR/host-environment.txt" | cut -d' ' -f1)"
+
+          python3 - \
+            "$PACKAGE_DIR/build-provenance.json" \
+            "$GITHUB_SHA" \
+            "$GITHUB_RUN_ID" \
+            "$AOSP_TAG" \
+            "$AOSP_BUILD_ID" \
+            "$AOSP_LUNCH_TARGET" \
+            "$PUFFIN_COMMIT" \
+            "$PLATFORM_BUILD_COMMIT" \
+            "$SYNC_JOBS" \
+            "$BUILD_JOBS" \
+            "$binary_sha" \
+            "$manifest_sha" \
+            "$command_sha" \
+            "$help_sha" \
+            "$ldd_sha" \
+            "$environment_sha" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          (
+              output,
+              chunkshift_source_commit,
+              producer_run_id,
+              aosp_tag,
+              aosp_build_id,
+              lunch_target,
+              puffin_commit,
+              platform_build_commit,
+              sync_jobs,
+              build_jobs,
+              binary_sha,
+              manifest_sha,
+              command_sha,
+              help_sha,
+              ldd_sha,
+              environment_sha,
+          ) = sys.argv[1:]
+
+          document = {
+              "schema": "chunkshift.patch-gap-puffin-toolchain.v1",
+              "chunkShiftSourceCommit": chunkshift_source_commit.lower(),
+              "producerRunId": int(producer_run_id),
+              "aospTag": aosp_tag,
+              "aospBuildId": aosp_build_id,
+              "aospLunchTarget": lunch_target,
+              "puffinCommit": puffin_commit,
+              "platformBuildCommit": platform_build_commit,
+              "syncJobs": int(sync_jobs),
+              "buildJobs": int(build_jobs),
+              "binarySha256": binary_sha,
+              "sourceManifestSha256": manifest_sha,
+              "buildCommandSha256": command_sha,
+              "helpOutputSha256": help_sha,
+              "lddSha256": ldd_sha,
+              "hostEnvironmentSha256": environment_sha,
+          }
+          pathlib.Path(output).write_text(
+              json.dumps(document, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+              newline="\n",
+          )
+          PY
+
+          (
+            cd "$PACKAGE_DIR"
+            find . -type f ! -name SHA256SUMS -print0 \
+              | LC_ALL=C sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Validate packaged Puffin in a clean runtime view
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          env -i \
+            HOME="$HOME" \
+            PATH="/usr/bin:/bin" \
+            LD_LIBRARY_PATH="$PACKAGE_DIR/lib64" \
+            "$PACKAGE_DIR/bin/puffin" --help >/dev/null
+
+          provenance_sha="$(sha256sum "$PACKAGE_DIR/build-provenance.json" | cut -d' ' -f1)"
+          binary_sha="$(sha256sum "$PACKAGE_DIR/bin/puffin" | cut -d' ' -f1)"
+          {
+            echo "### PATCH-GAP-001 Puffin toolchain"
+            echo
+            echo "- producer run: `$GITHUB_RUN_ID`"
+            echo "- ChunkShift source: `$GITHUB_SHA`"
+            echo "- AOSP tag: `$AOSP_TAG`"
+            echo "- Android build ID: `$AOSP_BUILD_ID`"
+            echo "- Puffin commit: `$PUFFIN_COMMIT`"
+            echo "- binary SHA-256: `$binary_sha`"
+            echo "- build provenance SHA-256: `$provenance_sha`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload pinned Puffin toolchain artifact
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-001-puffin-toolchain
+          path: ${{ env.PACKAGE_DIR }}/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Record artifact identity
+        shell: bash
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          {
+            echo "- Actions artifact id: `$ARTIFACT_ID`"
+            echo "- Actions artifact digest: `$ARTIFACT_DIGEST`"
+            echo "- Retention: 90 days"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean AOSP workspace
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${AOSP_ROOT:-}" || -z "${AOSP_WORK_BASE:-}" ]]; then
+            exit 0
+          fi
+          base="$(realpath -m "$AOSP_WORK_BASE")"
+          root="$(realpath -m "$AOSP_ROOT")"
+          case "$root" in
+            "$base"/chunkshift-aosp-"$GITHUB_RUN_ID")
+              rm -rf -- "$root"
+              ;;
+            *)
+              echo "Refusing unsafe AOSP cleanup path: $root" >&2
+              exit 2
+              ;;
+          esac
