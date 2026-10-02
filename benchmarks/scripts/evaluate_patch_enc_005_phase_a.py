@@ -190,8 +190,12 @@ def compact_aggregate(value: dict, label: str) -> dict:
         "allocatedBytes": int(value.get("allocatedBytes", -1)),
         "baseReads": int(value.get("baseReads", -1)),
         "baseBytesRead": int(value.get("baseBytesRead", -1)),
+        "baseSeeks": int(value.get("baseSeeks", -1)),
     }
-    if any(result[name] < 0 for name in ("patchBytes", "allocatedBytes", "baseReads", "baseBytesRead")):
+    if any(
+        result[name] < 0
+        for name in ("patchBytes", "allocatedBytes", "baseReads", "baseBytesRead", "baseSeeks")
+    ):
         raise ValueError(f"{label}: aggregate counters must be non-negative")
     return result
 
