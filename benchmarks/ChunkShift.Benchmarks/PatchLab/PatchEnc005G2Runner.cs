@@ -317,7 +317,7 @@ internal static class PatchEnc005G2Runner
         foreach (int start in candidateStarts)
         {
             if (!CspPatchBuilder.TryMeasureCandidate(
-                    (List<CspPatchBuilder.BaseRecord>)baseRecords,
+                    baseRecords,
                     start,
                     CspEncoderPolicy.Default,
                     out int count,
