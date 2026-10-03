@@ -204,9 +204,13 @@ def validate_choice(row: dict, prefix: str, target_length: int) -> None:
     elif encoding == "zstd":
         if refs != 0:
             raise ValueError(f"{prefix}: no-dictionary zstd cannot name refs")
+        if cost >= target_length:
+            raise ValueError(f"{prefix}: zstd winner must strictly beat raw")
     else:
         if refs < 1:
             raise ValueError(f"{prefix}: dictionary encoding requires refs")
+        if cost >= target_length:
+            raise ValueError(f"{prefix}: dictionary winner must strictly beat raw")
 
     if encoding == "zstd-dictionary":
         if (
@@ -292,8 +296,11 @@ def validate_oracle(sample: dict, oracle: dict) -> None:
         elif distance is not None:
             raise ValueError(f"oracle row {ordinal}: non-dictionary winner has distance")
 
-        if row["h0Encoding"] == "zstd-dictionary" and row["h0StartIndex"] >= starts:
-            raise ValueError(f"oracle row {ordinal}: H0 start index is outside the base")
+        if row["h0Encoding"] == "zstd-dictionary":
+            if row["h0StartIndex"] >= starts:
+                raise ValueError(f"oracle row {ordinal}: H0 start index is outside the base")
+            if valid == 0:
+                raise ValueError(f"oracle row {ordinal}: H0 dictionary winner requires a valid candidate")
 
 
 def evaluate(sample: dict, oracle: dict) -> dict:
