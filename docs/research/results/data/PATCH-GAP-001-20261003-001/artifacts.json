@@ -1,0 +1,190 @@
+{
+  "artifacts": [
+    {
+      "artifactId": 11266936475,
+      "containedFiles": [
+        {
+          "bytes": 1302,
+          "path": "SHA256SUMS",
+          "sha256": "6d82dc98046bb11a6e3adf078e7aafe9ac3e0e27100c2684cedb7b63745058f3"
+        },
+        {
+          "bytes": 6437,
+          "path": "adapter-source.cc",
+          "sha256": "49bbd1dc5ab712e18264f26403174e2ac2512ba0ffda3ffd830826c749194d98"
+        },
+        {
+          "bytes": 198216,
+          "path": "bin/puffin",
+          "sha256": "da797869ec3b4f8d4805d48b92d7377a4c26c3457111aefe76c9a3a7674b8178"
+        },
+        {
+          "bytes": 400,
+          "path": "build-command.txt",
+          "sha256": "ce674f59285bd643a5ee820f5280472918a4dae2aedaa3e1e3adc8e53502d4c9"
+        },
+        {
+          "bytes": 1110,
+          "path": "build-provenance.json",
+          "sha256": "c0288a7c2968f6c7b68a394bd1ade1df043246c1f36293742f04291032d68838"
+        },
+        {
+          "bytes": 246,
+          "path": "compiler-version.txt",
+          "sha256": "88b7c4b67564a146863224148116065fee418539f0a408f3636a68f3bde51805"
+        },
+        {
+          "bytes": 878,
+          "path": "host-environment.txt",
+          "sha256": "5a6e1ea41f2f4ec17b6cf5a86d41ab4c3dc69f04c7ee577fc32a4d52c89cde40"
+        },
+        {
+          "bytes": 882,
+          "path": "ldd-packaged.txt",
+          "sha256": "d0126f2386f47efac35ebf089c458e4eb7d1271051dcf5391ccf2e0e0d948c61"
+        },
+        {
+          "bytes": 678,
+          "path": "ldd.txt",
+          "sha256": "dffcde38c6be83481846b89828dd8b3831f31638869d9308106a430da1b9442a"
+        },
+        {
+          "bytes": 130056,
+          "path": "lib64/libgflags.so.2.2",
+          "sha256": "288df2caa66a2de606532a8796fe1efc93d07ec0c3ab41bc38743b70ba304a75"
+        },
+        {
+          "bytes": 155096,
+          "path": "lib64/libglog.so.1",
+          "sha256": "cc080fc134a77c4a2e415e2143566aa925d01a858592a9e660eb5430c56bddf1"
+        },
+        {
+          "bytes": 202904,
+          "path": "lib64/liblzma.so.5",
+          "sha256": "696e868dd0700a19a6d65fc01608ec2d70d3cb91f65710e89180cd2e688f30cb"
+        },
+        {
+          "bytes": 63776,
+          "path": "lib64/libunwind.so.8",
+          "sha256": "28e77a498f2f17f8cb883c91303f9901343ea0d8e34959d138dd462fcc9b201f"
+        },
+        {
+          "bytes": 40070,
+          "path": "package-versions.txt",
+          "sha256": "13759d0290d68714611a6e53321f1f6552687b472d94054d3abd9633eaf76d92"
+        },
+        {
+          "bytes": 166,
+          "path": "puffin-help.txt",
+          "sha256": "b21c30651ae09c39f7cf7351ed3924b7a4f30c79075fc145c4d7c05866c7b694"
+        },
+        {
+          "bytes": 149,
+          "path": "puffin-source-identity.txt",
+          "sha256": "febd84a88b95a1bd17fcd04ef5fff02907a3d416eaebe3ce40393b8aca828845"
+        }
+      ],
+      "createdUtc": "2026-10-03T06:05:47Z",
+      "expiresUtc": "2027-01-01T06:05:13Z",
+      "name": "patch-gap-001-puffin-toolchain",
+      "rawArtifactBytes": 351513,
+      "rawArtifactSha256": "d03f7b1de81cdb8bcdb9cc3ce2a012af55fa3bdd0244b9268e7500af653fa5ef",
+      "retentionDays": 90,
+      "workflowRunId": 37101894709
+    },
+    {
+      "artifactId": 11266132476,
+      "containedFiles": [
+        {
+          "bytes": 1031908,
+          "path": "evidence/evidence-input/g4.json",
+          "sha256": "d2bf3e49da5ddf228e67abbd03fdc7d97af403a88804858dca3de4075e225ad6"
+        },
+        {
+          "bytes": 1257994,
+          "path": "evidence/evidence-input/g5-structural.json",
+          "sha256": "9440f496d589eacc8054524371428c4c264cce6704a9ca32b327f8b940d015c8"
+        },
+        {
+          "bytes": 2931,
+          "path": "evidence/evidence-input/puffin-locator.json",
+          "sha256": "913378e1636f782fd7191011089ccfc7ac1262bf82413aa991b7948ada6ebd27"
+        },
+        {
+          "bytes": 532201,
+          "path": "evidence/inputs.json",
+          "sha256": "540024135942bab4d8d7dc646dbbf20090b4fbaa43b9d9be45bc6754140ae36e"
+        },
+        {
+          "bytes": 1787,
+          "path": "evidence/inventory-lock-run.json",
+          "sha256": "93a41b79e892db9f816edf45ed7764b07b24120e15ea6d0712fbf9bf8179c246"
+        },
+        {
+          "bytes": 1031908,
+          "path": "evidence/subsets/g4.json",
+          "sha256": "d2bf3e49da5ddf228e67abbd03fdc7d97af403a88804858dca3de4075e225ad6"
+        },
+        {
+          "bytes": 1795597,
+          "path": "evidence/subsets/g5.json",
+          "sha256": "641dcd9c80c431df28b57e3d579e6f0a68f2c9ad40577fc309ec17115db73c86"
+        },
+        {
+          "bytes": 1110,
+          "path": "evidence/tool-provenance/puffin-build-provenance.bin",
+          "sha256": "c0288a7c2968f6c7b68a394bd1ade1df043246c1f36293742f04291032d68838"
+        },
+        {
+          "bytes": 1666,
+          "path": "evidence/tools.json",
+          "sha256": "2b46837a0835876669b092f6f87f646625da9ee49cfd97c59821841686a6dbd7"
+        },
+        {
+          "bytes": 1031908,
+          "path": "prepass/g4.json",
+          "sha256": "d2bf3e49da5ddf228e67abbd03fdc7d97af403a88804858dca3de4075e225ad6"
+        },
+        {
+          "bytes": 1257994,
+          "path": "prepass/g5-structural.json",
+          "sha256": "9440f496d589eacc8054524371428c4c264cce6704a9ca32b327f8b940d015c8"
+        },
+        {
+          "bytes": 1540,
+          "path": "prepass/inventory-run.json",
+          "sha256": "d1fc3ca116465e956642414307a0250246be644c9a0d7cc9929c63093b3e51d4"
+        },
+        {
+          "bytes": 2931,
+          "path": "prepass/puffin-locator.json",
+          "sha256": "913378e1636f782fd7191011089ccfc7ac1262bf82413aa991b7948ada6ebd27"
+        },
+        {
+          "bytes": 2182,
+          "path": "stage-a-summary.json",
+          "sha256": "c18a77556b2f3914fcddd745b5dd8fcbc39db97bd9ddc6689bc5ec983c04d223"
+        },
+        {
+          "bytes": 968,
+          "path": "stage-a-summary.md",
+          "sha256": "649cc4be3eaa5ad9cc790a8e87accb0cfc717597b5556b6524a34b1eb85fb780"
+        },
+        {
+          "bytes": 1203,
+          "path": "toolchain-producer.json",
+          "sha256": "7795a1553d1c8683b7bbbe179d73012f77e7fb0f143e3af672eafd9ba4846c46"
+        }
+      ],
+      "createdUtc": "2026-10-03T06:07:21Z",
+      "expiresUtc": "2027-01-01T06:05:54Z",
+      "name": "patch-gap-001-stage-a-3-d43986e3f4a07806cbd5adaf96dd2a9f2cdae383",
+      "rawArtifactBytes": 760079,
+      "rawArtifactSha256": "e72c20c967645a3f8efec1ad6668d4b97063b207ec9e83469c57a5e4d0b227b3",
+      "retentionDays": 90,
+      "workflowRunId": 37101930398
+    }
+  ],
+  "protocolCommit": "5372678ae8451a71cc95eb24f30855cbbd7e0633",
+  "schema": "chunkshift.patch-gap-artifacts.v1"
+}
