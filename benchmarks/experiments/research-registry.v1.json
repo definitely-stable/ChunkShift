@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-09-30",
+  "updated": "2026-10-03",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -343,8 +343,11 @@
         7
       ],
       "area": "patching",
-      "status": "PLANNED",
-      "question": "same-bytes create throughput: base-window cache, bounded parallel encoding"
+      "status": "ADOPT",
+      "question": "same-bytes create throughput: base-window cache, bounded parallel encoding",
+      "protocol": "docs/benchmarks/PATCH-ENC-004-PROTOCOL.md",
+      "evidence": "docs/research/results/PATCH-ENC-004-EVIDENCE-20261001-001.md",
+      "decision": "H2-W2 workers adopted; H1 cache rejected"
     },
     {
       "id": "PATCH-ENC-005",
@@ -354,8 +357,11 @@
         151
       ],
       "area": "patching",
-      "status": "PLANNED",
-      "question": "dictionary-candidate search: ranking, resemblance sketches, early exit, level ladder"
+      "status": "EVIDENCE_READY",
+      "question": "dictionary-candidate search: ranking, resemblance sketches, early exit, level ladder",
+      "protocol": "docs/benchmarks/PATCH-ENC-005-PROTOCOL.md",
+      "evidence": "docs/research/results/PATCH-ENC-005-EVIDENCE-20261003-001.md",
+      "decision": "Partial Phase A capture is INCOMPLETE; H7 fails the frozen H4 byte-equality oracle; no production decision"
     },
     {
       "id": "PATCH-APPLY-002",
@@ -386,8 +392,11 @@
         7
       ],
       "area": "patching-research",
-      "status": "PLANNED",
-      "question": "decompose the CSP size gap to zstd --patch-from, bsdiff, HDiffPatch, Zucchini"
+      "status": "RUNNING",
+      "question": "decompose the CSP size gap to zstd --patch-from, bsdiff, HDiffPatch, Zucchini",
+      "protocol": "docs/benchmarks/PATCH-GAP-001-PROTOCOL.md",
+      "evidence": "docs/research/results/PATCH-GAP-001-EVIDENCE-20261003-001.md",
+      "decision": "Stage-A inventory locked; G5 NOT_PRESENT on frozen corpus; no size verdict"
     },
     {
       "id": "PATCH-TREE-001",
