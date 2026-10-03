@@ -213,7 +213,7 @@ internal static class PatchEnc005G2Runner
                     CspPatchBuilder.FindCandidateStarts(
                         baseRecords,
                         row.TargetOffset,
-                        CspEncoderPolicy.Default),
+                        PatchEnc005G2Protocol.FrozenH0Policy),
                     target,
                     dictionaryBuffer,
                     cancellationToken).ConfigureAwait(false);
@@ -312,7 +312,7 @@ internal static class PatchEnc005G2Runner
             if (!CspPatchBuilder.TryMeasureCandidate(
                     baseRecords,
                     start,
-                    CspEncoderPolicy.Default,
+                    PatchEnc005G2Protocol.FrozenH0Policy,
                     out int count,
                     out int length))
             {
