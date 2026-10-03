@@ -21,10 +21,14 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
-      - name: Reject workflow re-runs
+      - name: Validate sample-lock provenance
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "G2 sample lock must be materialized from merged main." >&2
+            exit 2
+          fi
           if [[ "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
             echo "G2 sample lock rejects GitHub workflow re-runs." >&2
             exit 2
