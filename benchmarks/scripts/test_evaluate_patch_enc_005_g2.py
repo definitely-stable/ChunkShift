@@ -174,6 +174,38 @@ class PatchEnc005G2EvaluatorTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "sample file SHA-256 mismatch"):
                 MODULE.validate_lock(sample_path, lock_path)
 
+    def test_oracle_rejects_run_id_source_mismatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sample_path, lock_path, sample = self.make_sample(Path(directory))
+            loaded, _ = MODULE.validate_lock(sample_path, lock_path)
+            oracle = self.make_oracle(sample, {pair: 90 for pair in MODULE.PAIR_KEYS})
+            oracle["runId"] = (
+                "PATCH-ENC-005/RUN-20261004-001-" + ("b" * 40) + "-linux-x64"
+            )
+
+            with self.assertRaisesRegex(ValueError, "runId source commit"):
+                MODULE.evaluate(loaded, oracle)
+
+    def test_oracle_rejects_dictionary_distance_mismatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sample_path, lock_path, sample = self.make_sample(Path(directory))
+            loaded, _ = MODULE.validate_lock(sample_path, lock_path)
+            oracle = self.make_oracle(sample, {pair: 90 for pair in MODULE.PAIR_KEYS})
+            row = oracle["rows"][0]
+            row["oracleEncoding"] = "zstd-dictionary"
+            row["oracleStoredBytes"] = 1
+            row["oracleDictionaryRefs"] = 1
+            row["oracleCostBytes"] = 33
+            row["oracleStartIndex"] = 0
+            row["oracleStartOffset"] = 50
+            row["oracleRecordCount"] = 1
+            row["oracleFirstChunkId"] = "c" * 64
+            row["oracleStartDistanceBytes"] = 49
+            row["savedBytes"] = 67
+
+            with self.assertRaisesRegex(ValueError, "dictionary distance mismatch"):
+                MODULE.evaluate(loaded, oracle)
+
     def test_oracle_rejects_ref32_cost_mismatch(self):
         with tempfile.TemporaryDirectory() as directory:
             sample_path, lock_path, sample = self.make_sample(Path(directory))
