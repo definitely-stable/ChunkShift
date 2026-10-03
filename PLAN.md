@@ -1,7 +1,7 @@
 # ChunkShift implementation plan
 
 Status: Active  
-Last reviewed: 2026-09-28
+Last reviewed: 2026-10-03
 
 Program order: [ROADMAP.md](ROADMAP.md)  
 Release policy: [docs/RELEASES.md](docs/RELEASES.md)  
@@ -333,14 +333,16 @@ Evidence:
 
 Experiment map for the remaining work (ROADMAP "Patching gate" lists the exit items):
 
+Current release-critical order (2026-10-03): finish `PATCH-ENC-005` under the frozen protocol, then #140 CLI contract, Patching public-API freeze, and the publication-repository port. The completed D13/#168 check path under #182 and the research tracks below do not block that order.
+
 | ExperimentId | Issue | Question | Exit item |
 | --- | --- | --- | --- |
 | `PATCH-ENC-003` | #179 | dictionary loading mode and caps vs the create peak (D8, D17) | done: ADOPT ([record](docs/research/results/PATCH-ENC-003-EVIDENCE-20260929-001.md)); A2 of `PATCH-APPLY-001` holds ([record](docs/research/results/PATCH-APPLY-001-EVIDENCE-20260929-001.md)) |
 | `PATCH-APPLY-002` | [#182](https://github.com/definitely-stable/ChunkShift/issues/182) | cheaper re-chunk check and apply pipeline (D13, #168) | yes; the check lanes run as `PATCH-APPLY-003` |
 | `PATCH-APPLY-003` | [#182](https://github.com/definitely-stable/ChunkShift/issues/182) | the check lanes with win-x64 on a GitHub runner (D13, #168) | yes: A2 ADOPT ([record](docs/research/results/PATCH-APPLY-003-EVIDENCE-20260929-001.md)); A1a built, and rule 2 does not hold on lane `boundary` ([record](docs/research/results/PATCH-APPLY-003-EVIDENCE-20260930-001.md)) |
-| `PATCH-ENC-004` | [#181](https://github.com/definitely-stable/ChunkShift/issues/181) | same-bytes create throughput: base-window cache, bounded parallel encoding | yes |
-| `PATCH-ENC-005` | [#181](https://github.com/definitely-stable/ChunkShift/issues/181) | dictionary-candidate search: ranking, resemblance sketches, level ladder (D15) | yes |
-| `PATCH-GAP-001` | [#183](https://github.com/definitely-stable/ChunkShift/issues/183) | size gap to `zstd --patch-from`, bsdiff, HDiffPatch, Zucchini | no (informs a CSP revision) |
+| `PATCH-ENC-004` | [#181](https://github.com/definitely-stable/ChunkShift/issues/181) | same-bytes create throughput: base-window cache, bounded parallel encoding | done: ADOPT H2-W2 workers; H1 cache REJECT ([record](docs/research/results/PATCH-ENC-004-EVIDENCE-20261001-001.md)) |
+| `PATCH-ENC-005` | [#181](https://github.com/definitely-stable/ChunkShift/issues/181) | dictionary-candidate search: ranking, resemblance sketches, level ladder (D15) | current blocker: partial Phase A is `INCOMPLETE`; H7 fails its frozen H4 byte oracle on 83/1,049 calibration files; no finalist/adoption/default change ([record](docs/research/results/PATCH-ENC-005-EVIDENCE-20261003-001.md)) |
+| `PATCH-GAP-001` | [#183](https://github.com/definitely-stable/ChunkShift/issues/183) | size gap to `zstd --patch-from`, bsdiff, HDiffPatch, Zucchini | non-blocking/RUNNING: Stage-A inventory locked G4/G5; G5 `NOT_PRESENT`; no size verdict ([record](docs/research/results/PATCH-GAP-001-EVIDENCE-20261003-001.md)) |
 | `PATCH-TREE-001` | [#184](https://github.com/definitely-stable/ChunkShift/issues/184) | update sets: cross-file base reuse, tree manifest | no (informs an update-set RFC) |
 | `TRUST-SIG-001` | [#185](https://github.com/definitely-stable/ChunkShift/issues/185) | detached trust envelope and update policy (RFC-0004 §4–§5) | no; required before launcher-facing guidance |
 
