@@ -1,0 +1,93 @@
+name: TEMP PATCH-ENC-005 G2 lock artifact
+
+on:
+  push:
+    branches:
+      - research/181-g2-sample-lock
+    paths:
+      - .github/workflows/patch-enc-005-g2-lock-artifact.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  lock:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout sample-lock branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Download immutable sample artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/g2-lock
+          gh run download 37143841107             --repo "$GITHUB_REPOSITORY"             --name patch-enc-005-g2-sample-d406a90fdf8d7fc7944975b7f1667129a8ab5df9             --dir /tmp/g2-lock
+
+      - name: Validate frozen sample before commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          p = Path("/tmp/g2-lock/sample.json")
+          raw = p.read_bytes()
+          d = json.loads(raw)
+
+          assert d["schema"] == "chunkshift.patch-g2-sample.v1"
+          assert d["experimentId"] == "PATCH-ENC-005"
+          assert d["protocolCommit"] == "96fd9b296d6998cac397e61041f22df51e6dd43c"
+          assert d["sourceCommit"] == "d406a90fdf8d7fc7944975b7f1667129a8ab5df9"
+          assert d["datasetRole"] == "calibration"
+          assert d["datasetSha256"] == "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd"
+
+          rows = d["rows"]
+          assert len(rows) == 256
+          pairs = Counter((r["family"], r["baseVersion"], r["targetVersion"]) for r in rows)
+          expected = {
+              ("dotnet-aspnetcore-win-x64", "10.0.10", "10.0.11"): 64,
+              ("dotnet-aspnetcore-win-x64", "10.0.11", "10.0.12"): 64,
+              ("dotnet-runtime-linux-arm64", "10.0.10", "10.0.11"): 64,
+              ("dotnet-runtime-linux-arm64", "10.0.11", "10.0.12"): 64,
+          }
+          assert pairs == expected
+
+          for r in rows:
+              fields = [
+                  r["family"], r["baseVersion"], r["targetVersion"],
+                  r["path"], r["targetChunkId"], str(r["targetIndex"]),
+              ]
+              actual = hashlib.sha256(b"\x00".join(x.encode("utf-8") for x in fields)).hexdigest()
+              assert actual == r["sampleKeySha256"]
+
+          canonical = json.dumps(
+              rows,
+              ensure_ascii=False,
+              separators=(",", ":"),
+          ).encode("utf-8")
+          oracle_hash = hashlib.sha256(canonical).hexdigest()
+          assert oracle_hash == d["oracleSampleSha256"]
+          assert oracle_hash == "54061f4efe0969af0d772ddbc6d026fdf58bd4f2776514a9fb098753d062001d"
+          PY
+
+      - name: Commit exact sample lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          dest=docs/research/results/data/PATCH-ENC-005-G2-SAMPLE-20261003-001/sample.json
+          mkdir -p "$(dirname "$dest")"
+          cp /tmp/g2-lock/sample.json "$dest"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$dest"
+          git commit -m "docs(research): lock PATCH-ENC-005 G2 sample"
+          git push origin HEAD:research/181-g2-sample-lock
