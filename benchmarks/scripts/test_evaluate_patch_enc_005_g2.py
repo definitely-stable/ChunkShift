@@ -80,6 +80,7 @@ class PatchEnc005G2EvaluatorTests(unittest.TestCase):
         for row in sample["rows"]:
             pair = (row["family"], row["baseVersion"], row["targetVersion"])
             oracle_cost = pair_costs[pair]
+            oracle_encoding = "raw" if oracle_cost == 100 else "zstd"
             rows.append(
                 {
                     **{field: row[field] for field in MODULE.IDENTITY_FIELDS},
@@ -93,7 +94,7 @@ class PatchEnc005G2EvaluatorTests(unittest.TestCase):
                     "h0StartOffset": None,
                     "h0RecordCount": None,
                     "h0FirstChunkId": None,
-                    "oracleEncoding": "zstd",
+                    "oracleEncoding": oracle_encoding,
                     "oracleStoredBytes": oracle_cost,
                     "oracleDictionaryRefs": 0,
                     "oracleCostBytes": oracle_cost,
@@ -235,9 +236,13 @@ class PatchEnc005G2EvaluatorTests(unittest.TestCase):
             loaded, _ = MODULE.validate_lock(sample_path, lock_path)
             oracle = self.make_oracle(sample, {pair: 90 for pair in MODULE.PAIR_KEYS})
             row = oracle["rows"][0]
-            row["oracleStoredBytes"] = 101
-            row["oracleCostBytes"] = 101
-            row["savedBytes"] = -1
+            row["h0Encoding"] = "zstd"
+            row["h0StoredBytes"] = 90
+            row["h0CostBytes"] = 90
+            row["oracleEncoding"] = "zstd"
+            row["oracleStoredBytes"] = 95
+            row["oracleCostBytes"] = 95
+            row["savedBytes"] = -5
 
             with self.assertRaisesRegex(ValueError, "oracle cost exceeds H0"):
                 MODULE.evaluate(loaded, oracle)
