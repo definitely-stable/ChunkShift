@@ -1,7 +1,7 @@
 # ChunkShift roadmap
 
 Status: Active  
-Last reviewed: 2026-09-28
+Last reviewed: 2026-10-03
 
 Authority:
 
@@ -81,7 +81,7 @@ Completed release-evidence stage: [#68](https://github.com/definitely-stable/Chu
 - [#8](https://github.com/definitely-stable/ChunkShift/issues/8) is **closed**: PR #113 froze `fastcdc.gear.chunkshift.v1.64k` and its persisted semantic identity after the real-corpus/runtime evidence;
 - [#17](https://github.com/definitely-stable/ChunkShift/issues/17) is **closed**: PR #114 proved the direct `HttpRequest.Body`/Kestrel host path and recorded the Body-vs-BodyReader decision;
 - [#9](https://github.com/definitely-stable/ChunkShift/issues/9) and [#69](https://github.com/definitely-stable/ChunkShift/issues/69) are **complete in the publication repository**: `0.1.0` was released there directly (no preview), the CLI is not published, and `0.1.0` is the package-validation baseline;
-- [#24](https://github.com/definitely-stable/ChunkShift/issues/24): publication-specific enforcement (release-tag ruleset, immutable releases, protected `main`) is active on the publication repository; what remains here is ordinary `main` governance.
+- [#24](https://github.com/definitely-stable/ChunkShift/issues/24): publication-specific enforcement is separate and active on the publication repository. The engineering-repository governance issue remains open; `main` is currently not protected by a GitHub branch-protection rule.
 - [#152](https://github.com/definitely-stable/ChunkShift/issues/152) is the parallel Core 0.1.1 maintenance/evidence track. It preserves the published 0.1.0 API/profile/format identities by default and does not replace the current #7 Patching product phase.
 - [#7](https://github.com/definitely-stable/ChunkShift/issues/7) Patching: CSP v1 is frozen (PR #178, 2026-09-28) and the plan/create/apply loop, the engineering CLI, the independent decoder, fuzzing and the NativeAOT package consumer are on `main`. The remaining exit items are listed under [Patching gate](#patching-gate).
 
@@ -219,14 +219,14 @@ D17 create memory is done: `PATCH-ENC-003` made a raw prefix with capped tables 
 Remaining exit items (CSP v1 frozen 2026-09-28):
 
 1. D13 re-chunk check cost: #168 is decided for option 3 (no public opt-out); `PATCH-APPLY-002` ([#182](https://github.com/definitely-stable/ChunkShift/issues/182)) makes the check cheaper internally. `PATCH-APPLY-003` adopted the overlapped check (A2) and requires the boundary-only check (A1a): with A2 the check still costs more than 25 % of apply CPU at eight concurrent applies on both Linux platforms ([PATCH-APPLY-003-EVIDENCE-20260929-001](docs/research/results/PATCH-APPLY-003-EVIDENCE-20260929-001.md)). A2 became the apply default (#206). With A1a (lane `boundary`) the check costs 13.39 % (linux-x64), 7.79 % (linux-arm64) and 8.02 % (win-x64) of apply CPU at eight concurrent applies, so rule 2 does not hold after A1a ([PATCH-APPLY-003-EVIDENCE-20260930-001](docs/research/results/PATCH-APPLY-003-EVIDENCE-20260930-001.md)). The boundary-only check is the apply default, and #168 is closed with option 3.
-2. Create throughput: `PATCH-ENC-004`/`PATCH-ENC-005` ([#181](https://github.com/definitely-stable/ChunkShift/issues/181)).
+2. Create throughput: `PATCH-ENC-004` is complete and ADOPTed (H2-W2 workers; H1 cache rejected). `PATCH-ENC-005` ([#181](https://github.com/definitely-stable/ChunkShift/issues/181)) has a durable partial Phase-A record: calibration is `INCOMPLETE`, H7 fails its frozen H4 byte-equality oracle on 83/1,049 files, no finalist/default change is authorized, and continuation must preserve the frozen protocol while completing evidence for the independent lanes.
 3. D23 CLI product surface: [#140](https://github.com/definitely-stable/ChunkShift/issues/140).
 4. Public API review of `PublicAPI.Unshipped.txt`, including whether an options type (from #168) should also carry progress reporting.
 5. Port per [CONTRIBUTING.md](CONTRIBUTING.md#porting-to-the-publication-repository).
 
 Linked research that does not block the exit:
 
-- `PATCH-GAP-001` ([#183](https://github.com/definitely-stable/ChunkShift/issues/183)): where the size gap to byte-level delta tools comes from;
+- `PATCH-GAP-001` ([#183](https://github.com/definitely-stable/ChunkShift/issues/183)): RUNNING. Stage-A locked the G4/G5 populations; G5 is `NOT_PRESENT` on the frozen materialized corpus. No G1–G4 size/reference verdict or §11 decision has run;
 - `PATCH-TREE-001` ([#184](https://github.com/definitely-stable/ChunkShift/issues/184)): update sets;
 - `TRUST-SIG-001` ([#185](https://github.com/definitely-stable/ChunkShift/issues/185)): the trust-envelope RFC.
 
@@ -285,7 +285,8 @@ Cross-cutting Repository rules:
 
 ## Immediate work order
 
-1. continue local product engineering with [#7](https://github.com/definitely-stable/ChunkShift/issues/7) Patching; it remains the product critical path. Close the exit items under [Patching gate](#patching-gate), starting with #182 (D13/#168) and #181 (create throughput).
-2. run [#152](https://github.com/definitely-stable/ChunkShift/issues/152) as bounded parallel Core maintenance research: #127/#137/#153/#154 may proceed without changing the shipped profile/format/API contract. #186 proceeds only for candidates with a named consumer.
-3. adopt/port a Core candidate only after its exact-compatibility and end-to-end evidence gate passes; do not publish from this repository.
-4. finish ordinary `main` governance for this repository under [#24](https://github.com/definitely-stable/ChunkShift/issues/24).
+1. finish [#181](https://github.com/definitely-stable/ChunkShift/issues/181) / `PATCH-ENC-005` under its frozen protocol. Preserve the H7 negative result; complete calibration for the independent lanes before any fixed-evaluation or confirmation step.
+2. close the remaining Patching release contract in order: [#140](https://github.com/definitely-stable/ChunkShift/issues/140) CLI surface, review/freeze `ChunkShift.Patching/PublicAPI.Unshipped.txt` (including progress/options), then port per CONTRIBUTING and close [#7](https://github.com/definitely-stable/ChunkShift/issues/7).
+3. keep `PATCH-GAP-001`, #220–#225 and [#152](https://github.com/definitely-stable/ChunkShift/issues/152) parallel/non-blocking; none may silently expand the first Patching release contract.
+4. adopt/port a Core candidate only after its exact-compatibility and end-to-end evidence gate passes; do not publish from this repository.
+5. finish ordinary `main` governance for this repository under [#24](https://github.com/definitely-stable/ChunkShift/issues/24).
