@@ -51,7 +51,10 @@ From the merged foundation commit:
 The sample document is derived only from the frozen selection algorithm:
 calibration families, distinct missing production entries, six-field NUL-
 separated SHA-256 key, digest/path/index order and first 64 entries per pair.
-Measured oracle costs cannot affect membership.
+For the canonical document, the four pair blocks are ordered ordinally by
+`familyId`, then `baseVersion`, then `targetVersion`; this affects only
+document order / `oracleSampleSha256`, never per-pair membership. Measured
+oracle costs cannot affect membership.
 
 The sample document's `sourceCommit` binds the commit that materialized the lock. The later oracle artifact binds its own post-sample-lock execution commit; those SHAs are not required to be equal. Membership is carried across that boundary by exact row recomputation plus `oracleSampleSha256`.
 
