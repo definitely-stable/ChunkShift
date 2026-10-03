@@ -206,6 +206,19 @@ class PatchEnc005G2EvaluatorTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "dictionary distance mismatch"):
                 MODULE.evaluate(loaded, oracle)
 
+    def test_oracle_rejects_equal_cost_zstd_tie(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sample_path, lock_path, sample = self.make_sample(Path(directory))
+            loaded, _ = MODULE.validate_lock(sample_path, lock_path)
+            oracle = self.make_oracle(sample, {pair: 90 for pair in MODULE.PAIR_KEYS})
+            row = oracle["rows"][0]
+            row["oracleStoredBytes"] = 100
+            row["oracleCostBytes"] = 100
+            row["savedBytes"] = 0
+
+            with self.assertRaisesRegex(ValueError, "zstd winner must strictly beat raw"):
+                MODULE.evaluate(loaded, oracle)
+
     def test_oracle_rejects_ref32_cost_mismatch(self):
         with tempfile.TemporaryDirectory() as directory:
             sample_path, lock_path, sample = self.make_sample(Path(directory))
