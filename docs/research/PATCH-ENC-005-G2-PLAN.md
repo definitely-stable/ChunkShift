@@ -58,7 +58,7 @@ oracle costs cannot affect membership.
 
 The sample document's `sourceCommit` binds the commit that materialized the lock. The later oracle artifact binds its own post-sample-lock execution commit; those SHAs are not required to be equal. Membership is carried across that boundary by exact row recomputation plus `oracleSampleSha256`.
 
-## Locked sample candidate
+## Locked sample
 
 The sample-only workflow run `37143841107` on merged main
 `d406a90fdf8d7fc7944975b7f1667129a8ab5df9` produced the canonical locked sample documented in
