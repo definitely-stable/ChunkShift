@@ -36,10 +36,7 @@ internal static class PatchEnc005G2Runner
         RequireFrozenCorpus(corpus);
 
         PatchLabPair[] pairs =
-        [
-            .. corpus.Pairs.Where(pair =>
-                PatchEnc005G2Protocol.IsCalibrationFamily(pair.Family)),
-        ];
+            PatchEnc005G2Protocol.OrderCalibrationPairs(corpus.Pairs);
 
         if (pairs.Length != 4)
         {
@@ -341,7 +338,7 @@ internal static class PatchEnc005G2Runner
             ReadOnlySpan<byte> frame = encoder.EncodeZstd(target.Span, dictionary);
             int cost = CspPatchBuilder.DictionaryCandidateCost(frame.Length, count);
 
-            if (cost < best.CostBytes)
+            if (PatchEnc005G2Protocol.ShouldReplace(cost, best.CostBytes))
             {
                 CspPatchBuilder.BaseRecord first = baseRecords[start];
                 best = new PatchEnc005G2Choice(
@@ -391,7 +388,7 @@ internal static class PatchEnc005G2Runner
             null);
         ReadOnlySpan<byte> frame = encoder.EncodeZstd(target, ReadOnlySpan<byte>.Empty);
 
-        return frame.Length < best.CostBytes
+        return PatchEnc005G2Protocol.ShouldReplace(frame.Length, best.CostBytes)
             ? new PatchEnc005G2Choice(
                 "zstd",
                 frame.Length,
