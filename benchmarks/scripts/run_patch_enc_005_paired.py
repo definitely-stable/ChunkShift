@@ -149,6 +149,32 @@ def require_same_patch_bytes(label: str, left: dict, right: dict) -> None:
         raise ValueError(f"{label}: patch SHA-256 mismatch")
 
 
+def patch_mismatch_keys(
+    left: dict[tuple[str, str, str, str], str],
+    right: dict[tuple[str, str, str, str], str],
+) -> list[tuple[str, str, str, str]]:
+    if set(left) != set(right):
+        raise ValueError("byte-oracle patch maps must cover the same file set")
+    return sorted(key for key in left if left[key] != right[key])
+
+
+def mismatch_file_set_sha256(
+    keys: list[tuple[str, str, str, str]],
+) -> str:
+    rows = [
+        {"family": key[0], "base": key[1], "target": key[2], "path": key[3]}
+        for key in keys
+    ]
+    return hashlib.sha256(
+        json.dumps(
+            rows,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    ).hexdigest()
+
+
 def aggregate_create(result: dict) -> dict[str, float | int]:
     files = result["files"]
     cpu = 0.0
@@ -320,8 +346,6 @@ def run_dispatch(
         if patch_sha_map(start) != expected_patch_shas["csp"]:
             raise ValueError("H0 patch SHA-256 changed across measured rounds")
         candidates: list[dict] = []
-        candidate_results: dict[str, dict] = {}
-
         for lane in rotated(lanes, round_index):
             path, result = invoke(
                 args, lane, root / f"round-{round_number}-{lane}", apply=False
@@ -330,7 +354,6 @@ def run_dispatch(
             if lane in expected_patch_shas and expected_patch_shas[lane] != lane_shas:
                 raise ValueError(f"{lane}: patch SHA-256 changed across measured rounds")
             expected_patch_shas.setdefault(lane, lane_shas)
-            candidate_results[lane] = result
             candidates.append(
                 {
                     "lane": lane,
@@ -345,13 +368,6 @@ def run_dispatch(
         require_same_patch_bytes("H0 bracket", start, end)
         if patch_sha_map(end) != expected_patch_shas["csp"]:
             raise ValueError("H0 patch SHA-256 changed across measured rounds")
-        if "H7-L1-R2-E75" in candidate_results:
-            require_same_patch_bytes(
-                "H7/H4 frozen byte oracle",
-                candidate_results["H4-L1-R2"],
-                candidate_results["H7-L1-R2-E75"],
-            )
-
         start_aggregate = aggregate_create(start)
         end_aggregate = aggregate_create(end)
         noisy = bracket_is_noisy(
@@ -410,6 +426,21 @@ def run_dispatch(
             }
         )
 
+    # H7/H4 equality is a frozen H7 eligibility oracle, not a timing-dispatch
+    # validity condition. Record a deterministic negative result after all five
+    # rounds so one ineligible lane cannot erase independent H4/H9 evidence.
+    byte_oracles = {}
+    if "H7-L1-R2-E75" in expected_patch_shas:
+        mismatches = patch_mismatch_keys(
+            expected_patch_shas["H4-L1-R2"],
+            expected_patch_shas["H7-L1-R2-E75"],
+        )
+        byte_oracles["H7-L1-R2-E75==H4-L1-R2"] = {
+            "equal": not mismatches,
+            "mismatchCount": len(mismatches),
+            "mismatchFilesSha256": mismatch_file_set_sha256(mismatches),
+        }
+
     document = {
         "schema": "chunkshift.patch-enc-005-dispatch.v1",
         "experimentId": EXPERIMENT_ID,
@@ -431,6 +462,7 @@ def run_dispatch(
             lane: serialized_patch_sha_map(mapping)
             for lane, mapping in sorted(expected_patch_shas.items())
         },
+        "byteOracles": byte_oracles,
     }
     (root / "dispatch.json").write_text(
         json.dumps(document, indent=2, sort_keys=True) + "\n",
