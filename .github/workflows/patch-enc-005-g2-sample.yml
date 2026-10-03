@@ -1,0 +1,103 @@
+name: PATCH-ENC-005 G2 sample lock
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: patch-enc-005-g2-sample-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+
+jobs:
+  sample:
+    name: materialize-frozen-g2-sample
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Validate sample-lock provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "G2 sample lock must be materialized from merged main." >&2
+            exit 2
+          fi
+          if [[ "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
+            echo "G2 sample lock rejects GitHub workflow re-runs." >&2
+            exit 2
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Restore corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize frozen development corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py             --root "$HOME/patch-corpus"             --sources "$HOME/patch-corpus/sources"             --download --lock
+
+      - name: Build PatchLab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Materialize sample only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/patch-enc-005-g2
+          dotnet run             --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj             -c Release --no-build --             patch-lab enc005-g2 sample             --corpus "$HOME/patch-corpus"             --output artifacts/patch-enc-005-g2/sample.json             --source-commit "$GITHUB_SHA"
+
+      - name: Verify sample document shape
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = Path("artifacts/patch-enc-005-g2/sample.json")
+          d = json.loads(p.read_text())
+          assert d["schema"] == "chunkshift.patch-g2-sample.v1"
+          assert d["experimentId"] == "PATCH-ENC-005"
+          assert d["datasetRole"] == "calibration"
+          assert d["sourceCommit"] == __import__("os").environ["GITHUB_SHA"]
+          assert len(d["rows"]) <= 256
+          assert d["oracleSampleSha256"]
+          print(d["oracleSampleSha256"])
+          PY
+
+      - name: Upload sample-lock candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-enc-005-g2-sample-${{ github.sha }}
+          path: artifacts/patch-enc-005-g2/sample.json
+          if-no-files-found: error
+          retention-days: 90
