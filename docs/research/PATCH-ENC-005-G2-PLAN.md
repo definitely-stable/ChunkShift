@@ -1,6 +1,6 @@
 # PATCH-ENC-005 G2 execution plan
 
-Status: **SAMPLE LOCKED**
+Status: **G2 DECISION IMPLEMENTATION CANDIDATE**
 
 Owning issue: #181  
 Parent: #7  
@@ -74,6 +74,23 @@ No real oracle cost was computed while materializing, validating or committing
 the locked sample. Slice C becomes allowed only after this lock is merged.
 
 ## Slice C — G2 decision evidence
+
+The decision implementation is intentionally manual-only. It validates the
+committed sample file against its lock before materializing the corpus, rejects
+workflow reruns, runs on ordinary GitHub-hosted `ubuntu-24.04`, and emits the
+complete `chunkshift.patch-g2-oracle.v1` document plus a separately evaluated
+§4.3 verdict. Oracle timing is not evidence.
+
+The evaluator fails closed on sample/oracle row identity, REF32 cost accounting,
+winner metadata, `oracleCost <= h0Cost`, the frozen policy/order strings and
+all protocol/dataset fingerprints. The gate itself uses integer comparisons:
+
+- overall: `G2sample * 100 <= H0sample * 95`;
+- per pair: `G2pair * 100 <= H0pair * 97`;
+- main PASS requires the overall condition plus at least 2/4 pair passes.
+
+A PASS records `FULL_PHASE_B`. A MISS records `H6_O_GUARD_ONLY`; it does not
+silently stop resemblance work and does not authorize H5-F/H6-P/H8.
 
 After the sample lock merges:
 
