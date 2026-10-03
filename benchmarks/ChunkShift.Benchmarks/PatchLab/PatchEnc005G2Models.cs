@@ -133,6 +133,19 @@ internal static class PatchEnc005G2Protocol
     internal static string RowsSha256(PatchEnc005G2SampleRow[] rows) =>
         Convert.ToHexStringLower(SHA256.HashData(CanonicalBytes(rows)));
 
+    internal static PatchEnc005G2SampleRow[] SelectPairSample(
+        IEnumerable<PatchEnc005G2SampleRow> rows) =>
+        [
+            .. rows
+                .OrderBy(static row => row.SampleKeySha256, StringComparer.Ordinal)
+                .ThenBy(static row => row.Path, StringComparer.Ordinal)
+                .ThenBy(static row => row.TargetIndex)
+                .Take(SamplePerPair),
+        ];
+
+    internal static int CandidateCostForTests(int frameBytes, int referenceCount) =>
+        CspPatchBuilder.DictionaryCandidateCost(frameBytes, referenceCount);
+
     private static int FirstAtOrAbove(
         IReadOnlyList<long> offsets,
         long value)
