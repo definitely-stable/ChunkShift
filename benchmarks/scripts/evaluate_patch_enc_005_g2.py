@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -131,6 +132,10 @@ def validate_lock(sample_path: Path, lock_path: Path) -> tuple[dict, dict]:
         for field in IDENTITY_FIELDS:
             if field not in row:
                 raise ValueError(f"sample row is missing {field}")
+        if not isinstance(row["targetOffset"], int) or row["targetOffset"] < 0:
+            raise ValueError("sample row targetOffset must be a non-negative integer")
+        if not isinstance(row["targetLength"], int) or row["targetLength"] <= 0:
+            raise ValueError("sample row targetLength must be a positive integer")
         if row.get("sampleKeySha256") != sample_key_sha256(row):
             raise ValueError("sampleKeySha256 mismatch")
         pair = (row["family"], row["baseVersion"], row["targetVersion"])
@@ -224,6 +229,14 @@ def validate_oracle(sample: dict, oracle: dict) -> None:
         raise ValueError("oracle: sourceCommit must be lowercase full 40-hex")
     if not isinstance(oracle.get("runId"), str) or not oracle["runId"].strip():
         raise ValueError("oracle: runId is missing")
+    run_match = re.fullmatch(
+        r"PATCH-ENC-005/RUN-[0-9]{8}-[0-9]{3}-([0-9a-f]{40})-linux-x64",
+        oracle["runId"],
+    )
+    if run_match is None:
+        raise ValueError("oracle: runId does not match the frozen format")
+    if run_match.group(1) != oracle["sourceCommit"]:
+        raise ValueError("oracle: runId source commit does not match sourceCommit")
     if oracle.get("oracleSampleSha256") != sample.get("oracleSampleSha256"):
         raise ValueError("oracle/sample oracleSampleSha256 mismatch")
     if oracle.get("policy") != POLICY:
@@ -270,8 +283,17 @@ def validate_oracle(sample: dict, oracle: dict) -> None:
         if row["oracleEncoding"] == "zstd-dictionary":
             if not isinstance(distance, int) or distance < 0:
                 raise ValueError(f"oracle row {ordinal}: dictionary distance is invalid")
+            if distance != abs(row["oracleStartOffset"] - row["targetOffset"]):
+                raise ValueError(f"oracle row {ordinal}: dictionary distance mismatch")
+            if row["oracleStartIndex"] >= starts:
+                raise ValueError(f"oracle row {ordinal}: oracle start index is outside the base")
+            if valid == 0:
+                raise ValueError(f"oracle row {ordinal}: dictionary winner requires a valid candidate")
         elif distance is not None:
             raise ValueError(f"oracle row {ordinal}: non-dictionary winner has distance")
+
+        if row["h0Encoding"] == "zstd-dictionary" and row["h0StartIndex"] >= starts:
+            raise ValueError(f"oracle row {ordinal}: H0 start index is outside the base")
 
 
 def evaluate(sample: dict, oracle: dict) -> dict:
