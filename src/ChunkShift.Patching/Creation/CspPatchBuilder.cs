@@ -1072,7 +1072,7 @@ internal static partial class CspPatchBuilder
     /// <see langword="false"/> when they exceed the CSP dictionary bound, in which
     /// case the candidate is skipped before any of it is read.
     /// </summary>
-    private static bool TryMeasureCandidate(
+    internal static bool TryMeasureCandidate(
         List<BaseRecord> records,
         int start,
         CspEncoderPolicy policy,
@@ -1097,7 +1097,7 @@ internal static partial class CspPatchBuilder
     /// of <paramref name="targetOffset"/>, nearest first and lower index first on
     /// a tie.
     /// </summary>
-    private static List<int> FindCandidateStarts(
+    internal static List<int> FindCandidateStarts(
         List<BaseRecord> records,
         long targetOffset,
         CspEncoderPolicy policy)
@@ -1297,7 +1297,7 @@ internal static partial class CspPatchBuilder
     }
 
     /// <summary>One base manifest record: its logical offset, length and identity.</summary>
-    private readonly record struct BaseRecord(long Offset, int Length, ChunkId ChunkId);
+    internal readonly record struct BaseRecord(long Offset, int Length, ChunkId ChunkId);
 
     /// <summary>The stored form chosen for one target chunk.</summary>
     private readonly record struct EntryChoice(
