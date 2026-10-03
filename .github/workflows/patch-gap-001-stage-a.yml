@@ -453,7 +453,10 @@ jobs:
             PATH="/usr/bin:/bin" \
             LD_LIBRARY_PATH="$tool_dir/lib64" \
             "$tool_dir/bin/puffin" --help \
-            > "$RUNNER_TEMP/puffin-consumer-help.txt" 2>&1
+            > "$RUNNER_TEMP/puffin-consumer-help.txt" 2>&1 || {
+              cat "$RUNNER_TEMP/puffin-consumer-help.txt" >&2
+              exit 2
+            }
           cmp "$tool_dir/puffin-help.txt" "$RUNNER_TEMP/puffin-consumer-help.txt"
 
           binary_sha="$(sha256sum "$tool_dir/bin/puffin" | cut -d' ' -f1)"
