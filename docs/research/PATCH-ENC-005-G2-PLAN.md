@@ -53,6 +53,8 @@ calibration families, distinct missing production entries, six-field NUL-
 separated SHA-256 key, digest/path/index order and first 64 entries per pair.
 Measured oracle costs cannot affect membership.
 
+The sample document's `sourceCommit` binds the commit that materialized the lock. The later oracle artifact binds its own post-sample-lock execution commit; those SHAs are not required to be equal. Membership is carried across that boundary by exact row recomputation plus `oracleSampleSha256`.
+
 ## Slice C — G2 decision evidence
 
 After the sample lock merges:
