@@ -156,7 +156,7 @@ internal static class PatchEnc005G2Protocol
     internal static int CandidateCostForTests(int frameBytes, int referenceCount) =>
         CspPatchBuilder.DictionaryCandidateCost(frameBytes, referenceCount);
 
-    internal static bool ShouldReplaceForTests(int candidateCost, int bestCost) =>
+    internal static bool ShouldReplace(int candidateCost, int bestCost) =>
         candidateCost < bestCost;
 
     internal static bool DictionaryUsableForTests(ReadOnlySpan<byte> dictionary) =>
