@@ -112,7 +112,8 @@ jobs:
         shell: bash
         env:
           DATASET_ROLE: ${{ inputs.dataset-role }}
-          PLATFORM: ${{ matrix.platform }}
+          # MSBuild consumes PLATFORM and changes the no-build launch path.
+          EVIDENCE_PLATFORM: ${{ matrix.platform }}
           RUN_DATE: ${{ inputs.run-date }}
         run: |
           set -euo pipefail
@@ -124,13 +125,13 @@ jobs:
           python=python3
           command -v python3 >/dev/null || python=python
           RUN_SEQUENCE="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
-          run_id="PATCH-ENC-005/RUN-$RUN_DATE-$RUN_SEQUENCE-$GITHUB_SHA-$PLATFORM"
+          run_id="PATCH-ENC-005/RUN-$RUN_DATE-$RUN_SEQUENCE-$GITHUB_SHA-$EVIDENCE_PLATFORM"
           "$python" benchmarks/scripts/run_patch_enc_005_paired.py \
             --corpus "$HOME/patch-corpus" \
             --output artifacts/patch-enc-005/attempt-1 \
             --run-id "$run_id" \
             --source-commit "$GITHUB_SHA" \
-            --platform "$PLATFORM" \
+            --platform "$EVIDENCE_PLATFORM" \
             --dataset-role "$DATASET_ROLE" \
             --families "$families" \
             --attempt 1
@@ -215,7 +216,7 @@ jobs:
         shell: bash
         env:
           DATASET_ROLE: ${{ inputs.dataset-role }}
-          PLATFORM: ${{ matrix.platform }}
+          EVIDENCE_PLATFORM: ${{ matrix.platform }}
           RUN_DATE: ${{ inputs.run-date }}
         run: |
           set -euo pipefail
@@ -227,13 +228,13 @@ jobs:
           python=python3
           command -v python3 >/dev/null || python=python
           RUN_SEQUENCE="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
-          run_id="PATCH-ENC-005/RUN-$RUN_DATE-$RUN_SEQUENCE-$GITHUB_SHA-$PLATFORM"
+          run_id="PATCH-ENC-005/RUN-$RUN_DATE-$RUN_SEQUENCE-$GITHUB_SHA-$EVIDENCE_PLATFORM"
           "$python" benchmarks/scripts/run_patch_enc_005_paired.py \
             --corpus "$HOME/patch-corpus" \
             --output artifacts/patch-enc-005/attempt-2 \
             --run-id "$run_id" \
             --source-commit "$GITHUB_SHA" \
-            --platform "$PLATFORM" \
+            --platform "$EVIDENCE_PLATFORM" \
             --dataset-role "$DATASET_ROLE" \
             --families "$families" \
             --attempt 2 \
@@ -306,7 +307,7 @@ jobs:
         shell: bash
         env:
           DATASET_ROLE: ${{ inputs.dataset-role }}
-          PLATFORM: ${{ matrix.platform }}
+          EVIDENCE_PLATFORM: ${{ matrix.platform }}
           RUN_DATE: ${{ inputs.run-date }}
         run: |
           set -euo pipefail
@@ -318,9 +319,9 @@ jobs:
           python=python3
           command -v python3 >/dev/null || python=python
           RUN_SEQUENCE="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
-          run_id="PATCH-ENC-005/RUN-$RUN_DATE-$RUN_SEQUENCE-$GITHUB_SHA-$PLATFORM"
-          attempt1="artifacts/attempts/patch-enc-005-$DATASET_ROLE-attempt-1-$PLATFORM/dispatch.json"
-          attempt2="artifacts/attempts/patch-enc-005-$DATASET_ROLE-attempt-2-$PLATFORM/dispatch.json"
+          run_id="PATCH-ENC-005/RUN-$RUN_DATE-$RUN_SEQUENCE-$GITHUB_SHA-$EVIDENCE_PLATFORM"
+          attempt1="artifacts/attempts/patch-enc-005-$DATASET_ROLE-attempt-1-$EVIDENCE_PLATFORM/dispatch.json"
+          attempt2="artifacts/attempts/patch-enc-005-$DATASET_ROLE-attempt-2-$EVIDENCE_PLATFORM/dispatch.json"
           "$python" benchmarks/scripts/finalize_patch_enc_005_phase_a.py \
             --corpus "$HOME/patch-corpus" \
             --output artifacts/patch-enc-005/final \
@@ -328,7 +329,7 @@ jobs:
             --attempt-two "$attempt2" \
             --run-id "$run_id" \
             --source-commit "$GITHUB_SHA" \
-            --platform "$PLATFORM" \
+            --platform "$EVIDENCE_PLATFORM" \
             --dataset-role "$DATASET_ROLE" \
             --families "$families"
       - name: Upload final platform evidence
@@ -420,7 +421,7 @@ jobs:
         shell: bash
         env:
           DATASET_ROLE: ${{ inputs.dataset-role }}
-          PLATFORM: ${{ matrix.platform }}
+          EVIDENCE_PLATFORM: ${{ matrix.platform }}
           RUN_DATE: ${{ inputs.run-date }}
         run: |
           set -euo pipefail
@@ -430,7 +431,7 @@ jobs:
             *) echo "unsupported development role: $DATASET_ROLE" >&2; exit 2 ;;
           esac
           RUN_SEQUENCE="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
-          run_id="PATCH-ENC-005/RUN-$RUN_DATE-$RUN_SEQUENCE-$GITHUB_SHA-$PLATFORM"
+          run_id="PATCH-ENC-005/RUN-$RUN_DATE-$RUN_SEQUENCE-$GITHUB_SHA-$EVIDENCE_PLATFORM"
           mkdir -p artifacts/patch-enc-005/memory
           lanes="csp H4-L1-R2 H7-L1-R2-E75 H9-L9-K4-C16-R1M H9-L12-K4-C16-R1M H9-L15-K4-C16-R1M"
           for lane in $lanes
