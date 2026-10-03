@@ -1,0 +1,48 @@
+{
+  "g4": {
+    "calibration": {
+      "eligibleTargetBytes": 249559624,
+      "eligibleUniqueMissingBytes": 149566512,
+      "gateEligibleRows": 521,
+      "rows": 1049,
+      "targetBytes": 393123835,
+      "targetClassifications": {
+        "ELF_SUPPORTED": 32,
+        "NO_PE_OR_ELF_MAGIC": 14,
+        "PE_MACHINE_UNSUPPORTED": 184,
+        "PE_MANAGED_IL_ONLY": 330,
+        "PE_NATIVE": 31,
+        "PE_R2R_OR_MIXED": 458
+      },
+      "uniqueMissingBytes": 205717364
+    },
+    "evaluation": {
+      "eligibleTargetBytes": 440015656,
+      "eligibleUniqueMissingBytes": 268652516,
+      "gateEligibleRows": 4,
+      "rows": 814,
+      "targetBytes": 458091627,
+      "targetClassifications": {
+        "ELF_SUPPORTED": 2,
+        "NO_PE_OR_ELF_MAGIC": 810,
+        "PE_NATIVE": 2
+      },
+      "uniqueMissingBytes": 285467187
+    }
+  },
+  "g5": {
+    "calibration": {
+      "puffinSupportedRows": 0,
+      "rows": 1049,
+      "targetBytes": 393123835,
+      "uniqueMissingBytes": 205717364
+    },
+    "evaluation": {
+      "puffinSupportedRows": 0,
+      "rows": 844,
+      "targetBytes": 464589746,
+      "uniqueMissingBytes": 289874850
+    },
+    "status": "NOT_PRESENT"
+  }
+}

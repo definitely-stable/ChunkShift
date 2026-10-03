@@ -1,0 +1,41 @@
+{
+  "experimentId": "PATCH-GAP-001",
+  "g4": {
+    "calibrationSha256": "3788afe8e3e5fa3c8d47a1947844aa147fc34f15d68c2de3516c0993b83a7ffe",
+    "evaluationSha256": "345d2675fd4f2a3f8cf855b237c3748a197281d7bce5163c1360bfc5b53d490b",
+    "fileSha256": "d2bf3e49da5ddf228e67abbd03fdc7d97af403a88804858dca3de4075e225ad6",
+    "rows": 1863
+  },
+  "g5": {
+    "calibrationSha256": "e760608ad83127590ee2db0d0b874f3a6a5f4085e4ad168671a1c0853ec4ab42",
+    "evaluationSha256": "5f832dfbb7c48e7af0462b21551d2bdc5828819b14d32721cbfebb17c8cecc4f",
+    "fileSha256": "641dcd9c80c431df28b57e3d579e6f0a68f2c9ad40577fc309ec17115db73c86",
+    "puffinSupportedRows": 0,
+    "rows": 1893
+  },
+  "protocolCommit": "5372678ae8451a71cc95eb24f30855cbbd7e0633",
+  "puffinProducer": {
+    "adapterSha256": "49bbd1dc5ab712e18264f26403174e2ac2512ba0ffda3ffd830826c749194d98",
+    "artifactDigest": "sha256:d03f7b1de81cdb8bcdb9cc3ce2a012af55fa3bdd0244b9268e7500af653fa5ef",
+    "artifactId": 11266936475,
+    "artifactName": "patch-gap-001-puffin-toolchain",
+    "artifactSizeBytes": 351513,
+    "binarySha256": "da797869ec3b4f8d4805d48b92d7377a4c26c3457111aefe76c9a3a7674b8178",
+    "buildProvenanceSha256": "c0288a7c2968f6c7b68a394bd1ade1df043246c1f36293742f04291032d68838",
+    "consumerSourceCommit": "d43986e3f4a07806cbd5adaf96dd2a9f2cdae383",
+    "producerAdapterBlobSha": "8f247f7f038c1888501bccfd837dfe8482f3fbe6",
+    "producerHeadSha": "d43986e3f4a07806cbd5adaf96dd2a9f2cdae383",
+    "producerRunId": 37101894709,
+    "producerWorkflow": ".github/workflows/patch-gap-001-puffin-toolchain.yml",
+    "producerWorkflowBlobSha": "86674c54eb18df874acb9bbc5f4ba147867addbf",
+    "puffinCommit": "343e23db1b4d81045e91a10244244893f5acd73b",
+    "puffinTag": "android-17.0.0_r1",
+    "repository": "definitely-stable/ChunkShift",
+    "runnerImage": "ubuntu-24.04",
+    "schema": "chunkshift.patch-gap-puffin-producer-lineage.v2",
+    "sourceArchiveSha256": "69b96c711f873966a4da8b612427eccea616fa7accf7d83d62b651d564c75b9d"
+  },
+  "runId": "PATCH-GAP-001/RUN-20261003-003-d43986e-linux-x64",
+  "schema": "chunkshift.patch-gap-stage-a-summary.v1",
+  "sourceCommit": "d43986e3f4a07806cbd5adaf96dd2a9f2cdae383"
+}

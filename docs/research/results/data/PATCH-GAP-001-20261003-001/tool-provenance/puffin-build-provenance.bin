@@ -1,0 +1,17 @@
+{
+  "adapterSha256": "49bbd1dc5ab712e18264f26403174e2ac2512ba0ffda3ffd830826c749194d98",
+  "binarySha256": "da797869ec3b4f8d4805d48b92d7377a4c26c3457111aefe76c9a3a7674b8178",
+  "buildCommandSha256": "ce674f59285bd643a5ee820f5280472918a4dae2aedaa3e1e3adc8e53502d4c9",
+  "chunkShiftSourceCommit": "d43986e3f4a07806cbd5adaf96dd2a9f2cdae383",
+  "compilerVersionSha256": "88b7c4b67564a146863224148116065fee418539f0a408f3636a68f3bde51805",
+  "helpOutputSha256": "b21c30651ae09c39f7cf7351ed3924b7a4f30c79075fc145c4d7c05866c7b694",
+  "hostEnvironmentSha256": "5a6e1ea41f2f4ec17b6cf5a86d41ab4c3dc69f04c7ee577fc32a4d52c89cde40",
+  "lddSha256": "d0126f2386f47efac35ebf089c458e4eb7d1271051dcf5391ccf2e0e0d948c61",
+  "packageVersionsSha256": "13759d0290d68714611a6e53321f1f6552687b472d94054d3abd9633eaf76d92",
+  "producerRunId": 37101894709,
+  "puffinCommit": "343e23db1b4d81045e91a10244244893f5acd73b",
+  "puffinTag": "android-17.0.0_r1",
+  "runnerImage": "ubuntu-24.04",
+  "schema": "chunkshift.patch-gap-puffin-toolchain.v2",
+  "sourceArchiveSha256": "69b96c711f873966a4da8b612427eccea616fa7accf7d83d62b651d564c75b9d"
+}

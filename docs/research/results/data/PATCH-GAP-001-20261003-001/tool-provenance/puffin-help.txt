@@ -1,0 +1,4 @@
+PATCH-GAP-001 pinned Puffin locator
+Supported operation: puffhuff
+Required: --src_file=PATH --dst_file=PATH --src_file_type=deflate|gzip|zlib|zip
+Optional: --verbose

@@ -1,0 +1,21 @@
+{
+  "adapterSha256": "49bbd1dc5ab712e18264f26403174e2ac2512ba0ffda3ffd830826c749194d98",
+  "artifactDigest": "sha256:d03f7b1de81cdb8bcdb9cc3ce2a012af55fa3bdd0244b9268e7500af653fa5ef",
+  "artifactId": 11266936475,
+  "artifactName": "patch-gap-001-puffin-toolchain",
+  "artifactSizeBytes": 351513,
+  "binarySha256": "da797869ec3b4f8d4805d48b92d7377a4c26c3457111aefe76c9a3a7674b8178",
+  "buildProvenanceSha256": "c0288a7c2968f6c7b68a394bd1ade1df043246c1f36293742f04291032d68838",
+  "consumerSourceCommit": "d43986e3f4a07806cbd5adaf96dd2a9f2cdae383",
+  "producerAdapterBlobSha": "8f247f7f038c1888501bccfd837dfe8482f3fbe6",
+  "producerHeadSha": "d43986e3f4a07806cbd5adaf96dd2a9f2cdae383",
+  "producerRunId": 37101894709,
+  "producerWorkflow": ".github/workflows/patch-gap-001-puffin-toolchain.yml",
+  "producerWorkflowBlobSha": "86674c54eb18df874acb9bbc5f4ba147867addbf",
+  "puffinCommit": "343e23db1b4d81045e91a10244244893f5acd73b",
+  "puffinTag": "android-17.0.0_r1",
+  "repository": "definitely-stable/ChunkShift",
+  "runnerImage": "ubuntu-24.04",
+  "schema": "chunkshift.patch-gap-puffin-producer-lineage.v2",
+  "sourceArchiveSha256": "69b96c711f873966a4da8b612427eccea616fa7accf7d83d62b651d564c75b9d"
+}
