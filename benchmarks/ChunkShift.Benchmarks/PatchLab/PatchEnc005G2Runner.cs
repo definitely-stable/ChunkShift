@@ -301,7 +301,7 @@ internal static class PatchEnc005G2Runner
     internal static async Task<(PatchEnc005G2Choice Choice, int ValidCandidates)> EvaluateWithCountAsync(
         CspPayloadEncoder encoder,
         Stream baseContent,
-        IReadOnlyList<CspPatchBuilder.BaseRecord> baseRecords,
+        List<CspPatchBuilder.BaseRecord> baseRecords,
         IEnumerable<int> candidateStarts,
         ReadOnlyMemory<byte> target,
         byte[] dictionaryBuffer,
@@ -362,7 +362,7 @@ internal static class PatchEnc005G2Runner
     private static async Task<PatchEnc005G2Choice> EvaluateAsync(
         CspPayloadEncoder encoder,
         Stream baseContent,
-        IReadOnlyList<CspPatchBuilder.BaseRecord> baseRecords,
+        List<CspPatchBuilder.BaseRecord> baseRecords,
         IEnumerable<int> candidateStarts,
         ReadOnlyMemory<byte> target,
         byte[] dictionaryBuffer,
