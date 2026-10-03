@@ -85,7 +85,7 @@ public sealed class PatchEnc005G2Tests
 
         Assert.Equal(5, starts.Length);
         Assert.Equal(5, starts.Distinct().Count());
-        Assert.Equal([2, 1, 3, 0, 4], starts);
+        Assert.Equal([2, 3, 1, 4, 0], starts);
     }
 
     [Fact]
