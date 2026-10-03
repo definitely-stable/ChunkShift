@@ -113,6 +113,20 @@ public sealed class PatchEnc005G2Tests
     }
 
     [Fact]
+    public void FrozenH0PolicyMatchesProtocolBundle()
+    {
+        var policy = PatchEnc005G2Protocol.FrozenH0Policy;
+
+        Assert.Equal(19, policy.Level);
+        Assert.Equal(4, policy.DictionaryChunks);
+        Assert.Equal(8, policy.MaxCandidates);
+        Assert.Equal(256 * 1024, policy.SearchRadius);
+        Assert.Equal("Prefix", policy.DictionaryLoad.ToString());
+        Assert.Equal(20, policy.DictionaryHashLog);
+        Assert.Equal(20, policy.DictionaryChainLog);
+    }
+
+    [Fact]
     public void ProductionH0WrapperUsesSameNearestFirstSemantics()
     {
         int[] starts = PatchEnc005G2Protocol.ProductionH0CandidateStartsForTests(
