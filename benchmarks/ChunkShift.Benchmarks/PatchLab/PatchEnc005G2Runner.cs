@@ -112,12 +112,7 @@ internal static class PatchEnc005G2Runner
                 EnsureValidManifest(reader, targetManifest);
             }
 
-            selected.AddRange(
-                pairRows
-                    .OrderBy(static row => row.SampleKeySha256, StringComparer.Ordinal)
-                    .ThenBy(static row => row.Path, StringComparer.Ordinal)
-                    .ThenBy(static row => row.TargetIndex)
-                    .Take(PatchEnc005G2Protocol.SamplePerPair));
+            selected.AddRange(PatchEnc005G2Protocol.SelectPairSample(pairRows));
         }
 
         PatchEnc005G2SampleRow[] rows = [.. selected];
