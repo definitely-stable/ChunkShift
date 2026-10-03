@@ -115,13 +115,14 @@ public sealed class PatchEnc005G2Tests
     [Fact]
     public void FrozenH0PolicyMatchesProtocolBundle()
     {
-        var policy = PatchEnc005G2Protocol.FrozenH0Policy;
+        PatchEnc005G2PolicySnapshot policy =
+            PatchEnc005G2Protocol.FrozenH0PolicySnapshotForTests();
 
         Assert.Equal(19, policy.Level);
         Assert.Equal(4, policy.DictionaryChunks);
         Assert.Equal(8, policy.MaxCandidates);
         Assert.Equal(256 * 1024, policy.SearchRadius);
-        Assert.Equal("Prefix", policy.DictionaryLoad.ToString());
+        Assert.Equal("Prefix", policy.DictionaryLoad);
         Assert.Equal(20, policy.DictionaryHashLog);
         Assert.Equal(20, policy.DictionaryChainLog);
     }
