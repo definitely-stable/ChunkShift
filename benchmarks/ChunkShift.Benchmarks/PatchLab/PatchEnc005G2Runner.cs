@@ -197,6 +197,7 @@ internal static class PatchEnc005G2Runner
 
             List<CspPatchBuilder.BaseRecord> baseRecords =
                 await ReadBaseRecordsAsync(baseManifestPath, cancellationToken).ConfigureAwait(false);
+            long[] baseOffsets = [.. baseRecords.Select(static record => record.Offset)];
 
             await using FileStream baseContent = PatchLabFiles.OpenRead(baseContentPath);
             await using FileStream targetContent = PatchLabFiles.OpenRead(targetContentPath);
@@ -230,7 +231,7 @@ internal static class PatchEnc005G2Runner
                     baseContent,
                     baseRecords,
                     PatchEnc005G2Protocol.WholeBaseCandidateStarts(
-                        baseRecords,
+                        baseOffsets,
                         row.TargetOffset),
                     target,
                     dictionaryBuffer,
