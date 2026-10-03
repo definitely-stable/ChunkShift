@@ -2,11 +2,6 @@ name: PATCH-ENC-005 G2 oracle
 
 on:
   workflow_dispatch:
-    inputs:
-      run_date:
-        description: UTC evidence date in YYYYMMDD form
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -30,8 +25,6 @@ jobs:
     steps:
       - name: Validate decision-run provenance
         shell: bash
-        env:
-          RUN_DATE: ${{ inputs.run_date }}
         run: |
           set -euo pipefail
           if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
@@ -40,10 +33,6 @@ jobs:
           fi
           if [[ "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
             echo "G2 oracle rejects GitHub workflow re-runs; dispatch a new run instead." >&2
-            exit 2
-          fi
-          if [[ ! "$RUN_DATE" =~ ^[0-9]{8}$ ]]; then
-            echo "run_date must be YYYYMMDD." >&2
             exit 2
           fi
 
@@ -89,12 +78,12 @@ jobs:
 
       - name: Bind RunId
         shell: bash
-        env:
-          RUN_DATE: ${{ inputs.run_date }}
         run: |
           set -euo pipefail
+          run_date="$(date -u +%Y%m%d)"
           printf -v run_number "%03d" "$GITHUB_RUN_NUMBER"
-          run_id="PATCH-ENC-005/RUN-${RUN_DATE}-${run_number}-${GITHUB_SHA}-linux-x64"
+          run_id="PATCH-ENC-005/RUN-${run_date}-${run_number}-${GITHUB_SHA}-linux-x64"
+          echo "PATCH_ENC_005_RUN_DATE=$run_date" >> "$GITHUB_ENV"
           echo "PATCH_ENC_005_RUN_ID=$run_id" >> "$GITHUB_ENV"
           echo "$run_id"
 
