@@ -1,0 +1,1050 @@
+{
+  "excluded": {
+    "actor": {
+      "avatar_url": "https://avatars.githubusercontent.com/u/271974079?v=4",
+      "events_url": "https://api.github.com/users/MrFr3di/events{/privacy}",
+      "followers_url": "https://api.github.com/users/MrFr3di/followers",
+      "following_url": "https://api.github.com/users/MrFr3di/following{/other_user}",
+      "gists_url": "https://api.github.com/users/MrFr3di/gists{/gist_id}",
+      "gravatar_id": "",
+      "html_url": "https://github.com/MrFr3di",
+      "id": 271974079,
+      "login": "MrFr3di",
+      "node_id": "U_kgDOEDX-vw",
+      "organizations_url": "https://api.github.com/users/MrFr3di/orgs",
+      "received_events_url": "https://api.github.com/users/MrFr3di/received_events",
+      "repos_url": "https://api.github.com/users/MrFr3di/repos",
+      "site_admin": false,
+      "starred_url": "https://api.github.com/users/MrFr3di/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/MrFr3di/subscriptions",
+      "type": "User",
+      "url": "https://api.github.com/users/MrFr3di",
+      "user_view_type": "public"
+    },
+    "artifacts_url": "https://api.github.com/repos/definitely-stable/ChunkShift/actions/runs/37100597344/artifacts",
+    "cancel_url": "https://api.github.com/repos/definitely-stable/ChunkShift/actions/runs/37100597344/cancel",
+    "check_suite_id": 100494997326,
+    "check_suite_node_id": "CS_kwDOUkdUiM8AAAAXZff3Tg",
+    "check_suite_url": "https://api.github.com/repos/definitely-stable/ChunkShift/check-suites/100494997326",
+    "conclusion": "failure",
+    "created_at": "2026-10-03T05:40:50Z",
+    "display_title": "PATCH-ENC-005 Phase A",
+    "event": "workflow_dispatch",
+    "head_branch": "main",
+    "head_commit": {
+      "author": {
+        "email": "ynagi-wm@mail.ru",
+        "name": "MrFr3di"
+      },
+      "committer": {
+        "email": "noreply@github.com",
+        "name": "GitHub"
+      },
+      "id": "34205e0baacdb43ffdfa8cf8fb762a78195c8709",
+      "message": "ci(patch-gap): auto-chain Stage-A inventory from main (#232)\n\nAdd a one-shot main push request that publishes the pinned Puffin artifact and automatically chains PATCH-GAP-001 Stage-A inventory through workflow_run while preserving source/provenance binding and keeping all size/reference lanes disabled.",
+      "timestamp": "2026-10-03T05:06:21Z",
+      "tree_id": "a488beb6fbd8cbe2c26e5635ba5d7a61a0b177dd"
+    },
+    "head_repository": {
+      "archive_url": "https://api.github.com/repos/definitely-stable/ChunkShift/{archive_format}{/ref}",
+      "assignees_url": "https://api.github.com/repos/definitely-stable/ChunkShift/assignees{/user}",
+      "blobs_url": "https://api.github.com/repos/definitely-stable/ChunkShift/git/blobs{/sha}",
+      "branches_url": "https://api.github.com/repos/definitely-stable/ChunkShift/branches{/branch}",
+      "collaborators_url": "https://api.github.com/repos/definitely-stable/ChunkShift/collaborators{/collaborator}",
+      "comments_url": "https://api.github.com/repos/definitely-stable/ChunkShift/comments{/number}",
+      "commits_url": "https://api.github.com/repos/definitely-stable/ChunkShift/commits{/sha}",
+      "compare_url": "https://api.github.com/repos/definitely-stable/ChunkShift/compare/{base}...{head}",
+      "contents_url": "https://api.github.com/repos/definitely-stable/ChunkShift/contents/{+path}",
+      "contributors_url": "https://api.github.com/repos/definitely-stable/ChunkShift/contributors",
+      "deployments_url": "https://api.github.com/repos/definitely-stable/ChunkShift/deployments",
+      "description": null,
+      "downloads_url": "https://api.github.com/repos/definitely-stable/ChunkShift/downloads",
+      "events_url": "https://api.github.com/repos/definitely-stable/ChunkShift/events",
+      "fork": false,
+      "forks_url": "https://api.github.com/repos/definitely-stable/ChunkShift/forks",
+      "full_name": "definitely-stable/ChunkShift",
+      "git_commits_url": "https://api.github.com/repos/definitely-stable/ChunkShift/git/commits{/sha}",
+      "git_refs_url": "https://api.github.com/repos/definitely-stable/ChunkShift/git/refs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/definitely-stable/ChunkShift/git/tags{/sha}",
+      "hooks_url": "https://api.github.com/repos/definitely-stable/ChunkShift/hooks",
+      "html_url": "https://github.com/definitely-stable/ChunkShift",
+      "id": 1380406408,
+      "issue_comment_url": "https://api.github.com/repos/definitely-stable/ChunkShift/issues/comments{/number}",
+      "issue_events_url": "https://api.github.com/repos/definitely-stable/ChunkShift/issues/events{/number}",
+      "issues_url": "https://api.github.com/repos/definitely-stable/ChunkShift/issues{/number}",
+      "keys_url": "https://api.github.com/repos/definitely-stable/ChunkShift/keys{/key_id}",
+      "labels_url": "https://api.github.com/repos/definitely-stable/ChunkShift/labels{/name}",
+      "languages_url": "https://api.github.com/repos/definitely-stable/ChunkShift/languages",
+      "merges_url": "https://api.github.com/repos/definitely-stable/ChunkShift/merges",
+      "milestones_url": "https://api.github.com/repos/definitely-stable/ChunkShift/milestones{/number}",
+      "name": "ChunkShift",
+      "node_id": "R_kgDOUkdUiA",
+      "notifications_url": "https://api.github.com/repos/definitely-stable/ChunkShift/notifications{?since,all,participating}",
+      "owner": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/321275545?v=4",
+        "events_url": "https://api.github.com/users/definitely-stable/events{/privacy}",
+        "followers_url": "https://api.github.com/users/definitely-stable/followers",
+        "following_url": "https://api.github.com/users/definitely-stable/following{/other_user}",
+        "gists_url": "https://api.github.com/users/definitely-stable/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/definitely-stable",
+        "id": 321275545,
+        "login": "definitely-stable",
+        "node_id": "O_kgDOEyZGmQ",
+        "organizations_url": "https://api.github.com/users/definitely-stable/orgs",
+        "received_events_url": "https://api.github.com/users/definitely-stable/received_events",
+        "repos_url": "https://api.github.com/users/definitely-stable/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/definitely-stable/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/definitely-stable/subscriptions",
+        "type": "Organization",
+        "url": "https://api.github.com/users/definitely-stable",
+        "user_view_type": "public"
+      },
+      "private": false,
+      "pulls_url": "https://api.github.com/repos/definitely-stable/ChunkShift/pulls{/number}",
+      "releases_url": "https://api.github.com/repos/definitely-stable/ChunkShift/releases{/id}",
+      "stargazers_url": "https://api.github.com/repos/definitely-stable/ChunkShift/stargazers",
+      "statuses_url": "https://api.github.com/repos/definitely-stable/ChunkShift/statuses/{sha}",
+      "subscribers_url": "https://api.github.com/repos/definitely-stable/ChunkShift/subscribers",
+      "subscription_url": "https://api.github.com/repos/definitely-stable/ChunkShift/subscription",
+      "tags_url": "https://api.github.com/repos/definitely-stable/ChunkShift/tags",
+      "teams_url": "https://api.github.com/repos/definitely-stable/ChunkShift/teams",
+      "trees_url": "https://api.github.com/repos/definitely-stable/ChunkShift/git/trees{/sha}",
+      "url": "https://api.github.com/repos/definitely-stable/ChunkShift"
+    },
+    "head_sha": "34205e0baacdb43ffdfa8cf8fb762a78195c8709",
+    "html_url": "https://github.com/definitely-stable/ChunkShift/actions/runs/37100597344",
+    "id": 37100597344,
+    "jobs_url": "https://api.github.com/repos/definitely-stable/ChunkShift/actions/runs/37100597344/jobs",
+    "logs_url": "https://api.github.com/repos/definitely-stable/ChunkShift/actions/runs/37100597344/logs",
+    "name": "PATCH-ENC-005 Phase A",
+    "node_id": "WFR_kwLOUkdUiM8AAAAIo14wYA",
+    "path": ".github/workflows/patch-enc-005-phase-a.yml",
+    "previous_attempt_url": null,
+    "pull_requests": [],
+    "referenced_workflows": [],
+    "repository": {
+      "archive_url": "https://api.github.com/repos/definitely-stable/ChunkShift/{archive_format}{/ref}",
+      "assignees_url": "https://api.github.com/repos/definitely-stable/ChunkShift/assignees{/user}",
+      "blobs_url": "https://api.github.com/repos/definitely-stable/ChunkShift/git/blobs{/sha}",
+      "branches_url": "https://api.github.com/repos/definitely-stable/ChunkShift/branches{/branch}",
+      "collaborators_url": "https://api.github.com/repos/definitely-stable/ChunkShift/collaborators{/collaborator}",
+      "comments_url": "https://api.github.com/repos/definitely-stable/ChunkShift/comments{/number}",
+      "commits_url": "https://api.github.com/repos/definitely-stable/ChunkShift/commits{/sha}",
+      "compare_url": "https://api.github.com/repos/definitely-stable/ChunkShift/compare/{base}...{head}",
+      "contents_url": "https://api.github.com/repos/definitely-stable/ChunkShift/contents/{+path}",
+      "contributors_url": "https://api.github.com/repos/definitely-stable/ChunkShift/contributors",
+      "deployments_url": "https://api.github.com/repos/definitely-stable/ChunkShift/deployments",
+      "description": null,
+      "downloads_url": "https://api.github.com/repos/definitely-stable/ChunkShift/downloads",
+      "events_url": "https://api.github.com/repos/definitely-stable/ChunkShift/events",
+      "fork": false,
+      "forks_url": "https://api.github.com/repos/definitely-stable/ChunkShift/forks",
+      "full_name": "definitely-stable/ChunkShift",
+      "git_commits_url": "https://api.github.com/repos/definitely-stable/ChunkShift/git/commits{/sha}",
+      "git_refs_url": "https://api.github.com/repos/definitely-stable/ChunkShift/git/refs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/definitely-stable/ChunkShift/git/tags{/sha}",
+      "hooks_url": "https://api.github.com/repos/definitely-stable/ChunkShift/hooks",
+      "html_url": "https://github.com/definitely-stable/ChunkShift",
+      "id": 1380406408,
+      "issue_comment_url": "https://api.github.com/repos/definitely-stable/ChunkShift/issues/comments{/number}",
+      "issue_events_url": "https://api.github.com/repos/definitely-stable/ChunkShift/issues/events{/number}",
+      "issues_url": "https://api.github.com/repos/definitely-stable/ChunkShift/issues{/number}",
+      "keys_url": "https://api.github.com/repos/definitely-stable/ChunkShift/keys{/key_id}",
+      "labels_url": "https://api.github.com/repos/definitely-stable/ChunkShift/labels{/name}",
+      "languages_url": "https://api.github.com/repos/definitely-stable/ChunkShift/languages",
+      "merges_url": "https://api.github.com/repos/definitely-stable/ChunkShift/merges",
+      "milestones_url": "https://api.github.com/repos/definitely-stable/ChunkShift/milestones{/number}",
+      "name": "ChunkShift",
+      "node_id": "R_kgDOUkdUiA",
+      "notifications_url": "https://api.github.com/repos/definitely-stable/ChunkShift/notifications{?since,all,participating}",
+      "owner": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/321275545?v=4",
+        "events_url": "https://api.github.com/users/definitely-stable/events{/privacy}",
+        "followers_url": "https://api.github.com/users/definitely-stable/followers",
+        "following_url": "https://api.github.com/users/definitely-stable/following{/other_user}",
+        "gists_url": "https://api.github.com/users/definitely-stable/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/definitely-stable",
+        "id": 321275545,
+        "login": "definitely-stable",
+        "node_id": "O_kgDOEyZGmQ",
+        "organizations_url": "https://api.github.com/users/definitely-stable/orgs",
+        "received_events_url": "https://api.github.com/users/definitely-stable/received_events",
+        "repos_url": "https://api.github.com/users/definitely-stable/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/definitely-stable/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/definitely-stable/subscriptions",
+        "type": "Organization",
+        "url": "https://api.github.com/users/definitely-stable",
+        "user_view_type": "public"
+      },
+      "private": false,
+      "pulls_url": "https://api.github.com/repos/definitely-stable/ChunkShift/pulls{/number}",
+      "releases_url": "https://api.github.com/repos/definitely-stable/ChunkShift/releases{/id}",
+      "stargazers_url": "https://api.github.com/repos/definitely-stable/ChunkShift/stargazers",
+      "statuses_url": "https://api.github.com/repos/definitely-stable/ChunkShift/statuses/{sha}",
+      "subscribers_url": "https://api.github.com/repos/definitely-stable/ChunkShift/subscribers",
+      "subscription_url": "https://api.github.com/repos/definitely-stable/ChunkShift/subscription",
+      "tags_url": "https://api.github.com/repos/definitely-stable/ChunkShift/tags",
+      "teams_url": "https://api.github.com/repos/definitely-stable/ChunkShift/teams",
+      "trees_url": "https://api.github.com/repos/definitely-stable/ChunkShift/git/trees{/sha}",
+      "url": "https://api.github.com/repos/definitely-stable/ChunkShift"
+    },
+    "rerun_url": "https://api.github.com/repos/definitely-stable/ChunkShift/actions/runs/37100597344/rerun",
+    "run_attempt": 1,
+    "run_number": 1,
+    "run_started_at": "2026-10-03T05:40:50Z",
+    "status": "completed",
+    "triggering_actor": {
+      "avatar_url": "https://avatars.githubusercontent.com/u/271974079?v=4",
+      "events_url": "https://api.github.com/users/MrFr3di/events{/privacy}",
+      "followers_url": "https://api.github.com/users/MrFr3di/followers",
+      "following_url": "https://api.github.com/users/MrFr3di/following{/other_user}",
+      "gists_url": "https://api.github.com/users/MrFr3di/gists{/gist_id}",
+      "gravatar_id": "",
+      "html_url": "https://github.com/MrFr3di",
+      "id": 271974079,
+      "login": "MrFr3di",
+      "node_id": "U_kgDOEDX-vw",
+      "organizations_url": "https://api.github.com/users/MrFr3di/orgs",
+      "received_events_url": "https://api.github.com/users/MrFr3di/received_events",
+      "repos_url": "https://api.github.com/users/MrFr3di/repos",
+      "site_admin": false,
+      "starred_url": "https://api.github.com/users/MrFr3di/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/MrFr3di/subscriptions",
+      "type": "User",
+      "url": "https://api.github.com/users/MrFr3di",
+      "user_view_type": "public"
+    },
+    "updated_at": "2026-10-03T05:44:36Z",
+    "url": "https://api.github.com/repos/definitely-stable/ChunkShift/actions/runs/37100597344",
+    "workflow_id": 372772496,
+    "workflow_url": "https://api.github.com/repos/definitely-stable/ChunkShift/actions/workflows/372772496"
+  },
+  "excludedArtifacts": {
+    "artifacts": [],
+    "total_count": 0
+  },
+  "included": {
+    "conclusion": "failure",
+    "headSha": "d4398a9d6e1946ef84cad56a1bf66a33a4bd474f",
+    "jobs": [
+      {
+        "completedAt": "2026-10-03T06:07:15Z",
+        "conclusion": "success",
+        "databaseId": 111143216172,
+        "name": "evidence-identity-preflight",
+        "startedAt": "2026-10-03T06:07:13Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-03T06:07:14Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-03T06:07:14Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:14Z",
+            "conclusion": "success",
+            "name": "Validate frozen evidence identity",
+            "number": 2,
+            "startedAt": "2026-10-03T06:07:14Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:14Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 3,
+            "startedAt": "2026-10-03T06:07:14Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/definitely-stable/ChunkShift/actions/runs/37101999778/job/111143216172"
+      },
+      {
+        "completedAt": "2026-10-03T06:31:13Z",
+        "conclusion": "failure",
+        "databaseId": 111143229529,
+        "name": "timing-a1-calibration (linux-x64)",
+        "startedAt": "2026-10-03T06:07:19Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-03T06:07:21Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-03T06:07:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:23Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-10-03T06:07:21Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:24Z",
+            "conclusion": "success",
+            "name": "Setup .NET",
+            "number": 3,
+            "startedAt": "2026-10-03T06:07:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:24Z",
+            "conclusion": "success",
+            "name": "Setup Python",
+            "number": 4,
+            "startedAt": "2026-10-03T06:07:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:29Z",
+            "conclusion": "success",
+            "name": "Restore corpus sources",
+            "number": 5,
+            "startedAt": "2026-10-03T06:07:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:54Z",
+            "conclusion": "success",
+            "name": "Materialize frozen development corpus",
+            "number": 6,
+            "startedAt": "2026-10-03T06:07:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:08:22Z",
+            "conclusion": "success",
+            "name": "Build benchmark lab",
+            "number": 7,
+            "startedAt": "2026-10-03T06:07:54Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:31:09Z",
+            "conclusion": "failure",
+            "name": "Run frozen timing attempt 1",
+            "number": 8,
+            "startedAt": "2026-10-03T06:08:22Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:31:11Z",
+            "conclusion": "success",
+            "name": "Upload attempt 1",
+            "number": 9,
+            "startedAt": "2026-10-03T06:31:09Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:31:11Z",
+            "conclusion": "skipped",
+            "name": "Post Restore corpus sources",
+            "number": 15,
+            "startedAt": "2026-10-03T06:31:11Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:31:11Z",
+            "conclusion": "skipped",
+            "name": "Post Setup Python",
+            "number": 16,
+            "startedAt": "2026-10-03T06:31:11Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:31:11Z",
+            "conclusion": "skipped",
+            "name": "Post Setup .NET",
+            "number": 17,
+            "startedAt": "2026-10-03T06:31:11Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:31:11Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 18,
+            "startedAt": "2026-10-03T06:31:11Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:31:11Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 19,
+            "startedAt": "2026-10-03T06:31:11Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/definitely-stable/ChunkShift/actions/runs/37101999778/job/111143229529"
+      },
+      {
+        "completedAt": "2026-10-03T06:26:18Z",
+        "conclusion": "success",
+        "databaseId": 111143229555,
+        "name": "memory-calibration (win-x64)",
+        "startedAt": "2026-10-03T06:07:18Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-03T06:07:21Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-03T06:07:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:27Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-10-03T06:07:21Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:29Z",
+            "conclusion": "success",
+            "name": "Setup .NET",
+            "number": 3,
+            "startedAt": "2026-10-03T06:07:27Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:29Z",
+            "conclusion": "success",
+            "name": "Setup Python",
+            "number": 4,
+            "startedAt": "2026-10-03T06:07:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:36Z",
+            "conclusion": "success",
+            "name": "Restore corpus sources",
+            "number": 5,
+            "startedAt": "2026-10-03T06:07:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:09:03Z",
+            "conclusion": "success",
+            "name": "Materialize frozen development corpus",
+            "number": 6,
+            "startedAt": "2026-10-03T06:07:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:09:45Z",
+            "conclusion": "success",
+            "name": "Build benchmark lab",
+            "number": 7,
+            "startedAt": "2026-10-03T06:09:03Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:26:12Z",
+            "conclusion": "success",
+            "name": "Run frozen Phase-A memory population",
+            "number": 8,
+            "startedAt": "2026-10-03T06:09:45Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:26:13Z",
+            "conclusion": "success",
+            "name": "Upload memory evidence",
+            "number": 9,
+            "startedAt": "2026-10-03T06:26:12Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:26:13Z",
+            "conclusion": "success",
+            "name": "Post Restore corpus sources",
+            "number": 15,
+            "startedAt": "2026-10-03T06:26:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:26:14Z",
+            "conclusion": "success",
+            "name": "Post Setup Python",
+            "number": 16,
+            "startedAt": "2026-10-03T06:26:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:26:14Z",
+            "conclusion": "success",
+            "name": "Post Setup .NET",
+            "number": 17,
+            "startedAt": "2026-10-03T06:26:14Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:26:16Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 18,
+            "startedAt": "2026-10-03T06:26:14Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:26:16Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 19,
+            "startedAt": "2026-10-03T06:26:16Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/definitely-stable/ChunkShift/actions/runs/37101999778/job/111143229555"
+      },
+      {
+        "completedAt": "2026-10-03T06:31:10Z",
+        "conclusion": "failure",
+        "databaseId": 111143229561,
+        "name": "timing-a1-calibration (win-x64)",
+        "startedAt": "2026-10-03T06:07:21Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-03T06:07:22Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-03T06:07:21Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:28Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-10-03T06:07:22Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:31Z",
+            "conclusion": "success",
+            "name": "Setup .NET",
+            "number": 3,
+            "startedAt": "2026-10-03T06:07:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:31Z",
+            "conclusion": "success",
+            "name": "Setup Python",
+            "number": 4,
+            "startedAt": "2026-10-03T06:07:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:36Z",
+            "conclusion": "success",
+            "name": "Restore corpus sources",
+            "number": 5,
+            "startedAt": "2026-10-03T06:07:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:09:10Z",
+            "conclusion": "success",
+            "name": "Materialize frozen development corpus",
+            "number": 6,
+            "startedAt": "2026-10-03T06:07:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:09:58Z",
+            "conclusion": "success",
+            "name": "Build benchmark lab",
+            "number": 7,
+            "startedAt": "2026-10-03T06:09:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:31:05Z",
+            "conclusion": "failure",
+            "name": "Run frozen timing attempt 1",
+            "number": 8,
+            "startedAt": "2026-10-03T06:09:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:31:06Z",
+            "conclusion": "success",
+            "name": "Upload attempt 1",
+            "number": 9,
+            "startedAt": "2026-10-03T06:31:05Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:31:06Z",
+            "conclusion": "skipped",
+            "name": "Post Restore corpus sources",
+            "number": 15,
+            "startedAt": "2026-10-03T06:31:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:31:06Z",
+            "conclusion": "skipped",
+            "name": "Post Setup Python",
+            "number": 16,
+            "startedAt": "2026-10-03T06:31:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:31:06Z",
+            "conclusion": "skipped",
+            "name": "Post Setup .NET",
+            "number": 17,
+            "startedAt": "2026-10-03T06:31:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:31:09Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 18,
+            "startedAt": "2026-10-03T06:31:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:31:09Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 19,
+            "startedAt": "2026-10-03T06:31:09Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/definitely-stable/ChunkShift/actions/runs/37101999778/job/111143229561"
+      },
+      {
+        "completedAt": "2026-10-03T06:22:34Z",
+        "conclusion": "success",
+        "databaseId": 111143229581,
+        "name": "memory-calibration (linux-arm64)",
+        "startedAt": "2026-10-03T06:07:21Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-03T06:07:24Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-03T06:07:21Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:25Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-10-03T06:07:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:26Z",
+            "conclusion": "success",
+            "name": "Setup .NET",
+            "number": 3,
+            "startedAt": "2026-10-03T06:07:25Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:26Z",
+            "conclusion": "success",
+            "name": "Setup Python",
+            "number": 4,
+            "startedAt": "2026-10-03T06:07:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:30Z",
+            "conclusion": "success",
+            "name": "Restore corpus sources",
+            "number": 5,
+            "startedAt": "2026-10-03T06:07:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:51Z",
+            "conclusion": "success",
+            "name": "Materialize frozen development corpus",
+            "number": 6,
+            "startedAt": "2026-10-03T06:07:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:08:26Z",
+            "conclusion": "success",
+            "name": "Build benchmark lab",
+            "number": 7,
+            "startedAt": "2026-10-03T06:07:51Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:22:30Z",
+            "conclusion": "success",
+            "name": "Run frozen Phase-A memory population",
+            "number": 8,
+            "startedAt": "2026-10-03T06:08:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:22:31Z",
+            "conclusion": "success",
+            "name": "Upload memory evidence",
+            "number": 9,
+            "startedAt": "2026-10-03T06:22:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:22:31Z",
+            "conclusion": "success",
+            "name": "Post Restore corpus sources",
+            "number": 15,
+            "startedAt": "2026-10-03T06:22:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:22:31Z",
+            "conclusion": "success",
+            "name": "Post Setup Python",
+            "number": 16,
+            "startedAt": "2026-10-03T06:22:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:22:31Z",
+            "conclusion": "success",
+            "name": "Post Setup .NET",
+            "number": 17,
+            "startedAt": "2026-10-03T06:22:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:22:32Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 18,
+            "startedAt": "2026-10-03T06:22:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:22:32Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 19,
+            "startedAt": "2026-10-03T06:22:32Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/definitely-stable/ChunkShift/actions/runs/37101999778/job/111143229581"
+      },
+      {
+        "completedAt": "2026-10-03T06:21:23Z",
+        "conclusion": "success",
+        "databaseId": 111143229613,
+        "name": "memory-calibration (linux-x64)",
+        "startedAt": "2026-10-03T06:07:19Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-03T06:07:22Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-03T06:07:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:24Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-10-03T06:07:22Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:25Z",
+            "conclusion": "success",
+            "name": "Setup .NET",
+            "number": 3,
+            "startedAt": "2026-10-03T06:07:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:25Z",
+            "conclusion": "success",
+            "name": "Setup Python",
+            "number": 4,
+            "startedAt": "2026-10-03T06:07:25Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:29Z",
+            "conclusion": "success",
+            "name": "Restore corpus sources",
+            "number": 5,
+            "startedAt": "2026-10-03T06:07:25Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:51Z",
+            "conclusion": "success",
+            "name": "Materialize frozen development corpus",
+            "number": 6,
+            "startedAt": "2026-10-03T06:07:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:08:15Z",
+            "conclusion": "success",
+            "name": "Build benchmark lab",
+            "number": 7,
+            "startedAt": "2026-10-03T06:07:51Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:21:19Z",
+            "conclusion": "success",
+            "name": "Run frozen Phase-A memory population",
+            "number": 8,
+            "startedAt": "2026-10-03T06:08:15Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:21:20Z",
+            "conclusion": "success",
+            "name": "Upload memory evidence",
+            "number": 9,
+            "startedAt": "2026-10-03T06:21:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:21:20Z",
+            "conclusion": "success",
+            "name": "Post Restore corpus sources",
+            "number": 15,
+            "startedAt": "2026-10-03T06:21:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:21:20Z",
+            "conclusion": "success",
+            "name": "Post Setup Python",
+            "number": 16,
+            "startedAt": "2026-10-03T06:21:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:21:20Z",
+            "conclusion": "success",
+            "name": "Post Setup .NET",
+            "number": 17,
+            "startedAt": "2026-10-03T06:21:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:21:20Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 18,
+            "startedAt": "2026-10-03T06:21:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:21:21Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 19,
+            "startedAt": "2026-10-03T06:21:20Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/definitely-stable/ChunkShift/actions/runs/37101999778/job/111143229613"
+      },
+      {
+        "completedAt": "2026-10-03T06:25:35Z",
+        "conclusion": "failure",
+        "databaseId": 111143229645,
+        "name": "timing-a1-calibration (linux-arm64)",
+        "startedAt": "2026-10-03T06:07:22Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-03T06:07:24Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-03T06:07:22Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:25Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-10-03T06:07:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:26Z",
+            "conclusion": "success",
+            "name": "Setup .NET",
+            "number": 3,
+            "startedAt": "2026-10-03T06:07:25Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:26Z",
+            "conclusion": "success",
+            "name": "Setup Python",
+            "number": 4,
+            "startedAt": "2026-10-03T06:07:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:30Z",
+            "conclusion": "success",
+            "name": "Restore corpus sources",
+            "number": 5,
+            "startedAt": "2026-10-03T06:07:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:07:48Z",
+            "conclusion": "success",
+            "name": "Materialize frozen development corpus",
+            "number": 6,
+            "startedAt": "2026-10-03T06:07:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:08:10Z",
+            "conclusion": "success",
+            "name": "Build benchmark lab",
+            "number": 7,
+            "startedAt": "2026-10-03T06:07:48Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:25:32Z",
+            "conclusion": "failure",
+            "name": "Run frozen timing attempt 1",
+            "number": 8,
+            "startedAt": "2026-10-03T06:08:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:25:34Z",
+            "conclusion": "success",
+            "name": "Upload attempt 1",
+            "number": 9,
+            "startedAt": "2026-10-03T06:25:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:25:34Z",
+            "conclusion": "skipped",
+            "name": "Post Restore corpus sources",
+            "number": 15,
+            "startedAt": "2026-10-03T06:25:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:25:34Z",
+            "conclusion": "skipped",
+            "name": "Post Setup Python",
+            "number": 16,
+            "startedAt": "2026-10-03T06:25:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:25:34Z",
+            "conclusion": "skipped",
+            "name": "Post Setup .NET",
+            "number": 17,
+            "startedAt": "2026-10-03T06:25:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:25:34Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 18,
+            "startedAt": "2026-10-03T06:25:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-03T06:25:34Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 19,
+            "startedAt": "2026-10-03T06:25:34Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/definitely-stable/ChunkShift/actions/runs/37101999778/job/111143229645"
+      },
+      {
+        "completedAt": "2026-10-03T06:31:13Z",
+        "conclusion": "skipped",
+        "databaseId": 111146971209,
+        "name": "timing-a2-${{ inputs.dataset-role }} (${{ matrix.platform }})",
+        "startedAt": "2026-10-03T06:31:14Z",
+        "status": "completed",
+        "steps": [],
+        "url": "https://github.com/definitely-stable/ChunkShift/actions/runs/37101999778/job/111146971209"
+      },
+      {
+        "completedAt": "2026-10-03T06:31:14Z",
+        "conclusion": "skipped",
+        "databaseId": 111146971366,
+        "name": "finalize-${{ inputs.dataset-role }} (${{ matrix.platform }})",
+        "startedAt": "2026-10-03T06:31:14Z",
+        "status": "completed",
+        "steps": [],
+        "url": "https://github.com/definitely-stable/ChunkShift/actions/runs/37101999778/job/111146971366"
+      },
+      {
+        "completedAt": "2026-10-03T06:31:14Z",
+        "conclusion": "skipped",
+        "databaseId": 111146971638,
+        "name": "patch-byte-determinism",
+        "startedAt": "2026-10-03T06:31:14Z",
+        "status": "completed",
+        "steps": [],
+        "url": "https://github.com/definitely-stable/ChunkShift/actions/runs/37101999778/job/111146971638"
+      },
+      {
+        "completedAt": "2026-10-03T06:31:14Z",
+        "conclusion": "skipped",
+        "databaseId": 111146971912,
+        "name": "calibration-evaluator",
+        "startedAt": "2026-10-03T06:31:14Z",
+        "status": "completed",
+        "steps": [],
+        "url": "https://github.com/definitely-stable/ChunkShift/actions/runs/37101999778/job/111146971912"
+      }
+    ],
+    "status": "completed"
+  }
+}

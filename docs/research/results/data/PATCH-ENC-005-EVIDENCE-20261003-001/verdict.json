@@ -1,0 +1,627 @@
+{
+  "calibrationStatus": "INCOMPLETE",
+  "evidenceId": "PATCH-ENC-005/EVIDENCE-20261003-001",
+  "experimentId": "PATCH-ENC-005",
+  "finalists": [],
+  "h7ByteOracle": {
+    "fileCount": 1049,
+    "mismatchCount": 83,
+    "mismatches": [
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "host/fxr/{version}/hostfxr.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.AspNetCore.App/{version}/Microsoft.AspNetCore.Authentication.Core.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.AspNetCore.App/{version}/Microsoft.AspNetCore.Components.Server.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.AspNetCore.App/{version}/Microsoft.AspNetCore.Http.Results.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.AspNetCore.App/{version}/Microsoft.AspNetCore.Identity.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.AspNetCore.App/{version}/Microsoft.AspNetCore.Mvc.RazorPages.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.AspNetCore.App/{version}/Microsoft.AspNetCore.SignalR.Protocols.Json.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.AspNetCore.App/{version}/Microsoft.Extensions.Identity.Core.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.AspNetCore.App/{version}/aspnetcorev2_inprocess.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.IO.Compression.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Net.Mail.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Net.Security.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Net.WebSockets.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Private.CoreLib.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Private.Xml.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Reflection.Metadata.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Runtime.Serialization.Formatters.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Text.Encoding.CodePages.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/clrgc.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/clrgcexp.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/clrjit.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/coreclr.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/hostpolicy.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/mscordaccore.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/mscordbi.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/msquic.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "host/fxr/{version}/hostfxr.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.AspNetCore.App/{version}/Microsoft.AspNetCore.Authentication.Core.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.AspNetCore.App/{version}/Microsoft.AspNetCore.Http.Results.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.AspNetCore.App/{version}/Microsoft.AspNetCore.Identity.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.AspNetCore.App/{version}/Microsoft.Extensions.Hosting.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.AspNetCore.App/{version}/Microsoft.Extensions.Identity.Core.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.AspNetCore.App/{version}/Microsoft.Extensions.Options.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.AspNetCore.App/{version}/System.Threading.RateLimiting.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/Microsoft.DiaSymReader.Native.amd64.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Memory.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Net.Mail.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Net.Security.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Private.Xml.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Runtime.Serialization.Formatters.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Text.Encoding.CodePages.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/clrgc.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/clrgcexp.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/clrjit.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/coreclr.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-aspnetcore-win-x64",
+        "path": "shared/Microsoft.NETCore.App/{version}/hostpolicy.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.ComponentModel.TypeConverter.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Diagnostics.DiagnosticSource.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.IO.Compression.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Memory.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Net.HttpListener.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Net.Requests.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Net.Sockets.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Net.WebClient.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Net.WebSockets.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Private.CoreLib.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Private.DataContractSerialization.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Private.Uri.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Private.Xml.Linq.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Text.Encoding.CodePages.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Threading.Tasks.Dataflow.dll",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/libclrgcexp.so",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/libclrjit.so",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/libcoreclr.so",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.10",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/libmscordbi.so",
+        "target": "10.0.11"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.ComponentModel.TypeConverter.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Diagnostics.DiagnosticSource.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Formats.Tar.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.IO.Compression.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Linq.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Memory.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Net.HttpListener.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Net.Requests.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Net.Sockets.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Net.WebClient.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Private.Uri.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Text.Encoding.CodePages.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/System.Threading.Tasks.Dataflow.dll",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/libclrgc.so",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/libclrjit.so",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/libcoreclr.so",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/libmscordaccore.so",
+        "target": "10.0.12"
+      },
+      {
+        "base": "10.0.11",
+        "family": "dotnet-runtime-linux-arm64",
+        "path": "shared/Microsoft.NETCore.App/{version}/libmscordbi.so",
+        "target": "10.0.12"
+      }
+    ],
+    "status": "FAIL"
+  },
+  "memoryMaxima": {
+    "linux-arm64": {
+      "H4-L1-R2": {
+        "applyPeakOverIdleBytes": 29831168,
+        "createPeakOverIdleBytes": 60874752,
+        "fileCount": 69
+      },
+      "H7-L1-R2-E75": {
+        "applyPeakOverIdleBytes": 30310400,
+        "createPeakOverIdleBytes": 60391424,
+        "fileCount": 69
+      },
+      "H9-L12-K4-C16-R1M": {
+        "applyPeakOverIdleBytes": 30695424,
+        "createPeakOverIdleBytes": 53256192,
+        "fileCount": 69
+      },
+      "H9-L15-K4-C16-R1M": {
+        "applyPeakOverIdleBytes": 31379456,
+        "createPeakOverIdleBytes": 59691008,
+        "fileCount": 69
+      },
+      "H9-L9-K4-C16-R1M": {
+        "applyPeakOverIdleBytes": 31567872,
+        "createPeakOverIdleBytes": 55410688,
+        "fileCount": 69
+      },
+      "csp": {
+        "applyPeakOverIdleBytes": 30576640,
+        "createPeakOverIdleBytes": 59641856,
+        "fileCount": 69
+      }
+    },
+    "linux-x64": {
+      "H4-L1-R2": {
+        "applyPeakOverIdleBytes": 29769728,
+        "createPeakOverIdleBytes": 61386752,
+        "fileCount": 69
+      },
+      "H7-L1-R2-E75": {
+        "applyPeakOverIdleBytes": 30126080,
+        "createPeakOverIdleBytes": 61825024,
+        "fileCount": 69
+      },
+      "H9-L12-K4-C16-R1M": {
+        "applyPeakOverIdleBytes": 30007296,
+        "createPeakOverIdleBytes": 60620800,
+        "fileCount": 69
+      },
+      "H9-L15-K4-C16-R1M": {
+        "applyPeakOverIdleBytes": 30461952,
+        "createPeakOverIdleBytes": 58277888,
+        "fileCount": 69
+      },
+      "H9-L9-K4-C16-R1M": {
+        "applyPeakOverIdleBytes": 31653888,
+        "createPeakOverIdleBytes": 58499072,
+        "fileCount": 69
+      },
+      "csp": {
+        "applyPeakOverIdleBytes": 29978624,
+        "createPeakOverIdleBytes": 58793984,
+        "fileCount": 69
+      }
+    },
+    "win-x64": {
+      "H4-L1-R2": {
+        "applyPeakOverIdleBytes": 19681280,
+        "createPeakOverIdleBytes": 51027968,
+        "fileCount": 69
+      },
+      "H7-L1-R2-E75": {
+        "applyPeakOverIdleBytes": 19685376,
+        "createPeakOverIdleBytes": 51802112,
+        "fileCount": 69
+      },
+      "H9-L12-K4-C16-R1M": {
+        "applyPeakOverIdleBytes": 20000768,
+        "createPeakOverIdleBytes": 43462656,
+        "fileCount": 69
+      },
+      "H9-L15-K4-C16-R1M": {
+        "applyPeakOverIdleBytes": 21159936,
+        "createPeakOverIdleBytes": 44478464,
+        "fileCount": 69
+      },
+      "H9-L9-K4-C16-R1M": {
+        "applyPeakOverIdleBytes": 21204992,
+        "createPeakOverIdleBytes": 45785088,
+        "fileCount": 69
+      },
+      "csp": {
+        "applyPeakOverIdleBytes": 20119552,
+        "createPeakOverIdleBytes": 47689728,
+        "fileCount": 69
+      }
+    }
+  },
+  "missing": [
+    "five measured paired rounds",
+    "accepted dispatch and noise decision",
+    "untimed per-file apply checks and five apply samples",
+    "candidate traces",
+    "independent decoder validation",
+    "calibration evaluator output"
+  ],
+  "productionDecision": null,
+  "reason": "H7/H4 byte oracle stopped round one; required decision evidence is missing",
+  "roundOnePatchBytes": {
+    "H4-L1-R2": 16474640,
+    "H7-L1-R2-E75": 17164730,
+    "H9-L12-K4-C16-R1M": 13229137,
+    "H9-L15-K4-C16-R1M": 12754837,
+    "H9-L9-K4-C16-R1M": 13257755,
+    "csp": 11860274
+  }
+}
