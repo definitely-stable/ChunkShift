@@ -1,0 +1,6 @@
+{
+  "schema": "chunkshift.patch-gap-stage-a-request.v1",
+  "experimentId": "PATCH-GAP-001",
+  "stage": "inventory",
+  "requestId": "PATCH-GAP-001/STAGE-A/AUTO-20261003-001"
+}

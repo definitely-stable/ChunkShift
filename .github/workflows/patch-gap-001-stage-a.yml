@@ -1,6 +1,11 @@
 name: PATCH-GAP-001 Stage A inventory
 
 on:
+  workflow_run:
+    workflows:
+      - PATCH-GAP-001 Puffin toolchain
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       run-date:
@@ -17,7 +22,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: patch-gap-001-stage-a-${{ github.ref }}
+  group: patch-gap-001-stage-a-main
   cancel-in-progress: false
 
 env:
@@ -34,11 +39,26 @@ env:
 jobs:
   inventory:
     name: inventory-only
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.conclusion == 'success'
+      )
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     env:
-      RUN_DATE: ${{ inputs.run-date }}
-      PUFFIN_PRODUCER_RUN_ID: ${{ inputs.puffin-producer-run-id }}
+      DISPATCH_RUN_DATE: ${{ inputs.run-date }}
+      DISPATCH_PRODUCER_RUN_ID: ${{ inputs.puffin-producer-run-id }}
+      AUTO_PRODUCER_RUN_ID: ${{ github.event.workflow_run.id }}
+      AUTO_PRODUCER_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      AUTO_PRODUCER_CREATED_AT: ${{ github.event.workflow_run.created_at }}
+      AUTO_PRODUCER_EVENT: ${{ github.event.workflow_run.event }}
+      AUTO_PRODUCER_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      AUTO_PRODUCER_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+      AUTO_PRODUCER_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
 
     steps:
       - name: Validate Stage-A evidence identity
@@ -46,10 +66,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
-            echo "PATCH-GAP-001 Stage A evidence must run from main." >&2
-            exit 2
-          fi
           if [[ "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
             echo "PATCH-GAP-001 Stage A evidence rejects GitHub workflow re-runs." >&2
             exit 2
@@ -58,37 +74,79 @@ jobs:
             echo "RunId NNN supports workflow run numbers 001..999." >&2
             exit 2
           fi
-          python3 - "$RUN_DATE" "$PUFFIN_PRODUCER_RUN_ID" <<'PY'
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+              echo "Manual PATCH-GAP-001 Stage A evidence must run from main." >&2
+              exit 2
+            fi
+            source_commit="$GITHUB_SHA"
+            run_date="$DISPATCH_RUN_DATE"
+            producer_run_id="$DISPATCH_PRODUCER_RUN_ID"
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_run" ]]; then
+            if [[ "$AUTO_PRODUCER_EVENT" != "push" ||
+                  "$AUTO_PRODUCER_BRANCH" != "main" ||
+                  "$AUTO_PRODUCER_CONCLUSION" != "success" ||
+                  "$AUTO_PRODUCER_ATTEMPT" != "1" ]]; then
+              echo "Automatic Stage-A requires a successful first-attempt producer push run on main." >&2
+              exit 2
+            fi
+            source_commit="$AUTO_PRODUCER_HEAD_SHA"
+            producer_run_id="$AUTO_PRODUCER_RUN_ID"
+            run_date="$(
+              python3 - "$AUTO_PRODUCER_CREATED_AT" <<'PY'
+          import datetime as dt
+          import sys
+
+          value = sys.argv[1].replace("Z", "+00:00")
+          timestamp = dt.datetime.fromisoformat(value).astimezone(dt.timezone.utc)
+          print(timestamp.strftime("%Y%m%d"))
+          PY
+            )"
+          else
+            echo "Unsupported Stage-A event: $GITHUB_EVENT_NAME" >&2
+            exit 2
+          fi
+
+          python3 - "$run_date" "$producer_run_id" "$source_commit" <<'PY'
           import datetime as dt
           import re
           import sys
 
-          run_date, producer_run_id = sys.argv[1:]
+          run_date, producer_run_id, source_commit = sys.argv[1:]
           if not re.fullmatch(r"\d{8}", run_date):
               raise SystemExit("run-date must be YYYYMMDD")
           dt.datetime.strptime(run_date, "%Y%m%d")
           if not re.fullmatch(r"[1-9]\d*", producer_run_id):
               raise SystemExit("puffin-producer-run-id must be a positive integer")
+          if not re.fullmatch(r"[0-9a-f]{40}", source_commit.lower()):
+              raise SystemExit("source commit must be a 40-character SHA-1")
           PY
 
           sequence="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
-          short_commit="${GITHUB_SHA:0:7}"
-          run_id="PATCH-GAP-001/RUN-${RUN_DATE}-${sequence}-${short_commit}-linux-x64"
-          echo "RUN_ID=$run_id" >> "$GITHUB_ENV"
-          echo "CORPUS_ROOT=$HOME/patch-corpus" >> "$GITHUB_ENV"
-          echo "OUT=$RUNNER_TEMP/patch-gap-001-stage-a" >> "$GITHUB_ENV"
+          short_commit="${source_commit:0:7}"
+          run_id="PATCH-GAP-001/RUN-${run_date}-${sequence}-${short_commit}-linux-x64"
+          {
+            echo "SOURCE_COMMIT=$source_commit"
+            echo "RUN_DATE=$run_date"
+            echo "PUFFIN_PRODUCER_RUN_ID=$producer_run_id"
+            echo "RUN_ID=$run_id"
+            echo "CORPUS_ROOT=$HOME/patch-corpus"
+            echo "OUT=$RUNNER_TEMP/patch-gap-001-stage-a"
+          } >> "$GITHUB_ENV"
           echo "PATCH-GAP Stage-A RunId: $run_id"
 
       - name: Checkout tested main commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Verify clean tested checkout
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
           test -z "$(git status --porcelain=v1 --untracked-files=normal)"
 
       - name: Setup .NET
@@ -141,7 +199,7 @@ jobs:
           checks = {
               "id": document.get("id") == expected_id,
               "repository": document.get("repository", {}).get("full_name") == repository,
-              "event": document.get("event") == "workflow_dispatch",
+              "event": document.get("event") in ("workflow_dispatch", "push"),
               "status": document.get("status") == "completed",
               "conclusion": document.get("conclusion") == "success",
               "attempt": document.get("run_attempt") == 1,
@@ -159,20 +217,39 @@ jobs:
           PY
           )"
 
-          if ! git merge-base --is-ancestor "$producer_head_sha" "$GITHUB_SHA"; then
+          producer_event="$(
+            python3 - "$run_json" <<'PY'
+          import json
+          import sys
+          document = json.load(open(sys.argv[1], encoding="utf-8"))
+          print(document.get("event") or "")
+          PY
+          )"
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_run" ]]; then
+            if [[ "$producer_event" != "push" || "$producer_head_sha" != "$SOURCE_COMMIT" ]]; then
+              echo "Automatic Stage-A producer identity does not match the triggering main push." >&2
+              exit 2
+            fi
+          elif [[ "$producer_event" != "workflow_dispatch" ]]; then
+            echo "Manual Stage-A requires a workflow_dispatch Puffin producer." >&2
+            exit 2
+          fi
+
+          if ! git merge-base --is-ancestor "$producer_head_sha" "$SOURCE_COMMIT"; then
             echo "Puffin producer head is not an ancestor of the Stage-A source commit." >&2
             exit 2
           fi
 
           producer_workflow_blob="$(git rev-parse "$producer_head_sha:$PUFFIN_PRODUCER_WORKFLOW")"
-          consumer_workflow_blob="$(git rev-parse "$GITHUB_SHA:$PUFFIN_PRODUCER_WORKFLOW")"
+          consumer_workflow_blob="$(git rev-parse "$SOURCE_COMMIT:$PUFFIN_PRODUCER_WORKFLOW")"
           if [[ "$producer_workflow_blob" != "$consumer_workflow_blob" ]]; then
             echo "Puffin producer workflow changed after the selected producer run." >&2
             exit 2
           fi
 
           producer_adapter_blob="$(git rev-parse "$producer_head_sha:$PUFFIN_ADAPTER")"
-          consumer_adapter_blob="$(git rev-parse "$GITHUB_SHA:$PUFFIN_ADAPTER")"
+          consumer_adapter_blob="$(git rev-parse "$SOURCE_COMMIT:$PUFFIN_ADAPTER")"
           if [[ "$producer_adapter_blob" != "$consumer_adapter_blob" ]]; then
             echo "Puffin locator adapter changed after the selected producer run." >&2
             exit 2
@@ -385,7 +462,7 @@ jobs:
           python3 - \
             "$OUT/toolchain-producer.json" \
             "$GITHUB_REPOSITORY" \
-            "$GITHUB_SHA" \
+            "$SOURCE_COMMIT" \
             "$PUFFIN_PRODUCER_WORKFLOW" \
             "$producer_workflow_blob" \
             "$producer_adapter_blob" \
@@ -502,7 +579,7 @@ jobs:
             --g4-output "$prepass/g4.json" \
             --g5-structural-output "$prepass/g5-structural.json" \
             --run-output "$prepass/inventory-run.json" \
-            --source-commit "$GITHUB_SHA" \
+            --source-commit "$SOURCE_COMMIT" \
             --run-id "$RUN_ID"
 
       - name: Materialize frozen Puffin source identity
@@ -547,7 +624,7 @@ jobs:
             --structural "$OUT/prepass/g5-structural.json" \
             --puffin "$PUFFIN_BIN" \
             --output "$OUT/prepass/puffin-locator.json" \
-            --source-commit "$GITHUB_SHA" \
+            --source-commit "$SOURCE_COMMIT" \
             --puffin-source "$PUFFIN_SOURCE" \
             --build-provenance "$PUFFIN_BUILD_PROVENANCE" \
             --build-command "$(cat "$PUFFIN_BUILD_COMMAND_FILE")" \
@@ -564,7 +641,7 @@ jobs:
             --g5-structural "$OUT/prepass/g5-structural.json" \
             --puffin-locator "$OUT/prepass/puffin-locator.json" \
             --evidence-dir "$OUT/evidence" \
-            --source-commit "$GITHUB_SHA" \
+            --source-commit "$SOURCE_COMMIT" \
             --run-id "$RUN_ID"
 
       - name: Verify complete inventory-only evidence bundle
@@ -598,7 +675,7 @@ jobs:
           cmp "$PUFFIN_BUILD_PROVENANCE" "$OUT/evidence/tool-provenance/puffin-build-provenance.bin"
           cmp "$OUT/prepass/g4.json" "$OUT/evidence/subsets/g4.json"
 
-          python3 - "$OUT" "$PROTOCOL_COMMIT" "$GITHUB_SHA" "$RUN_ID" "$PUFFIN_PRODUCER_RUN_ID" <<'PY'
+          python3 - "$OUT" "$PROTOCOL_COMMIT" "$SOURCE_COMMIT" "$RUN_ID" "$PUFFIN_PRODUCER_RUN_ID" <<'PY'
           import hashlib
           import json
           import sys
@@ -703,7 +780,7 @@ jobs:
         id: upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: patch-gap-001-stage-a-${{ github.run_number }}-${{ github.sha }}
+          name: patch-gap-001-stage-a-${{ github.run_number }}-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
           path: ${{ env.OUT }}
           if-no-files-found: error
           retention-days: 90
