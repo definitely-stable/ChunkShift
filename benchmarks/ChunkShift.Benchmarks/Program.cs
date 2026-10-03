@@ -105,6 +105,8 @@ internal static class Program
         Console.WriteLine("  patch-lab run --corpus <root> --lane <name> --output <file.json> [--families <id,...>] [--workers <n>] [--apply-repeats <n>] [--no-apply] [--run-id <id>] [--work <dir>]");
         Console.WriteLine("  patch-lab memory --corpus <root> --output <file.json> [--min-bytes <n>] [--families <id,...>] [--run-id <id>] [--work <dir>] [--lane <name>]");
         Console.WriteLine("  patch-lab apply-check <prepare|time|concurrent|memory> --corpus <root> [--work <dir>] [--output <file.json>] [--repetition <r>] [--run-id <id>]");
+        Console.WriteLine("  patch-lab enc005-g2 sample --corpus <root> --output <sample.json> --source-commit <sha> [--work <dir>]");
+        Console.WriteLine("  patch-lab enc005-g2 oracle --corpus <root> --sample <sample.json> --output <oracle.json> --source-commit <sha> --run-id <id> [--work <dir>]");
         Console.WriteLine("  patch-lab gap h0 --corpus <root> --output <file.json> --source-commit <sha> --run-id <id> [--work <dir>]");
         Console.WriteLine("  patch-lab gap inventory --corpus <root> --g4-output <file.json> --g5-structural-output <file.json> --run-output <file.json> --source-commit <sha> --run-id <id> [--work <dir>]");
         Console.WriteLine("  patch-lab gap finalize-inventory --corpus <root> --g4 <file.json> --g5-structural <file.json> --puffin-locator <file.json> --evidence-dir <dir> --source-commit <sha> --run-id <id> [--work <dir>]");
