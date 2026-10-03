@@ -474,8 +474,6 @@ def validate_paired(platform: str, path: Path, source_commit: str) -> tuple[dict
         label,
     )
 
-    if accepted["H7-L1-R2-E75"] != accepted["H4-L1-R2"]:
-        raise ValueError(f"{label}: H7 is not byte-identical to H4")
     files, trace_digests = compact_file_rows(path, document, accepted)
     sums = {lane: 0 for lane in ALL_LANES}
     for row in files:
@@ -661,6 +659,22 @@ def evaluate(compact: dict) -> dict:
         ):
             raise ValueError(f"{platform}: H0 violates frozen memory bounds")
 
+    byte_oracles = compact.get("byteOracles")
+    h7_oracle = (
+        byte_oracles.get("H7-L1-R2-E75==H4-L1-R2")
+        if isinstance(byte_oracles, dict)
+        else None
+    )
+    if (
+        not isinstance(h7_oracle, dict)
+        or not isinstance(h7_oracle.get("equal"), bool)
+        or int(h7_oracle.get("mismatchCount", -1)) < 0
+    ):
+        raise ValueError("H7/H4 frozen byte-oracle evidence is missing")
+    h7_byte_equal = bool(h7_oracle["equal"])
+    if h7_byte_equal != (int(h7_oracle["mismatchCount"]) == 0):
+        raise ValueError("H7/H4 byte-oracle equality/count are inconsistent")
+
     lanes: dict[str, dict] = {}
 
     for lane in LANES:
@@ -717,7 +731,8 @@ def evaluate(compact: dict) -> dict:
             and all(value >= 4 for value in size_round_passes.values())
         )
         branches = [name for name, ok in (("speed", speed), ("size", size)) if ok]
-        eligible = apply_ok and memory_ok and bool(branches)
+        byte_oracle_ok = lane != "H7-L1-R2-E75" or h7_byte_equal
+        eligible = apply_ok and memory_ok and byte_oracle_ok and bool(branches)
         reasons = []
         if not apply_ok:
             reasons.append("apply>1.10")
@@ -725,6 +740,8 @@ def evaluate(compact: dict) -> dict:
             reasons.append("memory-bound")
         if not branches:
             reasons.append("no-qualification-branch")
+        if not byte_oracle_ok:
+            reasons.append("h4-byte-oracle")
         lanes[lane] = {
             "patchBytes": lane_patch_bytes,
             "byteRatio": byte_ratio,
@@ -740,6 +757,7 @@ def evaluate(compact: dict) -> dict:
             "qualificationBranches": branches,
             "applyOk": apply_ok,
             "memoryOk": memory_ok,
+            "byteOracleOk": byte_oracle_ok,
             "eligible": eligible,
             "pareto": False,
             "reasons": reasons,
@@ -880,6 +898,17 @@ def build_compact(
         raise ValueError("memory population differs across platforms")
     cross = load_json(cross_platform)
     validate_cross_platform(cross_platform, source_commit, maps)
+    canonical_map = maps[PLATFORMS[0]]
+    h7_mismatches = sorted(
+        key
+        for key in canonical_map["H4-L1-R2"]
+        if canonical_map["H4-L1-R2"][key]
+        != canonical_map["H7-L1-R2-E75"][key]
+    )
+    h7_mismatch_rows = [
+        {"family": key[0], "base": key[1], "target": key[2], "path": key[3]}
+        for key in h7_mismatches
+    ]
     if (
         str(cross.get("date", "")) != identity[0]
         or str(cross.get("sequence", "")) != identity[1]
@@ -903,7 +932,13 @@ def build_compact(
         "platforms": platforms,
         "traceAggregates": trace_aggregates(canonical_files),
         "byteOracles": {
-            "H7-L1-R2-E75==H4-L1-R2": True,
+            "H7-L1-R2-E75==H4-L1-R2": {
+                "equal": not h7_mismatches,
+                "mismatchCount": len(h7_mismatches),
+                "mismatchFilesSha256": hashlib.sha256(
+                    canonical_bytes(h7_mismatch_rows)
+                ).hexdigest(),
+            },
             "crossPlatformPatchSha256Equal": True,
         },
     }, canonical_files
@@ -963,8 +998,8 @@ def write_outputs(output: Path, compact: dict, files: list[dict]) -> None:
         f"- Pareto: {', '.join(verdict['pareto']) if verdict['pareto'] else 'none'}",
         f"- finalists: {', '.join(verdict['finalists']) if verdict['finalists'] else 'none'}",
         "",
-        "| lane | b | max wall | max CPU | max apply | create MiB | apply MiB | branch | eligible |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
+        "| lane | b | max wall | max CPU | max apply | create MiB | apply MiB | oracle | branch | eligible |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |",
     ]
     for lane in LANES:
         row = verdict["lanes"][lane]
@@ -973,6 +1008,7 @@ def write_outputs(output: Path, compact: dict, files: list[dict]) -> None:
             f"{row['maxCpuRatio']:.4f} | {max(row['applyRatioByPlatform'].values()):.4f} | "
             f"{max(row['createPeakOverIdleBytesByPlatform'].values()) / 1048576:.2f} | "
             f"{max(row['applyPeakOverIdleBytesByPlatform'].values()) / 1048576:.2f} | "
+            f"{'pass' if row['byteOracleOk'] else 'fail'} | "
             f"{','.join(row['qualificationBranches']) or '—'} | "
             f"{'yes' if row['eligible'] else 'no'} |"
         )

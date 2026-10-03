@@ -209,6 +209,100 @@ class PatchEnc005PairedTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             MODULE.require_same_patch_bytes("oracle", base, changed)
 
+    def test_h7_mismatch_is_recordable_without_turning_it_into_dispatch_failure(self):
+        left = {
+            ("family", "base", "target", "a"): "a" * 64,
+            ("family", "base", "target", "b"): "b" * 64,
+        }
+        right = {
+            ("family", "base", "target", "a"): "a" * 64,
+            ("family", "base", "target", "b"): "c" * 64,
+        }
+
+        mismatches = MODULE.patch_mismatch_keys(left, right)
+
+        self.assertEqual([("family", "base", "target", "b")], mismatches)
+        self.assertEqual(
+            MODULE.mismatch_file_set_sha256(mismatches),
+            MODULE.mismatch_file_set_sha256(list(mismatches)),
+        )
+
+    def test_byte_oracle_rejects_different_file_sets(self):
+        with self.assertRaises(ValueError):
+            MODULE.patch_mismatch_keys(
+                {("f", "b", "t", "a"): "a" * 64},
+                {("f", "b", "t", "other"): "a" * 64},
+            )
+
+    def test_dispatch_continues_all_five_rounds_after_h7_oracle_failure(self):
+        import tempfile
+
+        digests = {
+            "csp": "0" * 64,
+            "H4-L1-R2": "4" * 64,
+            "H7-L1-R2-E75": "7" * 64,
+            "H9-L9-K4-C16-R1M": "9" * 64,
+            "H9-L12-K4-C16-R1M": "a" * 64,
+            "H9-L15-K4-C16-R1M": "b" * 64,
+        }
+
+        def fake_invoke(args, lane, directory, **_kwargs):
+            return directory / "run.json", {
+                "files": [
+                    {
+                        "family": "f",
+                        "base": "1",
+                        "target": "2",
+                        "path": "x",
+                        "patchSha256": digests[lane],
+                        "createSeconds": 1.0,
+                        "patchBytes": 100,
+                        "createMetrics": {
+                            "cpuSeconds": 1.0,
+                            "allocatedBytes": 1,
+                            "baseReads": 1,
+                            "baseBytesRead": 1,
+                            "baseSeeks": 1,
+                        },
+                    }
+                ]
+            }
+
+        previous_invoke = MODULE.invoke
+        names = ("GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ATTEMPT")
+        previous_env = {name: os.environ.get(name) for name in names}
+        try:
+            MODULE.invoke = fake_invoke
+            os.environ["GITHUB_RUN_ID"] = "123"
+            os.environ["GITHUB_RUN_NUMBER"] = "1"
+            os.environ["GITHUB_RUN_ATTEMPT"] = "1"
+            with tempfile.TemporaryDirectory() as directory:
+                args = SimpleNamespace(
+                    output=Path(directory) / "evidence",
+                    run_id="run",
+                    source_commit="a" * 40,
+                    platform="linux-x64",
+                    dataset_role="calibration",
+                )
+                document, _ = MODULE.run_dispatch(
+                    args,
+                    list(MODULE.FROZEN_PHASE_A),
+                    1,
+                )
+
+            self.assertEqual(5, len(document["rounds"]))
+            self.assertTrue(document["valid"])
+            oracle = document["byteOracles"]["H7-L1-R2-E75==H4-L1-R2"]
+            self.assertFalse(oracle["equal"])
+            self.assertEqual(1, oracle["mismatchCount"])
+        finally:
+            MODULE.invoke = previous_invoke
+            for name, value in previous_env.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
+
     def test_result_validation_binds_dataset_source_execution_and_apply_mode(self):
         commit = "a" * 40
         args = SimpleNamespace(

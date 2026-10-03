@@ -111,6 +111,22 @@ def recompute(compact: dict) -> dict:
         ):
             raise ValueError(f"{platform}: H0 violates frozen memory bounds")
 
+    byte_oracles = compact.get("byteOracles")
+    h7_oracle = (
+        byte_oracles.get("H7-L1-R2-E75==H4-L1-R2")
+        if isinstance(byte_oracles, dict)
+        else None
+    )
+    if (
+        not isinstance(h7_oracle, dict)
+        or not isinstance(h7_oracle.get("equal"), bool)
+        or int(h7_oracle.get("mismatchCount", -1)) < 0
+    ):
+        raise ValueError("H7/H4 frozen byte-oracle evidence is missing")
+    h7_byte_equal = bool(h7_oracle["equal"])
+    if h7_byte_equal != (int(h7_oracle["mismatchCount"]) == 0):
+        raise ValueError("H7/H4 byte-oracle equality/count are inconsistent")
+
     rows = {}
     for lane in LANES:
         lane_patch_bytes = int(patch_bytes[lane])
@@ -167,6 +183,16 @@ def recompute(compact: dict) -> dict:
             and all(value >= 4 for value in size_round_passes.values())
         )
         branches = [name for name, ok in (("speed", speed), ("size", size)) if ok]
+        byte_oracle_ok = lane != "H7-L1-R2-E75" or h7_byte_equal
+        reasons = []
+        if not apply_ok:
+            reasons.append("apply>1.10")
+        if not memory_ok:
+            reasons.append("memory-bound")
+        if not branches:
+            reasons.append("no-qualification-branch")
+        if not byte_oracle_ok:
+            reasons.append("h4-byte-oracle")
         rows[lane] = {
             "byteRatio": byte_ratio,
             "maxWallRatio": max(wall.values()),
@@ -179,7 +205,9 @@ def recompute(compact: dict) -> dict:
             "qualificationBranches": branches,
             "applyOk": apply_ok,
             "memoryOk": memory_ok,
-            "eligible": apply_ok and memory_ok and bool(branches),
+            "byteOracleOk": byte_oracle_ok,
+            "eligible": apply_ok and memory_ok and byte_oracle_ok and bool(branches),
+            "reasons": reasons,
         }
 
     eligible = [lane for lane in LANES if rows[lane]["eligible"]]
@@ -283,7 +311,9 @@ def expected_projection(verdict: dict) -> dict:
                 ],
                 "applyOk": verdict["lanes"][lane]["applyOk"],
                 "memoryOk": verdict["lanes"][lane]["memoryOk"],
+                "byteOracleOk": verdict["lanes"][lane]["byteOracleOk"],
                 "eligible": verdict["lanes"][lane]["eligible"],
+                "reasons": verdict["lanes"][lane]["reasons"],
             }
             for lane in LANES
         },
