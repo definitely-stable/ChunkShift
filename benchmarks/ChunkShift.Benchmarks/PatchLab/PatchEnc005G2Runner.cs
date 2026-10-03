@@ -435,7 +435,7 @@ internal static class PatchEnc005G2Runner
 
     private static async Task ReadDictionaryAsync(
         Stream source,
-        IReadOnlyList<CspPatchBuilder.BaseRecord> records,
+        List<CspPatchBuilder.BaseRecord> records,
         int start,
         int count,
         Memory<byte> destination,
