@@ -35,6 +35,30 @@ public sealed class PatchEnc005G2Tests
     }
 
     [Fact]
+    public void CalibrationPairsHaveCanonicalOrdinalOrder()
+    {
+        PatchLabPair[] pairs =
+        [
+            new("dotnet-runtime-linux-arm64", "2", "3", []),
+            new("ignored", "0", "1", []),
+            new("dotnet-aspnetcore-win-x64", "10", "11", []),
+            new("dotnet-runtime-linux-arm64", "1", "2", []),
+            new("dotnet-aspnetcore-win-x64", "9", "10", []),
+        ];
+
+        PatchLabPair[] ordered = PatchEnc005G2Protocol.OrderCalibrationPairs(pairs);
+
+        Assert.Equal(
+            [
+                ("dotnet-aspnetcore-win-x64", "10", "11"),
+                ("dotnet-aspnetcore-win-x64", "9", "10"),
+                ("dotnet-runtime-linux-arm64", "1", "2"),
+                ("dotnet-runtime-linux-arm64", "2", "3"),
+            ],
+            ordered.Select(static pair => (pair.Family, pair.Base, pair.Target)).ToArray());
+    }
+
+    [Fact]
     public void PairSampleIsDigestThenPathThenIndexAndCappedAt64()
     {
         PatchEnc005G2SampleRow[] rows =
@@ -115,6 +139,24 @@ public sealed class PatchEnc005G2Tests
         Assert.True(tail.Valid);
         Assert.Equal(3, tail.Count);
         Assert.Equal(900_000, tail.Length);
+    }
+
+    [Fact]
+    public void EqualCostNeverReplacesTheEarlierWinner()
+    {
+        Assert.True(PatchEnc005G2Protocol.ShouldReplace(99, 100));
+        Assert.False(PatchEnc005G2Protocol.ShouldReplace(100, 100));
+        Assert.False(PatchEnc005G2Protocol.ShouldReplace(101, 100));
+    }
+
+    [Fact]
+    public void RawDictionaryMagicIsRejectedByProductionUsabilityRule()
+    {
+        byte[] usable = [1, 2, 3, 4];
+        byte[] zstdDictionaryMagic = [0x37, 0xA4, 0x30, 0xEC, 0, 1, 2, 3];
+
+        Assert.True(PatchEnc005G2Protocol.DictionaryUsableForTests(usable));
+        Assert.False(PatchEnc005G2Protocol.DictionaryUsableForTests(zstdDictionaryMagic));
     }
 
     [Fact]
