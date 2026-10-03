@@ -1,0 +1,84 @@
+name: PATCH-ENC-005 Phase A recovery
+
+on:
+  push:
+    branches:
+      - research/181-phase-a-recovered-evidence
+    paths:
+      - .github/workflows/patch-enc-005-phase-a-recovery.yml
+      - benchmarks/scripts/recover_patch_enc_005_phase_a.py
+      - benchmarks/scripts/evaluate_patch_enc_005_phase_a.py
+      - benchmarks/scripts/patch_enc_005_trace_evidence.py
+      - benchmarks/scripts/patch_enc_005_apply_evidence.py
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: patch-enc-005-phase-a-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout recovery branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Download immutable run 37113348655 artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          github-token: ${{ github.token }}
+          run-id: 37113348655
+          pattern: patch-enc-005-calibration-*
+          path: artifacts/recovery
+          merge-multiple: false
+
+      - name: Capture GitHub artifact metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/37113348655/artifacts?per_page=100" > artifacts/artifacts-api.json
+
+      - name: Recover canonical evidence
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/recover_patch_enc_005_phase_a.py \
+            --repo . \
+            --download-root artifacts/recovery \
+            --artifact-metadata artifacts/artifacts-api.json \
+            --output artifacts/generated
+
+          evidence="docs/research/results/data/PATCH-ENC-005-EVIDENCE-20261003-002"
+          rm -rf "$evidence"
+          mkdir -p "$(dirname "$evidence")"
+          mv artifacts/generated "$evidence"
+
+          python3 "$evidence/recompute.py" \
+            --compact "$evidence/compact.json" \
+            --expected-verdict "$evidence/verdict.json"
+          test "$(python3 -c 'import json; d=json.load(open("docs/research/results/data/PATCH-ENC-005-EVIDENCE-20261003-002/verdict.json")); print(d["status"])')" = REJECT
+          test "$(python3 -c 'import json; d=json.load(open("docs/research/results/data/PATCH-ENC-005-EVIDENCE-20261003-002/verdict.json")); print(len(d["finalists"]))')" = 0
+
+      - name: Commit canonical recovered evidence
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/research/results/data/PATCH-ENC-005-EVIDENCE-20261003-002
+          if git diff --cached --quiet; then
+            echo "Canonical evidence already matches."
+            exit 0
+          fi
+          git commit -m "docs(research): recover canonical PATCH-ENC-005 Phase A evidence"
+          git push origin HEAD:research/181-phase-a-recovered-evidence
