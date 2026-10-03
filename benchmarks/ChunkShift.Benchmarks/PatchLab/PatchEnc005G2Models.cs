@@ -171,6 +171,16 @@ internal static class PatchEnc005G2Protocol
     internal static bool DictionaryUsableForTests(ReadOnlySpan<byte> dictionary) =>
         ChunkShift.Patching.Encoding.CspDictionary.IsUsable(dictionary);
 
+    internal static PatchEnc005G2PolicySnapshot FrozenH0PolicySnapshotForTests() =>
+        new(
+            FrozenH0Policy.Level,
+            FrozenH0Policy.DictionaryChunks,
+            FrozenH0Policy.MaxCandidates,
+            FrozenH0Policy.SearchRadius,
+            FrozenH0Policy.DictionaryLoad.ToString(),
+            FrozenH0Policy.DictionaryHashLog,
+            FrozenH0Policy.DictionaryChainLog);
+
     private static int FirstAtOrAbove(
         IReadOnlyList<long> offsets,
         long value)
@@ -290,3 +300,12 @@ internal readonly record struct PatchEnc005G2Choice(
     long? StartOffset,
     int? RecordCount,
     string? FirstChunkId);
+
+internal readonly record struct PatchEnc005G2PolicySnapshot(
+    int Level,
+    int DictionaryChunks,
+    int MaxCandidates,
+    int SearchRadius,
+    string DictionaryLoad,
+    int DictionaryHashLog,
+    int DictionaryChainLog);
