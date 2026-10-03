@@ -28,8 +28,17 @@ def canonical_bytes(value):
 
 
 def safe_child(root: Path, relative: str) -> Path:
+    if not isinstance(relative, str) or not relative:
+        raise ValueError("trace path escapes evidence root: invalid relative path")
+    normalized = relative.replace("\\", "/")
+    if (
+        normalized.startswith("/")
+        or normalized.startswith("//")
+        or (len(normalized) >= 3 and normalized[1] == ":" and normalized[2] == "/")
+    ):
+        raise ValueError(f"trace path escapes evidence root: {relative}")
     root = root.resolve()
-    candidate = (root / relative).resolve()
+    candidate = (root / normalized).resolve()
     if candidate != root and root not in candidate.parents:
         raise ValueError(f"trace path escapes evidence root: {relative}")
     return candidate
