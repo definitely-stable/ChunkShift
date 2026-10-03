@@ -2,7 +2,7 @@
 
 EvidenceId: `PATCH-ENC-005/EVIDENCE-20261003-002`
 
-Status: `EVIDENCE_READY` (Phase A calibration `REJECT`; PATCH-ENC-005 continues to G2)
+Status: `RUNNING` overall; Phase A calibration is `REJECT` with no finalists, and the frozen next step is G2.
 
 Owning issue(s): #181, #7
 
@@ -26,7 +26,7 @@ This record recomputes the frozen Phase-A rule from the immutable run artifacts.
 - Memory population completed on all three platforms.
 - 18,882 independent-decoder/target-SHA checks are valid (6 lanes × 1,049 files × 3 platforms).
 - H7 differs from H4 on 83/1,049 files, the same canonical set, so H7 fails its frozen byte oracle.
-- Full raw ZIPs are bound by SHA-256 in `artifacts-summary.json`; each artifact also records a canonical digest and count for all JSON/text evidence documents. Canonical per-file lane projections are retained as deterministic lane-split `files-*.jsonl.gz` files.
+- Full raw ZIPs and raw evidence documents are bound in `artifacts.json`; the canonical committed projections are independently recomputable without relying on GitHub artifact retention.
 
 ## Phase-A result
 
@@ -59,7 +59,8 @@ This is not a rejection of the whole PATCH-ENC-005 program. Per the frozen imple
 - `compact.json` — aggregate frozen inputs plus provenance/correctness summary.
 - `verdict.json` — frozen Phase-A verdict and per-lane gate results.
 - `recompute.py` — stdlib-only independent recomputation of the verdict from `compact.json`.
-- `files-*.jsonl.gz` — canonical per-file patch SHA/bytes/target SHA/correctness, split by lane (linux-x64 projection; cross-platform equality is separately proven).
-- `artifacts-summary.json` — SHA-256 for every downloaded workflow ZIP plus count and canonical manifest digest for all JSON/text evidence documents in each archive.
+- `files.jsonl` — canonical 6 × 1,049 per-file rows with patch bytes/SHA, target SHA, correctness and compact candidate-trace projection; cross-platform patch-byte equality is separately proven in `compact.json`.
+- `fixed-evaluation-selection.json` — empty finalist selection, binding the Phase-A REJECT verdict.
+- `artifacts.json` — GitHub artifact identity/expiry plus SHA-256 bindings for the downloaded ZIPs and the raw evidence documents used by recovery.
 
 No patch payload, target payload or dictionary bytes are committed.
