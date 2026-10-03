@@ -1073,7 +1073,7 @@ internal static partial class CspPatchBuilder
     /// case the candidate is skipped before any of it is read.
     /// </summary>
     internal static bool TryMeasureCandidate(
-        IReadOnlyList<BaseRecord> records,
+        List<BaseRecord> records,
         int start,
         CspEncoderPolicy policy,
         out int count,
