@@ -524,6 +524,75 @@
       "area": "trust",
       "status": "PLANNED",
       "question": "detached trust envelope: signature algorithm and package matrix"
+    },
+    {
+      "id": "PATCH-META-001",
+      "issues": [
+        220,
+        7,
+        150,
+        181
+      ],
+      "area": "patching-research",
+      "status": "PLANNED",
+      "question": "Reusable derived patch features across repeated create"
+    },
+    {
+      "id": "PATCH-DOTNET-001",
+      "issues": [
+        221,
+        7,
+        183
+      ],
+      "area": "patching-research",
+      "status": "PLANNED",
+      "question": "Reversible .NET/CLR semantic normalization after generic executable evidence"
+    },
+    {
+      "id": "PATCH-DICT-001",
+      "issues": [
+        222,
+        7,
+        183,
+        184
+      ],
+      "area": "patching-research",
+      "status": "PLANNED",
+      "question": "Bounded composite dictionaries from verified base chunk runs under equal byte budgets"
+    },
+    {
+      "id": "PATCH-ML-001",
+      "issues": [
+        223,
+        7,
+        181,
+        183
+      ],
+      "area": "patching-research",
+      "status": "PLANNED",
+      "question": "Learned reference ranking as a build-side oracle / distillation experiment"
+    },
+    {
+      "id": "PATCH-COMPILER-001",
+      "issues": [
+        224,
+        7
+      ],
+      "area": "patching-research",
+      "status": "PLANNED",
+      "question": "Deterministic multi-objective representation compiler"
+    },
+    {
+      "id": "PATCH-EXEC-001",
+      "issues": [
+        225,
+        7,
+        181,
+        220
+      ],
+      "area": "patching-research",
+      "status": "PLANNED",
+      "question": "Local adaptive/cacheable deterministic patch compilation"
     }
   ]
 }
