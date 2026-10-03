@@ -29,6 +29,21 @@ def nonnegative(value, label):
     return number
 
 
+def validate_platform_os(platform, os_description, label):
+    normalized = str(os_description or "").strip().lower()
+    if platform.startswith("linux-"):
+        # .NET RuntimeInformation.OSDescription on the pinned GitHub Ubuntu
+        # runners is distribution-branded ("Ubuntu 24.04.x LTS"), not "Linux".
+        if "linux" not in normalized and "ubuntu" not in normalized:
+            raise ValueError(f"{label}: expected Linux environment")
+    elif platform == "win-x64":
+        if "windows" not in normalized:
+            raise ValueError(f"{label}: expected Windows environment")
+    else:
+        raise ValueError(f"{label}: unsupported platform {platform}")
+    return str(os_description or "")
+
+
 def validate_environment(platform, environment, source_commit, label):
     if platform not in PLATFORMS or not isinstance(environment, dict):
         raise ValueError(f"{label}: invalid apply environment")
@@ -40,12 +55,7 @@ def validate_environment(platform, environment, source_commit, label):
         or str(environment.get("osArchitecture") or "").lower() != expected_arch
     ):
         raise ValueError(f"{label}: apply environment binding mismatch")
-    os_description = str(environment.get("osDescription") or "").lower()
-    if platform.startswith("linux-"):
-        if "linux" not in os_description:
-            raise ValueError(f"{label}: expected Linux environment")
-    elif "windows" not in os_description:
-        raise ValueError(f"{label}: expected Windows environment")
+    validate_platform_os(platform, environment.get("osDescription"), label)
     if not str(environment.get("frameworkDescription") or "").strip():
         raise ValueError(f"{label}: framework provenance is missing")
     if not str(environment.get("processorDescription") or "").strip():
