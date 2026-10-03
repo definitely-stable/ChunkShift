@@ -22,8 +22,17 @@ def sha256_file(path: Path) -> str:
 
 
 def safe_child(root: Path, relative: str) -> Path:
+    if not isinstance(relative, str) or not relative:
+        raise ValueError("timing evidence path escapes dispatch root: invalid relative path")
+    normalized = relative.replace("\\", "/")
+    if (
+        normalized.startswith("/")
+        or normalized.startswith("//")
+        or (len(normalized) >= 3 and normalized[1] == ":" and normalized[2] == "/")
+    ):
+        raise ValueError(f"timing evidence path escapes dispatch root: {relative}")
     root = root.resolve()
-    candidate = (root / relative).resolve()
+    candidate = (root / normalized).resolve()
     if candidate != root and root not in candidate.parents:
         raise ValueError(f"timing evidence path escapes dispatch root: {relative}")
     return candidate
