@@ -173,7 +173,11 @@ def write_json(path: Path, value: object) -> None:
 
 def environment(platform: str) -> dict:
     arch = "Arm64" if platform == "linux-arm64" else "X64"
-    os_description = "Linux test" if platform.startswith("linux-") else "Microsoft Windows test"
+    os_description = (
+        "Ubuntu 24.04.5 LTS"
+        if platform.startswith("linux-")
+        else "Microsoft Windows 10.0.26100"
+    )
     return {
         "osDescription": os_description,
         "osArchitecture": arch,
@@ -442,6 +446,34 @@ def synthetic_artifacts(root: Path):
 
 
 class PatchEnc005PhaseAEvaluatorTests(unittest.TestCase):
+
+    def test_platform_os_provenance_matches_pinned_github_runners(self):
+        validator = EVALUATOR.apply_evidence_validator.validate_platform_os
+
+        self.assertEqual(
+            "Ubuntu 24.04.5 LTS",
+            validator("linux-x64", "Ubuntu 24.04.5 LTS", "linux-x64"),
+        )
+        self.assertEqual(
+            "Ubuntu 24.04.5 LTS",
+            validator("linux-arm64", "Ubuntu 24.04.5 LTS", "linux-arm64"),
+        )
+        self.assertEqual(
+            "Microsoft Windows 10.0.26100",
+            validator(
+                "win-x64",
+                "Microsoft Windows 10.0.26100",
+                "win-x64",
+            ),
+        )
+
+    def test_platform_os_provenance_rejects_wrong_os_family(self):
+        validator = EVALUATOR.apply_evidence_validator.validate_platform_os
+
+        with self.assertRaisesRegex(ValueError, "expected Linux environment"):
+            validator("linux-x64", "macOS 15.0", "linux-x64")
+        with self.assertRaisesRegex(ValueError, "expected Windows environment"):
+            validator("win-x64", "Ubuntu 24.04.5 LTS", "win-x64")
 
     def test_full_synthetic_artifact_chain_compiles(self):
         with tempfile.TemporaryDirectory() as temp:
