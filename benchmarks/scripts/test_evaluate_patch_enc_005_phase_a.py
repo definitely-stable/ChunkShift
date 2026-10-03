@@ -130,6 +130,14 @@ def compact(lane_overrides=None):
         "datasetSha256": EVALUATOR.DATASET_SHA256,
         "patchBytes": patch_bytes,
         "platforms": platforms,
+        "byteOracles": {
+            "H7-L1-R2-E75==H4-L1-R2": {
+                "equal": True,
+                "mismatchCount": 0,
+                "mismatchFilesSha256": "0" * 64,
+            },
+            "crossPlatformPatchSha256Equal": True,
+        },
     }
 
 
@@ -514,6 +522,32 @@ class PatchEnc005PhaseAEvaluatorTests(unittest.TestCase):
         )
         self.assertIn("speed", result["lanes"]["H7-L1-R2-E75"]["qualificationBranches"])
         self.assertIn("size", result["lanes"]["H9-L15-K4-C16-R1M"]["qualificationBranches"])
+
+    def test_h7_byte_oracle_failure_makes_only_h7_ineligible(self):
+        document = compact()
+        document["byteOracles"]["H7-L1-R2-E75==H4-L1-R2"] = {
+            "equal": False,
+            "mismatchCount": 1,
+            "mismatchFilesSha256": "1" * 64,
+        }
+
+        result = EVALUATOR.evaluate(document)
+
+        self.assertFalse(result["lanes"]["H7-L1-R2-E75"]["eligible"])
+        self.assertFalse(result["lanes"]["H7-L1-R2-E75"]["byteOracleOk"])
+        self.assertIn(
+            "h4-byte-oracle",
+            result["lanes"]["H7-L1-R2-E75"]["reasons"],
+        )
+        self.assertNotEqual("H7-L1-R2-E75", result["speedFinalist"])
+        self.assertTrue(result["lanes"]["H4-L1-R2"]["byteOracleOk"])
+
+    def test_h7_byte_oracle_count_must_match_equality(self):
+        document = compact()
+        document["byteOracles"]["H7-L1-R2-E75==H4-L1-R2"]["equal"] = False
+
+        with self.assertRaisesRegex(ValueError, "equality/count are inconsistent"):
+            EVALUATOR.evaluate(document)
 
     def test_memory_guardrail_removes_otherwise_eligible_lane(self):
         document = compact()
