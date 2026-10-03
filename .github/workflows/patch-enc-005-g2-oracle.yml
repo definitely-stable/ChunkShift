@@ -3,7 +3,7 @@ name: PATCH-ENC-005 G2 oracle
 on:
   workflow_dispatch:
     inputs:
-      run-date:
+      run_date:
         description: UTC evidence date in YYYYMMDD form
         required: true
         type: string
@@ -31,7 +31,7 @@ jobs:
       - name: Validate decision-run provenance
         shell: bash
         env:
-          RUN_DATE: ${{ inputs.run-date }}
+          RUN_DATE: ${{ inputs.run_date }}
         run: |
           set -euo pipefail
           if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
@@ -43,7 +43,7 @@ jobs:
             exit 2
           fi
           if [[ ! "$RUN_DATE" =~ ^[0-9]{8}$ ]]; then
-            echo "run-date must be YYYYMMDD." >&2
+            echo "run_date must be YYYYMMDD." >&2
             exit 2
           fi
 
@@ -90,7 +90,7 @@ jobs:
       - name: Bind RunId
         shell: bash
         env:
-          RUN_DATE: ${{ inputs.run-date }}
+          RUN_DATE: ${{ inputs.run_date }}
         run: |
           set -euo pipefail
           printf -v run_number "%03d" "$GITHUB_RUN_NUMBER"
