@@ -134,6 +134,15 @@ internal static class PatchEnc005G2Protocol
     internal static string RowsSha256(PatchEnc005G2SampleRow[] rows) =>
         Convert.ToHexStringLower(SHA256.HashData(CanonicalBytes(rows)));
 
+    internal static PatchLabPair[] OrderCalibrationPairs(IEnumerable<PatchLabPair> pairs) =>
+        [
+            .. pairs
+                .Where(static pair => IsCalibrationFamily(pair.Family))
+                .OrderBy(static pair => pair.Family, StringComparer.Ordinal)
+                .ThenBy(static pair => pair.Base, StringComparer.Ordinal)
+                .ThenBy(static pair => pair.Target, StringComparer.Ordinal),
+        ];
+
     internal static PatchEnc005G2SampleRow[] SelectPairSample(
         IEnumerable<PatchEnc005G2SampleRow> rows) =>
         [
@@ -146,6 +155,12 @@ internal static class PatchEnc005G2Protocol
 
     internal static int CandidateCostForTests(int frameBytes, int referenceCount) =>
         CspPatchBuilder.DictionaryCandidateCost(frameBytes, referenceCount);
+
+    internal static bool ShouldReplaceForTests(int candidateCost, int bestCost) =>
+        candidateCost < bestCost;
+
+    internal static bool DictionaryUsableForTests(ReadOnlySpan<byte> dictionary) =>
+        ChunkShift.Patching.Encoding.CspDictionary.IsUsable(dictionary);
 
     private static int FirstAtOrAbove(
         IReadOnlyList<long> offsets,
