@@ -74,6 +74,47 @@ class FinalizeTests(unittest.TestCase):
 
             self.assertEqual(environment, actual)
 
+    def test_timing_environment_accepts_windows_style_relative_path(self):
+        import json
+        import tempfile
+
+        commit = "a" * 40
+        environment = {
+            "osDescription": "Microsoft Windows 10.0.26100",
+            "osArchitecture": "X64",
+            "processArchitecture": "X64",
+            "frameworkDescription": ".NET 10.0.12",
+            "processorCount": 4,
+            "gitCommit": commit,
+            "processorDescription": "test cpu",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            nested = root / "nested"
+            nested.mkdir()
+            result = nested / "measured.json"
+            result.write_text(
+                json.dumps({"environment": environment}),
+                encoding="utf-8",
+            )
+            relative = r"nested\\measured.json"
+            rounds = [
+                {
+                    "round": index + 1,
+                    "h0StartResult": relative,
+                    "h0EndResult": relative,
+                    "candidates": [],
+                }
+                for index in range(5)
+            ]
+            dispatch = root / "dispatch.json"
+            dispatch.write_text("{}", encoding="utf-8")
+
+            self.assertEqual(
+                environment,
+                MODULE.timing_environment(dispatch, {"rounds": rounds}, commit),
+            )
+
     def test_timing_environment_rejects_mixed_runner_snapshot(self):
         import json
         import tempfile
