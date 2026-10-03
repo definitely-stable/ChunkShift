@@ -1,0 +1,15 @@
+timing-a1-calibration (linux-x64)	Setup .NET	2026-10-03T06:07:24.4946228Z dotnet-install: .NET Core SDK with version '10.0.401' is already installed.
+timing-a1-calibration (linux-x64)	Setup Python	2026-10-03T06:07:24.6369676Z Successfully set up CPython (3.14.7)
+timing-a1-calibration (linux-x64)	Run frozen timing attempt 1	2026-10-03T06:31:09.9279720Z ValueError: H7/H4 frozen byte oracle: patch SHA-256 mismatch
+memory-calibration (win-x64)	Setup .NET	2026-10-03T06:07:29.6945278Z dotnet-install: .NET Core SDK with version '10.0.401' is already installed.
+memory-calibration (win-x64)	Setup Python	2026-10-03T06:07:29.9507446Z Successfully set up CPython (3.14.7)
+timing-a1-calibration (win-x64)	Setup .NET	2026-10-03T06:07:31.5129935Z dotnet-install: .NET Core SDK with version '10.0.401' is already installed.
+timing-a1-calibration (win-x64)	Setup Python	2026-10-03T06:07:31.7961207Z Successfully set up CPython (3.14.7)
+timing-a1-calibration (win-x64)	Run frozen timing attempt 1	2026-10-03T06:31:05.5252393Z ValueError: H7/H4 frozen byte oracle: patch SHA-256 mismatch
+memory-calibration (linux-arm64)	Setup .NET	2026-10-03T06:07:26.4603205Z dotnet-install: .NET Core SDK with version '10.0.401' is already installed.
+memory-calibration (linux-arm64)	Setup Python	2026-10-03T06:07:26.6355094Z Successfully set up CPython (3.14.7)
+memory-calibration (linux-x64)	Setup .NET	2026-10-03T06:07:25.0879866Z dotnet-install: .NET Core SDK with version '10.0.401' is already installed.
+memory-calibration (linux-x64)	Setup Python	2026-10-03T06:07:25.2115033Z Successfully set up CPython (3.14.7)
+timing-a1-calibration (linux-arm64)	Setup .NET	2026-10-03T06:07:26.5527379Z dotnet-install: .NET Core SDK with version '10.0.401' is already installed.
+timing-a1-calibration (linux-arm64)	Setup Python	2026-10-03T06:07:26.6713166Z Successfully set up CPython (3.14.7)
+timing-a1-calibration (linux-arm64)	Run frozen timing attempt 1	2026-10-03T06:25:32.8283906Z ValueError: H7/H4 frozen byte oracle: patch SHA-256 mismatch
