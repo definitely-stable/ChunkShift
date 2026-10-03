@@ -6,6 +6,11 @@ on:
       - .github/workflows/patch-gap-001-puffin-toolchain.yml
       - .github/workflows/patch-gap-001-stage-a.yml
       - benchmarks/tools/patch_gap_puffin_locator.cc
+  push:
+    branches:
+      - main
+    paths:
+      - docs/benchmarks/PATCH-GAP-001-STAGE-A-REQUEST.json
   workflow_dispatch:
 
 permissions:
@@ -31,7 +36,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" || "$GITHUB_EVENT_NAME" == "push" ]]; then
             if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
               echo "The decision-grade Puffin producer must run from main." >&2
               exit 2
@@ -76,6 +81,36 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test -z "$(git status --porcelain=v1 --untracked-files=normal)"
+
+      - name: Validate one-shot Stage-A request
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - docs/benchmarks/PATCH-GAP-001-STAGE-A-REQUEST.json <<'PY'
+          import json
+          import re
+          import sys
+
+          document = json.load(open(sys.argv[1], encoding="utf-8"))
+          expected = {
+              "schema": "chunkshift.patch-gap-stage-a-request.v1",
+              "experimentId": "PATCH-GAP-001",
+              "stage": "inventory",
+          }
+          mismatches = [
+              key for key, value in expected.items()
+              if document.get(key) != value
+          ]
+          if mismatches:
+              raise SystemExit(
+                  "invalid Stage-A request fields: " + ", ".join(mismatches)
+              )
+
+          request_id = str(document.get("requestId") or "")
+          if not re.fullmatch(r"PATCH-GAP-001/STAGE-A/AUTO-\d{8}-\d{3}", request_id):
+              raise SystemExit("invalid Stage-A requestId")
+          PY
 
       - name: Install minimal Puffin build dependency
         shell: bash
@@ -402,7 +437,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload pinned Puffin toolchain artifact
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
         id: upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
