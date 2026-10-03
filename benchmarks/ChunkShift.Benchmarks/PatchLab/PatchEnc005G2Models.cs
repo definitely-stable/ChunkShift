@@ -8,6 +8,12 @@ namespace ChunkShift.Benchmarks.PatchLab;
 
 internal static class PatchEnc005G2Protocol
 {
+    private static readonly JsonSerializerOptions CanonicalJson =
+        new(JsonSerializerDefaults.Web)
+        {
+            WriteIndented = false,
+        };
+
     internal const string ExperimentId = "PATCH-ENC-005";
     internal const string ProtocolCommit = "96fd9b296d6998cac397e61041f22df51e6dd43c";
     internal const string DatasetSha256 = "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd";
@@ -123,12 +129,7 @@ internal static class PatchEnc005G2Protocol
     }
 
     internal static byte[] CanonicalBytes<T>(T value) =>
-        JsonSerializer.SerializeToUtf8Bytes(
-            value,
-            new JsonSerializerOptions(JsonSerializerDefaults.Web)
-            {
-                WriteIndented = false,
-            });
+        JsonSerializer.SerializeToUtf8Bytes(value, CanonicalJson);
 
     internal static string RowsSha256(PatchEnc005G2SampleRow[] rows) =>
         Convert.ToHexStringLower(SHA256.HashData(CanonicalBytes(rows)));
@@ -151,7 +152,7 @@ internal static class PatchEnc005G2Protocol
         long value)
     {
         int low = 0;
-        int high = records.Count;
+        int high = offsets.Count;
 
         while (low < high)
         {
