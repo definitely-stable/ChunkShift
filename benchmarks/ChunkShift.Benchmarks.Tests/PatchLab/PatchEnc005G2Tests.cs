@@ -1,3 +1,4 @@
+using System.Globalization;
 using ChunkShift.Benchmarks.PatchLab;
 
 namespace ChunkShift.Benchmarks.Tests.PatchLab;
@@ -5,7 +6,7 @@ namespace ChunkShift.Benchmarks.Tests.PatchLab;
 public sealed class PatchEnc005G2Tests
 {
     [Fact]
-    public void Sample_key_matches_frozen_null_separated_preimage()
+    public void SampleKeyMatchesFrozenNullSeparatedPreimage()
     {
         string digest = PatchEnc005G2Protocol.SampleKeySha256(
             "family",
@@ -21,7 +22,7 @@ public sealed class PatchEnc005G2Tests
     }
 
     [Fact]
-    public void Sample_key_rejects_non_lowercase_chunk_hex()
+    public void SampleKeyRejectsNonLowercaseChunkHex()
     {
         Assert.Throws<ArgumentException>(() =>
             PatchEnc005G2Protocol.SampleKeySha256(
@@ -34,7 +35,7 @@ public sealed class PatchEnc005G2Tests
     }
 
     [Fact]
-    public void Pair_sample_is_digest_then_path_then_index_and_capped_at_64()
+    public void PairSampleIsDigestThenPathThenIndexAndCappedAt64()
     {
         PatchEnc005G2SampleRow[] rows =
         [
@@ -48,7 +49,7 @@ public sealed class PatchEnc005G2Tests
                     new string('0', 64),
                     index,
                     1,
-                    (69 - index).ToString("x64"))),
+                    (69 - index).ToString("x64", CultureInfo.InvariantCulture))),
         ];
 
         PatchEnc005G2SampleRow[] selected =
@@ -60,7 +61,7 @@ public sealed class PatchEnc005G2Tests
     }
 
     [Fact]
-    public void Whole_base_order_is_nearest_first_with_lower_index_ties()
+    public void WholeBaseOrderIsNearestFirstWithLowerIndexTies()
     {
         int[] starts =
         [
@@ -73,7 +74,7 @@ public sealed class PatchEnc005G2Tests
     }
 
     [Fact]
-    public void Whole_base_order_enumerates_every_start_once()
+    public void WholeBaseOrderEnumeratesEveryStartOnce()
     {
         int[] starts =
         [
@@ -88,7 +89,7 @@ public sealed class PatchEnc005G2Tests
     }
 
     [Fact]
-    public void Production_h0_wrapper_uses_same_nearest_first_semantics()
+    public void ProductionH0WrapperUsesSameNearestFirstSemantics()
     {
         int[] starts = PatchEnc005G2Protocol.ProductionH0CandidateStartsForTests(
             [0L, 100L, 200L, 300L],
@@ -98,7 +99,7 @@ public sealed class PatchEnc005G2Tests
     }
 
     [Fact]
-    public void Candidate_measurement_reuses_production_k4_and_one_mib_bound()
+    public void CandidateMeasurementReusesProductionK4AndOneMibBound()
     {
         var tooLarge = PatchEnc005G2Protocol.MeasureCandidateForTests(
             [300_000, 300_000, 300_000, 300_000],
@@ -117,7 +118,7 @@ public sealed class PatchEnc005G2Tests
     }
 
     [Fact]
-    public void Candidate_cost_uses_frozen_ref32_accounting()
+    public void CandidateCostUsesFrozenRef32Accounting()
     {
         Assert.Equal(
             1000 + (4 * 32),
@@ -125,7 +126,7 @@ public sealed class PatchEnc005G2Tests
     }
 
     [Fact]
-    public void Sample_rows_hash_is_order_sensitive_and_deterministic()
+    public void SampleRowsHashIsOrderSensitiveAndDeterministic()
     {
         var first = new PatchEnc005G2SampleRow(
             "f", "b", "t", "a", 1, new string('0', 64), 10, 20, new string('1', 64));
