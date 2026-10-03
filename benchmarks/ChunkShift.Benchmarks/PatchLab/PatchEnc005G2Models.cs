@@ -71,21 +71,55 @@ internal static class PatchEnc005G2Protocol
     }
 
     internal static IEnumerable<int> WholeBaseCandidateStarts(
-        IReadOnlyList<CspPatchBuilder.BaseRecord> records,
+        IReadOnlyList<long> offsets,
         long targetOffset)
     {
-        int right = FirstAtOrAbove(records, targetOffset);
+        int right = FirstAtOrAbove(offsets, targetOffset);
         int left = right - 1;
 
-        while (left >= 0 || right < records.Count)
+        while (left >= 0 || right < offsets.Count)
         {
             bool takeLeft = left >= 0 &&
-                (right >= records.Count ||
-                 Distance(records[left].Offset, targetOffset) <=
-                 Distance(records[right].Offset, targetOffset));
+                (right >= offsets.Count ||
+                 Distance(offsets[left], targetOffset) <=
+                 Distance(offsets[right], targetOffset));
 
             yield return takeLeft ? left-- : right++;
         }
+    }
+
+    internal static int[] ProductionH0CandidateStartsForTests(
+        IReadOnlyList<long> offsets,
+        long targetOffset)
+    {
+        List<CspPatchBuilder.BaseRecord> records = TestRecords(offsets, lengths: null);
+        return [.. CspPatchBuilder.FindCandidateStarts(
+            records,
+            targetOffset,
+            CspEncoderPolicy.Default)];
+    }
+
+    internal static (bool Valid, int Count, int Length) MeasureCandidateForTests(
+        IReadOnlyList<int> lengths,
+        int start)
+    {
+        long[] offsets = new long[lengths.Count];
+        long offset = 0;
+
+        for (int index = 0; index < lengths.Count; index++)
+        {
+            offsets[index] = offset;
+            offset += lengths[index];
+        }
+
+        List<CspPatchBuilder.BaseRecord> records = TestRecords(offsets, lengths);
+        bool valid = CspPatchBuilder.TryMeasureCandidate(
+            records,
+            start,
+            CspEncoderPolicy.Default,
+            out int count,
+            out int length);
+        return (valid, count, length);
     }
 
     internal static byte[] CanonicalBytes<T>(T value) =>
@@ -100,7 +134,7 @@ internal static class PatchEnc005G2Protocol
         Convert.ToHexStringLower(SHA256.HashData(CanonicalBytes(rows)));
 
     private static int FirstAtOrAbove(
-        IReadOnlyList<CspPatchBuilder.BaseRecord> records,
+        IReadOnlyList<long> offsets,
         long value)
     {
         int low = 0;
@@ -110,7 +144,7 @@ internal static class PatchEnc005G2Protocol
         {
             int middle = (low + high) >>> 1;
 
-            if (records[middle].Offset < value)
+            if (offsets[middle] < value)
             {
                 low = middle + 1;
             }
@@ -121,6 +155,24 @@ internal static class PatchEnc005G2Protocol
         }
 
         return low;
+    }
+
+    private static List<CspPatchBuilder.BaseRecord> TestRecords(
+        IReadOnlyList<long> offsets,
+        IReadOnlyList<int>? lengths)
+    {
+        var records = new List<CspPatchBuilder.BaseRecord>(offsets.Count);
+
+        for (int index = 0; index < offsets.Count; index++)
+        {
+            records.Add(
+                new CspPatchBuilder.BaseRecord(
+                    offsets[index],
+                    lengths is null ? 1 : lengths[index],
+                    default));
+        }
+
+        return records;
     }
 
     private static long Distance(long left, long right) =>
