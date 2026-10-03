@@ -124,17 +124,20 @@ public sealed class VerifyLabOracleTests : IDisposable
         byte[] manifest = await VerifyLabOracle.CreateManifestAsync(content, HashSuiteIds.Blake3256V1);
         VerifyLabLane lane = VerifyLabLane.Parse(laneName);
 
-        // Every request of a throttled channel costs at least 2 ms, so the
-        // lane is still running when the token fires.
         VerifyLabThrottleChannel[] channels = [.. Enumerable.Range(0, lane.ChannelCount).Select(static _ => new VerifyLabThrottleChannel())];
-        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        using var cancellation = new CancellationTokenSource();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => VerifyLabLanes.RunAsync(
+        Task<VerifyLabVerdict> operation = VerifyLabLanes.RunAsync(
             lane,
             new VerifyLabMemoryContent(content),
             () => new MemoryStream(manifest, writable: false),
             channels,
-            cancellation.Token));
+            cancellation.Token);
+
+        Assert.False(operation.IsCompleted);
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => operation);
     }
 
     [Fact]
