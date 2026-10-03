@@ -1,0 +1,58 @@
+{
+  "schema": "chunkshift.patch-enc-005-g2-sample-lock.v1",
+  "experimentId": "PATCH-ENC-005",
+  "protocolCommit": "96fd9b296d6998cac397e61041f22df51e6dd43c",
+  "sourceCommit": "d406a90fdf8d7fc7944975b7f1667129a8ab5df9",
+  "datasetRole": "calibration",
+  "datasetSha256": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+  "githubRunId": 37143841107,
+  "githubRunNumber": 1,
+  "githubRunAttempt": 1,
+  "artifactId": 11281282127,
+  "artifactName": "patch-enc-005-g2-sample-d406a90fdf8d7fc7944975b7f1667129a8ab5df9",
+  "artifactExpiresAt": "2027-01-01T18:20:47Z",
+  "samplePath": "docs/research/results/data/PATCH-ENC-005-G2-SAMPLE-20261003-001/sample.json",
+  "sampleGitBlobSha": "52533ede95df423c938633139fc6a865572787b9",
+  "sampleSha256": "4813e90d3860891a3d6766ba4dd6b0d4c0f0e0941ebe2bda0e1d638a9e4a2208",
+  "oracleSampleSha256": "54061f4efe0969af0d772ddbc6d026fdf58bd4f2776514a9fb098753d062001d",
+  "rowCount": 256,
+  "pairCounts": [
+    {
+      "family": "dotnet-aspnetcore-win-x64",
+      "baseVersion": "10.0.10",
+      "targetVersion": "10.0.11",
+      "rows": 64
+    },
+    {
+      "family": "dotnet-aspnetcore-win-x64",
+      "baseVersion": "10.0.11",
+      "targetVersion": "10.0.12",
+      "rows": 64
+    },
+    {
+      "family": "dotnet-runtime-linux-arm64",
+      "baseVersion": "10.0.10",
+      "targetVersion": "10.0.11",
+      "rows": 64
+    },
+    {
+      "family": "dotnet-runtime-linux-arm64",
+      "baseVersion": "10.0.11",
+      "targetVersion": "10.0.12",
+      "rows": 64
+    }
+  ],
+  "validation": {
+    "schemaIdentity": true,
+    "sourceCommitMatchesRun": true,
+    "exactFourCalibrationPairs": true,
+    "exactly64RowsPerPair": true,
+    "canonicalPairBlockOrder": true,
+    "digestPathIndexOrderWithinPair": true,
+    "uniqueTargetChunkIdsWithinPair": true,
+    "allSampleKeysRecomputed": true,
+    "oracleSampleSha256Recomputed": true,
+    "artifactBytesMatchCommittedBlob": true
+  },
+  "oracleExecutionAllowedAfterMerge": true
+}
