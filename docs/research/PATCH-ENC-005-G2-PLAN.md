@@ -1,6 +1,6 @@
 # PATCH-ENC-005 G2 execution plan
 
-Status: **SAMPLE LOCK CANDIDATE**
+Status: **SAMPLE LOCKED**
 
 Owning issue: #181  
 Parent: #7  
@@ -61,8 +61,7 @@ The sample document's `sourceCommit` binds the commit that materialized the lock
 ## Locked sample candidate
 
 The sample-only workflow run `37143841107` on merged main
-`d406a90fdf8d7fc7944975b7f1667129a8ab5df9` produced the canonical lock
-candidate documented in
+`d406a90fdf8d7fc7944975b7f1667129a8ab5df9` produced the canonical locked sample documented in
 `docs/research/results/PATCH-ENC-005-G2-SAMPLE-20261003-001.md`.
 
 - rows: 256 = 4 × 64;
@@ -72,7 +71,7 @@ candidate documented in
   `54061f4efe0969af0d772ddbc6d026fdf58bd4f2776514a9fb098753d062001d`.
 
 No real oracle cost was computed while materializing, validating or committing
-the lock candidate. Slice C remains forbidden until the lock PR merges.
+the locked sample. Slice C becomes allowed only after this lock is merged.
 
 ## Slice C — G2 decision evidence
 
