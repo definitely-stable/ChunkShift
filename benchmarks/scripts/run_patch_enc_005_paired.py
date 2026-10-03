@@ -357,7 +357,7 @@ def run_dispatch(
             candidates.append(
                 {
                     "lane": lane,
-                    "result": str(path.relative_to(args.output)),
+                    "result": path.relative_to(args.output).as_posix(),
                     "aggregate": aggregate_create(result),
                 }
             )
@@ -399,8 +399,8 @@ def run_dispatch(
             {
                 "round": round_number,
                 "candidateOrder": [candidate["lane"] for candidate in candidates],
-                "h0StartResult": str(start_path.relative_to(args.output)),
-                "h0EndResult": str(end_path.relative_to(args.output)),
+                "h0StartResult": start_path.relative_to(args.output).as_posix(),
+                "h0EndResult": end_path.relative_to(args.output).as_posix(),
                 "h0Start": start_aggregate,
                 "h0End": end_aggregate,
                 "bracketNoisy": noisy,
@@ -516,7 +516,7 @@ def collect_apply_evidence(
                 }
             )
         evidence[lane] = {
-            "result": str(path.relative_to(args.output)),
+            "result": path.relative_to(args.output).as_posix(),
             "environment": result["environment"],
             "aggregate": aggregate_apply(result),
             "files": files,
@@ -601,8 +601,8 @@ def collect_trace_and_correctness(
             raise ValueError(f"{lane}: trace capture patch bytes differ from accepted timing")
         rows = decode_capture(args, lane, result, capture_dir, lookup)
         evidence[lane] = {
-            "result": str(path.relative_to(args.output)),
-            "traceDirectory": str((capture_dir / "traces").relative_to(args.output)),
+            "result": path.relative_to(args.output).as_posix(),
+            "traceDirectory": (capture_dir / "traces").relative_to(args.output).as_posix(),
             "correctness": rows,
         }
     return evidence
