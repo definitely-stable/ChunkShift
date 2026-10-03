@@ -310,11 +310,7 @@ def validate_environment(
     processor = str(environment.get("processorDescription") or "")
     if process_arch != expected_arch or os_arch != expected_arch:
         raise ValueError(f"{label}: architecture does not match platform {platform}")
-    if platform.startswith("linux-"):
-        if "linux" not in os_description.lower():
-            raise ValueError(f"{label}: OS does not match Linux platform")
-    elif "windows" not in os_description.lower():
-        raise ValueError(f"{label}: OS does not match Windows platform")
+    apply_evidence_validator.validate_platform_os(platform, os_description, label)
     if not framework.strip() or not processor.strip():
         raise ValueError(f"{label}: runtime/processor provenance is incomplete")
     return environment
