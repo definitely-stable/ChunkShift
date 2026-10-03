@@ -6,6 +6,7 @@ on:
       - .github/workflows/patch-gap-001-puffin-toolchain.yml
       - .github/workflows/patch-gap-001-stage-a.yml
       - benchmarks/tools/patch_gap_puffin_locator.cc
+      - benchmarks/scripts/test_patch_gap_puffin_packaging.py
   push:
     branches:
       - main
@@ -81,6 +82,9 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test -z "$(git status --porcelain=v1 --untracked-files=normal)"
+
+      - name: Test Puffin runtime packaging
+        run: python3 -m unittest benchmarks/scripts/test_patch_gap_puffin_packaging.py
 
       - name: Validate one-shot Stage-A request
         if: github.event_name == 'push'
@@ -236,7 +240,9 @@ jobs:
                   continue
 
               source = pathlib.Path(candidate).resolve()
-              name = source.name
+              # Copy bytes under the ELF loader name, not the resolved versioned filename.
+              # Regular files survive the symlink-free Actions ZIP contract.
+              name = fields[0] if "=>" in fields else source.name
               if name.startswith(base_runtime_prefixes):
                   continue
 
@@ -255,6 +261,24 @@ jobs:
             echo "Packaged Puffin locator has unresolved runtime dependencies." >&2
             exit 2
           fi
+
+          python3 - "$PACKAGE_DIR/ldd-packaged.txt" "$PACKAGE_DIR/lib64" <<'PY'
+          import pathlib
+          import sys
+
+          ldd_path = pathlib.Path(sys.argv[1])
+          library_dir = pathlib.Path(sys.argv[2]).resolve()
+          expected = {path.name for path in library_dir.iterdir() if path.is_file()}
+          found = set()
+          for line in ldd_path.read_text(encoding="utf-8").splitlines():
+              fields = line.strip().split()
+              if len(fields) >= 3 and fields[1] == "=>" and fields[0] in expected:
+                  if pathlib.Path(fields[2]).resolve() != library_dir / fields[0]:
+                      raise SystemExit(f"packaged dependency resolved outside lib64: {line.strip()}")
+                  found.add(fields[0])
+          if found != expected:
+              raise SystemExit(f"packaged dependencies absent from ldd: {sorted(expected - found)}")
+          PY
 
       - name: Smoke-test pinned puffhuff path
         shell: bash
@@ -408,17 +432,44 @@ jobs:
             sha256sum -c SHA256SUMS
           )
 
-      - name: Validate packaged Puffin in a clean runtime view
+      - name: Validate packaged Puffin after ZIP extraction
         shell: bash
         run: |
           set -euo pipefail
 
+          replay_dir="$RUNNER_TEMP/puffin-artifact-replay"
+          python3 - "$PACKAGE_DIR" "$replay_dir" <<'PY'
+          import pathlib
+          import sys
+          import zipfile
+
+          source = pathlib.Path(sys.argv[1])
+          destination = pathlib.Path(sys.argv[2])
+          archive = destination.with_suffix(".zip")
+          with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+              for path in sorted(source.rglob("*")):
+                  if path.is_symlink():
+                      raise SystemExit(f"symlink in producer package: {path}")
+                  if path.is_file():
+                      bundle.write(path, path.relative_to(source).as_posix())
+          with zipfile.ZipFile(archive) as bundle:
+              bundle.extractall(destination)
+          PY
+          (
+            cd "$replay_dir"
+            sha256sum -c SHA256SUMS
+          )
+          chmod 0755 "$replay_dir/bin/puffin"
+
           env -i \
             HOME="$HOME" \
             PATH="/usr/bin:/bin" \
-            LD_LIBRARY_PATH="$PACKAGE_DIR/lib64" \
-            "$PACKAGE_DIR/bin/puffin" --help \
-            > "$RUNNER_TEMP/puffin-clean-help.txt" 2>&1
+            LD_LIBRARY_PATH="$replay_dir/lib64" \
+            "$replay_dir/bin/puffin" --help \
+            > "$RUNNER_TEMP/puffin-clean-help.txt" 2>&1 || {
+              cat "$RUNNER_TEMP/puffin-clean-help.txt" >&2
+              exit 2
+            }
 
           cmp "$PACKAGE_DIR/puffin-help.txt" "$RUNNER_TEMP/puffin-clean-help.txt"
 
