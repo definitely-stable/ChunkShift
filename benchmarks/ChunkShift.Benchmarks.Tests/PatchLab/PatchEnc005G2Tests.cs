@@ -1,3 +1,5 @@
+using ChunkShift.Benchmarks.PatchLab;
+
 namespace ChunkShift.Benchmarks.Tests.PatchLab;
 
 public sealed class PatchEnc005G2Tests
