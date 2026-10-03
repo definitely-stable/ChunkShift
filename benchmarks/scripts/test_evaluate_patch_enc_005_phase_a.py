@@ -475,6 +475,30 @@ class PatchEnc005PhaseAEvaluatorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "expected Windows environment"):
             validator("win-x64", "Ubuntu 24.04.5 LTS", "win-x64")
 
+    def test_windows_trace_paths_are_portable_on_linux_evaluator(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            paired, memory, cross = synthetic_artifacts(root)
+            path = paired["win-x64"]
+            document = json.loads(path.read_text(encoding="utf-8"))
+            for lane in document["traceCorrectness"].values():
+                lane["result"] = lane["result"].replace("/", "\\")
+                lane["traceDirectory"] = lane["traceDirectory"].replace("/", "\\")
+            write_json(path, document)
+
+            compiled, files = EVALUATOR.build_compact(
+                paired, memory, cross, SOURCE
+            )
+
+            self.assertEqual(6, len(files))
+            self.assertEqual(SOURCE, compiled["sourceCommit"])
+
+    def test_safe_child_rejects_windows_style_parent_escape(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with self.assertRaisesRegex(ValueError, "escapes artifact root"):
+                EVALUATOR.safe_child(root, r"..\\outside.json")
+
     def test_full_synthetic_artifact_chain_compiles(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
