@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using ChunkShift.Patching.Creation;
+using ChunkShift.Patching.Encoding;
 
 namespace ChunkShift.Benchmarks.PatchLab;
 
@@ -24,6 +25,14 @@ internal static class PatchEnc005G2Protocol
     internal const string CandidateOrder = "abs-offset-then-lower-index";
     internal const int SamplePerPair = 64;
     internal const int DictionaryChunks = 4;
+
+    internal static CspEncoderPolicy FrozenH0Policy { get; } =
+        new(Level: 19, DictionaryChunks: 4, MaxCandidates: 8, SearchRadius: 256 * 1024)
+        {
+            DictionaryLoad = CspDictionaryLoad.Prefix,
+            DictionaryHashLog = 20,
+            DictionaryChainLog = 20,
+        };
 
     internal static bool IsCalibrationFamily(string family) =>
         family is "dotnet-aspnetcore-win-x64" or "dotnet-runtime-linux-arm64";
@@ -102,7 +111,7 @@ internal static class PatchEnc005G2Protocol
         return [.. CspPatchBuilder.FindCandidateStarts(
             records,
             targetOffset,
-            CspEncoderPolicy.Default)];
+            FrozenH0Policy)];
     }
 
     internal static (bool Valid, int Count, int Length) MeasureCandidateForTests(
@@ -122,7 +131,7 @@ internal static class PatchEnc005G2Protocol
         bool valid = CspPatchBuilder.TryMeasureCandidate(
             records,
             start,
-            CspEncoderPolicy.Default,
+            FrozenH0Policy,
             out int count,
             out int length);
         return (valid, count, length);
