@@ -136,7 +136,7 @@ internal static class PatchEnc005G2Runner
     {
         ValidateSourceCommit(sourceCommit);
         RequireFrozenCorpus(corpus);
-        ValidateSampleIdentity(sample, sourceCommit);
+        ValidateSampleIdentity(sample);
 
         PatchEnc005G2SampleDocument recomputed =
             await BuildSampleAsync(corpus, sourceCommit, cancellationToken).ConfigureAwait(false);
@@ -475,15 +475,13 @@ internal static class PatchEnc005G2Runner
         }
     }
 
-    private static void ValidateSampleIdentity(
-        PatchEnc005G2SampleDocument sample,
-        string sourceCommit)
+    private static void ValidateSampleIdentity(PatchEnc005G2SampleDocument sample)
     {
         if (
             sample.Schema != PatchEnc005G2Protocol.SampleSchema ||
             sample.ExperimentId != PatchEnc005G2Protocol.ExperimentId ||
             sample.ProtocolCommit != PatchEnc005G2Protocol.ProtocolCommit ||
-            !string.Equals(sample.SourceCommit, sourceCommit, StringComparison.OrdinalIgnoreCase) ||
+            !IsFullLowerCommit(sample.SourceCommit) ||
             sample.DatasetRole != PatchEnc005G2Protocol.DatasetRole ||
             sample.DatasetSha256 != PatchEnc005G2Protocol.DatasetSha256 ||
             sample.OracleSampleSha256 != PatchEnc005G2Protocol.RowsSha256(sample.Rows))
@@ -514,12 +512,16 @@ internal static class PatchEnc005G2Runner
 
     private static void ValidateSourceCommit(string sourceCommit)
     {
-        if (sourceCommit.Length != 40 ||
-            sourceCommit.Any(static ch => ch is not (>= '0' and <= '9') and not (>= 'a' and <= 'f')))
+        if (!IsFullLowerCommit(sourceCommit))
         {
             throw new PatchLabUsageException("--source-commit must be lowercase full 40-hex.");
         }
     }
+
+    private static bool IsFullLowerCommit(string value) =>
+        value.Length == 40 &&
+        !value.Any(static ch =>
+            ch is not (>= '0' and <= '9') and not (>= 'a' and <= 'f'));
 
     private static long Distance(long left, long right) =>
         left >= right ? left - right : right - left;
