@@ -357,11 +357,11 @@
         151
       ],
       "area": "patching",
-      "status": "EVIDENCE_READY",
+      "status": "RUNNING",
       "question": "dictionary-candidate search: ranking, resemblance sketches, early exit, level ladder",
       "protocol": "docs/benchmarks/PATCH-ENC-005-PROTOCOL.md",
-      "evidence": "docs/research/results/PATCH-ENC-005-EVIDENCE-20261003-001.md",
-      "decision": "Partial Phase A capture is INCOMPLETE; H7 fails the frozen H4 byte-equality oracle; no production decision"
+      "evidence": "docs/research/results/PATCH-ENC-005-EVIDENCE-20261003-002.md",
+      "decision": "Phase A calibration REJECT; no finalists; D15 unchanged; G2 exact sampled whole-base oracle is the next frozen step"
     },
     {
       "id": "PATCH-APPLY-002",
