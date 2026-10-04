@@ -124,6 +124,19 @@ internal static partial class CspPatchBuilder
                 nameof(targetManifest));
         }
 
+        if (execution.ResearchCandidateSelector is { } researchSelector)
+        {
+            if (baseContent is null)
+            {
+                throw new InvalidOperationException(
+                    "A research candidate selector requires base content.");
+            }
+
+            await researchSelector
+                .BuildAsync(baseRecords, baseContent, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         using var writer = new CspWriter(destination, target.HashSuite);
 
         // The Core reader rejects bytes after the TRAILER, so the manifest runs
