@@ -203,12 +203,46 @@ jobs:
               path = detail_dir / row["detailPath"]
               if not path.is_file():
                   raise SystemExit(f"missing detail document: {path.name}")
-              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              raw_detail = path.read_bytes()
+              digest = hashlib.sha256(raw_detail).hexdigest()
               if digest != row["detailSha256"]:
                   raise SystemExit(f"detail digest mismatch: {path.name}")
-              if path.stat().st_size != int(row["detailBytes"]):
+              if len(raw_detail) != int(row["detailBytes"]):
                   raise SystemExit(f"detail size mismatch: {path.name}")
               referenced.add(path.name)
+
+              detail = json.loads(raw_detail)
+              base_records = detail.get("baseRecords")
+              entries = detail.get("entries")
+              if not isinstance(base_records, list) or not isinstance(entries, list):
+                  raise SystemExit(f"malformed G1 detail structure: {path.name}")
+              for expected_index, base_record in enumerate(base_records):
+                  if int(base_record["index"]) != expected_index:
+                      raise SystemExit(f"non-canonical base record order: {path.name}")
+              for entry in entries:
+                  for trial in entry.get("trials", []):
+                      start = int(trial["startIndex"])
+                      refs = int(trial["dictionaryReferences"])
+                      if start < 0 or refs <= 0 or start + refs > len(base_records):
+                          raise SystemExit(f"invalid trial base slice: {path.name}")
+                      selected = base_records[start:start + refs]
+                      dictionary_bytes = sum(int(item["length"]) for item in selected)
+                      if dictionary_bytes != int(trial["dictionaryBytes"]):
+                          raise SystemExit(f"trial dictionary byte sum mismatch: {path.name}")
+                      ids_text = "".join(str(item["chunkId"]) + "\n" for item in selected).encode()
+                      ids_sha = hashlib.sha256(ids_text).hexdigest()
+                      if ids_sha != trial["dictionaryChunkIdsSha256"]:
+                          raise SystemExit(f"trial dictionary-id slice mismatch: {path.name}")
+                      frame = trial.get("frameBytes")
+                      cost = trial.get("costBytes")
+                      ref_bytes = trial.get("referenceBytes")
+                      if frame is None:
+                          if cost is not None or ref_bytes is not None:
+                              raise SystemExit(f"ineligible trial carries cost bytes: {path.name}")
+                      else:
+                          expected_ref = refs * 32
+                          if int(ref_bytes) != expected_ref or int(cost) != int(frame) + expected_ref:
+                              raise SystemExit(f"trial cost equation mismatch: {path.name}")
 
               lane_bytes = row["lanePatchBytes"]
               values = [int(lane_bytes[name]) for name in expected_lanes]
