@@ -113,6 +113,12 @@ internal static class PatchGapG1Runner
             static _ => 0L,
             StringComparer.Ordinal);
         long h0Total = 0;
+        long h0BaseBytesRead = 0;
+        int h0BaseReadCalls = 0;
+        int h0BaseSeeks = 0;
+        long g1BaseBytesRead = 0;
+        int g1BaseReadCalls = 0;
+        int g1BaseSeeks = 0;
 
         foreach (PatchLabPair pair in pairs)
         {
@@ -127,6 +133,12 @@ internal static class PatchGapG1Runner
                     cancellationToken).ConfigureAwait(false);
 
                 h0Total = checked(h0Total + detail.H0PatchBytes);
+                h0BaseBytesRead = checked(h0BaseBytesRead + detail.H0BaseBytesRead);
+                h0BaseReadCalls = checked(h0BaseReadCalls + detail.H0BaseReadCalls);
+                h0BaseSeeks = checked(h0BaseSeeks + detail.H0BaseSeeks);
+                g1BaseBytesRead = checked(g1BaseBytesRead + detail.G1BaseBytesRead);
+                g1BaseReadCalls = checked(g1BaseReadCalls + detail.G1BaseReadCalls);
+                g1BaseSeeks = checked(g1BaseSeeks + detail.G1BaseSeeks);
                 foreach (string lane in laneIds)
                 {
                     laneTotals[lane] = checked(laneTotals[lane] + detail.LanePatchBytes[lane]);
@@ -149,9 +161,13 @@ internal static class PatchGapG1Runner
                     detail.H0PatchBytes,
                     detail.H0PatchSha256,
                     detail.LanePatchBytes,
-                    detail.BaseBytesRead,
-                    detail.BaseReadCalls,
-                    detail.BaseSeeks,
+                    detail.H0BaseBytesRead,
+                    detail.H0BaseReadCalls,
+                    detail.H0BaseSeeks,
+                    detail.G1BaseBytesRead,
+                    detail.G1BaseReadCalls,
+                    detail.G1BaseSeeks,
+                    detail.BaseReadAmplification,
                     detail.EntryCount,
                     detail.TrialCount,
                     detailName,
@@ -217,6 +233,15 @@ internal static class PatchGapG1Runner
                 completedUtc,
                 commandLine,
                 sorted.Length),
+            h0BaseBytesRead,
+            h0BaseReadCalls,
+            h0BaseSeeks,
+            checked(h0BaseBytesRead + g1BaseBytesRead),
+            checked(h0BaseReadCalls + g1BaseReadCalls),
+            checked(h0BaseSeeks + g1BaseSeeks),
+            h0BaseBytesRead == 0
+                ? null
+                : (double)(h0BaseBytesRead + g1BaseBytesRead) / h0BaseBytesRead,
             [.. aggregates],
             sorted);
     }
@@ -251,21 +276,29 @@ internal static class PatchGapG1Runner
 
         try
         {
+            long h0BaseBytesRead;
+            int h0BaseReadCalls;
+            int h0BaseSeeks;
+
             await using (FileStream baseManifest = PatchLabFiles.OpenRead(baseManifestPath))
-            await using (FileStream baseContent = PatchLabFiles.OpenRead(baseContentPath))
+            await using (FileStream rawBaseContent = PatchLabFiles.OpenRead(baseContentPath))
             await using (FileStream targetManifest = PatchLabFiles.OpenRead(targetManifestPath))
             await using (FileStream targetContent = PatchLabFiles.OpenRead(targetContentPath))
             await using (FileStream patch = PatchLabFiles.Create(temporaryPatch))
             {
+                var countedBase = new CountingReadStream(rawBaseContent);
                 _ = await CspPatchBuilder.CreateAsync(
                     baseManifest,
-                    baseContent,
+                    countedBase,
                     targetManifest,
                     targetContent,
                     patch,
                     CspEncoderPolicy.Default,
                     execution,
                     cancellationToken).ConfigureAwait(false);
+                h0BaseBytesRead = countedBase.BytesRead;
+                h0BaseReadCalls = countedBase.ReadCalls;
+                h0BaseSeeks = countedBase.Seeks;
             }
 
             long h0PatchBytes = new FileInfo(temporaryPatch).Length;
@@ -297,10 +330,13 @@ internal static class PatchGapG1Runner
             IReadOnlyDictionary<string, long> laneBytes =
                 PatchGapG1Evaluator.FileLaneBytes(h0PatchBytes, entries, requestedLane);
             long h0EntryCosts = entries.Sum(static entry => entry.Evidence.H0CostBytes);
-            long baseBytesRead = entries.Sum(static entry => entry.Evidence.BaseBytesRead);
-            int baseReadCalls = entries.Sum(static entry => entry.Evidence.BaseReadCalls);
-            int baseSeeks = entries.Sum(static entry => entry.Evidence.BaseSeeks);
+            long g1BytesRead = entries.Sum(static entry => entry.Evidence.BaseBytesRead);
+            int g1ReadCalls = entries.Sum(static entry => entry.Evidence.BaseReadCalls);
+            int g1Seeks = entries.Sum(static entry => entry.Evidence.BaseSeeks);
             int trialCount = entries.Sum(static entry => entry.Evidence.Trials.Length);
+            double? amplification = h0BaseBytesRead == 0
+                ? null
+                : (double)(h0BaseBytesRead + g1BytesRead) / h0BaseBytesRead;
 
             return new PatchGapG1FileEvidence(
                 pair.Family,
@@ -313,9 +349,13 @@ internal static class PatchGapG1Runner
                 h0PatchSha,
                 h0EntryCosts,
                 laneBytes,
-                baseBytesRead,
-                baseReadCalls,
-                baseSeeks,
+                h0BaseBytesRead,
+                h0BaseReadCalls,
+                h0BaseSeeks,
+                g1BytesRead,
+                g1ReadCalls,
+                g1Seeks,
+                amplification,
                 entries.Count,
                 trialCount,
                 [.. entries.Select(static entry => entry.Evidence)]);
@@ -401,6 +441,84 @@ internal static class PatchGapG1Runner
         string suffix = Convert.ToHexStringLower(
             SHA256.HashData(Encoding.UTF8.GetBytes(identity)));
         return $"{suffix}.json";
+    }
+
+    private sealed class CountingReadStream(Stream inner) : Stream
+    {
+        private long _bytesRead;
+        private int _readCalls;
+        private int _seeks;
+
+        internal long BytesRead => Interlocked.Read(ref _bytesRead);
+        internal int ReadCalls => Volatile.Read(ref _readCalls);
+        internal int Seeks => Volatile.Read(ref _seeks);
+
+        public override bool CanRead => inner.CanRead;
+        public override bool CanSeek => inner.CanSeek;
+        public override bool CanWrite => false;
+        public override long Length => inner.Length;
+
+        public override long Position
+        {
+            get => inner.Position;
+            set
+            {
+                Interlocked.Increment(ref _seeks);
+                inner.Position = value;
+            }
+        }
+
+        public override void Flush() => inner.Flush();
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            int read = inner.Read(buffer, offset, count);
+            Record(read);
+            return read;
+        }
+
+        public override int Read(Span<byte> buffer)
+        {
+            int read = inner.Read(buffer);
+            Record(read);
+            return read;
+        }
+
+        public override async Task<int> ReadAsync(
+            byte[] buffer,
+            int offset,
+            int count,
+            CancellationToken cancellationToken)
+        {
+            int read = await inner.ReadAsync(buffer.AsMemory(offset, count), cancellationToken)
+                .ConfigureAwait(false);
+            Record(read);
+            return read;
+        }
+
+        public override async ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            int read = await inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+            Record(read);
+            return read;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            Interlocked.Increment(ref _seeks);
+            return inner.Seek(offset, origin);
+        }
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        private void Record(int read)
+        {
+            Interlocked.Increment(ref _readCalls);
+            Interlocked.Add(ref _bytesRead, read);
+        }
     }
 
     private static (string Assembly, string Version, string Sha256) BackendIdentity()
