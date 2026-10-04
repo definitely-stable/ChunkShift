@@ -335,6 +335,7 @@ internal static partial class CspPatchBuilder
                 context.HashSuite,
                 context.Policy,
                 buffers,
+                context.Execution.ResearchCandidateSelector,
                 context.Execution.CandidateTraceSink,
                 cancellationToken).ConfigureAwait(false);
 
