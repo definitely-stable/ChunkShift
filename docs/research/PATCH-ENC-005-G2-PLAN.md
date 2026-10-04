@@ -1,6 +1,6 @@
 # PATCH-ENC-005 G2 execution plan
 
-Status: **G2 DECISION IMPLEMENTATION CANDIDATE**
+Status: **G2 MISS — H6-O GUARD REQUIRED**
 
 Owning issue: #181  
 Parent: #7  
@@ -72,6 +72,23 @@ The sample-only workflow run `37143841107` on merged main
 
 No real oracle cost was computed while materializing, validating or committing
 the locked sample. Slice C becomes allowed only after this lock is merged.
+
+## G2 decision result
+
+Run `37150436770` on source `489d3f2fe2582cc6251ee2fa87cd23bad1793b01`
+completed the locked exact whole-base oracle.
+
+- H0 sample cost: 974,223 B;
+- G2 sample cost: 974,049 B;
+- ratio: 0.9998213961;
+- saved: 174 B;
+- improved entries: 11 / 256;
+- pair passes: 0 / 4.
+
+Frozen §4.3 result: **MISS**. Full Phase B remains closed. The only authorized
+continuation is the one pre-frozen linux-x64 fixed-evaluation guard
+`H6-O12-SF3-S128`. H5-F, H6-P and H8 remain forbidden unless that guard opens
+the grid.
 
 ## Slice C — G2 decision evidence
 
