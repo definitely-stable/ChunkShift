@@ -70,7 +70,7 @@ internal sealed unsafe class PatchGapG1Codec : IDisposable
         _decoder.SetParameter(
             ZSTD_dParameter.ZSTD_d_windowLogMax,
             WindowLog(envelope));
-        _decoder.LoadDictionary(dictionary);
+        _decoder.RefPrefix(dictionary);
 
         int written;
         try
