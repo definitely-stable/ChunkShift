@@ -118,11 +118,54 @@ jobs:
       - name: Build benchmark lab
         run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
 
-      - name: Run frozen G1 calibration byte study
+      - name: Regenerate and require frozen H0 anchor
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$OUT"
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          dotnet "$dll" patch-lab gap h0 \
+            --corpus "$CORPUS_ROOT" \
+            --output "$OUT/h0-anchor.json" \
+            --source-commit "$SOURCE_COMMIT" \
+            --run-id "$RUN_ID-h0-preflight"
+
+          python3 - "$OUT/h0-anchor.json" "$SOURCE_COMMIT" "$PROTOCOL_COMMIT" "$PAIRS_SHA256" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          path = pathlib.Path(sys.argv[1])
+          source, protocol, pairs = sys.argv[2:]
+          root = json.loads(path.read_text(encoding="utf-8"))
+          checks = {
+              "schema": root.get("schema") == "chunkshift.patch-gap-h0-anchor.v1",
+              "protocol": root.get("protocolCommit") == protocol,
+              "source": root.get("sourceCommit") == source,
+              "dataset": root.get("corpusPairsSha256") == pairs,
+              "anchor": root.get("matchesFrozenAnchor") is True,
+          }
+          failed = [name for name, ok in checks.items() if not ok]
+          if failed:
+              raise SystemExit("G1 H0 preflight rejected: " + ", ".join(failed))
+
+          with pathlib.Path(path.parent / "h0-summary.md").open(
+              "w", encoding="utf-8", newline="\n"
+          ) as out:
+              out.write("### PATCH-GAP-001 frozen H0 preflight\n\n")
+              out.write(f"- files: {int(root['files']):,}\n")
+              out.write(f"- calibration bytes: {int(root['calibrationBytes']):,}\n")
+              out.write(f"- evaluation bytes: {int(root['evaluationBytes']):,}\n")
+              out.write(f"- total bytes: {int(root['totalBytes']):,}\n")
+              out.write(f"- patch-set SHA-256: `{root['patchSetSha256']}`\n")
+              out.write("- frozen anchor: PASS\n")
+          PY
+          cat "$OUT/h0-summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run frozen G1 calibration byte study
+        shell: bash
+        run: |
+          set -euo pipefail
           dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
           dotnet "$dll" patch-lab gap g1 \
             --corpus "$CORPUS_ROOT" \
