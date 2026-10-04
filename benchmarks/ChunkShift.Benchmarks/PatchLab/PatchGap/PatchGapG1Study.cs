@@ -7,12 +7,18 @@ using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks.PatchLab.PatchGap;
 
+internal sealed record PatchGapG1BaseRecordEvidence(
+    int Index,
+    long Offset,
+    int Length,
+    string ChunkId);
+
 internal sealed record PatchGapG1TrialEvidence(
     string EnvelopeId,
     int CandidateOrdinal,
     int StartIndex,
     string TrialKeySha256,
-    string[] DictionaryChunkIds,
+    string DictionaryChunkIdsSha256,
     int DictionaryBytes,
     int DictionaryReferences,
     int WindowBytes,
@@ -454,7 +460,7 @@ internal static class PatchGapG1Evaluator
             trial.CandidateOrdinal,
             trial.Start,
             keySha,
-            trial.Prefix.ChunkIdentities,
+            Sha256(string.Concat(trial.Prefix.ChunkIdentities.Select(static id => id + "\n"))),
             trial.Prefix.DictionaryBytes,
             trial.Prefix.DictionaryReferences,
             trial.Prefix.WindowBytes,

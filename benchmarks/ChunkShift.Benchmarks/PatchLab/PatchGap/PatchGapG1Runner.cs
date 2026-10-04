@@ -358,6 +358,12 @@ internal static class PatchGapG1Runner
                 amplification,
                 entries.Count,
                 trialCount,
+                [.. baseRecords.Select(static (record, index) =>
+                    new PatchGapG1BaseRecordEvidence(
+                        index,
+                        record.Offset,
+                        record.Length,
+                        record.ChunkId.ToString()))],
                 [.. entries.Select(static entry => entry.Evidence)]);
         }
         finally
