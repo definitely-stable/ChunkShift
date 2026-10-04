@@ -14,6 +14,7 @@ ROLE="evaluation"
 RUN_RE=re.compile(r"^PATCH-ENC-005/RUN-(\d{8})-(\d{3})-([0-9a-f]{40})-linux-x64$")
 CREATE_LIMIT=160*1024*1024
 INDEX_LIMIT=64*1024*1024
+POSTING_LIMIT=2_097_152
 
 def load(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
@@ -56,7 +57,21 @@ def validate_correctness(paired, patch_maps):
             seen[key]=row["patchSha256"]
         if seen!=patch_maps[lane]: raise ValueError(f"{lane}: correctness file set mismatch")
         app=applies[lane]
-        if not isinstance(app.get("files"),list) or len(app["files"])!=len(patch_maps[lane]):
+        app_rows=app.get("files")
+        if not isinstance(app_rows,list) or len(app_rows)!=len(patch_maps[lane]):
+            raise ValueError(f"{lane}: apply evidence file set mismatch")
+        app_seen={}
+        for row in app_rows:
+            key=(row["family"],row["base"],row["target"],row["path"])
+            if key in app_seen:
+                raise ValueError(f"{lane}: duplicate apply evidence row")
+            if row.get("patchSha256")!=patch_maps[lane].get(key):
+                raise ValueError(f"{lane}: apply evidence patch SHA mismatch")
+            samples=row.get("samples")
+            if not isinstance(samples,list) or len(samples)!=5:
+                raise ValueError(f"{lane}: apply evidence requires five samples")
+            app_seen[key]=row["patchSha256"]
+        if app_seen!=patch_maps[lane]:
             raise ValueError(f"{lane}: apply evidence file set mismatch")
 
 def patch_map(rows):
@@ -109,9 +124,21 @@ def evaluate(paired, h0mem, h6mem):
         h0bytes.add(int(r["h0Start"]["patchBytes"])); h0bytes.add(int(r["h0End"]["patchBytes"]))
         h6bytes.add(int(cands[0]["aggregate"]["patchBytes"]))
         agg=cands[0]["aggregate"]
-        if int(agg.get("selectorFiles") or 0)<=0: raise ValueError("guard selector metrics absent")
+        expected_selector_files=len(maps[LANE])
+        if int(agg.get("selectorFiles") or 0)!=expected_selector_files:
+            raise ValueError("guard selector metrics do not cover every changed file")
+        max_postings=int(agg.get("selectorMaxPostings") or 0)
+        total_postings=int(agg.get("selectorPostings") or 0)
+        if max_postings<0 or max_postings>POSTING_LIMIT:
+            raise ValueError("guard posting bound exceeded")
+        if total_postings<max_postings:
+            raise ValueError("guard posting aggregate is inconsistent")
         if int(agg.get("selectorIndexPeakBytes") or -1)>INDEX_LIMIT:
             raise ValueError("guard index logical memory bound exceeded")
+        if float(agg.get("selectorBuildWallSeconds") or 0.0)<0 or float(agg.get("selectorBuildCpuSeconds") or 0.0)<0:
+            raise ValueError("guard selector build metrics are invalid")
+        if int(agg.get("selectorBytesScanned") or 0)<0:
+            raise ValueError("guard selector scanned-byte metric is invalid")
 
     if len(h0bytes)!=1 or len(h6bytes)!=1: raise ValueError("guard patch bytes changed across rounds")
     h0=next(iter(h0bytes)); h6=next(iter(h6bytes))
