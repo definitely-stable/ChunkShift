@@ -27,7 +27,7 @@ internal sealed record PatchGapG1MemoryDocument(
     string Schema,
     string ExperimentId,
     string ProtocolCommit,
-    string SourceCommit,
+    PatchGapEvidenceProvenance Provenance,
     string DatasetRole,
     string DatasetSha256,
     string Lane,
@@ -73,7 +73,6 @@ internal static class PatchGapG1ApplyMemory
                 + "--output, --source-commit, --run-id and --platform.");
         }
 
-        _ = runId; // Bound into the parent command/evidence path; raw memory rows are deterministic.
         PatchGapSourceBinding binding = PatchGapSourceBindingProbe.Capture(sourceCommit);
         if (!string.Equals(binding.SourceCommit, sourceCommit, StringComparison.OrdinalIgnoreCase))
         {
@@ -106,7 +105,8 @@ internal static class PatchGapG1ApplyMemory
             detailDirectory,
             lane,
             output,
-            sourceCommit,
+            binding,
+            runId,
             platform,
             minimumBytes,
             PatchLabArguments.Value(args, "--work"),
@@ -138,17 +138,19 @@ internal static class PatchGapG1ApplyMemory
         string detailDirectory,
         string lane,
         string output,
-        string sourceCommit,
+        PatchGapSourceBinding binding,
+        string runId,
         string platform,
         int minimumBytes,
         string? work,
         CancellationToken cancellationToken)
     {
+        DateTimeOffset startedUtc = DateTimeOffset.UtcNow;
         PatchGapG1ByteStudyDocument index = ReadJson<PatchGapG1ByteStudyDocument>(indexPath);
         if (!string.Equals(index.Schema, PatchGapG1Runner.Schema, StringComparison.Ordinal) ||
             !string.Equals(index.ExperimentId, PatchGapProtocol.ExperimentId, StringComparison.Ordinal) ||
             !string.Equals(index.ProtocolCommit, PatchGapProtocol.ProtocolCommit, StringComparison.Ordinal) ||
-            !string.Equals(index.SourceCommit, sourceCommit, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(index.SourceCommit, binding.SourceCommit, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(index.DatasetSha256, PatchGapProtocol.CorpusPairsSha256, StringComparison.Ordinal))
         {
             throw new InvalidDataException("PATCH-GAP G1 memory index identity does not match the frozen study.");
@@ -269,11 +271,18 @@ internal static class PatchGapG1ApplyMemory
             }
 
             long maximum = files.Max(static file => file.PeakOverIdleBytes);
+            DateTimeOffset completedUtc = DateTimeOffset.UtcNow;
             var result = new PatchGapG1MemoryDocument(
                 Schema,
                 PatchGapProtocol.ExperimentId,
                 PatchGapProtocol.ProtocolCommit,
-                sourceCommit.ToLowerInvariant(),
+                PatchGapProvenance.Create(
+                    runId,
+                    binding,
+                    startedUtc,
+                    completedUtc,
+                    "patch-lab gap g1-memory",
+                    files.Count),
                 index.DatasetRole,
                 index.DatasetSha256,
                 lane,
