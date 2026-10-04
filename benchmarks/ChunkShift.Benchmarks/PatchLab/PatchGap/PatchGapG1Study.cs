@@ -191,6 +191,17 @@ internal static class PatchGapG1Evaluator
             throw new InvalidDataException("Production H0 exposed more than eight candidate starts.");
         }
 
+        foreach (CspCandidateTraceCandidate candidate in h0.Candidates)
+        {
+            if (candidate.Ordinal < 0 ||
+                candidate.Ordinal >= starts.Count ||
+                starts[candidate.Ordinal] != candidate.StartIndex)
+            {
+                throw new InvalidDataException(
+                    "G1 production candidate trace does not match the frozen H0 start order.");
+            }
+        }
+
         PatchGapG1BaseRecord[] modelRecords =
         [.. baseRecords.Select(static record =>
             new PatchGapG1BaseRecord(record.ChunkId.ToString(), record.Length))];
@@ -235,6 +246,12 @@ internal static class PatchGapG1Evaluator
                     maximumBytes,
                     sharedDictionaryBuffer.AsMemory(0, maximumBytes),
                     cancellationToken).ConfigureAwait(false);
+                VerifyPrefixChunks(
+                    baseRecords,
+                    startGroup.Key,
+                    maximumBytes,
+                    sharedDictionaryBuffer.AsSpan(0, maximumBytes),
+                    hashSuite);
                 totalReadBytes = checked(totalReadBytes + readBytes);
                 totalReadCalls = checked(totalReadCalls + readCalls);
                 totalSeeks = checked(totalSeeks + seeks);
@@ -504,6 +521,41 @@ internal static class PatchGapG1Evaluator
         }
 
         return (written, calls, 1);
+    }
+
+    private static void VerifyPrefixChunks(
+        List<CspPatchBuilder.BaseRecord> records,
+        int start,
+        int length,
+        ReadOnlySpan<byte> dictionary,
+        HashSuiteId hashSuite)
+    {
+        int verified = 0;
+        for (int index = start; index < records.Count && verified < length; index++)
+        {
+            CspPatchBuilder.BaseRecord record = records[index];
+            if (record.Length > length - verified)
+            {
+                throw new InvalidDataException(
+                    "G1 dictionary prefix ends inside a manifest chunk.");
+            }
+
+            if (PatchHashing.Hash(
+                    hashSuite,
+                    dictionary.Slice(verified, record.Length)) != record.ChunkId.Value)
+            {
+                throw new InvalidDataException(
+                    "G1 base dictionary chunk does not hash to its manifest ChunkId.");
+            }
+
+            verified += record.Length;
+        }
+
+        if (verified != length)
+        {
+            throw new InvalidDataException(
+                "G1 dictionary prefix does not end on the frozen chunk boundary.");
+        }
     }
 
     private static void RequireFrozenH0Policy(CspEncoderPolicy policy)
