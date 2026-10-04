@@ -163,7 +163,7 @@ internal sealed class PatchEnc005H6OSelector : ICspResearchCandidateSelector
             _buildWallSeconds,
             _buildCpuSeconds);
 
-    private int ChooseStride(IReadOnlyList<CspPatchBuilder.BaseRecord> records)
+    private static int ChooseStride(IReadOnlyList<CspPatchBuilder.BaseRecord> records)
     {
         int stride = 1;
 
