@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Globalization;
 using ChunkShift.Benchmarks.PatchLab;
+using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks.Tests.PatchLab;
 
@@ -80,6 +81,47 @@ public class PatchEnc005FeatureTests
     }
 
     [Fact]
+    public void H6OGearFeaturesAndKeysMatchStraightReference()
+    {
+        var random = new Random(181006);
+        var bytes = new byte[32 * 1024];
+        random.NextBytes(bytes);
+
+        uint[] expected = H6OReference(bytes);
+        var actual = new uint[12];
+        PatchEnc005Features.H6OFeatures(bytes, actual);
+        Assert.Equal(expected, actual);
+
+        var keys = new ulong[3];
+        PatchEnc005Features.H6OKeys(bytes, keys);
+
+        for (int group = 0; group < 3; group++)
+        {
+            byte[] payload = new byte[1 + (4 * sizeof(uint))];
+            payload[0] = (byte)group;
+            for (int index = 0; index < 4; index++)
+            {
+                BinaryPrimitives.WriteUInt32LittleEndian(
+                    payload.AsSpan(1 + (index * sizeof(uint)), sizeof(uint)),
+                    expected[(group * 4) + index]);
+            }
+
+            Assert.Equal(
+                PatchEnc005Features.Key64("PATCH-ENC-005/H6O/SF3", payload),
+                keys[group]);
+        }
+    }
+
+    [Fact]
+    public void FrozenStrideHelperMatchesRawZeroChunkIdVector()
+    {
+        var id = new ChunkId(Hash256.FromBytes(new byte[32]));
+        Assert.Equal(
+            0x33ef21b43b1b962bUL,
+            PatchEnc005Features.IndexStrideKey(id));
+    }
+
+    [Fact]
     public void FrozenH6PTierKeyVectorMatches()
     {
         byte[] payload = new byte[2 + (4 * sizeof(uint))];
@@ -114,4 +156,39 @@ public class PatchEnc005FeatureTests
         Assert.Equal(PatchEnc005Features.ExpectedGearSha256, PatchEnc005Features.GearSha256());
         Assert.Equal("chunkshift.fastcdc.gear.v1", PatchEnc005Features.GearId);
     }
+    private static uint[] H6OReference(ReadOnlySpan<byte> bytes)
+    {
+        var proxies = new List<ulong>();
+        ulong h = 0;
+
+        foreach (byte value in bytes)
+        {
+            h = unchecked((h << 1) + PatchEnc005Features.GearValue(value));
+            if ((h & 0x7fUL) == 0)
+            {
+                proxies.Add(h);
+            }
+        }
+
+        if (proxies.Count == 0)
+        {
+            proxies.Add(h);
+        }
+
+        var features = Enumerable.Repeat(uint.MaxValue, 12).ToArray();
+        foreach (ulong proxy in proxies)
+        {
+            for (int index = 0; index < 12; index++)
+            {
+                PatchEnc005Features.TransformPair transform =
+                    PatchEnc005Features.Transform(index);
+                uint value = unchecked(
+                    (transform.Multiplier * (uint)proxy) + transform.Addend);
+                features[index] = Math.Min(features[index], value);
+            }
+        }
+
+        return features;
+    }
+
 }
