@@ -648,7 +648,6 @@ internal static class PatchGapG1ApplyMemory
                 chunkBuffer = new byte[length];
             }
 
-            Span<byte> chunk = chunkBuffer.AsSpan(0, length);
             PlanInstruction kind = (PlanInstruction)reader.ReadByte();
 
             switch (kind)
@@ -689,7 +688,7 @@ internal static class PatchGapG1ApplyMemory
                         throw new InvalidDataException("PATCH-GAP G1 raw payload length differs from target chunk.");
                     }
 
-                    ReadExactly(reader, chunk);
+                    ReadExactly(reader, chunkBuffer.AsSpan(0, length));
                     break;
                 }
 
@@ -769,7 +768,7 @@ internal static class PatchGapG1ApplyMemory
                     codec.Decode(
                         frameBuffer.AsSpan(0, frameLength),
                         dictionaryBuffer.AsSpan(0, dictionaryBytes),
-                        chunk,
+                        chunkBuffer.AsSpan(0, length),
                         envelope);
                     break;
                 }
@@ -778,14 +777,14 @@ internal static class PatchGapG1ApplyMemory
                     throw new InvalidDataException($"PATCH-GAP G1 apply plan instruction {(byte)kind} is unknown.");
             }
 
-            if (PatchHashing.Hash(hashSuite, chunk) != chunkId)
+            if (PatchHashing.Hash(hashSuite, chunkBuffer.AsSpan(0, length)) != chunkId)
             {
                 throw new InvalidDataException("PATCH-GAP G1 reconstructed chunk failed its ChunkId check.");
             }
 
             output.Position = writeOffset;
             await output.WriteAsync(chunkBuffer.AsMemory(0, length), cancellationToken).ConfigureAwait(false);
-            fileHash.AppendData(chunk);
+            fileHash.AppendData(chunkBuffer.AsSpan(0, length));
             writeOffset = checked(writeOffset + length);
         }
 
