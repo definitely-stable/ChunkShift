@@ -829,11 +829,19 @@ internal static partial class CspPatchBuilder
         if (policy.DictionaryChunks != 0 && baseChunks is not null)
         {
             buffers.EnsureRankedDictionaries();
+            bool researchUnion = researchSelector is not null;
             int ordinal = 0;
+            List<RankedStart> starts = FindRankedStarts(
+                baseRecords,
+                targetChunk,
+                bytes.Span,
+                policy,
+                researchSelector);
 
-            foreach (int start in FindCandidateStarts(baseRecords, targetChunk.Offset, policy))
+            foreach (RankedStart candidateStart in starts)
             {
-                int candidateOrdinal = ordinal++;
+                int start = candidateStart.Start;
+                int candidateOrdinal = researchUnion ? -1 : ordinal++;
 
                 if (!TryMeasureCandidate(baseRecords, start, policy, out int count, out int length))
                 {
@@ -850,6 +858,11 @@ internal static partial class CspPatchBuilder
                     continue;
                 }
 
+                if (researchUnion)
+                {
+                    candidateOrdinal = ordinal++;
+                }
+
                 ReadOnlySpan<byte> cheapFrame = cheapEncoder.EncodeZstd(bytes.Span, dictionary.Span);
                 int cheapCost = DictionaryCandidateCost(cheapFrame.Length, count);
                 cheapTrials++;
@@ -863,6 +876,7 @@ internal static partial class CspPatchBuilder
                         StartOffset = baseRecords[start].Offset,
                         RecordCount = count,
                         FirstChunkId = baseRecords[start].ChunkId.ToString(),
+                        Source = candidateStart.Source,
                         CheapLevel = 1,
                         CheapFrameBytes = cheapFrame.Length,
                         CheapCostBytes = cheapCost,
