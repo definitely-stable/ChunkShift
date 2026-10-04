@@ -219,7 +219,7 @@ internal static class PatchGapG1Evaluator
             requestedLane);
 
         int maximumExtendedTrials = checked(
-            starts.Count * PatchGapG1Model.Nested(requestedLane).Count);
+            starts.Count * PatchGapG1Model.Nested(requestedLane).Count());
         int actualExtendedTrials = trials.Count(static trial => !trial.Deduplicated);
         if (actualExtendedTrials > maximumExtendedTrials)
         {
