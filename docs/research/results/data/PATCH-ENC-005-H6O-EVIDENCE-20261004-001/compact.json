@@ -1,0 +1,36 @@
+{
+  "schema": "chunkshift.patch-enc-005-h6o-compact.v1",
+  "experimentId": "PATCH-ENC-005",
+  "runId": "PATCH-ENC-005/RUN-20261004-002-148ee8adc6df47cce0d866ea2e6eb25d684713d7-linux-x64",
+  "sourceCommit": "148ee8adc6df47cce0d866ea2e6eb25d684713d7",
+  "protocolCommit": "96fd9b296d6998cac397e61041f22df51e6dd43c",
+  "datasetSha256": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+  "lane": "H6-O12-SF3-S128",
+  "platform": "linux-x64",
+  "timing": {
+    "h0PatchBytes": 26363364,
+    "h6PatchBytes": 30248709,
+    "wallRatios": [0.4431129838596517,0.4326917945624704,0.41099955127137405,0.4233778064174532,0.4079016596388759]
+  },
+  "memory": {
+    "limitOverIdleBytes": 167772160,
+    "h0IdleBaselineBytes": 35737600,
+    "h0MaxCreatePeakBytes": 111132672,
+    "h6IdleBaselineBytes": 36356096,
+    "h6MaxCreatePeakBytes": 117014528
+  },
+  "correctness": {
+    "filesCheckedPerLane": 844,
+    "invalidDecoderVerdicts": 0,
+    "decoderTargetDigestMismatches": 0
+  },
+  "determinism": {
+    "filesCheckedPerLane": 844,
+    "acceptedVsCorrectnessPatchShaMismatches": 0
+  },
+  "rawArtifact": {
+    "artifactId": 11301043088,
+    "zipSha256": "114288db25329d32122dbfcc75e4cb24d4030b34da9616da3e44357817edad6f",
+    "pairedJsonSha256": "cd99b71aea0437751598bb26d7e213fe5606931a73606dbdc81f9dba5847d1d2"
+  }
+}

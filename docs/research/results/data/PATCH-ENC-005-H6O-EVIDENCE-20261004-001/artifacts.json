@@ -1,0 +1,15 @@
+{
+  "artifacts": [
+    {
+      "expiresAt": "2027-01-02T08:02:07Z",
+      "id": 11301043088,
+      "name": "patch-enc-005-h6o-decision-148ee8adc6df47cce0d866ea2e6eb25d684713d7",
+      "sizeInBytes": 365533,
+      "zipSha256": "114288db25329d32122dbfcc75e4cb24d4030b34da9616da3e44357817edad6f"
+    }
+  ],
+  "experimentId": "PATCH-ENC-005",
+  "githubRunId": 37187615407,
+  "schema": "chunkshift.patch-enc-005-h6o-artifacts.v1",
+  "sourceCommit": "148ee8adc6df47cce0d866ea2e6eb25d684713d7"
+}

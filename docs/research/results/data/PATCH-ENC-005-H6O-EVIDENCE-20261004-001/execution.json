@@ -1,0 +1,12 @@
+{
+  "datasetRole": "evaluation",
+  "experimentId": "PATCH-ENC-005",
+  "githubRunAttempt": 1,
+  "githubRunId": 37187615407,
+  "githubRunNumber": 2,
+  "lane": "H6-O12-SF3-S128",
+  "platform": "linux-x64",
+  "runId": "PATCH-ENC-005/RUN-20261004-002-148ee8adc6df47cce0d866ea2e6eb25d684713d7-linux-x64",
+  "schema": "chunkshift.patch-enc-005-h6o-guard-run.v1",
+  "sourceCommit": "148ee8adc6df47cce0d866ea2e6eb25d684713d7"
+}
