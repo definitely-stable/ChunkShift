@@ -39,6 +39,29 @@ public class PatchGapG1CodecTests
     }
 
     [Fact]
+    public void ResearchCodecUsesHistoryBeyondProductionOneMiB()
+    {
+        PatchGapG1Envelope envelope = PatchGapG1Model.Get("G1-B4-R256");
+        byte[] dictionary = new byte[4 * 1024 * 1024];
+        new Random(0x4183).NextBytes(dictionary);
+
+        // The matching bytes are at the far end of the 4 MiB history rather
+        // than in its most recent 1 MiB. A codec that silently retains the CSP
+        // v1 history reach will encode these random bytes essentially raw.
+        byte[] target = dictionary.AsSpan(0, PatchGapG1Model.MaximumTargetBytes).ToArray();
+
+        using var codec = new PatchGapG1Codec();
+        byte[] frame = codec.Encode(target, dictionary, envelope).ToArray();
+        byte[] decoded = new byte[target.Length];
+        codec.Decode(frame, dictionary, decoded, envelope);
+
+        Assert.Equal(target, decoded);
+        Assert.True(
+            frame.Length < target.Length / 4,
+            $"Expected the B4 raw-prefix history to find the distant match; frame={frame.Length}, target={target.Length}.");
+    }
+
+    [Fact]
     public void ResearchCodecRejectsDictionaryBeyondFrozenEnvelope()
     {
         PatchGapG1Envelope envelope = PatchGapG1Model.Get("G1-B1-R64");
