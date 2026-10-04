@@ -313,6 +313,7 @@ internal static partial class CspPatchBuilder
                             hashSuite,
                             policy,
                             entryBuffers,
+                            execution.ResearchCandidateSelector,
                             execution.CandidateTraceSink,
                             cancellationToken).ConfigureAwait(false);
                     }
@@ -334,6 +335,7 @@ internal static partial class CspPatchBuilder
                             hashSuite,
                             policy,
                             entryBuffers,
+                            execution.ResearchCandidateSelector,
                             execution.CandidateTraceSink,
                             cancellationToken).ConfigureAwait(false);
                     }
@@ -506,6 +508,7 @@ internal static partial class CspPatchBuilder
         HashSuiteId hashSuite,
         CspEncoderPolicy policy,
         EntryBuffers buffers,
+        ICspResearchCandidateSelector? researchSelector,
         ICspCandidateTraceSink? traceSink,
         CancellationToken cancellationToken) =>
         policy.CandidateSelection == CspCandidateSelection.Exhaustive
@@ -541,6 +544,7 @@ internal static partial class CspPatchBuilder
                 hashSuite,
                 policy,
                 buffers,
+                researchSelector,
                 traceSink,
                 cancellationToken);
 
@@ -800,6 +804,7 @@ internal static partial class CspPatchBuilder
         HashSuiteId hashSuite,
         CspEncoderPolicy policy,
         EntryBuffers buffers,
+        ICspResearchCandidateSelector? researchSelector,
         ICspCandidateTraceSink? traceSink,
         CancellationToken cancellationToken)
     {
