@@ -54,11 +54,17 @@ internal sealed class PatchEnc005H6OSelector : ICspResearchCandidateSelector
                 $"H6-O index requires {indexBytes} bytes, above the frozen 64 MiB bound.");
         }
 
-        _indexPeakBytes = indexBytes;
         int maximumRecordLength = baseRecords.Count == 0
             ? 1
             : baseRecords.Max(static record => record.Length);
         byte[] buffer = new byte[maximumRecordLength];
+        _indexPeakBytes = checked(indexBytes + buffer.LongLength);
+
+        if (_indexPeakBytes > 64L * 1024 * 1024)
+        {
+            throw new InvalidOperationException(
+                $"H6-O index plus prepass scratch requires {_indexPeakBytes} bytes, above the frozen 64 MiB bound.");
+        }
         using Process process = Process.GetCurrentProcess();
         process.Refresh();
         TimeSpan cpuBefore = process.TotalProcessorTime;
@@ -66,6 +72,7 @@ internal sealed class PatchEnc005H6OSelector : ICspResearchCandidateSelector
 
         baseContent.Position = 0;
         int posting = 0;
+        var keys = new ulong[3];
 
         for (int index = 0; index < baseRecords.Count; index++)
         {
@@ -80,7 +87,6 @@ internal sealed class PatchEnc005H6OSelector : ICspResearchCandidateSelector
                 continue;
             }
 
-            Span<ulong> keys = stackalloc ulong[3];
             PatchEnc005Features.H6OKeys(bytes.Span, keys);
 
             for (int key = 0; key < keys.Length; key++)
