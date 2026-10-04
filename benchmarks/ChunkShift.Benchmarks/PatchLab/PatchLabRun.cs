@@ -55,6 +55,13 @@ internal static class PatchLabRun
         CspCreateExecution? execution = executionName is null ? null : PatchLabExecution.Parse(executionName);
         PatchLabTraceOptions? trace = PatchLabTraceOptions.Parse(args, runId, executionName);
 
+        if (string.Equals(laneName, PatchEnc005H6OSelector.Lane, StringComparison.Ordinal) &&
+            !string.Equals(executionName, "h2-w2", StringComparison.Ordinal))
+        {
+            throw new PatchLabUsageException(
+                "H6-O12-SF3-S128 requires explicit --execution h2-w2.");
+        }
+
         // PATCH-ENC-004 attributes process CPU and allocations to one create,
         // so its runs create one file at a time.
         if (execution is not null && workers != 1)
@@ -231,9 +238,17 @@ internal static class PatchLabRun
         }
 
         var traceCollector = trace is null ? null : new PatchLabCandidateTraceCollector();
+        PatchEnc005H6OSelector? researchSelector =
+            string.Equals(lane, PatchEnc005H6OSelector.Lane, StringComparison.Ordinal)
+                ? new PatchEnc005H6OSelector()
+                : null;
         CspCreateExecution? effectiveExecution = execution is null
             ? null
-            : execution with { CandidateTraceSink = traceCollector };
+            : execution with
+            {
+                CandidateTraceSink = traceCollector,
+                ResearchCandidateSelector = researchSelector,
+            };
         string directory = Directory.CreateTempSubdirectory("chunkshift-patch-lab-").FullName;
 
         try
@@ -442,8 +457,28 @@ internal static class PatchLabRun
             statistics.WindowPeakEntries,
             statistics.WindowPeakBytes,
             statistics.ReorderPeakEntries,
-            statistics.ReorderPeakBytes),
+            statistics.ReorderPeakBytes,
+            SelectorMetrics(execution.ResearchCandidateSelector)),
             info);
+    }
+
+    private static PatchLabSelectorMetrics? SelectorMetrics(
+        ICspResearchCandidateSelector? selector)
+    {
+        if (selector is not PatchEnc005H6OSelector h6)
+        {
+            return null;
+        }
+
+        PatchEnc005H6OIndexMetrics metrics = h6.Snapshot();
+        return new PatchLabSelectorMetrics(
+            metrics.Stride,
+            metrics.BytesScanned,
+            metrics.PostingCount,
+            metrics.IgnoredHotFeatureCount,
+            metrics.IndexPeakBytes,
+            metrics.BuildWallSeconds,
+            metrics.BuildCpuSeconds);
     }
 
     /// <summary>
