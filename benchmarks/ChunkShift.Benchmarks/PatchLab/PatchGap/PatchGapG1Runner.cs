@@ -236,12 +236,12 @@ internal static class PatchGapG1Runner
             h0BaseBytesRead,
             h0BaseReadCalls,
             h0BaseSeeks,
-            checked(h0BaseBytesRead + g1BaseBytesRead),
-            checked(h0BaseReadCalls + g1BaseReadCalls),
-            checked(h0BaseSeeks + g1BaseSeeks),
+            g1BaseBytesRead,
+            g1BaseReadCalls,
+            g1BaseSeeks,
             h0BaseBytesRead == 0
                 ? null
-                : (double)(h0BaseBytesRead + g1BaseBytesRead) / h0BaseBytesRead,
+                : (double)g1BaseBytesRead / h0BaseBytesRead,
             [.. aggregates],
             sorted);
     }
@@ -336,7 +336,7 @@ internal static class PatchGapG1Runner
             int trialCount = entries.Sum(static entry => entry.Evidence.Trials.Length);
             double? amplification = h0BaseBytesRead == 0
                 ? null
-                : (double)(h0BaseBytesRead + g1BytesRead) / h0BaseBytesRead;
+                : (double)g1BytesRead / h0BaseBytesRead;
 
             return new PatchGapG1FileEvidence(
                 pair.Family,

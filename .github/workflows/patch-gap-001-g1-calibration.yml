@@ -229,7 +229,7 @@ jobs:
               f"- files: {len(files)}",
               f"- H0 bytes: {h0:,}",
               f"- H0 base bytes read: {root['h0BaseBytesRead']:,}",
-              f"- research base bytes read: {root['researchBaseBytesRead']:,}",
+              f"- factor base bytes read: {root['factorBaseBytesRead']:,}",
               f"- base read amplification: {root.get('baseReadAmplification')}",
               "",
           ]

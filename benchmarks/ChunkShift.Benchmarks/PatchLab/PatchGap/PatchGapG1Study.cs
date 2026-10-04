@@ -127,9 +127,9 @@ internal sealed record PatchGapG1ByteStudyDocument(
     long H0BaseBytesRead,
     int H0BaseReadCalls,
     int H0BaseSeeks,
-    long ResearchBaseBytesRead,
-    int ResearchBaseReadCalls,
-    int ResearchBaseSeeks,
+    long FactorBaseBytesRead,
+    int FactorBaseReadCalls,
+    int FactorBaseSeeks,
     double? BaseReadAmplification,
     PatchGapG1LaneAggregate[] Lanes,
     PatchGapG1CompactFileRow[] Files);
@@ -207,25 +207,33 @@ internal static class PatchGapG1Evaluator
         int totalReadCalls = 0;
         int totalSeeks = 0;
 
+        int maximumDictionaryBytes = trials
+            .Where(static trial => !trial.Deduplicated)
+            .Select(static trial => trial.Prefix.DictionaryBytes)
+            .DefaultIfEmpty(0)
+            .Max();
+        byte[] sharedDictionaryBuffer = maximumDictionaryBytes == 0
+            ? []
+            : new byte[maximumDictionaryBytes];
+
         foreach (IGrouping<int, PatchGapG1Trial> startGroup in trials.GroupBy(static trial => trial.Start))
         {
             PatchGapG1Trial[] ordered = [.. startGroup];
             PatchGapG1Trial[] unique = [.. ordered.Where(static trial => !trial.Deduplicated)];
-            byte[]? buffer = null;
             long readBytes = 0;
             int readCalls = 0;
             int seeks = 0;
+            int maximumBytes = 0;
 
             if (unique.Length != 0)
             {
-                int maximumBytes = unique.Max(static trial => trial.Prefix.DictionaryBytes);
-                buffer = new byte[maximumBytes];
+                maximumBytes = unique.Max(static trial => trial.Prefix.DictionaryBytes);
                 (readBytes, readCalls, seeks) = await ReadLargestPrefixOnceAsync(
                     baseContent,
                     baseRecords,
                     startGroup.Key,
                     maximumBytes,
-                    buffer,
+                    sharedDictionaryBuffer.AsMemory(0, maximumBytes),
                     cancellationToken).ConfigureAwait(false);
                 totalReadBytes = checked(totalReadBytes + readBytes);
                 totalReadCalls = checked(totalReadCalls + readCalls);
@@ -256,12 +264,13 @@ internal static class PatchGapG1Evaluator
                     continue;
                 }
 
-                if (buffer is null)
+                if (maximumBytes == 0)
                 {
                     throw new InvalidDataException("G1 unique trial has no materialized dictionary prefix.");
                 }
 
-                ReadOnlySpan<byte> dictionary = buffer.AsSpan(0, trial.Prefix.DictionaryBytes);
+                ReadOnlySpan<byte> dictionary =
+                    sharedDictionaryBuffer.AsSpan(0, trial.Prefix.DictionaryBytes);
                 bool startsWithMagic = dictionary.StartsWith(CspFormat.ZstdDictionaryMagic);
                 TrialOutcome outcome;
 
