@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using ChunkShift.Manifest;
 using ChunkShift.Patching.Creation;
+using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks.PatchLab.PatchGap;
 
@@ -79,6 +80,13 @@ internal static class PatchGapG1Runner
         CancellationToken cancellationToken)
     {
         DateTimeOffset startedUtc = DateTimeOffset.UtcNow;
+        if (Directory.Exists(detailDirectory) &&
+            Directory.EnumerateFileSystemEntries(detailDirectory).Any())
+        {
+            throw new InvalidDataException(
+                "PATCH-GAP G1 detail directory must be empty; stale evidence is not allowed.");
+        }
+
         Directory.CreateDirectory(detailDirectory);
 
         PatchLabPair[] pairs =
@@ -236,7 +244,7 @@ internal static class PatchGapG1Runner
             await ReadBaseRecordsAsync(baseManifestPath, cancellationToken).ConfigureAwait(false);
 
         var collector = new PatchLabCandidateTraceCollector();
-        var execution = CspCreateExecution.Sequential with { CandidateTraceSink = collector };
+        var execution = CspCreateExecution.Default with { CandidateTraceSink = collector };
         string temporaryPatch = Path.Combine(
             Path.GetTempPath(),
             $"chunkshift-gap-g1-{Guid.NewGuid():N}.csp");
@@ -391,7 +399,7 @@ internal static class PatchGapG1Runner
             pair.Target,
             file.Path.Replace('\\', '/'));
         string suffix = Convert.ToHexStringLower(
-            SHA256.HashData(Encoding.UTF8.GetBytes(identity)))[..20];
+            SHA256.HashData(Encoding.UTF8.GetBytes(identity)));
         return $"{suffix}.json";
     }
 

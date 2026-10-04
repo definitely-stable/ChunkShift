@@ -3,6 +3,7 @@ using System.Text;
 using ChunkShift.Patching.Creation;
 using ChunkShift.Patching.Format;
 using ChunkShift.Patching.Hashing;
+using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks.PatchLab.PatchGap;
 
