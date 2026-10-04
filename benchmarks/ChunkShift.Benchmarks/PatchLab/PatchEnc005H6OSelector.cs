@@ -36,6 +36,11 @@ internal sealed class PatchEnc005H6OSelector : ICspResearchCandidateSelector
                 nameof(baseContent));
         }
 
+        using Process process = Process.GetCurrentProcess();
+        process.Refresh();
+        TimeSpan cpuBefore = process.TotalProcessorTime;
+        var clock = Stopwatch.StartNew();
+
         _records = baseRecords;
         _ignoredHotFeatureCount = 0;
         _bytesScanned = 0;
@@ -65,10 +70,6 @@ internal sealed class PatchEnc005H6OSelector : ICspResearchCandidateSelector
             throw new InvalidOperationException(
                 $"H6-O index plus prepass scratch requires {_indexPeakBytes} bytes, above the frozen 64 MiB bound.");
         }
-        using Process process = Process.GetCurrentProcess();
-        process.Refresh();
-        TimeSpan cpuBefore = process.TotalProcessorTime;
-        var clock = Stopwatch.StartNew();
 
         baseContent.Position = 0;
         int posting = 0;
