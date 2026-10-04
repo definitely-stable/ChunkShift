@@ -91,6 +91,7 @@ jobs:
             benchmarks/scripts/evaluate_patch_enc_005_phase_a.py \
             benchmarks/scripts/recompute_patch_enc_005_phase_a.py \
             benchmarks/scripts/evaluate_patch_enc_005_g2.py \
+            benchmarks/scripts/evaluate_patch_enc_005_h6o_guard.py \
             docs/research/results/data/PATCH-ENC-005-G2-EVIDENCE-20261003-001/recompute.py \
             benchmarks/scripts/collect_patch_gap_puffin_locator.py \
             benchmarks/scripts/check_research_registry.py
@@ -101,6 +102,7 @@ jobs:
             benchmarks/scripts/test_check_patch_enc_005_cross_platform.py \
             benchmarks/scripts/test_evaluate_patch_enc_005_phase_a.py \
             benchmarks/scripts/test_evaluate_patch_enc_005_g2.py \
+            benchmarks/scripts/test_evaluate_patch_enc_005_h6o_guard.py \
             benchmarks/scripts/test_collect_patch_gap_puffin_locator.py \
             benchmarks/scripts/test_research_registry.py
           python3 benchmarks/scripts/check_research_registry.py
