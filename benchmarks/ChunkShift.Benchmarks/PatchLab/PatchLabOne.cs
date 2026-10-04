@@ -54,8 +54,24 @@ internal static class PatchLabOne
                 "patch-lab one create requires --corpus, --family, --base, --target, --path and --patch.");
         }
 
-        CspEncoderPolicy policy = PatchLabLane.Parse(PatchLabArguments.Value(args, "--lane") ?? "csp");
-        CspCreateExecution execution = PatchLabExecution.Parse(PatchLabArguments.Value(args, "--execution") ?? "h0");
+        string lane = PatchLabArguments.Value(args, "--lane") ?? "csp";
+        string executionName = PatchLabArguments.Value(args, "--execution") ?? "h0";
+        CspEncoderPolicy policy = PatchLabLane.Parse(lane);
+        CspCreateExecution execution = PatchLabExecution.Parse(executionName);
+
+        if (string.Equals(lane, PatchEnc005H6OSelector.Lane, StringComparison.Ordinal))
+        {
+            if (!string.Equals(executionName, "h2-w2", StringComparison.Ordinal))
+            {
+                throw new PatchLabUsageException(
+                    "H6-O12-SF3-S128 requires explicit --execution h2-w2.");
+            }
+
+            execution = execution with
+            {
+                ResearchCandidateSelector = new PatchEnc005H6OSelector(),
+            };
+        }
 
         string workDirectory = PatchLabCorpus.ResolveWorkDirectory(
             corpusRoot,
