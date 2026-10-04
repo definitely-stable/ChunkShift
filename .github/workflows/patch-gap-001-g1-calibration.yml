@@ -1,0 +1,351 @@
+name: PATCH-GAP-001 G1 calibration
+
+on:
+  workflow_dispatch:
+    inputs:
+      run-date:
+        description: "Frozen RunId UTC date (YYYYMMDD)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: patch-gap-001-g1-calibration
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+  PROTOCOL_COMMIT: 5372678ae8451a71cc95eb24f30855cbbd7e0633
+  PAIRS_SHA256: 8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd
+  H0_CALIBRATION_BYTES: "11860274"
+  G1_LANE: G1-B32-R2048
+
+jobs:
+  g1-calibration:
+    name: g1-calibration-linux-x64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Validate decision identity
+        shell: bash
+        env:
+          RUN_DATE: ${{ inputs.run-date }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
+            echo "PATCH-GAP-001 G1 decision evidence rejects workflow re-runs." >&2
+            exit 2
+          fi
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "PATCH-GAP-001 G1 calibration must run from main." >&2
+            exit 2
+          fi
+          if (( GITHUB_RUN_NUMBER > 999 )); then
+            echo "RunId NNN supports workflow run numbers 001..999." >&2
+            exit 2
+          fi
+
+          python3 - "$RUN_DATE" <<'PY'
+          import datetime as dt
+          import re
+          import sys
+
+          value = sys.argv[1]
+          if not re.fullmatch(r"\d{8}", value):
+              raise SystemExit("run-date must be YYYYMMDD")
+          dt.datetime.strptime(value, "%Y%m%d")
+          PY
+
+          sequence="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
+          short_commit="${GITHUB_SHA:0:7}"
+          {
+            echo "SOURCE_COMMIT=$GITHUB_SHA"
+            echo "RUN_ID=PATCH-GAP-001/RUN-${RUN_DATE}-${sequence}-${short_commit}-linux-x64-g1-calibration"
+            echo "CORPUS_ROOT=$HOME/patch-corpus"
+            echo "OUT=$RUNNER_TEMP/patch-gap-001-g1-calibration"
+          } >> "$GITHUB_ENV"
+
+      - name: Checkout tested main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # chunkshift-source is materialized from historical repository commits.
+          fetch-depth: 0
+
+      - name: Verify clean tested checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          test -z "$(git status --porcelain=v1 --untracked-files=normal)"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Restore frozen patch-corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize and lock frozen patch corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$CORPUS_ROOT" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download \
+            --lock
+
+          actual="$(sha256sum "$CORPUS_ROOT/pairs.json" | cut -d' ' -f1)"
+          test "$actual" = "$PAIRS_SHA256"
+
+      - name: Restore benchmark lab
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+
+      - name: Build benchmark lab
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Regenerate and require frozen H0 anchor
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT"
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          dotnet "$dll" patch-lab gap h0 \
+            --corpus "$CORPUS_ROOT" \
+            --output "$OUT/h0-anchor.json" \
+            --source-commit "$SOURCE_COMMIT" \
+            --run-id "$RUN_ID-h0-preflight"
+
+          python3 - "$OUT/h0-anchor.json" "$SOURCE_COMMIT" "$PROTOCOL_COMMIT" "$PAIRS_SHA256" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          path = pathlib.Path(sys.argv[1])
+          source, protocol, pairs = sys.argv[2:]
+          root = json.loads(path.read_text(encoding="utf-8"))
+          checks = {
+              "schema": root.get("schema") == "chunkshift.patch-gap-h0-anchor.v1",
+              "protocol": root.get("protocolCommit") == protocol,
+              "source": root.get("sourceCommit") == source,
+              "dataset": root.get("corpusPairsSha256") == pairs,
+              "anchor": root.get("matchesFrozenAnchor") is True,
+          }
+          failed = [name for name, ok in checks.items() if not ok]
+          if failed:
+              raise SystemExit("G1 H0 preflight rejected: " + ", ".join(failed))
+
+          with pathlib.Path(path.parent / "h0-summary.md").open(
+              "w", encoding="utf-8", newline="\n"
+          ) as out:
+              out.write("### PATCH-GAP-001 frozen H0 preflight\n\n")
+              out.write(f"- files: {int(root['files']):,}\n")
+              out.write(f"- calibration bytes: {int(root['calibrationBytes']):,}\n")
+              out.write(f"- evaluation bytes: {int(root['evaluationBytes']):,}\n")
+              out.write(f"- total bytes: {int(root['totalBytes']):,}\n")
+              out.write(f"- patch-set SHA-256: `{root['patchSetSha256']}`\n")
+              out.write("- frozen anchor: PASS\n")
+          PY
+          cat "$OUT/h0-summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run frozen G1 calibration byte study
+        shell: bash
+        run: |
+          set -euo pipefail
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          dotnet "$dll" patch-lab gap g1 \
+            --corpus "$CORPUS_ROOT" \
+            --lane "$G1_LANE" \
+            --dataset-role calibration \
+            --output "$OUT/g1-index.json" \
+            --detail-dir "$OUT/detail" \
+            --source-commit "$SOURCE_COMMIT" \
+            --run-id "$RUN_ID"
+
+      - name: Recompute fail-closed G1 calibration invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$OUT/g1-index.json" "$OUT/detail" "$SOURCE_COMMIT" "$PROTOCOL_COMMIT" "$PAIRS_SHA256" "$H0_CALIBRATION_BYTES" "$G1_LANE" <<'PY'
+          import hashlib
+          import json
+          import math
+          import pathlib
+          import sys
+
+          index_path = pathlib.Path(sys.argv[1])
+          detail_dir = pathlib.Path(sys.argv[2])
+          source_commit, protocol_commit, pairs_sha, expected_h0, requested_lane = sys.argv[3:]
+          expected_h0 = int(expected_h0)
+
+          root = json.loads(index_path.read_text(encoding="utf-8"))
+          expected_lanes = [
+              "G1-B1-R64",
+              "G1-B4-R256",
+              "G1-B8-R512",
+              "G1-B32-R2048",
+          ]
+
+          checks = {
+              "schema": root.get("schema") == "chunkshift.patch-gap-g1-byte-study.v1",
+              "experiment": root.get("experimentId") == "PATCH-GAP-001",
+              "protocol": root.get("protocolCommit") == protocol_commit,
+              "source": root.get("sourceCommit") == source_commit,
+              "role": root.get("datasetRole") == "calibration",
+              "dataset": root.get("datasetSha256") == pairs_sha,
+              "requestedLane": root.get("requestedLane") == requested_lane,
+          }
+          failed = [name for name, ok in checks.items() if not ok]
+          if failed:
+              raise SystemExit("G1 index identity mismatch: " + ", ".join(failed))
+
+          files = root.get("files")
+          lanes = root.get("lanes")
+          if not isinstance(files, list) or not files:
+              raise SystemExit("G1 calibration has no file rows")
+          if not isinstance(lanes, list) or [x.get("lane") for x in lanes] != expected_lanes:
+              raise SystemExit("G1 lane order/coverage differs from the frozen nested set")
+
+          h0 = sum(int(row["h0PatchBytes"]) for row in files)
+          if h0 != expected_h0:
+              raise SystemExit(f"G1 H0 calibration bytes {h0} != frozen {expected_h0}")
+
+          previous = h0
+          for lane in lanes:
+              factor = int(lane["factorBytes"])
+              if int(lane["h0Bytes"]) != h0:
+                  raise SystemExit("G1 aggregate H0 denominator mismatch")
+              if factor > previous:
+                  raise SystemExit("G1 aggregate nesting oracle violated")
+              saved = h0 - factor
+              if int(lane["savedBytes"]) != saved:
+                  raise SystemExit("G1 savedBytes mismatch")
+              reduction = saved / h0
+              if not math.isclose(float(lane["reductionVsCsp"]), reduction, rel_tol=0.0, abs_tol=1e-15):
+                  raise SystemExit("G1 reductionVsCsp mismatch")
+              gate = 20 * saved >= 3 * h0
+              if bool(lane["meetsRfcSizeGate"]) != gate:
+                  raise SystemExit("G1 RFC size gate mismatch")
+              previous = factor
+
+          referenced = set()
+          for row in files:
+              path = detail_dir / row["detailPath"]
+              if not path.is_file():
+                  raise SystemExit(f"missing detail document: {path.name}")
+              raw_detail = path.read_bytes()
+              digest = hashlib.sha256(raw_detail).hexdigest()
+              if digest != row["detailSha256"]:
+                  raise SystemExit(f"detail digest mismatch: {path.name}")
+              if len(raw_detail) != int(row["detailBytes"]):
+                  raise SystemExit(f"detail size mismatch: {path.name}")
+              referenced.add(path.name)
+
+              detail = json.loads(raw_detail)
+              base_records = detail.get("baseRecords")
+              entries = detail.get("entries")
+              if not isinstance(base_records, list) or not isinstance(entries, list):
+                  raise SystemExit(f"malformed G1 detail structure: {path.name}")
+              for expected_index, base_record in enumerate(base_records):
+                  if int(base_record["index"]) != expected_index:
+                      raise SystemExit(f"non-canonical base record order: {path.name}")
+              for entry in entries:
+                  for trial in entry.get("trials", []):
+                      start = int(trial["startIndex"])
+                      refs = int(trial["dictionaryReferences"])
+                      if start < 0 or refs <= 0 or start + refs > len(base_records):
+                          raise SystemExit(f"invalid trial base slice: {path.name}")
+                      selected = base_records[start:start + refs]
+                      dictionary_bytes = sum(int(item["length"]) for item in selected)
+                      if dictionary_bytes != int(trial["dictionaryBytes"]):
+                          raise SystemExit(f"trial dictionary byte sum mismatch: {path.name}")
+                      ids_text = "".join(str(item["chunkId"]) + "\n" for item in selected).encode()
+                      ids_sha = hashlib.sha256(ids_text).hexdigest()
+                      if ids_sha != trial["dictionaryChunkIdsSha256"]:
+                          raise SystemExit(f"trial dictionary-id slice mismatch: {path.name}")
+                      frame = trial.get("frameBytes")
+                      cost = trial.get("costBytes")
+                      ref_bytes = trial.get("referenceBytes")
+                      if frame is None:
+                          if cost is not None or ref_bytes is not None:
+                              raise SystemExit(f"ineligible trial carries cost bytes: {path.name}")
+                      else:
+                          expected_ref = refs * 32
+                          if int(ref_bytes) != expected_ref or int(cost) != int(frame) + expected_ref:
+                              raise SystemExit(f"trial cost equation mismatch: {path.name}")
+
+              lane_bytes = row["lanePatchBytes"]
+              values = [int(lane_bytes[name]) for name in expected_lanes]
+              if values != sorted(values, reverse=True):
+                  raise SystemExit(f"per-file G1 nesting oracle violated: {row['path']}")
+              if values[0] > int(row["h0PatchBytes"]):
+                  raise SystemExit(f"per-file G1 exceeds H0: {row['path']}")
+
+          actual = {path.name for path in detail_dir.glob("*.json")}
+          if actual != referenced:
+              raise SystemExit("G1 detail directory contains stale or unreferenced evidence")
+
+          summary = [
+              "### PATCH-GAP-001 G1 calibration",
+              "",
+              f"- RunId: `{root['provenance']['runId']}`",
+              f"- sourceCommit: `{source_commit}`",
+              f"- files: {len(files)}",
+              f"- H0 bytes: {h0:,}",
+              f"- H0 base bytes read: {root['h0BaseBytesRead']:,}",
+              f"- factor base bytes read: {root['factorBaseBytesRead']:,}",
+              f"- base read amplification: {root.get('baseReadAmplification')}",
+              "",
+          ]
+          for lane in lanes:
+              summary.append(
+                  f"- {lane['lane']}: {int(lane['factorBytes']):,} B; "
+                  f"reduction={float(lane['reductionVsCsp']):.6%}; "
+                  f"size-gate={lane['meetsRfcSizeGate']}"
+              )
+          pathlib.Path(index_path.parent / "summary.md").write_text(
+              "\n".join(summary) + "\n",
+              encoding="utf-8",
+              newline="\n",
+          )
+          PY
+          cat "$OUT/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload G1 calibration evidence
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-001-g1-calibration-${{ github.run_number }}-${{ github.sha }}
+          path: ${{ env.OUT }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Record raw artifact identity
+        shell: bash
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          {
+            echo
+            echo "- Actions artifact id: `$ARTIFACT_ID`"
+            echo "- Actions artifact digest: `$ARTIFACT_DIGEST`"
+            echo "- Retention: 90 days"
+            echo
+            echo "Calibration only. Do not infer the frozen evaluation verdict from this run."
+          } >> "$GITHUB_STEP_SUMMARY"
