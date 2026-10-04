@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks.PatchLab;
 
@@ -279,6 +280,9 @@ internal static class PatchEnc005Features
 
     private static readonly ulong[] RabinByteTable = CreateRabinByteTable();
 
+    private static readonly TransformPair[] H6Transforms =
+        [.. Enumerable.Range(0, 12).Select(Transform)];
+
     internal static ulong Rabin48Reference(ReadOnlySpan<byte> window)
     {
         if (window.Length != 48)
@@ -369,6 +373,91 @@ internal static class PatchEnc005Features
     }
 
     internal static ulong GearValue(byte value) => GearTable[value];
+
+    internal static void H6OFeatures(
+        ReadOnlySpan<byte> bytes,
+        Span<uint> features)
+    {
+        if (features.Length < 12)
+        {
+            throw new ArgumentException(
+                "H6-O requires space for exactly twelve features.",
+                nameof(features));
+        }
+
+        features[..12].Fill(uint.MaxValue);
+        ulong h = 0;
+        bool sampled = false;
+
+        foreach (byte value in bytes)
+        {
+            h = unchecked((h << 1) + GearTable[value]);
+
+            if ((h & 0x7fUL) == 0)
+            {
+                UpdateH6Features((uint)h, features);
+                sampled = true;
+            }
+        }
+
+        if (!sampled)
+        {
+            UpdateH6Features((uint)h, features);
+        }
+    }
+
+    internal static void H6OKeys(
+        ReadOnlySpan<byte> bytes,
+        Span<ulong> keys)
+    {
+        if (keys.Length < 3)
+        {
+            throw new ArgumentException(
+                "H6-O requires space for exactly three super-feature keys.",
+                nameof(keys));
+        }
+
+        Span<uint> features = stackalloc uint[12];
+        H6OFeatures(bytes, features);
+        Span<byte> payload = stackalloc byte[17];
+
+        for (int group = 0; group < 3; group++)
+        {
+            payload[0] = (byte)group;
+
+            for (int index = 0; index < 4; index++)
+            {
+                BinaryPrimitives.WriteUInt32LittleEndian(
+                    payload.Slice(1 + (index * sizeof(uint)), sizeof(uint)),
+                    features[(group * 4) + index]);
+            }
+
+            keys[group] = Key64("PATCH-ENC-005/H6O/SF3", payload);
+        }
+    }
+
+    internal static ulong IndexStrideKey(ChunkId chunkId)
+    {
+        Span<byte> bytes = stackalloc byte[32];
+        chunkId.Value.CopyTo(bytes);
+        return Key64("PATCH-ENC-005/INDEX-STRIDE", bytes);
+    }
+
+    private static void UpdateH6Features(
+        uint proxy,
+        Span<uint> features)
+    {
+        for (int index = 0; index < 12; index++)
+        {
+            TransformPair transform = H6Transforms[index];
+            uint value = unchecked((transform.Multiplier * proxy) + transform.Addend);
+
+            if (value < features[index])
+            {
+                features[index] = value;
+            }
+        }
+    }
 
     private static ulong[] CreateRabinByteTable()
     {

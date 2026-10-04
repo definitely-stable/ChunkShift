@@ -67,6 +67,8 @@ internal sealed record CspCreateExecution(int WorkerCount, bool UseBaseCandidate
     /// </summary>
     internal ICspCandidateTraceSink? CandidateTraceSink { get; init; }
 
+    internal ICspResearchCandidateSelector? ResearchCandidateSelector { get; init; }
+
     /// <summary>
     /// Gets an optional test hook a worker awaits before it encodes the entry
     /// with the given sequence number, so tests can reorder completions.

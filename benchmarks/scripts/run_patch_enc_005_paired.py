@@ -29,6 +29,7 @@ FROZEN_PHASE_A = (
     "H9-L12-K4-C16-R1M",
     "H9-L15-K4-C16-R1M",
 )
+FROZEN_H6O_GUARD = ("H6-O12-SF3-S128",)
 FROZEN_DEVELOPMENT_FAMILIES = {
     "calibration": {
         "dotnet-aspnetcore-win-x64",
@@ -81,6 +82,35 @@ def validate_development_families(dataset_role: str, families: str | None) -> No
     if actual != expected:
         raise ValueError(
             f"{dataset_role}: expected frozen families {sorted(expected)}, got {sorted(actual)}"
+        )
+
+
+def validate_mode_lanes(
+    mode: str,
+    dataset_role: str,
+    platform: str,
+    lanes: list[str],
+) -> None:
+    if mode == "phase-a":
+        unknown = [lane for lane in lanes if lane not in FROZEN_PHASE_A]
+        if unknown or len(set(lanes)) != len(lanes) or not lanes:
+            raise ValueError(
+                "--lanes must be a non-empty unique subset of frozen Phase-A lanes; "
+                f"invalid={unknown}"
+            )
+        if "H7-L1-R2-E75" in lanes and "H4-L1-R2" not in lanes:
+            raise ValueError("H7-L1-R2-E75 requires H4-L1-R2 for the frozen byte oracle")
+        return
+
+    if mode != "h6o-guard":
+        raise ValueError(f"unsupported PATCH-ENC-005 runner mode {mode!r}")
+    if dataset_role != "evaluation":
+        raise ValueError("H6-O guard is frozen to the fixed evaluation split")
+    if platform != "linux-x64":
+        raise ValueError("H6-O guard is frozen to linux-x64")
+    if lanes != list(FROZEN_H6O_GUARD):
+        raise ValueError(
+            "H6-O guard accepts exactly the frozen H6-O12-SF3-S128 lane"
         )
 
 
@@ -182,6 +212,14 @@ def aggregate_create(result: dict) -> dict[str, float | int]:
     base_reads = 0
     base_bytes = 0
     base_seeks = 0
+    selector_build_wall = 0.0
+    selector_build_cpu = 0.0
+    selector_bytes_scanned = 0
+    selector_postings = 0
+    selector_max_postings = 0
+    selector_hot_ignored = 0
+    selector_peak = 0
+    selector_files = 0
     for item in files:
         metrics = item.get("createMetrics")
         if metrics is None:
@@ -191,6 +229,17 @@ def aggregate_create(result: dict) -> dict[str, float | int]:
         base_reads += int(metrics["baseReads"])
         base_bytes += int(metrics["baseBytesRead"])
         base_seeks += int(metrics["baseSeeks"])
+        selector = metrics.get("selector")
+        if isinstance(selector, dict):
+            selector_files += 1
+            selector_build_wall += float(selector["buildWallSeconds"])
+            selector_build_cpu += float(selector["buildCpuSeconds"])
+            selector_bytes_scanned += int(selector["bytesScanned"])
+            posting_count = int(selector["postingCount"])
+            selector_postings += posting_count
+            selector_max_postings = max(selector_max_postings, posting_count)
+            selector_hot_ignored += int(selector["ignoredHotFeatureCount"])
+            selector_peak = max(selector_peak, int(selector["indexPeakBytes"]))
     return {
         "wallSeconds": sum(float(item["createSeconds"]) for item in files),
         "cpuSeconds": cpu,
@@ -199,6 +248,14 @@ def aggregate_create(result: dict) -> dict[str, float | int]:
         "baseBytesRead": base_bytes,
         "baseSeeks": base_seeks,
         "patchBytes": sum(int(item["patchBytes"]) for item in files),
+        "selectorFiles": selector_files,
+        "selectorBuildWallSeconds": selector_build_wall,
+        "selectorBuildCpuSeconds": selector_build_cpu,
+        "selectorBytesScanned": selector_bytes_scanned,
+        "selectorPostings": selector_postings,
+        "selectorMaxPostings": selector_max_postings,
+        "selectorIgnoredHotFeatureCount": selector_hot_ignored,
+        "selectorIndexPeakBytes": selector_peak,
     }
 
 
@@ -253,6 +310,28 @@ def validate_result(
         raise ValueError(f"{lane}: measured environment commit mismatch")
     if int(environment.get("processorCount") or 0) < 2:
         raise ValueError("PATCH-ENC-005 requires Environment.ProcessorCount >= 2")
+
+    for item in result.get("files") or []:
+        metrics = item.get("createMetrics")
+        selector = None if not isinstance(metrics, dict) else metrics.get("selector")
+        if lane == FROZEN_H6O_GUARD[0]:
+            if not isinstance(selector, dict):
+                raise ValueError(f"{lane}: missing frozen selector metrics for {item.get('path')}")
+            stride = int(selector.get("stride") or 0)
+            if stride <= 0 or stride > (1 << 30) or (stride & (stride - 1)) != 0:
+                raise ValueError(f"{lane}: selector stride is not a frozen power of two")
+            if int(selector.get("postingCount") or -1) > 2_097_152:
+                raise ValueError(f"{lane}: selector posting bound exceeded")
+            if int(selector.get("indexPeakBytes") or -1) > 64 * 1024 * 1024:
+                raise ValueError(f"{lane}: selector index memory bound exceeded")
+            if int(selector.get("bytesScanned") or -1) < 0:
+                raise ValueError(f"{lane}: selector bytesScanned is invalid")
+            if float(selector.get("buildWallSeconds") or -1) < 0:
+                raise ValueError(f"{lane}: selector build wall is invalid")
+            if float(selector.get("buildCpuSeconds") or -1) < 0:
+                raise ValueError(f"{lane}: selector build CPU is invalid")
+        elif selector is not None:
+            raise ValueError(f"{lane}: non-indexed lane unexpectedly recorded selector metrics")
 
 
 def invoke(
@@ -495,7 +574,7 @@ def collect_apply_evidence(
 ) -> dict[str, dict]:
     evidence: dict[str, dict] = {}
     root = args.output / "apply-evidence"
-    for lane in ["csp", *[item for item in FROZEN_PHASE_A if item in lane_maps]]:
+    for lane in ["csp", *[item for item in args.selected_lanes if item in lane_maps]]:
         path, result = invoke(args, lane, root / lane, apply=True)
         if patch_sha_map(result) != lane_maps[lane]:
             raise ValueError(f"{lane}: apply capture patch bytes differ from accepted timing")
@@ -587,7 +666,7 @@ def collect_trace_and_correctness(
     root = args.output / "trace-correctness"
     lookup = pair_index(args.corpus)
     evidence: dict[str, dict] = {}
-    for lane in ["csp", *[item for item in FROZEN_PHASE_A if item in lane_maps]]:
+    for lane in ["csp", *[item for item in args.selected_lanes if item in lane_maps]]:
         capture_dir = root / lane
         path, result = invoke(
             args,
@@ -643,6 +722,11 @@ def main() -> int:
     )
     parser.add_argument("--families", required=True)
     parser.add_argument("--work", type=Path)
+    parser.add_argument(
+        "--mode",
+        choices=("phase-a", "h6o-guard"),
+        default="phase-a",
+    )
     parser.add_argument("--lanes", default=",".join(FROZEN_PHASE_A))
     parser.add_argument("--attempt", type=int, choices=(1, 2), required=True)
     parser.add_argument("--prior-dispatch", type=Path)
@@ -661,16 +745,10 @@ def main() -> int:
 
     args.source_commit = args.source_commit.lower()
     lanes = [lane.strip() for lane in args.lanes.split(",") if lane.strip()]
-    unknown = [lane for lane in lanes if lane not in FROZEN_PHASE_A]
-    if unknown or len(set(lanes)) != len(lanes) or not lanes:
-        parser.error(
-            "--lanes must be a non-empty unique subset of frozen Phase-A lanes; "
-            f"invalid={unknown}"
-        )
-    if "H7-L1-R2-E75" in lanes and "H4-L1-R2" not in lanes:
-        parser.error("H7-L1-R2-E75 requires H4-L1-R2 for the frozen byte oracle")
+    args.selected_lanes = lanes
 
     try:
+        validate_mode_lanes(args.mode, args.dataset_role, args.platform, lanes)
         validate_development_families(args.dataset_role, args.families)
         validate_run_identity(args.run_id, args.source_commit, args.platform)
         validate_ci_binding(args.source_commit, args.run_id)

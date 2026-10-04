@@ -38,6 +38,12 @@ internal static class PatchLabLane
                     CandidateSelection = CspCandidateSelection.RankLevel1Top2EarlyExit75,
                 };
                 return true;
+            case "H6-O12-SF3-S128":
+                policy = CspEncoderPolicy.Default with
+                {
+                    CandidateSelection = CspCandidateSelection.RankLevel1Top2,
+                };
+                return true;
             case "H9-L9-K4-C16-R1M":
                 policy = PhaseAH9(9);
                 return true;
@@ -196,6 +202,7 @@ internal static class PatchLabLane
             "csp-raw",
             "H4-L1-R2",
             "H7-L1-R2-E75",
+            "H6-O12-SF3-S128",
             "H9-L9-K4-C16-R1M",
             "H9-L12-K4-C16-R1M",
             "H9-L15-K4-C16-R1M",

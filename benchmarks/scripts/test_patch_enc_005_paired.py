@@ -42,6 +42,35 @@ class PatchEnc005PairedTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             MODULE.validate_development_families("confirmation", None)
 
+    def test_h6o_guard_mode_is_fixed_to_evaluation_linux_x64_and_one_lane(self):
+        MODULE.validate_mode_lanes(
+            "h6o-guard",
+            "evaluation",
+            "linux-x64",
+            ["H6-O12-SF3-S128"],
+        )
+        with self.assertRaises(ValueError):
+            MODULE.validate_mode_lanes(
+                "h6o-guard",
+                "calibration",
+                "linux-x64",
+                ["H6-O12-SF3-S128"],
+            )
+        with self.assertRaises(ValueError):
+            MODULE.validate_mode_lanes(
+                "h6o-guard",
+                "evaluation",
+                "linux-arm64",
+                ["H6-O12-SF3-S128"],
+            )
+        with self.assertRaises(ValueError):
+            MODULE.validate_mode_lanes(
+                "h6o-guard",
+                "evaluation",
+                "linux-x64",
+                ["H4-L1-R2"],
+            )
+
     def test_run_identity_binds_full_commit_and_platform(self):
         commit = "a" * 40
         MODULE.validate_run_identity(
@@ -160,6 +189,14 @@ class PatchEnc005PairedTests(unittest.TestCase):
                 "baseBytesRead": 50,
                 "baseSeeks": 3,
                 "patchBytes": 30,
+                "selectorFiles": 0,
+                "selectorBuildWallSeconds": 0.0,
+                "selectorBuildCpuSeconds": 0.0,
+                "selectorBytesScanned": 0,
+                "selectorPostings": 0,
+                "selectorMaxPostings": 0,
+                "selectorIgnoredHotFeatureCount": 0,
+                "selectorIndexPeakBytes": 0,
             },
             MODULE.aggregate_create(result),
         )
