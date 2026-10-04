@@ -1,0 +1,25 @@
+{
+  "documents": [
+    {
+      "name": "execution.json",
+      "sha256": "f92e19dffa1c32a365261608a6bc18e39210a591928ce16e1d002133d6872344",
+      "size": 478
+    },
+    {
+      "name": "oracle.json",
+      "sha256": "82bbda5cb8ecf08b6553c6c7124698a29849a7b9fa83db1cc633f55974a48449",
+      "size": 231308
+    },
+    {
+      "name": "summary.md",
+      "sha256": "ffc5409918c6cfe5f7804e56b8dbd634d7bb1b273b72c084fc8b81aa3e55888d",
+      "size": 1050
+    },
+    {
+      "name": "verdict.json",
+      "sha256": "3c8cbe0e086b214fcfa997e7fd45e32df29d53d1b8579bb7ad44fbb42f2a8af3",
+      "size": 2463
+    }
+  ],
+  "schema": "chunkshift.patch-enc-005-g2-documents.v1"
+}

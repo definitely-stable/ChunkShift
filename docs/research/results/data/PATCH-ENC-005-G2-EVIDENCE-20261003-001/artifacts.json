@@ -1,0 +1,15 @@
+{
+  "artifacts": [
+    {
+      "expiresAt": "2027-01-01T20:08:06Z",
+      "id": 11284200988,
+      "name": "patch-enc-005-g2-489d3f2fe2582cc6251ee2fa87cd23bad1793b01",
+      "sizeInBytes": 39393,
+      "zipSha256": "b9cca64563b5291babbd9ca37c23bf42891a947f009b6567d17e076c90c9dd9a"
+    }
+  ],
+  "experimentId": "PATCH-ENC-005",
+  "githubRunId": 37150436770,
+  "schema": "chunkshift.patch-enc-005-g2-artifacts.v1",
+  "sourceCommit": "489d3f2fe2582cc6251ee2fa87cd23bad1793b01"
+}
