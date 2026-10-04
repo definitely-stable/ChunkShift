@@ -134,7 +134,7 @@ internal static class PatchGapG1Evaluator
 
     internal static async Task<PatchGapG1EntryEvaluation> EvaluateAsync(
         Stream baseContent,
-        IReadOnlyList<CspPatchBuilder.BaseRecord> baseRecords,
+        List<CspPatchBuilder.BaseRecord> baseRecords,
         HashSuiteId hashSuite,
         CspCandidateTraceEntry h0,
         ReadOnlyMemory<byte> target,
