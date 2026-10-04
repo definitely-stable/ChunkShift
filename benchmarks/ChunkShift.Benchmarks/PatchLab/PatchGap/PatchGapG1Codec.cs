@@ -289,7 +289,7 @@ internal sealed unsafe class PatchGapG1Codec : IDisposable
             void* workspace = NativeMemory.Alloc(size);
             if (workspace is null)
             {
-                throw new OutOfMemoryException(
+                throw new InvalidOperationException(
                     $"PATCH-GAP G1 could not allocate {size} bytes for the zstd workspace.");
             }
 
