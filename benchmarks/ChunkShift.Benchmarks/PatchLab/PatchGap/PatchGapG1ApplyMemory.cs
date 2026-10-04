@@ -80,6 +80,12 @@ internal static class PatchGapG1ApplyMemory
         }
 
         PatchGapG1Envelope envelope = PatchGapG1Model.Get(lane);
+        if (platform is not ("linux-x64" or "linux-arm64" or "win-x64"))
+        {
+            throw new PatchLabUsageException(
+                "--platform must be linux-x64, linux-arm64 or win-x64 for frozen G1 memory evidence.");
+        }
+
         if (string.Equals(envelope.Id, "G1-H0", StringComparison.Ordinal))
         {
             throw new PatchLabUsageException("g1-memory requires one research G1 envelope.");
@@ -110,6 +116,7 @@ internal static class PatchGapG1ApplyMemory
             platform,
             minimumBytes,
             PatchLabArguments.Value(args, "--work"),
+            "patch-lab gap g1-memory " + string.Join(' ', args),
             CancellationToken.None).GetAwaiter().GetResult();
     }
 
@@ -143,6 +150,7 @@ internal static class PatchGapG1ApplyMemory
         string platform,
         int minimumBytes,
         string? work,
+        string commandLine,
         CancellationToken cancellationToken)
     {
         DateTimeOffset startedUtc = DateTimeOffset.UtcNow;
@@ -166,7 +174,7 @@ internal static class PatchGapG1ApplyMemory
         PatchLabCorpus corpus = PatchLabCorpus.Load(
             corpusRoot,
             families: null,
-            PatchLabCorpus.ResolveWorkDirectory(corpusRoot, work));
+            work);
         if (!string.Equals(corpus.PairsSha256, index.DatasetSha256, StringComparison.Ordinal))
         {
             throw new InvalidDataException("PATCH-GAP G1 memory corpus differs from byte-study corpus.");
@@ -281,7 +289,7 @@ internal static class PatchGapG1ApplyMemory
                     binding,
                     startedUtc,
                     completedUtc,
-                    "patch-lab gap g1-memory",
+                    commandLine,
                     files.Count),
                 index.DatasetRole,
                 index.DatasetSha256,

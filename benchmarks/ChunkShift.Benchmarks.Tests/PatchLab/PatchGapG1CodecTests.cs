@@ -62,6 +62,22 @@ public class PatchGapG1CodecTests
     }
 
     [Fact]
+    public void ResearchCodecRoundTripsWithoutDictionaryThroughLowLevelDecoder()
+    {
+        PatchGapG1Envelope envelope = PatchGapG1Model.Get("G1-H0");
+        byte[] target = new byte[64 * 1024];
+        new Random(0x6101).NextBytes(target);
+
+        using var codec = new PatchGapG1Codec();
+        byte[] frame = codec.Encode(target, [], envelope).ToArray();
+        byte[] decoded = new byte[target.Length];
+
+        codec.Decode(frame, [], decoded, envelope);
+
+        Assert.Equal(target, decoded);
+    }
+
+    [Fact]
     public void ResearchCodecRejectsDictionaryBeyondFrozenEnvelope()
     {
         PatchGapG1Envelope envelope = PatchGapG1Model.Get("G1-B1-R64");
