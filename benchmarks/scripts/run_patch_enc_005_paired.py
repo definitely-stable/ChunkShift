@@ -212,6 +212,13 @@ def aggregate_create(result: dict) -> dict[str, float | int]:
     base_reads = 0
     base_bytes = 0
     base_seeks = 0
+    selector_build_wall = 0.0
+    selector_build_cpu = 0.0
+    selector_bytes_scanned = 0
+    selector_postings = 0
+    selector_hot_ignored = 0
+    selector_peak = 0
+    selector_files = 0
     for item in files:
         metrics = item.get("createMetrics")
         if metrics is None:
@@ -221,6 +228,15 @@ def aggregate_create(result: dict) -> dict[str, float | int]:
         base_reads += int(metrics["baseReads"])
         base_bytes += int(metrics["baseBytesRead"])
         base_seeks += int(metrics["baseSeeks"])
+        selector = metrics.get("selector")
+        if isinstance(selector, dict):
+            selector_files += 1
+            selector_build_wall += float(selector["buildWallSeconds"])
+            selector_build_cpu += float(selector["buildCpuSeconds"])
+            selector_bytes_scanned += int(selector["bytesScanned"])
+            selector_postings += int(selector["postingCount"])
+            selector_hot_ignored += int(selector["ignoredHotFeatureCount"])
+            selector_peak = max(selector_peak, int(selector["indexPeakBytes"]))
     return {
         "wallSeconds": sum(float(item["createSeconds"]) for item in files),
         "cpuSeconds": cpu,
@@ -229,6 +245,13 @@ def aggregate_create(result: dict) -> dict[str, float | int]:
         "baseBytesRead": base_bytes,
         "baseSeeks": base_seeks,
         "patchBytes": sum(int(item["patchBytes"]) for item in files),
+        "selectorFiles": selector_files,
+        "selectorBuildWallSeconds": selector_build_wall,
+        "selectorBuildCpuSeconds": selector_build_cpu,
+        "selectorBytesScanned": selector_bytes_scanned,
+        "selectorPostings": selector_postings,
+        "selectorIgnoredHotFeatureCount": selector_hot_ignored,
+        "selectorIndexPeakBytes": selector_peak,
     }
 
 
@@ -283,6 +306,28 @@ def validate_result(
         raise ValueError(f"{lane}: measured environment commit mismatch")
     if int(environment.get("processorCount") or 0) < 2:
         raise ValueError("PATCH-ENC-005 requires Environment.ProcessorCount >= 2")
+
+    for item in result.get("files") or []:
+        metrics = item.get("createMetrics")
+        selector = None if not isinstance(metrics, dict) else metrics.get("selector")
+        if lane == FROZEN_H6O_GUARD[0]:
+            if not isinstance(selector, dict):
+                raise ValueError(f"{lane}: missing frozen selector metrics for {item.get('path')}")
+            stride = int(selector.get("stride") or 0)
+            if stride <= 0 or stride > (1 << 30) or (stride & (stride - 1)) != 0:
+                raise ValueError(f"{lane}: selector stride is not a frozen power of two")
+            if int(selector.get("postingCount") or -1) > 2_097_152:
+                raise ValueError(f"{lane}: selector posting bound exceeded")
+            if int(selector.get("indexPeakBytes") or -1) > 64 * 1024 * 1024:
+                raise ValueError(f"{lane}: selector index memory bound exceeded")
+            if int(selector.get("bytesScanned") or -1) < 0:
+                raise ValueError(f"{lane}: selector bytesScanned is invalid")
+            if float(selector.get("buildWallSeconds") or -1) < 0:
+                raise ValueError(f"{lane}: selector build wall is invalid")
+            if float(selector.get("buildCpuSeconds") or -1) < 0:
+                raise ValueError(f"{lane}: selector build CPU is invalid")
+        elif selector is not None:
+            raise ValueError(f"{lane}: non-indexed lane unexpectedly recorded selector metrics")
 
 
 def invoke(
