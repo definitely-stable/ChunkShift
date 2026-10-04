@@ -194,6 +194,7 @@ class PatchEnc005PairedTests(unittest.TestCase):
                 "selectorBuildCpuSeconds": 0.0,
                 "selectorBytesScanned": 0,
                 "selectorPostings": 0,
+                "selectorMaxPostings": 0,
                 "selectorIgnoredHotFeatureCount": 0,
                 "selectorIndexPeakBytes": 0,
             },
