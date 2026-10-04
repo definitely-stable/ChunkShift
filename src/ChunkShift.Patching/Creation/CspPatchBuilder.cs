@@ -85,6 +85,14 @@ internal static partial class CspPatchBuilder
         ValidatePolicy(policy);
         ValidateExecution(execution);
 
+        if (execution.ResearchCandidateSelector is not null &&
+            policy.CandidateSelection != CspCandidateSelection.RankLevel1Top2)
+        {
+            throw new ArgumentException(
+                "A research candidate selector requires the frozen rank-L1-top2 selection path.",
+                nameof(execution));
+        }
+
         var baseRecords = new List<BaseRecord>();
         var baseIds = new HashSet<ChunkId>();
         ManifestInfo? baseInfo = null;
