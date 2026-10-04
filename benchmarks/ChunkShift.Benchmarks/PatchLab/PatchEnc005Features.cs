@@ -280,6 +280,9 @@ internal static class PatchEnc005Features
 
     private static readonly ulong[] RabinByteTable = CreateRabinByteTable();
 
+    private static readonly TransformPair[] H6Transforms =
+        [.. Enumerable.Range(0, 12).Select(Transform)];
+
     internal static ulong Rabin48Reference(ReadOnlySpan<byte> window)
     {
         if (window.Length != 48)
@@ -446,7 +449,7 @@ internal static class PatchEnc005Features
     {
         for (int index = 0; index < 12; index++)
         {
-            TransformPair transform = Transform(index);
+            TransformPair transform = H6Transforms[index];
             uint value = unchecked((transform.Multiplier * proxy) + transform.Addend);
 
             if (value < features[index])
