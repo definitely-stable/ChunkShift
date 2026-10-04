@@ -101,7 +101,7 @@ Priority: **NEXT / architectural**, but online implementation is gated. Entry ga
 
 Question: can expensive builder work become deterministic local tasks that are hardware-aware, cacheable and retryable without scheduler/cache behavior changing semantic selection?
 
-Priority: **DESIGN now / implementation later**. #181 is closed as an execution-shape experiment, but representation/task shape may still change under #251. #220 caches derived features; #225 caches validated pure task results. Freeze task identities only after #183/#184/#221/#222/#224 establish the work units worth caching. Remote/distributed execution, if justified later, gets a new ExperimentId.
+Priority: **DESIGN now / implementation later**. PATCH-ENC-005 is complete as an execution-shape experiment, but #181 remains open until its durable final evidence is merged; representation/task shape may still change under #251. #220 caches derived features; #225 caches validated pure task results. Freeze task identities only after #183/#184/#221/#222/#224 establish the work units worth caching. Remote/distributed execution, if justified later, gets a new ExperimentId.
 
 ## 5. Dependency graph
 

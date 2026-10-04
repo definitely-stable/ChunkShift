@@ -220,9 +220,10 @@ Remaining exit items (CSP v1 frozen 2026-09-28):
 
 1. D13 re-chunk check cost: #168 is decided for option 3 (no public opt-out); `PATCH-APPLY-002` ([#182](https://github.com/definitely-stable/ChunkShift/issues/182)) makes the check cheaper internally. `PATCH-APPLY-003` adopted the overlapped check (A2) and requires the boundary-only check (A1a): with A2 the check still costs more than 25 % of apply CPU at eight concurrent applies on both Linux platforms ([PATCH-APPLY-003-EVIDENCE-20260929-001](docs/research/results/PATCH-APPLY-003-EVIDENCE-20260929-001.md)). A2 became the apply default (#206). With A1a (lane `boundary`) the check costs 13.39 % (linux-x64), 7.79 % (linux-arm64) and 8.02 % (win-x64) of apply CPU at eight concurrent applies, so rule 2 does not hold after A1a ([PATCH-APPLY-003-EVIDENCE-20260930-001](docs/research/results/PATCH-APPLY-003-EVIDENCE-20260930-001.md)). The boundary-only check is the apply default, and #168 is closed with option 3.
 2. Create throughput/search: `PATCH-ENC-004` is complete and ADOPTed (H2-W2 workers; H1 cache rejected). `PATCH-ENC-005` ([#181](https://github.com/definitely-stable/ChunkShift/issues/181)) is complete as REJECT: G2 exact whole-base oracle MISS and the frozen `H6-O12-SF3-S128` fixed-evaluation guard also MISS. H5-F/H6-P/H8 are STOPPED, full Phase B is forbidden and D15/default remains unchanged ([final evidence](docs/research/results/PATCH-ENC-005-H6O-EVIDENCE-20261004-001.md)).
-3. D23 CLI product surface: [#140](https://github.com/definitely-stable/ChunkShift/issues/140).
-4. Public API review of `PublicAPI.Unshipped.txt`, including whether an options type (from #168) should also carry progress reporting.
-5. Port per [CONTRIBUTING.md](CONTRIBUTING.md#porting-to-the-publication-repository).
+3. Patching Research Freeze: [#251](https://github.com/definitely-stable/ChunkShift/issues/251) blocks the first public compatibility freeze until required Patching research has durable dispositions, required interaction studies are complete, and final synthesis decides CSP v1 vs CSP vNext/new representations.
+4. D23 CLI product surface: [#140](https://github.com/definitely-stable/ChunkShift/issues/140), after #251.
+5. Public API review of `PublicAPI.Unshipped.txt`, after #251 and including whether an options type (from #168) should also carry progress reporting.
+6. Port per [CONTRIBUTING.md](CONTRIBUTING.md#porting-to-the-publication-repository), after #251.
 
 Linked research that does not block the exit:
 
