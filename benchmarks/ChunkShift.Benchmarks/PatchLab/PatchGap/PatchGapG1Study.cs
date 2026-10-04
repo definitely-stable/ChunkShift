@@ -218,6 +218,16 @@ internal static class PatchGapG1Evaluator
             starts,
             requestedLane);
 
+        int maximumExtendedTrials = checked(
+            starts.Count * PatchGapG1Model.Nested(requestedLane).Count);
+        int actualExtendedTrials = trials.Count(static trial => !trial.Deduplicated);
+        if (actualExtendedTrials > maximumExtendedTrials)
+        {
+            throw new InvalidDataException(
+                $"G1 produced {actualExtendedTrials} non-deduplicated trials, "
+                + $"exceeding the frozen bound {maximumExtendedTrials}.");
+        }
+
         var uniqueOutcomes = new Dictionary<string, TrialOutcome>(StringComparer.Ordinal);
         var trialCosts = new List<PatchGapG1TrialCost>();
         var evidence = new List<PatchGapG1TrialEvidence>(trials.Length);
@@ -362,6 +372,14 @@ internal static class PatchGapG1Evaluator
                     chargedSeeks,
                     aliasOf: null));
             }
+        }
+
+        long maximumBaseBytesRead = PatchGapG1Model.MaximumBaseBytesRead(requestedLane);
+        if (totalReadBytes > maximumBaseBytesRead)
+        {
+            throw new InvalidDataException(
+                $"G1 read {totalReadBytes} base bytes for one entry, exceeding "
+                + $"the frozen bound {maximumBaseBytesRead}.");
         }
 
         long h0Stored = h0.StoredBytes;
