@@ -216,6 +216,7 @@ def aggregate_create(result: dict) -> dict[str, float | int]:
     selector_build_cpu = 0.0
     selector_bytes_scanned = 0
     selector_postings = 0
+    selector_max_postings = 0
     selector_hot_ignored = 0
     selector_peak = 0
     selector_files = 0
@@ -234,7 +235,9 @@ def aggregate_create(result: dict) -> dict[str, float | int]:
             selector_build_wall += float(selector["buildWallSeconds"])
             selector_build_cpu += float(selector["buildCpuSeconds"])
             selector_bytes_scanned += int(selector["bytesScanned"])
-            selector_postings += int(selector["postingCount"])
+            posting_count = int(selector["postingCount"])
+            selector_postings += posting_count
+            selector_max_postings = max(selector_max_postings, posting_count)
             selector_hot_ignored += int(selector["ignoredHotFeatureCount"])
             selector_peak = max(selector_peak, int(selector["indexPeakBytes"]))
     return {
@@ -250,6 +253,7 @@ def aggregate_create(result: dict) -> dict[str, float | int]:
         "selectorBuildCpuSeconds": selector_build_cpu,
         "selectorBytesScanned": selector_bytes_scanned,
         "selectorPostings": selector_postings,
+        "selectorMaxPostings": selector_max_postings,
         "selectorIgnoredHotFeatureCount": selector_hot_ignored,
         "selectorIndexPeakBytes": selector_peak,
     }
