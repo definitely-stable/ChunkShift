@@ -78,7 +78,21 @@ internal sealed record PatchLabCreateMetrics(
     long WindowPeakEntries,
     long WindowPeakBytes,
     long ReorderPeakEntries,
-    long ReorderPeakBytes);
+    long ReorderPeakBytes,
+    PatchLabSelectorMetrics? Selector = null);
+
+/// <summary>
+/// PATCH-ENC-005 indexed-selector prepass/query counters. These are research
+/// evidence only; the public create path never installs a selector.
+/// </summary>
+internal sealed record PatchLabSelectorMetrics(
+    int Stride,
+    long BytesScanned,
+    long PostingCount,
+    long IgnoredHotFeatureCount,
+    long IndexPeakBytes,
+    double BuildWallSeconds,
+    double BuildCpuSeconds);
 
 /// <summary>One measured production-apply repeat for PATCH-ENC-005 evidence.</summary>
 internal sealed record PatchLabApplySample(
