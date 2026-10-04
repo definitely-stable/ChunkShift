@@ -1,6 +1,5 @@
 import importlib.util
 import unittest
-from copy import deepcopy
 from pathlib import Path
 
 SCRIPT = Path(__file__).with_name("evaluate_patch_enc_005_h6o_guard.py")
@@ -42,7 +41,13 @@ class H6OGuardEvaluatorTests(unittest.TestCase):
                     "lane":MODULE.LANE,"wallRatio":ratio,"cpuRatio":1.0,
                     "aggregate":{
                         "wallSeconds":10.0*ratio,"patchBytes":h6,
-                        "selectorFiles":1,"selectorIndexPeakBytes":1024,
+                        "selectorFiles":1,
+                        "selectorBuildWallSeconds":0.1,
+                        "selectorBuildCpuSeconds":0.1,
+                        "selectorBytesScanned":2048,
+                        "selectorPostings":1,
+                        "selectorMaxPostings":1,
+                        "selectorIndexPeakBytes":1024,
                     },
                 }],
             })
@@ -66,8 +71,8 @@ class H6OGuardEvaluatorTests(unittest.TestCase):
                 MODULE.LANE:{"correctness":[self.correctness_row(h6sha)]},
             },
             "applyEvidence":{
-                "csp":{"files":[self.patch_row(h0sha)]},
-                MODULE.LANE:{"files":[self.patch_row(h6sha)]},
+                "csp":{"files":[{**self.patch_row(h0sha),"samples":[{} for _ in range(5)]}]},
+                MODULE.LANE:{"files":[{**self.patch_row(h6sha),"samples":[{} for _ in range(5)]}]},
             },
         }
 
@@ -132,6 +137,22 @@ class H6OGuardEvaluatorTests(unittest.TestCase):
         p=self.paired()
         p["traceCorrectness"][MODULE.LANE]["correctness"][0]["verdict"]="invalid"
         with self.assertRaisesRegex(ValueError,"decoder correctness failure"):
+            MODULE.evaluate(
+                p,self.memory("csp",2000),self.memory(MODULE.LANE,2000)
+            )
+
+    def test_per_file_posting_bound_is_rejected(self):
+        p=self.paired()
+        p["acceptedTiming"]["rounds"][0]["candidates"][0]["aggregate"]["selectorMaxPostings"] = MODULE.POSTING_LIMIT + 1
+        with self.assertRaisesRegex(ValueError,"posting bound"):
+            MODULE.evaluate(
+                p,self.memory("csp",2000),self.memory(MODULE.LANE,2000)
+            )
+
+    def test_apply_patch_sha_mismatch_is_rejected(self):
+        p=self.paired()
+        p["applyEvidence"][MODULE.LANE]["files"][0]["patchSha256"]="3"*64
+        with self.assertRaisesRegex(ValueError,"apply evidence patch SHA mismatch"):
             MODULE.evaluate(
                 p,self.memory("csp",2000),self.memory(MODULE.LANE,2000)
             )
