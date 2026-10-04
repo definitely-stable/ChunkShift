@@ -449,7 +449,7 @@ internal static class PatchGapG1Evaluator
 
     private static async Task<(long Bytes, int Calls, int Seeks)> ReadLargestPrefixOnceAsync(
         Stream source,
-        IReadOnlyList<CspPatchBuilder.BaseRecord> records,
+        List<CspPatchBuilder.BaseRecord> records,
         int start,
         int length,
         Memory<byte> destination,
