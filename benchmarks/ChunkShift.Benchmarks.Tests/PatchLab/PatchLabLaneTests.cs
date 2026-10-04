@@ -16,6 +16,8 @@ public class PatchLabLaneTests
                 19, 4, 8, 256 * 1024, "prefix", 20, 20, "l1-r2"),
             ["H7-L1-R2-E75"] = new PatchLabPolicy(
                 19, 4, 8, 256 * 1024, "prefix", 20, 20, "l1-r2-e75"),
+            ["H6-O12-SF3-S128"] = new PatchLabPolicy(
+                19, 4, 8, 256 * 1024, "prefix", 20, 20, "l1-r2"),
             ["H9-L9-K4-C16-R1M"] = new PatchLabPolicy(
                 9, 4, 16, 1024 * 1024, "prefix", 20, 20),
             ["H9-L12-K4-C16-R1M"] = new PatchLabPolicy(
@@ -35,7 +37,7 @@ public class PatchLabLaneTests
             }
         }
 
-        Assert.Equal(20, expected.Count);
+        Assert.Equal(21, expected.Count);
         Assert.Equal(
             [.. expected.Keys.Order(StringComparer.Ordinal)],
             [.. PatchLabLane.Names.Order(StringComparer.Ordinal)]);
