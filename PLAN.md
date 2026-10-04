@@ -333,7 +333,7 @@ Evidence:
 
 Experiment map for the remaining work (ROADMAP "Patching gate" lists the exit items):
 
-Current release-critical order (2026-10-03): finish `PATCH-ENC-005` under the frozen protocol, then #140 CLI contract, Patching public-API freeze, and the publication-repository port. The completed D13/#168 check path under #182 and the research tracks below do not block that order.
+Current Patching order (2026-10-04): `PATCH-ENC-005` is complete with a final REJECT / `STOP_RESEMBLANCE` result. Before #140, Patching public-API freeze or any publication-repository port, complete the formal [Patching Research Freeze](https://github.com/definitely-stable/ChunkShift/issues/251): close the representation/source/update-set research that can still justify a breaking first public Patching contract, run required interaction studies, and record a final CSP v1 vs CSP vNext synthesis. Core 0.1.1 remains a separate non-blocking maintenance track.
 
 | ExperimentId | Issue | Question | Exit item |
 | --- | --- | --- | --- |
@@ -341,10 +341,16 @@ Current release-critical order (2026-10-03): finish `PATCH-ENC-005` under the fr
 | `PATCH-APPLY-002` | [#182](https://github.com/definitely-stable/ChunkShift/issues/182) | cheaper re-chunk check and apply pipeline (D13, #168) | yes; the check lanes run as `PATCH-APPLY-003` |
 | `PATCH-APPLY-003` | [#182](https://github.com/definitely-stable/ChunkShift/issues/182) | the check lanes with win-x64 on a GitHub runner (D13, #168) | yes: A2 ADOPT ([record](docs/research/results/PATCH-APPLY-003-EVIDENCE-20260929-001.md)); A1a built, and rule 2 does not hold on lane `boundary` ([record](docs/research/results/PATCH-APPLY-003-EVIDENCE-20260930-001.md)) |
 | `PATCH-ENC-004` | [#181](https://github.com/definitely-stable/ChunkShift/issues/181) | same-bytes create throughput: base-window cache, bounded parallel encoding | done: ADOPT H2-W2 workers; H1 cache REJECT ([record](docs/research/results/PATCH-ENC-004-EVIDENCE-20261001-001.md)) |
-| `PATCH-ENC-005` | [#181](https://github.com/definitely-stable/ChunkShift/issues/181) | dictionary-candidate search: ranking, resemblance sketches, level ladder (D15) | current blocker: partial Phase A is `INCOMPLETE`; H7 fails its frozen H4 byte oracle on 83/1,049 calibration files; no finalist/adoption/default change ([record](docs/research/results/PATCH-ENC-005-EVIDENCE-20261003-001.md)) |
-| `PATCH-GAP-001` | [#183](https://github.com/definitely-stable/ChunkShift/issues/183) | size gap to `zstd --patch-from`, bsdiff, HDiffPatch, Zucchini | non-blocking/RUNNING: Stage-A inventory locked G4/G5; G5 `NOT_PRESENT`; no size verdict ([record](docs/research/results/PATCH-GAP-001-EVIDENCE-20261003-001.md)) |
+| `PATCH-ENC-005` | [#181](https://github.com/definitely-stable/ChunkShift/issues/181) | dictionary-candidate search: ranking, resemblance sketches, level ladder (D15) | done: REJECT; G2 MISS and H6-O fixed-evaluation guard MISS; H5-F/H6-P/H8 STOPPED; full Phase B forbidden; D15 unchanged ([final record](docs/research/results/PATCH-ENC-005-H6O-EVIDENCE-20261004-001.md)) |
+| `PATCH-GAP-001` | [#183](https://github.com/definitely-stable/ChunkShift/issues/183) | size gap to `zstd --patch-from`, bsdiff, HDiffPatch, Zucchini | Research Freeze blocker/RUNNING: Stage-A inventory locked; G5 `NOT_PRESENT`; next decision slices are G1 dictionary envelope, G3 frame/run granularity and G4 executable normalization, followed by interaction evidence when required ([record](docs/research/results/PATCH-GAP-001-EVIDENCE-20261003-001.md)) |
 | `PATCH-TREE-001` | [#184](https://github.com/definitely-stable/ChunkShift/issues/184) | update sets: cross-file base reuse, tree manifest | no (informs an update-set RFC) |
 | `TRUST-SIG-001` | [#185](https://github.com/definitely-stable/ChunkShift/issues/185) | detached trust envelope and update policy (RFC-0004 §4–§5) | no; required before launcher-facing guidance |
+
+### Patching Research Freeze — [#251](https://github.com/definitely-stable/ChunkShift/issues/251)
+
+The first public Patching compatibility contract is intentionally blocked until the research set capable of changing persisted/build/update-set architecture has a durable disposition. Required owners include #183, #184, #220, #150, #222, #221, #223, #224, #225 and #185. A candidate may complete as ADOPT, DEFER or REJECT; success is not required. If two individually useful representation factors interact, a separately frozen interaction ExperimentId is required before synthesis.
+
+The freeze exits only after repository evidence answers whether CSP v1 remains sufficient or a versioned CSP vNext/new representation is justified. Only after that synthesis may #140, `ChunkShift.Patching/PublicAPI.Unshipped.txt` freeze and publication become release-critical.
 
 ### Parallel Core 0.1.1 maintenance track — [#152](https://github.com/definitely-stable/ChunkShift/issues/152)
 

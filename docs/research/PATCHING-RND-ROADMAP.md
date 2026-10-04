@@ -1,7 +1,7 @@
 # Patching R&D roadmap
 
 Status: Active research roadmap  
-Last reviewed: 2026-10-02  
+Last reviewed: 2026-10-04  
 Architecture proposal: [RFC-0005](../architecture/RFC-0005-patch-compiler-architecture.md) (**Proposed**, not yet an accepted authority)
 
 ## 1. Purpose
@@ -54,7 +54,7 @@ Physical CSP bytes remain non-contractual under PATCHING-DECISIONS D7.
 | Same-profile FastCDC implementation work | #152/#153 |
 | Future CDC algorithms / RepMaxCDC / SeqCDC / Chonkers | #14/#136 |
 | Exact dirty-range incremental rechunk | #150 / `PATCH-INCR-001` |
-| Create candidate selection / resemblance / level ladder | #181 / `PATCH-ENC-005` |
+| Create candidate selection / resemblance / level ladder | #181 / `PATCH-ENC-005` — complete: REJECT / `STOP_RESEMBLANCE`; D15 unchanged |
 | CSP size-gap decomposition, generic executable/container factors | #183 / `PATCH-GAP-001` |
 | Tree/update sets and cross-file reuse | #184 / `PATCH-TREE-001` |
 | Trust/signature/update policy | #185 / `TRUST-SIG-001` |
@@ -87,9 +87,9 @@ Priority: **NEXT / high algorithmic value**. Dependencies: #183 G1/G2 results; #
 
 ### #223 — PATCH-ML-001 — learned reference ranking oracle
 
-Question: how much candidate-search headroom remains after PATCH-ENC-005, and can learned ranking expose useful features that should be distilled into a simpler deterministic scorer?
+Question: after #184/#222 and/or transform work creates a richer bounded source/representation universe, how much exact-oracle selection headroom remains, and can learned ranking expose useful features that should be distilled into a simpler deterministic scorer?
 
-Priority: **EXPERIMENT**. Blocked by #181 result-bearing selector work and #183 G2 comparison. No ML requirement is allowed in apply; a retained model must demonstrate deterministic canonical candidate selection on the supported execution set or remain advisory/research-only.
+Priority: **EXPERIMENT / gated**. Do not train against the exhausted old single-contiguous-dictionary universe: G2 exact whole-base search saved only 174 bytes over 974,223 B and H6-O missed the frozen byte gate. Start only after a new bounded universe exists and an exact oracle first demonstrates material attainable headroom. No ML requirement is allowed in apply; a retained model must demonstrate deterministic canonical candidate selection on the supported execution set or remain advisory/research-only.
 
 ### #224 — PATCH-COMPILER-001 — deterministic cost-aware representation compiler
 
@@ -101,54 +101,66 @@ Priority: **NEXT / architectural**, but online implementation is gated. Entry ga
 
 Question: can expensive builder work become deterministic local tasks that are hardware-aware, cacheable and retryable without scheduler/cache behavior changing semantic selection?
 
-Priority: **EXPERIMENT after #181 execution shape settles**. #220 caches derived features; #225 caches validated pure task results. Remote/distributed execution, if justified later, gets a new ExperimentId.
+Priority: **DESIGN now / implementation later**. #181 is closed as an execution-shape experiment, but representation/task shape may still change under #251. #220 caches derived features; #225 caches validated pure task results. Freeze task identities only after #183/#184/#221/#222/#224 establish the work units worth caching. Remote/distributed execution, if justified later, gets a new ExperimentId.
 
 ## 5. Dependency graph
 
 ```text
-current frozen work
+#181 PATCH-ENC-005
   |
-  +--> #181 PATCH-ENC-005 --------------------+--> #223 PATCH-ML-001
-  |                                           |
-  |                                           +--> #225 PATCH-EXEC-001
+  `--> COMPLETE: REJECT / STOP_RESEMBLANCE / D15 unchanged
+
+#183 PATCH-GAP-001 -----+--> #222 PATCH-DICT-001
+  |                     |
+  `--> G4 evidence -----+--> #221 PATCH-DOTNET-001
+
+#184 PATCH-TREE-001 ----> cross-file lanes in #220/#222
+#150 PATCH-INCR-001 ----> shared plumbing only with #220
+#220 PATCH-META-001 ----> invalidation/keying principles for #225
+
+new proven source/representation universe
   |
-  +--> #183 PATCH-GAP-001 -----+
-  |                            +--> #221 PATCH-DOTNET-001
-  |                            +--> #222 PATCH-DICT-001
-  |                            `--> #223 PATCH-ML-001
-  |
-  +--> #150 PATCH-INCR-001 ----> shared plumbing only with #220
-  |
-  +--> #220 PATCH-META-001 ----> invalidation/keying principles for #225
-  |
-  +--> #184 PATCH-TREE-001 ----> cross-file lanes in #220/#222
+  `--> exact oracle first --> #223 PATCH-ML-001
 
 >= 2 decision-grade representation families
   |
   v
 #224 PATCH-COMPILER-001
+  |
+stable task/representation shape + #220 keying
+  |
+  v
+#225 PATCH-EXEC-001
+  |
+  v
+#251 final research synthesis --> #140 / PublicAPI freeze / publication
 ```
 
 #224's BuildPolicy/result-record shape may later consume #225's local task model.
 
 ## 6. Technology radar
 
+### DONE
+
+- PATCH-ENC-005: REJECT / `STOP_RESEMBLANCE`; G2 MISS and H6-O guard MISS; D15 unchanged.
+
 ### NOW
 
-- finish PATCH-ENC-005 and PATCH-GAP-001 exactly as frozen;
-- prepare PATCH-META-001 protocol/design;
-- retain exact/deterministic evidence discipline.
+- finish PATCH-GAP-001 exactly as frozen, prioritizing G1 dictionary envelope, G3 frame/run granularity and G4 executable normalization;
+- run PATCH-TREE-001, PATCH-META-001 and PATCH-INCR-001 as compatible #251 Research Freeze work;
+- retain exact/deterministic evidence discipline and fail-closed invalid-run handling.
 
 ### NEXT
 
-- .NET semantic normalization after generic G4 evidence completes;
-- composite multi-run dictionaries after G1/G2 evidence;
-- cost-aware compiler only after its representation-family entry gate passes.
+- composite multi-run dictionaries after G1/G2 evidence and #184 before cross-file lanes;
+- .NET semantic normalization after generic G4 evidence;
+- required interaction experiments when multiple individually useful factors are not safely composable.
 
-### EXPERIMENT
+### EXPERIMENT / GATED
 
-- learned ranking / distillation;
-- local adaptive/cacheable task execution.
+- learned ranking only after a richer source/representation universe has material exact-oracle headroom;
+- cost-aware compiler only after its >=2 representation-family entry gate passes;
+- local adaptive/cacheable task execution only after task/representation shape is stable.
 
 ### WATCH
 
@@ -168,6 +180,8 @@ current frozen work
 - ML/ANN dependency in apply;
 - public generic plugin codec/executor interface before concrete consumer evidence;
 - ZK/TEE machinery without a product threat model.
+
+Research promotion to a first public Patching contract is now gated by [#251](https://github.com/definitely-stable/ChunkShift/issues/251). Required experiments may finish as ADOPT, DEFER or REJECT, but #140/PublicAPI/publication remain blocked until required dispositions, cross-factor interaction studies and the final CSP v1 vs CSP vNext synthesis are complete. Repository-only physical storage research is outside this gate unless Patching evidence creates a direct dependency.
 
 ## 7. Promotion rules
 
