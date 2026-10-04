@@ -84,12 +84,15 @@ def timing_environment(dispatch_path: Path, document: dict, source_commit: str) 
     return canonical
 
 
-def patch_map_from_document(document: dict) -> dict[str, dict[tuple[str, str, str, str], str]]:
+def patch_map_from_document(
+    document: dict,
+    lanes: list[str],
+) -> dict[str, dict[tuple[str, str, str, str], str]]:
     projection = document.get("patchShas")
     if not isinstance(projection, dict):
         raise ValueError("accepted dispatch has no patchShas projection")
 
-    expected_lanes = {"csp", *paired.FROZEN_PHASE_A}
+    expected_lanes = {"csp", *lanes}
     if set(projection) != expected_lanes:
         raise ValueError(
             "accepted dispatch lane set mismatch: "
@@ -185,6 +188,12 @@ def main() -> int:
     )
     parser.add_argument("--families", required=True)
     parser.add_argument("--work", type=Path)
+    parser.add_argument(
+        "--mode",
+        choices=("phase-a", "h6o-guard"),
+        default="phase-a",
+    )
+    parser.add_argument("--lanes", default=",".join(paired.FROZEN_PHASE_A))
     parser.add_argument("--dotnet", default="dotnet")
     parser.add_argument(
         "--project",
@@ -198,8 +207,11 @@ def main() -> int:
     )
     args = parser.parse_args()
     args.source_commit = args.source_commit.lower()
+    lanes = [lane.strip() for lane in args.lanes.split(",") if lane.strip()]
+    args.selected_lanes = lanes
 
     try:
+        paired.validate_mode_lanes(args.mode, args.dataset_role, args.platform, lanes)
         paired.validate_development_families(args.dataset_role, args.families)
         paired.validate_run_identity(args.run_id, args.source_commit, args.platform)
         paired.validate_ci_binding(args.source_commit, args.run_id)
@@ -231,7 +243,7 @@ def main() -> int:
             accepted,
             args.source_commit,
         )
-        lane_maps = patch_map_from_document(accepted)
+        lane_maps = patch_map_from_document(accepted, lanes)
         accepted_patch_shas = {
             lane: paired.serialized_patch_sha_map(mapping)
             for lane, mapping in sorted(lane_maps.items())
