@@ -82,6 +82,7 @@ internal sealed record PatchGapG1FileEvidence(
     double? BaseReadAmplification,
     int EntryCount,
     int TrialCount,
+    PatchGapG1BaseRecordEvidence[] BaseRecords,
     PatchGapG1EntryEvidence[] Entries);
 
 internal sealed record PatchGapG1CompactFileRow(

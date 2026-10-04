@@ -15,7 +15,7 @@ internal sealed unsafe class PatchGapG1Codec : IDisposable
 {
     private const int DefaultParameter = 0;
     private readonly StaticContext _encoder = new();
-    private readonly Decompressor _decoder = new();
+    private readonly DecoderContext _decoder = new();
     private byte[] _frameBuffer = [];
     private bool _disposed;
 
@@ -67,22 +67,11 @@ internal sealed unsafe class PatchGapG1Codec : IDisposable
         ValidateInputs(destination, dictionary, envelope);
         PatchGapG1FrameEnvelope.Validate(stored, destination.Length, envelope.WindowBytes);
 
-        _decoder.SetParameter(
-            ZSTD_dParameter.ZSTD_d_windowLogMax,
+        int written = _decoder.Decode(
+            stored,
+            dictionary,
+            destination,
             WindowLog(envelope));
-        _decoder.RefPrefix(dictionary);
-
-        int written;
-        try
-        {
-            written = _decoder.Unwrap(stored, destination);
-        }
-        catch (ZstdException exception)
-        {
-            throw new InvalidDataException(
-                "PATCH-GAP G1 frame is corrupt or does not decode under the frozen raw-history envelope.",
-                exception);
-        }
 
         if (written != destination.Length)
         {
@@ -160,6 +149,71 @@ internal sealed unsafe class PatchGapG1Codec : IDisposable
         {
             throw new InvalidOperationException(
                 $"PATCH-GAP G1 zstd backend failed: {Methods.ZSTD_getErrorName(result)}.");
+        }
+    }
+
+    private sealed class DecoderContext : SafeHandle
+    {
+        private ZSTD_DCtx_s* _context;
+
+        internal DecoderContext()
+            : base(IntPtr.Zero, ownsHandle: true)
+        {
+            _context = Methods.ZSTD_createDCtx();
+            if (_context is null)
+            {
+                throw new InvalidOperationException(
+                    "PATCH-GAP G1 zstd could not create a decompression context.");
+            }
+
+            SetHandle((IntPtr)_context);
+        }
+
+        public override bool IsInvalid => handle == IntPtr.Zero;
+
+        internal int Decode(
+            ReadOnlySpan<byte> stored,
+            ReadOnlySpan<byte> dictionary,
+            Span<byte> destination,
+            int windowLog)
+        {
+            Check(Methods.ZSTD_DCtx_reset(
+                _context,
+                ZSTD_ResetDirective.ZSTD_reset_session_and_parameters));
+            Check(Methods.ZSTD_DCtx_setParameter(
+                _context,
+                ZSTD_dParameter.ZSTD_d_windowLogMax,
+                windowLog));
+
+            fixed (byte* prefix = dictionary)
+            fixed (byte* source = stored)
+            fixed (byte* output = destination)
+            {
+                Check(Methods.ZSTD_DCtx_refPrefix(
+                    _context,
+                    prefix,
+                    (nuint)dictionary.Length));
+
+                nuint written = Methods.ZSTD_decompressDCtx(
+                    _context,
+                    output,
+                    (nuint)destination.Length,
+                    source,
+                    (nuint)stored.Length);
+                Check(written);
+                return checked((int)written);
+            }
+        }
+
+        protected override bool ReleaseHandle()
+        {
+            if (_context is not null)
+            {
+                _ = Methods.ZSTD_freeDCtx(_context);
+                _context = null;
+            }
+
+            return true;
         }
     }
 
