@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-10-03",
+  "updated": "2026-10-04",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -360,8 +360,8 @@
       "status": "RUNNING",
       "question": "dictionary-candidate search: ranking, resemblance sketches, early exit, level ladder",
       "protocol": "docs/benchmarks/PATCH-ENC-005-PROTOCOL.md",
-      "evidence": "docs/research/results/PATCH-ENC-005-EVIDENCE-20261003-002.md",
-      "decision": "Phase A calibration REJECT; no finalists; D15 unchanged; G2 exact sampled whole-base oracle is the next frozen step"
+      "evidence": "docs/research/results/PATCH-ENC-005-G2-EVIDENCE-20261003-001.md",
+      "decision": "G2 MISS; full Phase B forbidden; only frozen H6-O12-SF3-S128 false-negative guard is authorized; D15 unchanged"
     },
     {
       "id": "PATCH-APPLY-002",

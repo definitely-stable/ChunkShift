@@ -1,0 +1,12 @@
+{
+  "experimentId": "PATCH-ENC-005",
+  "githubRunAttempt": 1,
+  "githubRunId": 37150436770,
+  "githubRunNumber": 2,
+  "oracleSampleSha256": "54061f4efe0969af0d772ddbc6d026fdf58bd4f2776514a9fb098753d062001d",
+  "platform": "linux-x64",
+  "runId": "PATCH-ENC-005/RUN-20261003-002-489d3f2fe2582cc6251ee2fa87cd23bad1793b01-linux-x64",
+  "runner": "ubuntu-24.04",
+  "schema": "chunkshift.patch-enc-005-g2-execution.v1",
+  "sourceCommit": "489d3f2fe2582cc6251ee2fa87cd23bad1793b01"
+}
