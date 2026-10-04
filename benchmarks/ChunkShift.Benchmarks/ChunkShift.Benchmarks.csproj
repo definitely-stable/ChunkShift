@@ -11,6 +11,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="ChunkShift.Benchmarks.Tests" />
     <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="ZstdSharp.Port" />
     <ProjectReference Include="../../src/ChunkShift/ChunkShift.csproj" SetConfiguration="Configuration=$(Configuration)" />
     <ProjectReference Include="../../src/ChunkShift.Patching/ChunkShift.Patching.csproj" SetConfiguration="Configuration=$(Configuration)" />
   </ItemGroup>
