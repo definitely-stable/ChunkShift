@@ -86,12 +86,13 @@ def timing_environment(dispatch_path: Path, document: dict, source_commit: str) 
 
 def patch_map_from_document(
     document: dict,
-    lanes: list[str],
+    lanes: list[str] | None = None,
 ) -> dict[str, dict[tuple[str, str, str, str], str]]:
     projection = document.get("patchShas")
     if not isinstance(projection, dict):
         raise ValueError("accepted dispatch has no patchShas projection")
 
+    lanes = list(paired.FROZEN_PHASE_A) if lanes is None else lanes
     expected_lanes = {"csp", *lanes}
     if set(projection) != expected_lanes:
         raise ValueError(
