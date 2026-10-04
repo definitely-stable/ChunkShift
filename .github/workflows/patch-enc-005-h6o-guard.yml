@@ -1,0 +1,347 @@
+name: PATCH-ENC-005 H6-O guard
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: patch-enc-005-h6o-guard-${{ github.sha }}-${{ github.run_number }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+  GUARD_LANE: H6-O12-SF3-S128
+  EVALUATION_FAMILIES: node-win-x64,node-linux-x64,tzdata,chunkshift-source
+
+jobs:
+  preflight:
+    name: guard-preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Validate workflow provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "H6-O guard must run from merged main." >&2
+            exit 2
+          fi
+          if [[ "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
+            echo "H6-O guard rejects GitHub workflow re-runs; dispatch a fresh run." >&2
+            exit 2
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Require durable G2 MISS
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("docs/research/results/data/PATCH-ENC-005-G2-EVIDENCE-20261003-001/verdict.json")
+          v=json.loads(p.read_text(encoding="utf-8"))
+          assert v["status"]=="MISS"
+          assert v["nextAction"]=="H6_O_GUARD_ONLY"
+          assert v["oracleSampleSha256"]=="54061f4efe0969af0d772ddbc6d026fdf58bd4f2776514a9fb098753d062001d"
+          PY
+
+      - name: Bind guard RunId
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p identity
+          run_date="$(date -u +%Y%m%d)"
+          printf -v run_number "%03d" "$GITHUB_RUN_NUMBER"
+          run_id="PATCH-ENC-005/RUN-${run_date}-${run_number}-${GITHUB_SHA}-linux-x64"
+          python3 - "$run_id" <<'PY'
+          import json, os, sys
+          from pathlib import Path
+          Path("identity/run.json").write_text(
+              json.dumps({
+                  "schema":"chunkshift.patch-enc-005-h6o-guard-run.v1",
+                  "experimentId":"PATCH-ENC-005",
+                  "runId":sys.argv[1],
+                  "sourceCommit":os.environ["GITHUB_SHA"],
+                  "githubRunId":int(os.environ["GITHUB_RUN_ID"]),
+                  "githubRunNumber":int(os.environ["GITHUB_RUN_NUMBER"]),
+                  "githubRunAttempt":int(os.environ["GITHUB_RUN_ATTEMPT"]),
+                  "platform":"linux-x64",
+                  "datasetRole":"evaluation",
+                  "lane":"H6-O12-SF3-S128",
+              },indent=2,sort_keys=True)+"\n",
+              encoding="utf-8",
+          )
+          PY
+          cat identity/run.json
+
+      - name: Upload identity
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-enc-005-h6o-identity
+          path: identity/run.json
+          if-no-files-found: error
+          retention-days: 90
+
+  timing-attempt-1:
+    name: guard-timing-a1
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Download identity
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: patch-enc-005-h6o-identity
+          path: identity
+      - name: Restore corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+      - name: Materialize frozen corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py --root "$HOME/patch-corpus" --sources "$HOME/patch-corpus/sources" --download --lock
+      - name: Build PatchLab
+        run: |
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+      - name: Run guard timing attempt 1
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$(python3 -c 'import json; print(json.load(open("identity/run.json"))["runId"])')"
+          mkdir -p artifacts/patch-enc-005-h6o
+          python3 benchmarks/scripts/run_patch_enc_005_paired.py             --corpus "$HOME/patch-corpus"             --output artifacts/patch-enc-005-h6o/attempt-1             --run-id "$run_id"             --source-commit "$GITHUB_SHA"             --platform linux-x64             --dataset-role evaluation             --families "$EVALUATION_FAMILIES"             --mode h6o-guard             --lanes "$GUARD_LANE"             --attempt 1
+      - name: Upload attempt 1
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-enc-005-h6o-attempt-1
+          path: artifacts/patch-enc-005-h6o/attempt-1
+          if-no-files-found: error
+          retention-days: 90
+
+  timing-attempt-2:
+    name: guard-timing-a2
+    needs: timing-attempt-1
+    if: needs.timing-attempt-1.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Download identity
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: patch-enc-005-h6o-identity
+          path: identity
+      - name: Download attempt 1
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: patch-enc-005-h6o-attempt-1
+          path: artifacts/attempt-1
+      - name: Restore corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+      - name: Materialize frozen corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py --root "$HOME/patch-corpus" --sources "$HOME/patch-corpus/sources" --download --lock
+      - name: Build PatchLab
+        run: |
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+      - name: Run or skip guard timing attempt 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$(python3 -c 'import json; print(json.load(open("identity/run.json"))["runId"])')"
+          mkdir -p artifacts/patch-enc-005-h6o
+          python3 benchmarks/scripts/run_patch_enc_005_paired.py             --corpus "$HOME/patch-corpus"             --output artifacts/patch-enc-005-h6o/attempt-2             --run-id "$run_id"             --source-commit "$GITHUB_SHA"             --platform linux-x64             --dataset-role evaluation             --families "$EVALUATION_FAMILIES"             --mode h6o-guard             --lanes "$GUARD_LANE"             --attempt 2             --prior-dispatch artifacts/attempt-1/dispatch.json
+      - name: Upload attempt 2
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-enc-005-h6o-attempt-2
+          path: artifacts/patch-enc-005-h6o/attempt-2
+          if-no-files-found: error
+          retention-days: 90
+
+  finalize:
+    name: guard-finalize
+    needs: [timing-attempt-1, timing-attempt-2]
+    if: needs.timing-attempt-1.result == 'success' && needs.timing-attempt-2.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Download identity
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: patch-enc-005-h6o-identity
+          path: identity
+      - name: Download timing attempts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: patch-enc-005-h6o-attempt-*
+          path: artifacts/attempts
+      - name: Restore corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+      - name: Materialize frozen corpus
+        run: python3 benchmarks/scripts/materialize_patch_corpus.py --root "$HOME/patch-corpus" --sources "$HOME/patch-corpus/sources" --download --lock
+      - name: Build PatchLab
+        run: |
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+      - name: Finalize guard evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$(python3 -c 'import json; print(json.load(open("identity/run.json"))["runId"])')"
+          python3 benchmarks/scripts/finalize_patch_enc_005_phase_a.py             --corpus "$HOME/patch-corpus"             --output artifacts/final             --attempt-one artifacts/attempts/patch-enc-005-h6o-attempt-1/dispatch.json             --attempt-two artifacts/attempts/patch-enc-005-h6o-attempt-2/dispatch.json             --run-id "$run_id"             --source-commit "$GITHUB_SHA"             --platform linux-x64             --dataset-role evaluation             --families "$EVALUATION_FAMILIES"             --mode h6o-guard             --lanes "$GUARD_LANE"
+      - name: Upload finalized guard evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-enc-005-h6o-final
+          path: artifacts/final
+          if-no-files-found: error
+          retention-days: 90
+
+  memory:
+    name: guard-memory
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Download identity
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: patch-enc-005-h6o-identity
+          path: identity
+      - name: Restore corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+      - name: Materialize frozen corpus
+        run: python3 benchmarks/scripts/materialize_patch_corpus.py --root "$HOME/patch-corpus" --sources "$HOME/patch-corpus/sources" --download --lock
+      - name: Build PatchLab
+        run: |
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+      - name: Measure guard memory
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$(python3 -c 'import json; print(json.load(open("identity/run.json"))["runId"])')"
+          mkdir -p artifacts/memory
+          for lane in csp "$GUARD_LANE"; do
+            dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build --               patch-lab memory               --corpus "$HOME/patch-corpus"               --output "artifacts/memory/$lane.json"               --families "$EVALUATION_FAMILIES"               --min-bytes 1048576               --population max-base-target               --apply-check boundary               --lane "$lane"               --execution h2-w2               --run-id "$run_id"
+          done
+      - name: Upload guard memory
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-enc-005-h6o-memory
+          path: artifacts/memory
+          if-no-files-found: error
+          retention-days: 90
+
+  evaluator:
+    name: guard-evaluator
+    needs: [finalize, memory]
+    if: needs.finalize.result == 'success' && needs.memory.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download identity
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: patch-enc-005-h6o-identity
+          path: identity
+      - name: Download finalized evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: patch-enc-005-h6o-final
+          path: artifacts/final
+      - name: Download memory evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: patch-enc-005-h6o-memory
+          path: artifacts/memory
+      - name: Evaluate frozen guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/decision
+          python3 benchmarks/scripts/evaluate_patch_enc_005_h6o_guard.py             --paired artifacts/final/paired.json             --memory-h0 artifacts/memory/csp.json             --memory-h6 "artifacts/memory/$GUARD_LANE.json"             --output artifacts/decision
+          cp artifacts/final/paired.json artifacts/decision/paired.json
+          cp artifacts/memory/csp.json artifacts/decision/memory-csp.json
+          cp "artifacts/memory/$GUARD_LANE.json" artifacts/decision/memory-h6o.json
+          cp identity/run.json artifacts/decision/execution.json
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          root=Path("artifacts/decision")
+          docs=[]
+          for p in sorted(root.iterdir()):
+              if p.name=="documents.json" or not p.is_file(): continue
+              raw=p.read_bytes()
+              docs.append({"name":p.name,"size":len(raw),"sha256":hashlib.sha256(raw).hexdigest()})
+          (root/"documents.json").write_text(json.dumps({
+              "schema":"chunkshift.patch-enc-005-h6o-guard-documents.v1",
+              "documents":docs,
+          },indent=2,sort_keys=True)+"\n",encoding="utf-8")
+          PY
+          cat artifacts/decision/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload guard decision
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-enc-005-h6o-decision-${{ github.sha }}
+          path: artifacts/decision
+          if-no-files-found: error
+          retention-days: 90
