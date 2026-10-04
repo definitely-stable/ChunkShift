@@ -1091,6 +1091,68 @@ internal static partial class CspPatchBuilder
             candidates));
     }
 
+    private static List<RankedStart> FindRankedStarts(
+        List<BaseRecord> baseRecords,
+        ChunkInfo targetChunk,
+        ReadOnlySpan<byte> targetBytes,
+        CspEncoderPolicy policy,
+        ICspResearchCandidateSelector? researchSelector)
+    {
+        List<int> offsetStarts = FindCandidateStarts(baseRecords, targetChunk.Offset, policy);
+        var result = new List<RankedStart>(
+            offsetStarts.Count + (researchSelector is null ? 0 : 8));
+
+        foreach (int start in offsetStarts)
+        {
+            result.Add(new RankedStart(start, "offset"));
+        }
+
+        if (researchSelector is null)
+        {
+            return result;
+        }
+
+        IReadOnlyList<int> sketchStarts = researchSelector.Query(targetChunk, targetBytes);
+
+        if (sketchStarts.Count > 8)
+        {
+            throw new InvalidOperationException(
+                "A PATCH-ENC-005 research selector returned more than eight sketch starts.");
+        }
+
+        var seenSketch = new HashSet<int>();
+
+        foreach (int start in sketchStarts)
+        {
+            if ((uint)start >= (uint)baseRecords.Count)
+            {
+                throw new InvalidDataException(
+                    "A PATCH-ENC-005 research selector returned an out-of-range base start.");
+            }
+
+            if (!seenSketch.Add(start))
+            {
+                throw new InvalidDataException(
+                    "A PATCH-ENC-005 research selector returned a duplicate sketch start.");
+            }
+
+            int existing = result.FindIndex(candidate => candidate.Start == start);
+
+            if (existing >= 0)
+            {
+                result[existing] = new RankedStart(start, "both");
+            }
+            else
+            {
+                result.Add(new RankedStart(start, "sketch"));
+            }
+        }
+
+        return result;
+    }
+
+    private readonly record struct RankedStart(int Start, string Source);
+
     private readonly record struct RankedCandidate(
         int Ordinal,
         int Start,
