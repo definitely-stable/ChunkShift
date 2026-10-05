@@ -141,4 +141,54 @@ public class PatchGapG1CodecTests
         byte[] dictionary,
         PatchGapG1Envelope envelope) =>
         codec.Encode(target, dictionary, envelope).ToArray();
+
+    [Fact]
+    public void ShardAssignmentIsDeterministicAndBounded()
+    {
+        const string identity = "node-linux-x64\0v1\0v2\0bin/node";
+        int first = PatchGapG1Sharding.IndexFor(identity, 8);
+        int second = PatchGapG1Sharding.IndexFor(identity, 8);
+
+        Assert.Equal(first, second);
+        Assert.InRange(first, 0, 7);
+    }
+
+    [Fact]
+    public void ShardAssignmentCanonicalizesPathSeparators()
+    {
+        string slash = PatchGapG1Sharding.Identity(
+            "node-win-x64",
+            "v1",
+            "v2",
+            "bin/node.exe");
+        string backslash = PatchGapG1Sharding.Identity(
+            "node-win-x64",
+            "v1",
+            "v2",
+            "bin\\node.exe");
+
+        Assert.Equal(slash, backslash);
+        Assert.Equal(
+            PatchGapG1Sharding.IndexFor(slash, 8),
+            PatchGapG1Sharding.IndexFor(backslash, 8));
+    }
+
+    [Fact]
+    public void ShardArgumentsMustBePairedAndZeroBased()
+    {
+        Assert.Null(PatchGapG1Sharding.ParseOptional([]));
+
+        PatchGapG1ShardPartition partition = Assert.IsType<PatchGapG1ShardPartition>(
+            PatchGapG1Sharding.ParseOptional(
+                ["--shard-count", "8", "--shard-index", "7"]));
+        Assert.Equal(7, partition.Index);
+        Assert.Equal(8, partition.Count);
+
+        Assert.Throws<PatchLabUsageException>(() =>
+            PatchGapG1Sharding.ParseOptional(["--shard-count", "8"]));
+        Assert.Throws<PatchLabUsageException>(() =>
+            PatchGapG1Sharding.ParseOptional(
+                ["--shard-count", "8", "--shard-index", "8"]));
+    }
+
 }
