@@ -14,6 +14,25 @@ internal sealed record PatchGapG1ShardDocument(
     string Assignment,
     PatchGapG1ByteStudyDocument Study);
 
+internal sealed record PatchGapG1ShardManifestEntry(
+    int ShardIndex,
+    string DocumentPath,
+    string DocumentSha256,
+    long DocumentBytes,
+    PatchGapEvidenceProvenance Provenance);
+
+internal sealed record PatchGapG1ShardManifest(
+    string Schema,
+    string ExperimentId,
+    string ProtocolCommit,
+    string SourceCommit,
+    string DatasetRole,
+    string DatasetSha256,
+    string RequestedLane,
+    string Assignment,
+    int ShardCount,
+    PatchGapG1ShardManifestEntry[] Shards);
+
 internal static class PatchGapG1Sharding
 {
     internal const string Assignment = "sha256-file-identity-u64be-mod-count-v1";
@@ -205,6 +224,19 @@ internal static class PatchGapG1Aggregator
 
         Directory.CreateDirectory(fullDetailDirectory);
 
+        string aggregateRoot = Path.GetDirectoryName(Path.GetFullPath(output))
+            ?? throw new InvalidDataException("G1 aggregate output has no parent directory.");
+        string shardEvidenceDirectory = Path.Combine(aggregateRoot, "shards");
+        if (Directory.Exists(shardEvidenceDirectory) &&
+            Directory.EnumerateFileSystemEntries(shardEvidenceDirectory).Any())
+        {
+            throw new InvalidDataException(
+                "G1 aggregate shard-evidence directory must be empty.");
+        }
+
+        Directory.CreateDirectory(shardEvidenceDirectory);
+        var shardManifestEntries = new List<PatchGapG1ShardManifestEntry>(shardCount);
+
         var expected = new Dictionary<string, ExpectedFile>(StringComparer.Ordinal);
         foreach (PatchLabPair pair in corpus.Pairs.Where(
                      pair => string.Equals(
@@ -282,6 +314,24 @@ internal static class PatchGapG1Aggregator
                 ref backendAssembly,
                 ref backendVersion,
                 ref backendSha256);
+
+            string shardEvidenceName = $"shard-{shard.ShardIndex:D2}.json";
+            string destinationShardDocument = Path.Combine(
+                shardEvidenceDirectory,
+                shardEvidenceName);
+            if (File.Exists(destinationShardDocument))
+            {
+                throw new InvalidDataException(
+                    $"G1 aggregate shard-evidence collision '{shardEvidenceName}'.");
+            }
+
+            File.Copy(shardDocumentPath, destinationShardDocument);
+            shardManifestEntries.Add(new(
+                shard.ShardIndex,
+                $"shards/{shardEvidenceName}",
+                PatchGapEvidence.FileSha256(destinationShardDocument),
+                new FileInfo(destinationShardDocument).Length,
+                study.Provenance));
 
             long shardH0 = 0;
             long shardH0Read = 0;
@@ -485,6 +535,33 @@ internal static class PatchGapG1Aggregator
                 StringComparer.Ordinal),
         ];
 
+        PatchGapG1ShardManifestEntry[] orderedShardManifest =
+        [
+            .. shardManifestEntries.OrderBy(static item => item.ShardIndex),
+        ];
+        if (orderedShardManifest.Length != shardCount ||
+            !orderedShardManifest
+                .Select(static item => item.ShardIndex)
+                .SequenceEqual(Enumerable.Range(0, shardCount)))
+        {
+            throw new InvalidDataException(
+                "G1 shard provenance manifest is incomplete or out of order.");
+        }
+
+        _ = PatchGapEvidence.WriteCanonical(
+            Path.Combine(shardEvidenceDirectory, "manifest.json"),
+            new PatchGapG1ShardManifest(
+                "chunkshift.patch-gap-g1-shard-manifest.v1",
+                PatchGapProtocol.ExperimentId,
+                PatchGapProtocol.ProtocolCommit,
+                binding.SourceCommit,
+                datasetRole,
+                corpus.PairsSha256,
+                requestedLane,
+                PatchGapG1Sharding.Assignment,
+                shardCount,
+                orderedShardManifest));
+
         DateTimeOffset completedUtc = DateTimeOffset.UtcNow;
         var document = new PatchGapG1ByteStudyDocument(
             PatchGapG1Runner.Schema,
@@ -546,6 +623,11 @@ internal static class PatchGapG1Aggregator
             !string.Equals(study.DatasetSha256, PatchGapProtocol.CorpusPairsSha256, StringComparison.Ordinal) ||
             !string.Equals(study.RequestedLane, requestedLane, StringComparison.Ordinal) ||
             !string.Equals(study.ResearchPolicy, PatchGapG1Evaluator.ResearchPolicy, StringComparison.Ordinal) ||
+            !string.Equals(study.Provenance.SourceCommit, sourceCommit, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(study.Provenance.ProtocolCommit, PatchGapProtocol.ProtocolCommit, StringComparison.Ordinal) ||
+            !string.Equals(study.Provenance.CorpusPairsSha256, PatchGapProtocol.CorpusPairsSha256, StringComparison.Ordinal) ||
+            study.Provenance.Dirty ||
+            study.Provenance.SampleCount != study.Files.Length ||
             !study.Lanes.Select(static lane => lane.Lane).SequenceEqual(laneIds, StringComparer.Ordinal))
         {
             throw new InvalidDataException(
