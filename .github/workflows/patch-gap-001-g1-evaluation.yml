@@ -27,6 +27,8 @@ env:
   SHARD_COUNT: "8"
   CALIBRATION_SOURCE_COMMIT: f5f1b62be06f0fd2e62f36d07b6d2df56f745903
   CALIBRATION_EVIDENCE: docs/research/results/data/PATCH-GAP-001-G1-CALIBRATION-EVIDENCE-20261004-001/calibration.json
+  INVALID_PREDECESSOR_RUN_ID: "37296111468"
+  INVALID_PREDECESSOR_SOURCE_COMMIT: 4694e897b95761e88174098fa0bd43f5b12ffa97
 
 jobs:
   preflight:
@@ -77,7 +79,7 @@ jobs:
           echo "CORPUS_ROOT=$HOME/patch-corpus" >> "$GITHUB_ENV"
           echo "OUT=$RUNNER_TEMP/patch-gap-001-g1-evaluation-preflight" >> "$GITHUB_ENV"
 
-      - name: Enforce one successful evaluation dispatch
+      - name: Enforce single recovery evaluation dispatch
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -85,22 +87,44 @@ jobs:
           set -euo pipefail
           runs="$RUNNER_TEMP/g1-evaluation-runs.json"
           gh api \
-            "repos/$GITHUB_REPOSITORY/actions/workflows/patch-gap-001-g1-evaluation.yml/runs?event=workflow_dispatch&status=success&per_page=100" \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/patch-gap-001-g1-evaluation.yml/runs?event=workflow_dispatch&per_page=100" \
             > "$runs"
-          python3 - "$runs" "$GITHUB_RUN_ID" <<'PY'
+          python3 - "$runs" "$GITHUB_RUN_ID" "$INVALID_PREDECESSOR_RUN_ID" "$INVALID_PREDECESSOR_SOURCE_COMMIT" <<'PY'
           import json
           import sys
-          path, current = sys.argv[1:]
+
+          path, current, predecessor, predecessor_source = sys.argv[1:]
           data = json.load(open(path, encoding="utf-8"))
-          prior = [
-              int(run["id"])
-              for run in data.get("workflow_runs", [])
-              if str(run["id"]) != current and run.get("conclusion") == "success"
+          runs = data.get("workflow_runs", [])
+
+          predecessor_rows = [
+              run for run in runs if str(run.get("id")) == predecessor
           ]
-          if prior:
+          if len(predecessor_rows) != 1:
               raise SystemExit(
-                  "PATCH-GAP-001 G1 evaluation is one-shot; prior successful run(s): "
-                  + ", ".join(map(str, prior))
+                  "The recorded invalid predecessor evaluation run is missing."
+              )
+
+          invalid = predecessor_rows[0]
+          if (
+              invalid.get("conclusion") != "cancelled"
+              or invalid.get("head_sha") != predecessor_source
+              or int(invalid.get("run_attempt", 0)) != 1
+          ):
+              raise SystemExit(
+                  "The recorded invalid predecessor no longer matches its frozen identity."
+              )
+
+          unexpected = [
+              int(run["id"])
+              for run in runs
+              if str(run.get("id")) not in {current, predecessor}
+          ]
+          if unexpected:
+              raise SystemExit(
+                  "PATCH-GAP-001 G1 replacement evaluation is single-dispatch; "
+                  "unexpected prior dispatch(es): "
+                  + ", ".join(map(str, unexpected))
               )
           PY
 
@@ -585,13 +609,13 @@ jobs:
           SHARDING_VALIDATION_RUN_ID: ${{ needs.preflight.outputs.sharding_validation_run_id }}
         run: |
           set -euo pipefail
-          python3 - "$OUT/execution.json" "$SOURCE_COMMIT" "$RUN_ID" "$SHARDING_VALIDATION_RUN_ID" "$SHARD_COUNT" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" <<'PY'
+          python3 - "$OUT/execution.json" "$SOURCE_COMMIT" "$RUN_ID" "$SHARDING_VALIDATION_RUN_ID" "$SHARD_COUNT" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$INVALID_PREDECESSOR_RUN_ID" <<'PY'
           import json
           import pathlib
           import sys
 
           path = pathlib.Path(sys.argv[1])
-          source, run_id, validation_run, shard_count, workflow_run, attempt = sys.argv[2:]
+          source, run_id, validation_run, shard_count, workflow_run, attempt, predecessor = sys.argv[2:]
           document = {
               "schema": "chunkshift.patch-gap-g1-sharded-execution.v1",
               "experimentId": "PATCH-GAP-001",
@@ -600,7 +624,7 @@ jobs:
               "runId": run_id,
               "workflowRunId": int(workflow_run),
               "workflowRunAttempt": int(attempt),
-              "invalidPredecessorRunId": 37296111468,
+              "invalidPredecessorRunId": int(predecessor),
               "shardingValidationRunId": int(validation_run),
               "shardCount": int(shard_count),
               "assignment": "sha256-file-identity-u64be-mod-count-v1",
