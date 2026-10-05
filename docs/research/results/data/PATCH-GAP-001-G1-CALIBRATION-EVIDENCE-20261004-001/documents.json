@@ -1,0 +1,26 @@
+{
+  "documents": {
+    "detail-manifest": {
+      "bytes": 32732242,
+      "count": 1049,
+      "sha256": "a8279f0aa4d57f11afed2cbd62a66c4e9435240830e70e8250c02790ac9edc67"
+    },
+    "g1-index.json": {
+      "bytes": 993140,
+      "sha256": "c915e3c710f1b227b89bc5a4114e48c3c6a0b1487d10f1c4e35aee1e41dd6446"
+    },
+    "h0-anchor.json": {
+      "bytes": 1532,
+      "sha256": "ac2b334b78612c2c4175e9d04083e2afd068d1da0def0f3684ad33823606b3e7"
+    },
+    "h0-summary.md": {
+      "bytes": 253,
+      "sha256": "9485253758e3b5fa6a5e0cf3776e0afd16ed7ac659bdba60945a8fae44edb543"
+    },
+    "summary.md": {
+      "bytes": 588,
+      "sha256": "ec80a3ad0fa0a180beb5babbfb7d6d18eee2bfb6c27e5a0a2af8b605a678d57d"
+    }
+  },
+  "schema": "chunkshift.patch-gap-001-g1-calibration-documents.v1"
+}

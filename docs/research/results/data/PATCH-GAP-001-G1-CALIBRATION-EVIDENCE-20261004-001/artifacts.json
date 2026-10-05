@@ -1,0 +1,13 @@
+{
+  "artifact": {
+    "artifactExpiresAt": "2027-01-02T20:13:42Z",
+    "artifactId": 11316573406,
+    "artifactName": "patch-gap-001-g1-calibration-1-f5f1b62be06f0fd2e62f36d07b6d2df56f745903",
+    "artifactZipSha256": "1380b35ad6f2d5adf6e78710088ca281622dad96564bafb23fbdfc951ac792bf",
+    "workflowName": "PATCH-GAP-001 G1 calibration",
+    "workflowRunAttempt": 1,
+    "workflowRunId": 37231286406,
+    "workflowRunNumber": 1
+  },
+  "schema": "chunkshift.patch-gap-001-g1-calibration-artifacts.v1"
+}

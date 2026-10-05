@@ -1,7 +1,7 @@
 # Experiment index
 
 Status: Active registry
-Last reviewed: 2026-10-03
+Last reviewed: 2026-10-05
 
 This table is the human-readable research index. Machine-readable experiment definitions may also live under `benchmarks/experiments/`.
 
@@ -44,7 +44,7 @@ This table is the human-readable research index. Machine-readable experiment def
 | PATCH-ENC-005 | Patching | #181, #7, #151 | Dictionary-candidate search: cheap ranking, resemblance sketches, early exit, level ladder (D15) | REJECT | [PATCH-ENC-005-H6O-EVIDENCE-20261004-001](results/PATCH-ENC-005-H6O-EVIDENCE-20261004-001.md) (G2 MISS; H6-O guard MISS; H5-F/H6-P/H8 STOPPED; D15 unchanged) |
 | PATCH-APPLY-002 | Patching | #182, #168, #7 | Apply pipeline and a cheaper re-chunk check: boundary-only, overlapped, preallocation, coalesced reads (D13) | PLANNED | — (check lanes run as PATCH-APPLY-003) |
 | PATCH-APPLY-003 | Patching | #182, #168, #7 | The PATCH-APPLY-002 check lanes (off, sequential, overlapped; boundary-only if needed) with win-x64 on a GitHub runner (D13) | ADOPT | [PATCH-APPLY-003-EVIDENCE-20260929-001](results/PATCH-APPLY-003-EVIDENCE-20260929-001.md) (A2 adopted; rule 2 requires A1a); [PATCH-APPLY-003-EVIDENCE-20260930-001](results/PATCH-APPLY-003-EVIDENCE-20260930-001.md) (lane `boundary`: rule 2 does not hold after A1a, #168 closes with option 3); frozen protocol: [PATCH-APPLY-003-PROTOCOL](../benchmarks/PATCH-APPLY-003-PROTOCOL.md) |
-| PATCH-GAP-001 | Patching research | #183, #7 | Decompose the CSP size gap to `zstd --patch-from`, bsdiff, HDiffPatch and Zucchini | RUNNING | [PATCH-GAP-001-EVIDENCE-20261003-001](results/PATCH-GAP-001-EVIDENCE-20261003-001.md): valid Stage-A inventory; G4/G5 subsets locked, G5 NOT_PRESENT; no size verdict |
+| PATCH-GAP-001 | Patching research | #183, #7 | Decompose the CSP size gap to `zstd --patch-from`, bsdiff, HDiffPatch and Zucchini | RUNNING | [PATCH-GAP-001-EVIDENCE-20261003-001](results/PATCH-GAP-001-EVIDENCE-20261003-001.md): Stage-A inventory locked, G5 NOT_PRESENT; [PATCH-GAP-001-G1-CALIBRATION-EVIDENCE-20261004-001](results/PATCH-GAP-001-G1-CALIBRATION-EVIDENCE-20261004-001.md): G1 calibration 0.729–0.761% reduction, no 15% lane, fixed evaluation still required |
 | PATCH-TREE-001 | Patching research | #184, #7 | Update sets: cross-file base reuse, tree manifest, atomic tree publication | PLANNED | — |
 | PATCH-META-001 | Patching research | #220, #7, #150, #181 | Reusable derived patch features across repeated create | PLANNED | — |
 | PATCH-DOTNET-001 | Patching research | #221, #7, #183 | Reversible .NET/CLR semantic normalization after generic executable evidence | PLANNED | — |

@@ -1,0 +1,256 @@
+{
+  "datasetSha256": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+  "detailManifest": {
+    "bytes": 32732242,
+    "count": 1049,
+    "sha256": "a8279f0aa4d57f11afed2cbd62a66c4e9435240830e70e8250c02790ac9edc67"
+  },
+  "evidenceId": "PATCH-GAP-001/G1-CALIBRATION-EVIDENCE-20261004-001",
+  "experimentId": "PATCH-GAP-001",
+  "factorBaseBytesRead": 31121707793,
+  "families": {
+    "dotnet-aspnetcore-win-x64": {
+      "fileCount": 669,
+      "h0Bytes": 7324878,
+      "improvedFileCountB32": 5,
+      "lanes": {
+        "G1-B1-R64": 7269657,
+        "G1-B32-R2048": 7266814,
+        "G1-B4-R256": 7266814,
+        "G1-B8-R512": 7266814
+      }
+    },
+    "dotnet-runtime-linux-arm64": {
+      "fileCount": 380,
+      "h0Bytes": 4535396,
+      "improvedFileCountB32": 5,
+      "lanes": {
+        "G1-B1-R64": 4504175,
+        "G1-B32-R2048": 4503157,
+        "G1-B4-R256": 4503157,
+        "G1-B8-R512": 4503157
+      }
+    }
+  },
+  "h0Anchor": {
+    "calibrationBytes": 11860274,
+    "evaluationBytes": 26363364,
+    "files": 1893,
+    "matchesFrozenAnchor": true,
+    "patchSetSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+    "totalBytes": 38223638
+  },
+  "h0BaseBytesRead": 3113635436,
+  "improvedFilesB32": [
+    {
+      "baseVersion": "10.0.10",
+      "detailBytes": 2740580,
+      "detailSha256": "22ddd894ecdedf8c03bdc419296d70d9f558997a2b0bcc5dbbcbb6458639fd26",
+      "family": "dotnet-aspnetcore-win-x64",
+      "g1BaseBytesRead": 9364705801,
+      "h0BaseBytesRead": 360897695,
+      "h0PatchBytes": 1366525,
+      "lanePatchBytes": {
+        "G1-B1-R64": 1365089,
+        "G1-B32-R2048": 1365089,
+        "G1-B4-R256": 1365089,
+        "G1-B8-R512": 1365089
+      },
+      "path": "shared/Microsoft.NETCore.App/{version}/System.Private.CoreLib.dll",
+      "targetVersion": "10.0.11"
+    },
+    {
+      "baseVersion": "10.0.10",
+      "detailBytes": 406066,
+      "detailSha256": "c5b1ec6c7dee94424a4d6edcb29d3cd2449695889759b786e26ad40e5a1fb45e",
+      "family": "dotnet-aspnetcore-win-x64",
+      "g1BaseBytesRead": 179042806,
+      "h0BaseBytesRead": 47532760,
+      "h0PatchBytes": 247215,
+      "lanePatchBytes": {
+        "G1-B1-R64": 225995,
+        "G1-B32-R2048": 225683,
+        "G1-B4-R256": 225683,
+        "G1-B8-R512": 225683
+      },
+      "path": "shared/Microsoft.NETCore.App/{version}/clrjit.dll",
+      "targetVersion": "10.0.11"
+    },
+    {
+      "baseVersion": "10.0.10",
+      "detailBytes": 725699,
+      "detailSha256": "2d825f76b7f17d2eb3738d68ac6c49fea449575f25684db3798246f89a118596",
+      "family": "dotnet-aspnetcore-win-x64",
+      "g1BaseBytesRead": 647781709,
+      "h0BaseBytesRead": 96911637,
+      "h0PatchBytes": 751488,
+      "lanePatchBytes": {
+        "G1-B1-R64": 719309,
+        "G1-B32-R2048": 716778,
+        "G1-B4-R256": 716778,
+        "G1-B8-R512": 716778
+      },
+      "path": "shared/Microsoft.NETCore.App/{version}/coreclr.dll",
+      "targetVersion": "10.0.11"
+    },
+    {
+      "baseVersion": "10.0.11",
+      "detailBytes": 752289,
+      "detailSha256": "7c98daa59753c8bff39f6ca7e3951a7883556a15bb406420a0010848786342c5",
+      "family": "dotnet-aspnetcore-win-x64",
+      "g1BaseBytesRead": 677020054,
+      "h0BaseBytesRead": 111158925,
+      "h0PatchBytes": 501209,
+      "lanePatchBytes": {
+        "G1-B1-R64": 500831,
+        "G1-B32-R2048": 500831,
+        "G1-B4-R256": 500831,
+        "G1-B8-R512": 500831
+      },
+      "path": "shared/Microsoft.NETCore.App/{version}/coreclr.dll",
+      "targetVersion": "10.0.12"
+    },
+    {
+      "baseVersion": "10.0.10",
+      "detailBytes": 108653,
+      "detailSha256": "807c246d29b8a7a2723658a3f71de508637d4a09f64b36fdb1d90bf884eb2cec",
+      "family": "dotnet-aspnetcore-win-x64",
+      "g1BaseBytesRead": 13665282,
+      "h0BaseBytesRead": 11451961,
+      "h0PatchBytes": 117951,
+      "lanePatchBytes": {
+        "G1-B1-R64": 117943,
+        "G1-B32-R2048": 117943,
+        "G1-B4-R256": 117943,
+        "G1-B8-R512": 117943
+      },
+      "path": "shared/Microsoft.NETCore.App/{version}/msquic.dll",
+      "targetVersion": "10.0.11"
+    },
+    {
+      "baseVersion": "10.0.10",
+      "detailBytes": 3230430,
+      "detailSha256": "e4f381579d6fc457df6894a3bb3f359c8f7983b08a554509b949b2d37213c8b4",
+      "family": "dotnet-runtime-linux-arm64",
+      "g1BaseBytesRead": 10646711331,
+      "h0BaseBytesRead": 397063275,
+      "h0PatchBytes": 1134851,
+      "lanePatchBytes": {
+        "G1-B1-R64": 1134849,
+        "G1-B32-R2048": 1134849,
+        "G1-B4-R256": 1134849,
+        "G1-B8-R512": 1134849
+      },
+      "path": "shared/Microsoft.NETCore.App/{version}/System.Private.CoreLib.dll",
+      "targetVersion": "10.0.11"
+    },
+    {
+      "baseVersion": "10.0.10",
+      "detailBytes": 796856,
+      "detailSha256": "facdbf73b89c9ce4e24d144d4e748cd83e4e0475accc07c756dc66436f5eea02",
+      "family": "dotnet-runtime-linux-arm64",
+      "g1BaseBytesRead": 617267985,
+      "h0BaseBytesRead": 89590507,
+      "h0PatchBytes": 322068,
+      "lanePatchBytes": {
+        "G1-B1-R64": 295103,
+        "G1-B32-R2048": 294085,
+        "G1-B4-R256": 294085,
+        "G1-B8-R512": 294085
+      },
+      "path": "shared/Microsoft.NETCore.App/{version}/libclrjit.so",
+      "targetVersion": "10.0.11"
+    },
+    {
+      "baseVersion": "10.0.11",
+      "detailBytes": 682690,
+      "detailSha256": "f741b960ca1cfa501ba2b7ee3d9a43b6243af29fb8e739b7f25f931e1b0b1aab",
+      "family": "dotnet-runtime-linux-arm64",
+      "g1BaseBytesRead": 529122741,
+      "h0BaseBytesRead": 85962474,
+      "h0PatchBytes": 163283,
+      "lanePatchBytes": {
+        "G1-B1-R64": 163110,
+        "G1-B32-R2048": 163110,
+        "G1-B4-R256": 163110,
+        "G1-B8-R512": 163110
+      },
+      "path": "shared/Microsoft.NETCore.App/{version}/libclrjit.so",
+      "targetVersion": "10.0.12"
+    },
+    {
+      "baseVersion": "10.0.10",
+      "detailBytes": 1266906,
+      "detailSha256": "1c5adbb592528f78935a1a28f3e85331e4d615c91ee2b784fc53b1f0a955c024",
+      "family": "dotnet-runtime-linux-arm64",
+      "g1BaseBytesRead": 1741034296,
+      "h0BaseBytesRead": 157958358,
+      "h0PatchBytes": 396792,
+      "lanePatchBytes": {
+        "G1-B1-R64": 392723,
+        "G1-B32-R2048": 392723,
+        "G1-B4-R256": 392723,
+        "G1-B8-R512": 392723
+      },
+      "path": "shared/Microsoft.NETCore.App/{version}/libcoreclr.so",
+      "targetVersion": "10.0.11"
+    },
+    {
+      "baseVersion": "10.0.10",
+      "detailBytes": 246811,
+      "detailSha256": "3ca23c600d1856c1bdb4037152bb6df23271cf88513738df98e1e6bd315b9448",
+      "family": "dotnet-runtime-linux-arm64",
+      "g1BaseBytesRead": 76720047,
+      "h0BaseBytesRead": 35869851,
+      "h0PatchBytes": 61817,
+      "lanePatchBytes": {
+        "G1-B1-R64": 61805,
+        "G1-B32-R2048": 61805,
+        "G1-B4-R256": 61805,
+        "G1-B8-R512": 61805
+      },
+      "path": "shared/Microsoft.NETCore.App/{version}/libmscordbi.so",
+      "targetVersion": "10.0.11"
+    }
+  ],
+  "lanes": [
+    {
+      "factorBytes": 11773832,
+      "h0Bytes": 11860274,
+      "lane": "G1-B1-R64",
+      "meetsRfcSizeGate": false,
+      "reductionVsCsp": 0.00728836450152838,
+      "savedBytes": 86442
+    },
+    {
+      "factorBytes": 11769971,
+      "h0Bytes": 11860274,
+      "lane": "G1-B4-R256",
+      "meetsRfcSizeGate": false,
+      "reductionVsCsp": 0.007613905041316921,
+      "savedBytes": 90303
+    },
+    {
+      "factorBytes": 11769971,
+      "h0Bytes": 11860274,
+      "lane": "G1-B8-R512",
+      "meetsRfcSizeGate": false,
+      "reductionVsCsp": 0.007613905041316921,
+      "savedBytes": 90303
+    },
+    {
+      "factorBytes": 11769971,
+      "h0Bytes": 11860274,
+      "lane": "G1-B32-R2048",
+      "meetsRfcSizeGate": false,
+      "reductionVsCsp": 0.007613905041316921,
+      "savedBytes": 90303
+    }
+  ],
+  "protocolCommit": "5372678ae8451a71cc95eb24f30855cbbd7e0633",
+  "runId": "PATCH-GAP-001/RUN-20261004-001-f5f1b62-linux-x64-g1-calibration",
+  "sampleFileCount": 1049,
+  "schema": "chunkshift.patch-gap-001-g1-calibration-compact.v1",
+  "sourceCommit": "f5f1b62be06f0fd2e62f36d07b6d2df56f745903",
+  "unchangedFileCountB32": 1039
+}

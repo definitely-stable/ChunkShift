@@ -1,0 +1,21 @@
+{
+  "commandLine": "patch-lab gap g1 --corpus /home/runner/patch-corpus --lane G1-B32-R2048 --dataset-role calibration --output /home/runner/work/_temp/patch-gap-001-g1-calibration/g1-index.json --detail-dir /home/runner/work/_temp/patch-gap-001-g1-calibration/detail --source-commit f5f1b62be06f0fd2e62f36d07b6d2df56f745903 --run-id PATCH-GAP-001/RUN-20261004-001-f5f1b62-linux-x64-g1-calibration",
+  "completedUtc": "2026-10-04T22:09:19.4528613+00:00",
+  "datasetSha256": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+  "dirty": false,
+  "environment": {
+    "frameworkDescription": ".NET 10.0.12",
+    "gitCommit": "f5f1b62be06f0fd2e62f36d07b6d2df56f745903",
+    "osArchitecture": "X64",
+    "osDescription": "Ubuntu 24.04.5 LTS",
+    "processArchitecture": "X64",
+    "processorCount": 4,
+    "processorDescription": "AMD EPYC 7763 64-Core Processor"
+  },
+  "protocolCommit": "5372678ae8451a71cc95eb24f30855cbbd7e0633",
+  "runId": "PATCH-GAP-001/RUN-20261004-001-f5f1b62-linux-x64-g1-calibration",
+  "schema": "chunkshift.patch-gap-001-g1-calibration-execution.v1",
+  "sourceBinding": "github-actions-clean-git-checkout",
+  "sourceCommit": "f5f1b62be06f0fd2e62f36d07b6d2df56f745903",
+  "startedUtc": "2026-10-04T20:28:05.748879+00:00"
+}
