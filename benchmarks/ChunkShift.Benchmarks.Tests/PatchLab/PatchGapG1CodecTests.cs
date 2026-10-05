@@ -1,3 +1,4 @@
+using ChunkShift.Benchmarks.PatchLab;
 using ChunkShift.Benchmarks.PatchLab.PatchGap;
 
 namespace ChunkShift.Benchmarks.Tests.PatchLab;
