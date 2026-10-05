@@ -63,6 +63,8 @@ The replacement execution must preserve the frozen experiment:
 
 Only execution partitioning may change. The replacement path must prove that partitioning is observationally equivalent by reproducing the already-retained calibration result exactly before any replacement evaluation is permitted.
 
-PR #255 implements that recovery as deterministic GitHub-hosted sharding plus fail-closed aggregation and a calibration-equivalence gate.
+Because individual shard artifacts necessarily become available before full aggregation, the recovery itself is single-dispatch: the known timed-out run is the only permitted predecessor, workflow reruns are rejected, and any additional replacement dispatch is blocked. If the replacement dispatch fails, a new explicit recovery decision is required rather than silently retrying exposed holdout work.
+
+PR #255 implements that recovery as deterministic GitHub-hosted sharding plus fail-closed aggregation, retained shard provenance, a calibration-equivalence gate and the single-dispatch replacement guard.
 
 Conclusion: **invalid infrastructure execution; frozen G1 verdict remains pending.**
