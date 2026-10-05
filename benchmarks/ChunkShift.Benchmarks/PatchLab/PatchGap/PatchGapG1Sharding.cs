@@ -472,12 +472,33 @@ internal static class PatchGapG1Aggregator
 
             foreach (PatchGapG1LaneAggregate aggregate in study.Lanes)
             {
+                long factor = shardLaneTotals[aggregate.Lane];
+                long saved = shardH0 - factor;
+                double reduction = PatchGapDecisionEvaluator.ReductionVsCsp(
+                    shardH0,
+                    factor);
+                bool sizeGate = PatchGapDecisionEvaluator.MeetsRfcSizeGate(
+                    shardH0,
+                    factor);
+
                 if (aggregate.H0Bytes != shardH0 ||
-                    aggregate.FactorBytes != shardLaneTotals[aggregate.Lane])
+                    aggregate.FactorBytes != factor ||
+                    aggregate.SavedBytes != saved ||
+                    aggregate.ReductionVsCsp != reduction ||
+                    aggregate.MeetsRfcSizeGate != sizeGate)
                 {
                     throw new InvalidDataException(
                         $"G1 shard {shard.ShardIndex} lane totals do not match its file rows.");
                 }
+            }
+
+            double? shardAmplification = shardH0Read == 0
+                ? null
+                : (double)shardFactorRead / shardH0Read;
+            if (study.BaseReadAmplification != shardAmplification)
+            {
+                throw new InvalidDataException(
+                    $"G1 shard {shard.ShardIndex} base-read amplification is inconsistent.");
             }
         }
 
