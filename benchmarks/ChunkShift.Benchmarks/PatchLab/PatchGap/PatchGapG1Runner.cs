@@ -15,6 +15,7 @@ namespace ChunkShift.Benchmarks.PatchLab.PatchGap;
 internal static class PatchGapG1Runner
 {
     internal const string Schema = "chunkshift.patch-gap-g1-byte-study.v1";
+    internal const string ShardSchema = "chunkshift.patch-gap-g1-byte-study-shard.v1";
 
     internal static int Execute(string[] args)
     {
@@ -44,6 +45,8 @@ internal static class PatchGapG1Runner
                 + string.Join(", ", PatchGapG1Model.ResearchEnvelopes.Select(static item => item.Id)));
         }
 
+        PatchGapG1ShardPartition? partition = PatchGapG1Sharding.ParseOptional(args);
+
         PatchGapSourceBinding binding = PatchGapSourceBindingProbe.Capture(sourceCommit);
         PatchLabCorpus corpus = PatchLabCorpus.Load(
             corpusRoot,
@@ -63,9 +66,25 @@ internal static class PatchGapG1Runner
             binding,
             runId,
             "patch-lab gap g1 " + string.Join(' ', args),
-            CancellationToken.None).GetAwaiter().GetResult();
+            CancellationToken.None,
+            partition).GetAwaiter().GetResult();
 
-        _ = PatchGapEvidence.WriteCanonical(output, document);
+        if (partition is null)
+        {
+            _ = PatchGapEvidence.WriteCanonical(output, document);
+        }
+        else
+        {
+            _ = PatchGapEvidence.WriteCanonical(
+                output,
+                new PatchGapG1ShardDocument(
+                    ShardSchema,
+                    partition.Index,
+                    partition.Count,
+                    PatchGapG1Sharding.Assignment,
+                    document));
+        }
+
         return 0;
     }
 
@@ -77,7 +96,8 @@ internal static class PatchGapG1Runner
         PatchGapSourceBinding binding,
         string runId,
         string commandLine,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        PatchGapG1ShardPartition? partition = null)
     {
         DateTimeOffset startedUtc = DateTimeOffset.UtcNow;
         if (Directory.Exists(detailDirectory) &&
@@ -125,6 +145,12 @@ internal static class PatchGapG1Runner
             foreach (PatchLabChangedFile file in pair.Changed)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (partition is not null &&
+                    !PatchGapG1Sharding.Contains(pair, file, partition))
+                {
+                    continue;
+                }
+
                 PatchGapG1FileEvidence detail = await EvaluateFileAsync(
                     corpus,
                     pair,
@@ -179,10 +205,16 @@ internal static class PatchGapG1Runner
         long expectedH0 = datasetRole == "calibration"
             ? PatchGapProtocol.H0CalibrationBytes
             : PatchGapProtocol.H0EvaluationBytes;
-        if (h0Total != expectedH0)
+        if (partition is null && h0Total != expectedH0)
         {
             throw new InvalidDataException(
                 $"PATCH-GAP G1 regenerated H0 {datasetRole} bytes {h0Total}, expected frozen {expectedH0}.");
+        }
+
+        if (partition is not null && rows.Count == 0)
+        {
+            throw new InvalidDataException(
+                $"PATCH-GAP G1 shard {partition.Index}/{partition.Count} contains no files.");
         }
 
         var aggregates = new List<PatchGapG1LaneAggregate>(laneIds.Length);
