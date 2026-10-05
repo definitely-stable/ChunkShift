@@ -1,0 +1,65 @@
+{
+  "artifact": {
+    "artifactExpiresAt": "2027-01-02T20:13:42Z",
+    "artifactId": 11316573406,
+    "artifactName": "patch-gap-001-g1-calibration-1-f5f1b62be06f0fd2e62f36d07b6d2df56f745903",
+    "artifactZipSha256": "1380b35ad6f2d5adf6e78710088ca281622dad96564bafb23fbdfc951ac792bf",
+    "workflowName": "PATCH-GAP-001 G1 calibration",
+    "workflowRunAttempt": 1,
+    "workflowRunId": 37231286406,
+    "workflowRunNumber": 1
+  },
+  "baseReadAmplification": 9.99529599167884,
+  "datasetSha256": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+  "earlyRuntimeEligibleLanes": [],
+  "evidenceId": "PATCH-GAP-001/G1-CALIBRATION-EVIDENCE-20261004-001",
+  "experimentId": "PATCH-GAP-001",
+  "h0AnchorPass": true,
+  "improvedFileCountB32": 10,
+  "lanes": [
+    {
+      "factorBytes": 11773832,
+      "h0Bytes": 11860274,
+      "lane": "G1-B1-R64",
+      "meetsRfcSizeGate": false,
+      "reductionVsCsp": 0.00728836450152838,
+      "savedBytes": 86442
+    },
+    {
+      "factorBytes": 11769971,
+      "h0Bytes": 11860274,
+      "lane": "G1-B4-R256",
+      "meetsRfcSizeGate": false,
+      "reductionVsCsp": 0.007613905041316921,
+      "savedBytes": 90303
+    },
+    {
+      "factorBytes": 11769971,
+      "h0Bytes": 11860274,
+      "lane": "G1-B8-R512",
+      "meetsRfcSizeGate": false,
+      "reductionVsCsp": 0.007613905041316921,
+      "savedBytes": 90303
+    },
+    {
+      "factorBytes": 11769971,
+      "h0Bytes": 11860274,
+      "lane": "G1-B32-R2048",
+      "meetsRfcSizeGate": false,
+      "reductionVsCsp": 0.007613905041316921,
+      "savedBytes": 90303
+    }
+  ],
+  "nextAction": "RUN_FROZEN_EVALUATION_ALL_G1_LANES",
+  "notes": [
+    "Calibration is not an RFC decision gate or lane selector.",
+    "All four frozen G1 lanes still require exactly one evaluation byte run.",
+    "No early three-platform runtime/memory run is required because no calibration lane reaches 15%."
+  ],
+  "protocolCommit": "5372678ae8451a71cc95eb24f30855cbbd7e0633",
+  "runId": "PATCH-GAP-001/RUN-20261004-001-f5f1b62-linux-x64-g1-calibration",
+  "sampleFileCount": 1049,
+  "schema": "chunkshift.patch-gap-001-g1-calibration-result.v1",
+  "sourceCommit": "f5f1b62be06f0fd2e62f36d07b6d2df56f745903",
+  "status": "CALIBRATION_ONLY"
+}
