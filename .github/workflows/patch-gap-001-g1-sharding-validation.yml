@@ -1,0 +1,299 @@
+name: PATCH-GAP-001 G1 sharding validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      run-date:
+        description: "Validation RunId UTC date (YYYYMMDD)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: patch-gap-001-g1-sharding-validation
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+  PROTOCOL_COMMIT: 5372678ae8451a71cc95eb24f30855cbbd7e0633
+  PAIRS_SHA256: 8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd
+  G1_LANE: G1-B32-R2048
+  SHARD_COUNT: "8"
+  CALIBRATION_RESULT: docs/research/results/data/PATCH-GAP-001-G1-CALIBRATION-EVIDENCE-20261004-001/calibration.json
+  CALIBRATION_COMPACT: docs/research/results/data/PATCH-GAP-001-G1-CALIBRATION-EVIDENCE-20261004-001/compact.json
+
+jobs:
+  shard:
+    name: calibration-shard-${{ matrix.shard }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+
+    steps:
+      - name: Validate source identity
+        shell: bash
+        env:
+          RUN_DATE: ${{ inputs.run-date }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "G1 sharding validation must run from main." >&2
+            exit 2
+          fi
+          python3 - "$RUN_DATE" <<'PY'
+          import datetime as dt
+          import re
+          import sys
+          value = sys.argv[1]
+          if not re.fullmatch(r"\d{8}", value):
+              raise SystemExit("run-date must be YYYYMMDD")
+          dt.datetime.strptime(value, "%Y%m%d")
+          PY
+          short_commit="${GITHUB_SHA:0:7}"
+          {
+            echo "SOURCE_COMMIT=$GITHUB_SHA"
+            echo "RUN_ID=PATCH-GAP-001/VALIDATE-${RUN_DATE}-${GITHUB_RUN_NUMBER}-${short_commit}-g1-sharded-calibration"
+            echo "CORPUS_ROOT=$HOME/patch-corpus"
+            echo "OUT=$RUNNER_TEMP/patch-gap-001-g1-validation-shard-${{ matrix.shard }}"
+          } >> "$GITHUB_ENV"
+
+      - name: Checkout tested main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify clean tested checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          test -z "$(git status --porcelain=v1 --untracked-files=normal)"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Restore frozen patch-corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize and lock frozen patch corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$CORPUS_ROOT" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download \
+            --lock
+          test "$(sha256sum "$CORPUS_ROOT/pairs.json" | cut -d' ' -f1)" = "$PAIRS_SHA256"
+
+      - name: Restore and build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Run calibration shard
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT"
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          dotnet "$dll" patch-lab gap g1 \
+            --corpus "$CORPUS_ROOT" \
+            --lane "$G1_LANE" \
+            --dataset-role calibration \
+            --shard-count "$SHARD_COUNT" \
+            --shard-index "${{ matrix.shard }}" \
+            --output "$OUT/g1-shard.json" \
+            --detail-dir "$OUT/detail" \
+            --source-commit "$SOURCE_COMMIT" \
+            --run-id "$RUN_ID-shard-${{ matrix.shard }}"
+
+      - name: Upload calibration shard
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-001-g1-validation-${{ github.run_number }}-shard-${{ matrix.shard }}-${{ github.sha }}
+          path: ${{ env.OUT }}
+          if-no-files-found: error
+          retention-days: 14
+
+  aggregate:
+    name: calibration-equivalence
+    needs: shard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout tested main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Restore frozen patch-corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize and lock frozen patch corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SOURCE_COMMIT=$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "CORPUS_ROOT=$HOME/patch-corpus" >> "$GITHUB_ENV"
+          echo "SHARD_ROOT=$RUNNER_TEMP/g1-shards" >> "$GITHUB_ENV"
+          echo "OUT=$RUNNER_TEMP/g1-aggregate" >> "$GITHUB_ENV"
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$HOME/patch-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download \
+            --lock
+          test "$(sha256sum "$HOME/patch-corpus/pairs.json" | cut -d' ' -f1)" = "$PAIRS_SHA256"
+
+      - name: Restore and build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Download calibration shards
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: patch-gap-001-g1-validation-${{ github.run_number }}-shard-*-${{ github.sha }}
+          path: ${{ runner.temp }}/g1-shards
+
+      - name: Aggregate calibration shards
+        shell: bash
+        env:
+          RUN_DATE: ${{ inputs.run-date }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT"
+          short_commit="${GITHUB_SHA:0:7}"
+          run_id="PATCH-GAP-001/VALIDATE-${RUN_DATE}-${GITHUB_RUN_NUMBER}-${short_commit}-g1-sharded-calibration-aggregate"
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          dotnet "$dll" patch-lab gap g1-aggregate \
+            --corpus "$CORPUS_ROOT" \
+            --shard-root "$SHARD_ROOT" \
+            --shard-count "$SHARD_COUNT" \
+            --dataset-role calibration \
+            --lane "$G1_LANE" \
+            --output "$OUT/g1-index.json" \
+            --detail-dir "$OUT/detail" \
+            --source-commit "$SOURCE_COMMIT" \
+            --run-id "$run_id"
+
+      - name: Require exact equivalence with frozen calibration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$OUT/g1-index.json" "$CALIBRATION_RESULT" "$CALIBRATION_COMPACT" <<'PY'
+          import json
+          import math
+          import sys
+
+          actual_path, result_path, compact_path = sys.argv[1:]
+          actual = json.load(open(actual_path, encoding="utf-8"))
+          result = json.load(open(result_path, encoding="utf-8"))
+          compact = json.load(open(compact_path, encoding="utf-8"))
+
+          if actual.get("schema") != "chunkshift.patch-gap-g1-byte-study.v1":
+              raise SystemExit("aggregate schema mismatch")
+          if actual.get("datasetRole") != "calibration":
+              raise SystemExit("aggregate role mismatch")
+          if actual.get("datasetSha256") != result.get("datasetSha256"):
+              raise SystemExit("aggregate dataset mismatch")
+          if len(actual.get("files", [])) != result.get("sampleFileCount"):
+              raise SystemExit("aggregate calibration file count mismatch")
+
+          expected_lanes = {row["lane"]: row for row in result["lanes"]}
+          actual_lanes = {row["lane"]: row for row in actual["lanes"]}
+          if set(actual_lanes) != set(expected_lanes):
+              raise SystemExit("aggregate lane set mismatch")
+
+          for lane, expected in expected_lanes.items():
+              observed = actual_lanes[lane]
+              for key in ("h0Bytes", "factorBytes", "savedBytes", "meetsRfcSizeGate"):
+                  if observed[key] != expected[key]:
+                      raise SystemExit(f"{lane} {key} mismatch")
+              if not math.isclose(
+                  float(observed["reductionVsCsp"]),
+                  float(expected["reductionVsCsp"]),
+                  rel_tol=0.0,
+                  abs_tol=1e-15,
+              ):
+                  raise SystemExit(f"{lane} reduction mismatch")
+
+          if actual["h0BaseBytesRead"] != compact["h0BaseBytesRead"]:
+              raise SystemExit("H0 base-read total mismatch")
+          if actual["factorBaseBytesRead"] != compact["factorBaseBytesRead"]:
+              raise SystemExit("factor base-read total mismatch")
+          if not math.isclose(
+              float(actual["baseReadAmplification"]),
+              float(result["baseReadAmplification"]),
+              rel_tol=0.0,
+              abs_tol=1e-12,
+          ):
+              raise SystemExit("base-read amplification mismatch")
+
+          families = {}
+          for row in actual["files"]:
+              family = families.setdefault(
+                  row["family"],
+                  {"fileCount": 0, "h0Bytes": 0, "lanes": {lane: 0 for lane in expected_lanes}},
+              )
+              family["fileCount"] += 1
+              family["h0Bytes"] += int(row["h0PatchBytes"])
+              for lane in expected_lanes:
+                  family["lanes"][lane] += int(row["lanePatchBytes"][lane])
+
+          for family, expected in compact["families"].items():
+              observed = families.get(family)
+              if observed is None:
+                  raise SystemExit(f"missing family {family}")
+              if observed["fileCount"] != expected["fileCount"]:
+                  raise SystemExit(f"{family} file count mismatch")
+              if observed["h0Bytes"] != expected["h0Bytes"]:
+                  raise SystemExit(f"{family} H0 bytes mismatch")
+              if observed["lanes"] != expected["lanes"]:
+                  raise SystemExit(f"{family} lane totals mismatch")
+
+          print("PATCH-GAP-001 G1 sharded calibration equivalence: PASS")
+          PY
+
+      - name: Upload validation evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-001-g1-sharding-validation-${{ github.run_number }}-${{ github.sha }}
+          path: ${{ env.OUT }}
+          if-no-files-found: error
+          retention-days: 30

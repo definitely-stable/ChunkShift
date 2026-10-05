@@ -24,17 +24,25 @@ env:
   PAIRS_SHA256: 8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd
   H0_EVALUATION_BYTES: "26363364"
   G1_LANE: G1-B32-R2048
+  SHARD_COUNT: "8"
   CALIBRATION_SOURCE_COMMIT: f5f1b62be06f0fd2e62f36d07b6d2df56f745903
   CALIBRATION_EVIDENCE: docs/research/results/data/PATCH-GAP-001-G1-CALIBRATION-EVIDENCE-20261004-001/calibration.json
+  INVALID_PREDECESSOR_RUN_ID: "37296111468"
+  INVALID_PREDECESSOR_SOURCE_COMMIT: 4694e897b95761e88174098fa0bd43f5b12ffa97
 
 jobs:
-  g1-evaluation:
-    name: g1-evaluation-linux-x64
+  preflight:
+    name: evaluation-preflight
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 120
+    outputs:
+      source_commit: ${{ steps.identity.outputs.source_commit }}
+      run_id: ${{ steps.identity.outputs.run_id }}
+      sharding_validation_run_id: ${{ steps.validation.outputs.run_id }}
 
     steps:
       - name: Validate decision identity
+        id: identity
         shell: bash
         env:
           RUN_DATE: ${{ inputs.run-date }}
@@ -52,28 +60,26 @@ jobs:
             echo "RunId NNN supports workflow run numbers 001..999." >&2
             exit 2
           fi
-
           python3 - "$RUN_DATE" <<'PY'
           import datetime as dt
           import re
           import sys
-
           value = sys.argv[1]
           if not re.fullmatch(r"\d{8}", value):
               raise SystemExit("run-date must be YYYYMMDD")
           dt.datetime.strptime(value, "%Y%m%d")
           PY
-
           sequence="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
           short_commit="${GITHUB_SHA:0:7}"
-          {
-            echo "SOURCE_COMMIT=$GITHUB_SHA"
-            echo "RUN_ID=PATCH-GAP-001/RUN-${RUN_DATE}-${sequence}-${short_commit}-linux-x64-g1-evaluation"
-            echo "CORPUS_ROOT=$HOME/patch-corpus"
-            echo "OUT=$RUNNER_TEMP/patch-gap-001-g1-evaluation"
-          } >> "$GITHUB_ENV"
+          run_id="PATCH-GAP-001/RUN-${RUN_DATE}-${sequence}-${short_commit}-linux-x64-g1-evaluation"
+          echo "source_commit=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "SOURCE_COMMIT=$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "RUN_ID=$run_id" >> "$GITHUB_ENV"
+          echo "CORPUS_ROOT=$HOME/patch-corpus" >> "$GITHUB_ENV"
+          echo "OUT=$RUNNER_TEMP/patch-gap-001-g1-evaluation-preflight" >> "$GITHUB_ENV"
 
-      - name: Enforce one successful evaluation dispatch
+      - name: Enforce single recovery evaluation dispatch
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -81,43 +87,96 @@ jobs:
           set -euo pipefail
           runs="$RUNNER_TEMP/g1-evaluation-runs.json"
           gh api \
-            "repos/$GITHUB_REPOSITORY/actions/workflows/patch-gap-001-g1-evaluation.yml/runs?event=workflow_dispatch&status=success&per_page=100" \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/patch-gap-001-g1-evaluation.yml/runs?event=workflow_dispatch&per_page=100" \
             > "$runs"
-
-          python3 - "$runs" "$GITHUB_RUN_ID" <<'PY'
+          python3 - "$runs" "$GITHUB_RUN_ID" "$INVALID_PREDECESSOR_RUN_ID" "$INVALID_PREDECESSOR_SOURCE_COMMIT" <<'PY'
           import json
           import sys
 
-          path, current = sys.argv[1:]
+          path, current, predecessor, predecessor_source = sys.argv[1:]
           data = json.load(open(path, encoding="utf-8"))
-          prior = [
+          runs = data.get("workflow_runs", [])
+
+          predecessor_rows = [
+              run for run in runs if str(run.get("id")) == predecessor
+          ]
+          if len(predecessor_rows) != 1:
+              raise SystemExit(
+                  "The recorded invalid predecessor evaluation run is missing."
+              )
+
+          invalid = predecessor_rows[0]
+          if (
+              invalid.get("conclusion") != "cancelled"
+              or invalid.get("head_sha") != predecessor_source
+              or int(invalid.get("run_attempt", 0)) != 1
+          ):
+              raise SystemExit(
+                  "The recorded invalid predecessor no longer matches its frozen identity."
+              )
+
+          unexpected = [
+              int(run["id"])
+              for run in runs
+              if str(run.get("id")) not in {current, predecessor}
+          ]
+          if unexpected:
+              raise SystemExit(
+                  "PATCH-GAP-001 G1 replacement evaluation is single-dispatch; "
+                  "unexpected prior dispatch(es): "
+                  + ", ".join(map(str, unexpected))
+              )
+          PY
+
+      - name: Require successful sharding validation on this source
+        id: validation
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs="$RUNNER_TEMP/g1-sharding-validation-runs.json"
+          gh api \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/patch-gap-001-g1-sharding-validation.yml/runs?event=workflow_dispatch&status=success&per_page=100" \
+            > "$runs"
+          python3 - "$runs" "$GITHUB_SHA" <<'PY'
+          import json
+          import os
+          import sys
+          path, source = sys.argv[1:]
+          data = json.load(open(path, encoding="utf-8"))
+          matches = [
               int(run["id"])
               for run in data.get("workflow_runs", [])
-              if str(run["id"]) != current and run.get("conclusion") == "success"
+              if run.get("conclusion") == "success"
+              and run.get("head_sha") == source
           ]
-          if prior:
+          if not matches:
               raise SystemExit(
-                  "PATCH-GAP-001 G1 evaluation is one-shot; prior successful run(s): "
-                  + ", ".join(map(str, prior))
+                  "No successful PATCH-GAP-001 G1 sharding validation exists "
+                  "for the current source commit."
               )
+          selected = matches[0]
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"run_id={selected}\n")
+          print("sharding validation run:", selected)
           PY
 
       - name: Checkout tested main commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # chunkshift-source is materialized from historical repository commits.
           fetch-depth: 0
 
-      - name: Verify clean tested checkout and frozen producer
+      - name: Verify clean checkout and frozen semantics
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
           test -z "$(git status --porcelain=v1 --untracked-files=normal)"
-
           git cat-file -e "$CALIBRATION_SOURCE_COMMIT^{commit}"
           git diff --exit-code "$CALIBRATION_SOURCE_COMMIT" "$SOURCE_COMMIT" -- \
-            benchmarks/ChunkShift.Benchmarks/PatchLab \
+            benchmarks/ChunkShift.Benchmarks/PatchLab/PatchGap/PatchGapG1Codec.cs \
+            benchmarks/ChunkShift.Benchmarks/PatchLab/PatchGap/PatchGapG1Study.cs \
             benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj \
             src/ChunkShift \
             src/ChunkShift.Patching
@@ -130,7 +189,6 @@ jobs:
           import json
           import pathlib
           import sys
-
           path = pathlib.Path(sys.argv[1])
           protocol, dataset, source = sys.argv[2:]
           root = json.loads(path.read_text(encoding="utf-8"))
@@ -177,15 +235,14 @@ jobs:
             --sources "$HOME/patch-corpus/sources" \
             --download \
             --lock
+          test "$(sha256sum "$CORPUS_ROOT/pairs.json" | cut -d' ' -f1)" = "$PAIRS_SHA256"
 
-          actual="$(sha256sum "$CORPUS_ROOT/pairs.json" | cut -d' ' -f1)"
-          test "$actual" = "$PAIRS_SHA256"
-
-      - name: Restore benchmark lab
-        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
-
-      - name: Build benchmark lab
-        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+      - name: Restore and build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
 
       - name: Regenerate and require frozen H0 anchor
         shell: bash
@@ -198,12 +255,10 @@ jobs:
             --output "$OUT/h0-anchor.json" \
             --source-commit "$SOURCE_COMMIT" \
             --run-id "$RUN_ID-h0-preflight"
-
           python3 - "$OUT/h0-anchor.json" "$SOURCE_COMMIT" "$PROTOCOL_COMMIT" "$PAIRS_SHA256" <<'PY'
           import json
           import pathlib
           import sys
-
           path = pathlib.Path(sys.argv[1])
           source, protocol, pairs = sys.argv[2:]
           root = json.loads(path.read_text(encoding="utf-8"))
@@ -217,7 +272,6 @@ jobs:
           failed = [name for name, ok in checks.items() if not ok]
           if failed:
               raise SystemExit("G1 H0 preflight rejected: " + ", ".join(failed))
-
           with pathlib.Path(path.parent / "h0-summary.md").open(
               "w", encoding="utf-8", newline="\n"
           ) as out:
@@ -231,15 +285,170 @@ jobs:
           PY
           cat "$OUT/h0-summary.md" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Run frozen G1 evaluation byte study
+      - name: Upload evaluation preflight evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-001-g1-evaluation-${{ github.run_number }}-preflight-${{ github.sha }}
+          path: |
+            ${{ env.OUT }}/h0-anchor.json
+            ${{ env.OUT }}/h0-summary.md
+          if-no-files-found: error
+          retention-days: 14
+
+  shard:
+    name: evaluation-shard-${{ matrix.shard }}
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+
+    steps:
+      - name: Checkout tested main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Restore frozen patch-corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize and lock frozen patch corpus
         shell: bash
         run: |
           set -euo pipefail
+          echo "SOURCE_COMMIT=${{ needs.preflight.outputs.source_commit }}" >> "$GITHUB_ENV"
+          echo "RUN_ID=${{ needs.preflight.outputs.run_id }}" >> "$GITHUB_ENV"
+          echo "CORPUS_ROOT=$HOME/patch-corpus" >> "$GITHUB_ENV"
+          echo "OUT=$RUNNER_TEMP/patch-gap-001-g1-evaluation-shard-${{ matrix.shard }}" >> "$GITHUB_ENV"
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$HOME/patch-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download \
+            --lock
+          test "$(sha256sum "$HOME/patch-corpus/pairs.json" | cut -d' ' -f1)" = "$PAIRS_SHA256"
+
+      - name: Restore and build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Run frozen G1 evaluation shard
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT"
           dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
           dotnet "$dll" patch-lab gap g1 \
             --corpus "$CORPUS_ROOT" \
             --lane "$G1_LANE" \
             --dataset-role evaluation \
+            --shard-count "$SHARD_COUNT" \
+            --shard-index "${{ matrix.shard }}" \
+            --output "$OUT/g1-shard.json" \
+            --detail-dir "$OUT/detail" \
+            --source-commit "$SOURCE_COMMIT" \
+            --run-id "$RUN_ID-shard-${{ matrix.shard }}"
+
+      - name: Upload G1 evaluation shard
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-001-g1-evaluation-${{ github.run_number }}-shard-${{ matrix.shard }}-${{ github.sha }}
+          path: ${{ env.OUT }}
+          if-no-files-found: error
+          retention-days: 14
+
+  aggregate:
+    name: evaluation-aggregate
+    needs: [preflight, shard]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout tested main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Restore frozen patch-corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize and lock frozen patch corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SOURCE_COMMIT=${{ needs.preflight.outputs.source_commit }}" >> "$GITHUB_ENV"
+          echo "RUN_ID=${{ needs.preflight.outputs.run_id }}" >> "$GITHUB_ENV"
+          echo "CORPUS_ROOT=$HOME/patch-corpus" >> "$GITHUB_ENV"
+          echo "SHARD_ROOT=$RUNNER_TEMP/g1-shards" >> "$GITHUB_ENV"
+          echo "OUT=$RUNNER_TEMP/patch-gap-001-g1-evaluation" >> "$GITHUB_ENV"
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$HOME/patch-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download \
+            --lock
+          test "$(sha256sum "$HOME/patch-corpus/pairs.json" | cut -d' ' -f1)" = "$PAIRS_SHA256"
+
+      - name: Restore and build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Download evaluation shards
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: patch-gap-001-g1-evaluation-${{ github.run_number }}-shard-*-${{ github.sha }}
+          path: ${{ runner.temp }}/g1-shards
+
+      - name: Download evaluation preflight evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: patch-gap-001-g1-evaluation-${{ github.run_number }}-preflight-${{ github.sha }}
+          path: ${{ env.OUT }}
+
+      - name: Aggregate frozen G1 evaluation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT"
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          dotnet "$dll" patch-lab gap g1-aggregate \
+            --corpus "$CORPUS_ROOT" \
+            --shard-root "$SHARD_ROOT" \
+            --shard-count "$SHARD_COUNT" \
+            --dataset-role evaluation \
+            --lane "$G1_LANE" \
             --output "$OUT/g1-index.json" \
             --detail-dir "$OUT/detail" \
             --source-commit "$SOURCE_COMMIT" \
@@ -393,6 +602,39 @@ jobs:
           )
           PY
           cat "$OUT/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Record sharded execution lineage
+        shell: bash
+        env:
+          SHARDING_VALIDATION_RUN_ID: ${{ needs.preflight.outputs.sharding_validation_run_id }}
+        run: |
+          set -euo pipefail
+          python3 - "$OUT/execution.json" "$SOURCE_COMMIT" "$RUN_ID" "$SHARDING_VALIDATION_RUN_ID" "$SHARD_COUNT" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$INVALID_PREDECESSOR_RUN_ID" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          path = pathlib.Path(sys.argv[1])
+          source, run_id, validation_run, shard_count, workflow_run, attempt, predecessor = sys.argv[2:]
+          document = {
+              "schema": "chunkshift.patch-gap-g1-sharded-execution.v1",
+              "experimentId": "PATCH-GAP-001",
+              "protocolCommit": "5372678ae8451a71cc95eb24f30855cbbd7e0633",
+              "sourceCommit": source,
+              "runId": run_id,
+              "workflowRunId": int(workflow_run),
+              "workflowRunAttempt": int(attempt),
+              "invalidPredecessorRunId": int(predecessor),
+              "shardingValidationRunId": int(validation_run),
+              "shardCount": int(shard_count),
+              "assignment": "sha256-file-identity-u64be-mod-count-v1",
+          }
+          path.write_text(
+              json.dumps(document, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+              newline="\n",
+          )
+          PY
 
       - name: Upload G1 evaluation evidence
         id: upload
