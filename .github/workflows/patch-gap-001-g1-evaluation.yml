@@ -36,6 +36,7 @@ jobs:
     outputs:
       source_commit: ${{ steps.identity.outputs.source_commit }}
       run_id: ${{ steps.identity.outputs.run_id }}
+      sharding_validation_run_id: ${{ steps.validation.outputs.run_id }}
 
     steps:
       - name: Validate decision identity
@@ -104,6 +105,7 @@ jobs:
           PY
 
       - name: Require successful sharding validation on this source
+        id: validation
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -115,6 +117,7 @@ jobs:
             > "$runs"
           python3 - "$runs" "$GITHUB_SHA" <<'PY'
           import json
+          import os
           import sys
           path, source = sys.argv[1:]
           data = json.load(open(path, encoding="utf-8"))
@@ -129,7 +132,10 @@ jobs:
                   "No successful PATCH-GAP-001 G1 sharding validation exists "
                   "for the current source commit."
               )
-          print("sharding validation run:", matches[0])
+          selected = matches[0]
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"run_id={selected}\n")
+          print("sharding validation run:", selected)
           PY
 
       - name: Checkout tested main commit
@@ -242,8 +248,28 @@ jobs:
           failed = [name for name, ok in checks.items() if not ok]
           if failed:
               raise SystemExit("G1 H0 preflight rejected: " + ", ".join(failed))
-          print("PATCH-GAP-001 frozen H0 preflight: PASS")
+          with pathlib.Path(path.parent / "h0-summary.md").open(
+              "w", encoding="utf-8", newline="\n"
+          ) as out:
+              out.write("### PATCH-GAP-001 frozen H0 preflight\n\n")
+              out.write(f"- files: {int(root['files']):,}\n")
+              out.write(f"- calibration bytes: {int(root['calibrationBytes']):,}\n")
+              out.write(f"- evaluation bytes: {int(root['evaluationBytes']):,}\n")
+              out.write(f"- total bytes: {int(root['totalBytes']):,}\n")
+              out.write(f"- patch-set SHA-256: `{root['patchSetSha256']}`\n")
+              out.write("- frozen anchor: PASS\n")
           PY
+          cat "$OUT/h0-summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload evaluation preflight evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-001-g1-evaluation-${{ github.run_number }}-preflight-${{ github.sha }}
+          path: |
+            ${{ env.OUT }}/h0-anchor.json
+            ${{ env.OUT }}/h0-summary.md
+          if-no-files-found: error
+          retention-days: 14
 
   shard:
     name: evaluation-shard-${{ matrix.shard }}
@@ -380,6 +406,12 @@ jobs:
         with:
           pattern: patch-gap-001-g1-evaluation-${{ github.run_number }}-shard-*-${{ github.sha }}
           path: ${{ runner.temp }}/g1-shards
+
+      - name: Download evaluation preflight evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: patch-gap-001-g1-evaluation-${{ github.run_number }}-preflight-${{ github.sha }}
+          path: ${{ env.OUT }}
 
       - name: Aggregate frozen G1 evaluation
         shell: bash
@@ -546,6 +578,39 @@ jobs:
           )
           PY
           cat "$OUT/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Record sharded execution lineage
+        shell: bash
+        env:
+          SHARDING_VALIDATION_RUN_ID: ${{ needs.preflight.outputs.sharding_validation_run_id }}
+        run: |
+          set -euo pipefail
+          python3 - "$OUT/execution.json" "$SOURCE_COMMIT" "$RUN_ID" "$SHARDING_VALIDATION_RUN_ID" "$SHARD_COUNT" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          path = pathlib.Path(sys.argv[1])
+          source, run_id, validation_run, shard_count, workflow_run, attempt = sys.argv[2:]
+          document = {
+              "schema": "chunkshift.patch-gap-g1-sharded-execution.v1",
+              "experimentId": "PATCH-GAP-001",
+              "protocolCommit": "5372678ae8451a71cc95eb24f30855cbbd7e0633",
+              "sourceCommit": source,
+              "runId": run_id,
+              "workflowRunId": int(workflow_run),
+              "workflowRunAttempt": int(attempt),
+              "invalidPredecessorRunId": 37296111468,
+              "shardingValidationRunId": int(validation_run),
+              "shardCount": int(shard_count),
+              "assignment": "sha256-file-identity-u64be-mod-count-v1",
+          }
+          path.write_text(
+              json.dumps(document, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+              newline="\n",
+          )
+          PY
 
       - name: Upload G1 evaluation evidence
         id: upload
