@@ -271,10 +271,7 @@ internal static class PatchGapG3Codec
         internal StreamingEncoder(long targetBytes, byte[] prefix)
             : base(IntPtr.Zero, ownsHandle: true)
         {
-            if (targetBytes <= 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(targetBytes));
-            }
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(targetBytes);
 
             _context = Methods.ZSTD_createCCtx();
             if (_context is null)
