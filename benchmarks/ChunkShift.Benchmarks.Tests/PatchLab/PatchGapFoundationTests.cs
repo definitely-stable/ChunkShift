@@ -207,6 +207,53 @@ public class PatchGapFoundationTests
     }
 
     [Fact]
+    public async Task G3StreamingCodecRoundTripsRawPrefixAcrossMemberBoundaries()
+    {
+        byte[] prefix = Enumerable.Range(0, 64 * 1024)
+            .Select(static index => (byte)(index * 17))
+            .ToArray();
+        byte[] first = new byte[96 * 1024];
+        byte[] second = new byte[80 * 1024];
+
+        for (int index = 0; index < first.Length; index++)
+        {
+            first[index] = prefix[(index + 113) % prefix.Length];
+        }
+
+        for (int index = 0; index < second.Length; index++)
+        {
+            second[index] = prefix[(index + 997) % prefix.Length];
+        }
+
+        byte[] expected = [.. first, .. second];
+        byte[] frame;
+        using (var encoded = new MemoryStream())
+        {
+            using var encoder = new PatchGapG3Codec.StreamingEncoder(expected.Length, prefix);
+            encoder.Write(first, encoded);
+            encoder.Write(second, encoded);
+            encoder.Finish(encoded);
+            frame = encoded.ToArray();
+        }
+
+        using var scope = new PatchLabRunTests.TempDirectory();
+        string framePath = Path.Combine(scope.Path, "group.zst");
+        File.WriteAllBytes(framePath, frame);
+        PatchGapG3FrameEnvelope.Validate(framePath, expected.Length);
+
+        using var source = new MemoryStream(frame);
+        await using var decoder = new PatchGapG3Codec.StreamingDecoder(source, prefix);
+        using var decoded = new MemoryStream();
+        await decoder.CopyToAsync(decoded);
+
+        Assert.Equal(expected, decoded.ToArray());
+
+        File.WriteAllBytes(framePath, [.. frame, 0x42]);
+        Assert.Throws<InvalidDataException>(() =>
+            PatchGapG3FrameEnvelope.Validate(framePath, expected.Length));
+    }
+
+    [Fact]
     public void G4ClassifierRequiresCompleteElfHeaderAndCompatibleClass()
     {
         PatchGapExecutableClassification arm64 = PatchGapG4Classifier.Classify(Elf(2, 183));
