@@ -328,6 +328,30 @@ internal static class PatchGapG3ReconstructionOracle
     /// member. RUN therefore holds at most one group decoder; FILE holds its
     /// single file-payload decoder while ordinary records are interleaved.
     /// </summary>
+    internal static Task VerifyFullTargetAsync(
+        IReadOnlyList<PatchGapG3TargetRecord> targetRecords,
+        IReadOnlyList<PatchGapG3Group> groups,
+        Func<int, Stream> openDecodedGroup,
+        Func<PatchGapG3TargetRecord, Memory<byte>, CancellationToken, ValueTask> resolveOrdinary,
+        Func<ReadOnlyMemory<byte>, string> identity,
+        string expectedTargetSha256,
+        CancellationToken cancellationToken) =>
+        VerifyFullTargetAsync(
+            targetRecords,
+            groups,
+            openDecodedGroup,
+            resolveOrdinary,
+            identity,
+            expectedTargetSha256,
+            reconstructedTarget: null,
+            cancellationToken);
+
+    /// <summary>
+    /// Same bounded oracle while also writing the exact reconstructed target.
+    /// The destination may be seekable and may be consulted by the ordinary
+    /// resolver for the existing replay path; every verified record is written
+    /// back at its canonical target offset before the next record is resolved.
+    /// </summary>
     internal static async Task VerifyFullTargetAsync(
         IReadOnlyList<PatchGapG3TargetRecord> targetRecords,
         IReadOnlyList<PatchGapG3Group> groups,
@@ -335,6 +359,7 @@ internal static class PatchGapG3ReconstructionOracle
         Func<PatchGapG3TargetRecord, Memory<byte>, CancellationToken, ValueTask> resolveOrdinary,
         Func<ReadOnlyMemory<byte>, string> identity,
         string expectedTargetSha256,
+        Stream? reconstructedTarget,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(targetRecords);
@@ -346,6 +371,14 @@ internal static class PatchGapG3ReconstructionOracle
         if (targetRecords.Count == 0)
         {
             throw new InvalidDataException("G3 full-target oracle requires every target-manifest record.");
+        }
+
+        if (reconstructedTarget is not null &&
+            (!reconstructedTarget.CanWrite || !reconstructedTarget.CanSeek))
+        {
+            throw new ArgumentException(
+                "G3 reconstructed-target stream must be seekable/writable.",
+                nameof(reconstructedTarget));
         }
 
         PatchGapEvidence.RequireSha256(expectedTargetSha256, "G3 target SHA-256");
@@ -385,6 +418,7 @@ internal static class PatchGapG3ReconstructionOracle
         byte[] buffer = new byte[maximum];
         using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var active = new Dictionary<int, Stream>();
+        long writeOffset = 0;
 
         try
         {
@@ -446,12 +480,25 @@ internal static class PatchGapG3ReconstructionOracle
 
                 VerifyIdentity(record.TargetIndex, record.ChunkIdentity, target, identity);
                 hash.AppendData(target.Span);
+
+                if (reconstructedTarget is not null)
+                {
+                    reconstructedTarget.Position = writeOffset;
+                    await reconstructedTarget.WriteAsync(target, cancellationToken).ConfigureAwait(false);
+                }
+
+                writeOffset = checked(writeOffset + record.TargetLength);
             }
 
             if (active.Count != 0)
             {
                 throw new InvalidDataException(
                     "G3 full-target oracle ended with an incomplete active group decoder.");
+            }
+
+            if (reconstructedTarget is not null)
+            {
+                reconstructedTarget.SetLength(writeOffset);
             }
 
             string actual = Convert.ToHexStringLower(hash.GetHashAndReset());
