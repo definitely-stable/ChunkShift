@@ -41,9 +41,9 @@ internal sealed record PatchGapG3LaneFileEvidence(
     long CreateAnchorBaseBytesRead,
     int CreateAnchorBaseReadCalls,
     int CreateAnchorBaseSeeks,
-    long ApplyAnchorBaseBytesRead,
-    int ApplyAnchorBaseReadCalls,
-    int ApplyAnchorBaseSeeks,
+    long ApplyOracleBaseBytesRead,
+    int ApplyOracleBaseReadCalls,
+    int ApplyOracleBaseSeeks,
     PatchGapG3GroupEvidence[] Groups);
 
 internal sealed record PatchGapG3FileEvidence(
@@ -652,11 +652,35 @@ internal static class PatchGapG3Runner
         int applyAnchorReadCalls;
         int applyAnchorSeeks;
 
+        string reconstructedPath = Path.Combine(
+            workDirectory,
+            $"{lane.ToLowerInvariant()}-reconstructed.bin");
+
         await using (FileStream h0Target = PatchLabFiles.OpenRead(h0TargetPath))
         await using (FileStream rawApplyBase = PatchLabFiles.OpenRead(baseContentPath))
+        await using (FileStream reconstructed = PatchLabFiles.Create(reconstructedPath))
         {
             var applyBase = new CountingReadStream(rawApplyBase);
-            var targetByIndex = targetRecords.ToDictionary(static record => record.Record.TargetIndex);
+            var targetByIndex = targetRecords.ToDictionary(
+                static record => record.Record.TargetIndex);
+            var firstTargetByChunk = targetRecords
+                .GroupBy(
+                    static record => record.Record.ChunkIdentity,
+                    StringComparer.Ordinal)
+                .ToDictionary(
+                    static group => group.Key,
+                    static group => group.First(),
+                    StringComparer.Ordinal);
+            var baseByChunk = baseRecords
+                .GroupBy(
+                    static record => record.ChunkId.ToString(),
+                    StringComparer.Ordinal)
+                .ToDictionary(
+                    static group => group.Key,
+                    static group => group.First(),
+                    StringComparer.Ordinal);
+            HashSet<long> h0PayloadTargetIndexes =
+                [.. entries.Select(static entry => entry.FirstTargetIndex)];
 
             await PatchGapG3ReconstructionOracle.VerifyFullTargetAsync(
                 [.. targetRecords.Select(static item => item.Record)],
@@ -679,18 +703,52 @@ internal static class PatchGapG3Runner
                 (record, destination, _) =>
                 {
                     TargetRecordState state = targetByIndex[record.TargetIndex];
-                    h0Target.Position = state.Offset;
-                    ReadExactly(h0Target, destination.Span);
+                    TargetRecordState first = firstTargetByChunk[record.ChunkIdentity];
+
+                    if (first.Record.TargetIndex < record.TargetIndex)
+                    {
+                        reconstructed.Position = first.Offset;
+                        ReadExactly(reconstructed, destination.Span);
+                        return ValueTask.CompletedTask;
+                    }
+
+                    if (h0PayloadTargetIndexes.Contains(record.TargetIndex))
+                    {
+                        // A non-coalesced first-occurrence payload remains
+                        // byte-for-byte H0 by the frozen G3 singleton rule.
+                        h0Target.Position = state.Offset;
+                        ReadExactly(h0Target, destination.Span);
+                        return ValueTask.CompletedTask;
+                    }
+
+                    if (!baseByChunk.TryGetValue(
+                            record.ChunkIdentity,
+                            out CspPatchBuilder.BaseRecord? baseRecord))
+                    {
+                        throw new InvalidDataException(
+                            $"G3 ordinary target record {record.TargetIndex} is neither "
+                            + "an H0 payload singleton, replay, nor a base-reused ChunkId.");
+                    }
+
+                    applyBase.Position = baseRecord.Offset;
+                    ReadExactly(applyBase, destination.Span);
                     return ValueTask.CompletedTask;
                 },
                 bytes => PatchHashing.Hash(hashSuite, bytes.Span).ToHexLower(),
                 expectedTargetSha256,
+                reconstructed,
                 cancellationToken).ConfigureAwait(false);
 
             applyAnchorBytesRead = applyBase.BytesRead;
             applyAnchorReadCalls = applyBase.ReadCalls;
             applyAnchorSeeks = applyBase.Seeks;
         }
+
+        RequireFileSha(
+            reconstructedPath,
+            expectedTargetSha256,
+            $"{lane} reconstructed target");
+        File.Delete(reconstructedPath);
 
         foreach (string framePath in framePaths.Values)
         {
