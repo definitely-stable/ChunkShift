@@ -1,0 +1,33 @@
+{
+  "schema": "chunkshift.patch-gap-001-g1-evaluation-execution.v1",
+  "experimentId": "PATCH-GAP-001",
+  "protocolCommit": "5372678ae8451a71cc95eb24f30855cbbd7e0633",
+  "sourceCommit": "8983eb11faa3e7c2df17b74d201249a19dd3dc13",
+  "runId": "PATCH-GAP-001/RUN-20261006-002-8983eb1-linux-x64-g1-evaluation",
+  "workflowRunId": 37432365043,
+  "workflowRunNumber": 2,
+  "workflowRunAttempt": 1,
+  "invalidPredecessorRunId": 37296111468,
+  "blockedRedispatchRunId": 37485500579,
+  "shardingValidationRunId": 37358264022,
+  "shardCount": 8,
+  "assignment": "sha256-file-identity-u64be-mod-count-v1",
+  "aggregateProvenance": {
+    "commandLine": "patch-lab gap g1-aggregate --corpus /home/runner/patch-corpus --shard-root /home/runner/work/_temp/g1-shards --shard-count 8 --dataset-role evaluation --lane G1-B32-R2048 --output /home/runner/work/_temp/patch-gap-001-g1-evaluation/g1-index.json --detail-dir /home/runner/work/_temp/patch-gap-001-g1-evaluation/detail --source-commit 8983eb11faa3e7c2df17b74d201249a19dd3dc13 --run-id PATCH-GAP-001/RUN-20261006-002-8983eb1-linux-x64-g1-evaluation",
+    "startedUtc": "2026-10-06T11:18:10.2852864+00:00",
+    "completedUtc": "2026-10-06T11:18:11.1500155+00:00",
+    "corpusPairsSha256": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+    "dirty": false,
+    "sourceBinding": "github-actions-clean-git-checkout",
+    "sampleCount": 844,
+    "environment": {
+      "frameworkDescription": ".NET 10.0.12",
+      "gitCommit": "8983eb11faa3e7c2df17b74d201249a19dd3dc13",
+      "osArchitecture": "X64",
+      "osDescription": "Ubuntu 24.04.5 LTS",
+      "processArchitecture": "X64",
+      "processorCount": 4,
+      "processorDescription": "AMD EPYC 7763 64-Core Processor"
+    }
+  }
+}
