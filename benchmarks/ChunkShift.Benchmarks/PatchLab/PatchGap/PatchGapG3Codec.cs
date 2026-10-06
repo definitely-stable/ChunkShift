@@ -259,7 +259,7 @@ internal static class PatchGapG3Codec
         }
     }
 
-    private sealed unsafe class StreamingEncoder : SafeHandle
+    internal sealed unsafe class StreamingEncoder : SafeHandle
     {
         private const int OutputBufferBytes = 128 * 1024;
         private readonly byte[] _output = new byte[OutputBufferBytes];
@@ -443,7 +443,7 @@ internal static class PatchGapG3Codec
         }
     }
 
-    private sealed unsafe class StreamingDecoder : Stream
+    internal sealed unsafe class StreamingDecoder : Stream
     {
         private const int InputBufferBytes = 128 * 1024;
 
