@@ -30,8 +30,10 @@ internal sealed record PatchGapG3GroupEvidence(
     long[] FirstTargetIndexes,
     string[] ChunkIds,
     int[] TargetLengths,
+    long[] H0StoredBytes,
+    int[] H0DictionaryReferences,
     long H0VariableBytes,
-    int H0DictionaryReferences,
+    int AnchorDictionaryReferences,
     string[] AnchorDictionaryChunkIds,
     long GroupTargetBytes,
     long GroupFrameBytes,
@@ -550,6 +552,8 @@ internal static class PatchGapG3Runner
                 [.. group.Members.Select(static member => member.FirstTargetIndex)],
                 [.. group.Members.Select(static member => member.ChunkIdentity)],
                 [.. group.Members.Select(static member => member.TargetLength)],
+                [.. group.Members.Select(static member => member.H0StoredBytes)],
+                [.. group.Members.Select(static member => member.H0DictionaryReferences)],
                 group.H0VariableBytes,
                 group.AnchorDictionaryChunkIds.Length,
                 group.AnchorDictionaryChunkIds,
@@ -653,7 +657,7 @@ internal static class PatchGapG3Runner
 
     private static async Task VerifyFullTargetAsync(
         PatchGapG3Group[] groups,
-        IReadOnlyDictionary<int, PatchGapG3EncodedFrame> encoded,
+        Dictionary<int, PatchGapG3EncodedFrame> encoded,
         string h0PatchPath,
         string baseContentPath,
         string expectedTargetSha256,
@@ -671,7 +675,7 @@ internal static class PatchGapG3Runner
             FileAccess.ReadWrite,
             FileShare.None,
             64 * 1024,
-            FileOptions.Asynchronous | FileOptions.SequentialScan);
+            FileOptions.Asynchronous);
         await using FileStream patch = PatchLabFiles.OpenRead(h0PatchPath);
         CspReader reader = await CspReader.OpenAsync(patch, cancellationToken).ConfigureAwait(false);
         if (!reader.IsValid)
@@ -764,6 +768,7 @@ internal static class PatchGapG3Runner
                             throw new InvalidDataException("G3 replay length differs from first verified occurrence.");
                         }
 
+                        await output.FlushAsync(cancellationToken).ConfigureAwait(false);
                         output.Position = earlier.Offset;
                         await ReadExactlyAsync(output, chunk, cancellationToken).ConfigureAwait(false);
                     }
