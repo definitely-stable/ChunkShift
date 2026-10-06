@@ -906,7 +906,7 @@ internal static class PatchGapG3Runner
             (entry, _) =>
             {
                 records.Add(new TargetRecord(
-                    checked((long)entry.Index),
+                    records.Count,
                     checked((long)entry.Offset),
                     checked((int)entry.Length),
                     entry.Id));
