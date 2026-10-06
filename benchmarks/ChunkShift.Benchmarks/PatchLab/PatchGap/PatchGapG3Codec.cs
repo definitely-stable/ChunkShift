@@ -1,10 +1,11 @@
 using System.Buffers.Binary;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using ChunkShift.Patching.Creation;
 using ChunkShift.Patching.Encoding;
+using ChunkShift.Patching.Format;
 using ChunkShift.Patching.Hashing;
 using ChunkShift.Primitives;
-using ZstdSharp;
 using ZstdSharp.Unsafe;
 
 namespace ChunkShift.Benchmarks.PatchLab.PatchGap;
@@ -19,6 +20,12 @@ internal sealed record PatchGapG3EncodedFrame(
     long BaseBytesRead,
     int BaseReadCalls,
     int BaseSeeks);
+
+internal sealed record PatchGapG3DictionaryRead(
+    byte[] Bytes,
+    long BytesRead,
+    int ReadCalls,
+    int Seeks);
 
 /// <summary>
 /// Streaming lab-only codec for the frozen PATCH-GAP-001 G3 RUN/FILE lanes.
@@ -48,75 +55,54 @@ internal static class PatchGapG3Codec
             throw new InvalidDataException("G3 only emits a frame for groups with at least two members.");
         }
 
-        byte[] dictionary = await ReadDictionaryAsync(
+        PatchGapG3DictionaryRead dictionary = await ReadDictionaryAsync(
             group.AnchorDictionaryChunkIds,
             baseContent,
             baseByChunkId,
             hashSuite,
             cancellationToken).ConfigureAwait(false);
 
-        if (!CspDictionary.IsUsable(dictionary))
+        if (!CspDictionary.IsUsable(dictionary.Bytes))
         {
             throw new InvalidDataException("G3 anchor dictionary violates the frozen CSP v1 1 MiB/raw-prefix bound.");
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(framePath))!);
         await using (FileStream frame = PatchLabFiles.Create(framePath))
-        using (var compressor = new Compressor(Level))
+        using (var encoder = new StreamingEncoder(group.TargetBytes, dictionary.Bytes))
         {
-            compressor.SetParameter(ZSTD_cParameter.ZSTD_c_windowLog, WindowLog);
-            ZSTD_compressionParameters chosen = Methods.ZSTD_getCParams(
-                Level,
-                checked((ulong)group.TargetBytes),
-                checked((nuint)dictionary.Length));
-            compressor.SetParameter(
-                ZSTD_cParameter.ZSTD_c_hashLog,
-                chosen.hashLog > HashLogCap ? HashLogCap : 0);
-            compressor.SetParameter(
-                ZSTD_cParameter.ZSTD_c_chainLog,
-                chosen.chainLog > ChainLogCap ? ChainLogCap : 0);
-            compressor.SetPledgedSrcSize(checked((ulong)group.TargetBytes));
-            compressor.RefPrefix(dictionary.Length == 0 ? null : dictionary);
+            byte[] buffer = new byte[Math.Min(
+                BufferBytes,
+                group.Members.Max(static member => member.TargetLength))];
 
-            await using (var zstd = new CompressionStream(
-                frame,
-                compressor,
-                bufferSize: 0,
-                preserveCompressor: true,
-                leaveOpen: true))
+            foreach (PatchGapG3Entry member in group.Members)
             {
-                byte[] buffer = new byte[Math.Min(
-                    BufferBytes,
-                    group.Members.Max(static member => member.TargetLength))];
+                cancellationToken.ThrowIfCancellationRequested();
+                int remaining = member.TargetLength;
+                long offset = member.TargetOffset;
 
-                foreach (PatchGapG3Entry member in group.Members)
+                using IncrementalPatchHash chunkHash = PatchHashing.CreateIncremental(hashSuite);
+                while (remaining > 0)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    int remaining = member.TargetLength;
-                    long offset = member.TargetOffset;
+                    int take = Math.Min(remaining, buffer.Length);
+                    Memory<byte> slice = buffer.AsMemory(0, take);
+                    targetContent.Position = offset;
+                    await ReadExactlyAsync(targetContent, slice, cancellationToken).ConfigureAwait(false);
+                    chunkHash.Append(slice.Span);
+                    encoder.Write(slice.Span, frame);
+                    offset = checked(offset + take);
+                    remaining -= take;
+                }
 
-                    using IncrementalPatchHash chunkHash = PatchHashing.CreateIncremental(hashSuite);
-                    while (remaining > 0)
-                    {
-                        int take = Math.Min(remaining, buffer.Length);
-                        Memory<byte> slice = buffer.AsMemory(0, take);
-                        targetContent.Position = offset;
-                        await ReadExactlyAsync(targetContent, slice, cancellationToken).ConfigureAwait(false);
-                        chunkHash.Append(slice.Span);
-                        await zstd.WriteAsync(slice, cancellationToken).ConfigureAwait(false);
-                        offset = checked(offset + take);
-                        remaining -= take;
-                    }
-
-                    string actual = chunkHash.FinalizeHash().ToHexLower();
-                    if (!string.Equals(actual, member.ChunkIdentity, StringComparison.Ordinal))
-                    {
-                        throw new InvalidDataException(
-                            $"G3 target member {member.FirstTargetIndex} hashes to {actual}, expected {member.ChunkIdentity}.");
-                    }
+                string actual = chunkHash.FinalizeHash().ToHexLower();
+                if (!string.Equals(actual, member.ChunkIdentity, StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException(
+                        $"G3 target member {member.FirstTargetIndex} hashes to {actual}, expected {member.ChunkIdentity}.");
                 }
             }
 
+            encoder.Finish(frame);
             await frame.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -129,18 +115,17 @@ internal static class PatchGapG3Codec
 
         PatchGapG3FrameEnvelope.Validate(framePath, group.TargetBytes);
         string frameSha = FileSha256Streaming(framePath);
-        long dictionaryBytes = dictionary.LongLength;
 
         return new PatchGapG3EncodedFrame(
             group.GroupId,
             framePath,
             frameBytes,
             frameSha,
-            dictionaryBytes,
+            dictionary.Bytes.LongLength,
             group.AnchorDictionaryChunkIds.Length,
-            dictionaryBytes,
-            group.AnchorDictionaryChunkIds.Length,
-            group.AnchorDictionaryChunkIds.Length);
+            dictionary.BytesRead,
+            dictionary.ReadCalls,
+            dictionary.Seeks);
     }
 
     internal static async Task<Stream> OpenDecodedAsync(
@@ -151,37 +136,26 @@ internal static class PatchGapG3Codec
         HashSuiteId hashSuite,
         CancellationToken cancellationToken)
     {
-        byte[] dictionary = await ReadDictionaryAsync(
+        PatchGapG3DictionaryRead dictionary = await ReadDictionaryAsync(
             dictionaryChunkIds,
             baseContent,
             baseByChunkId,
             hashSuite,
             cancellationToken).ConfigureAwait(false);
 
-        var decompressor = new Decompressor();
-        decompressor.SetParameter(ZSTD_dParameter.ZSTD_d_windowLogMax, WindowLog);
-        decompressor.RefPrefix(dictionary.Length == 0 ? null : dictionary);
-
         FileStream frame = PatchLabFiles.OpenRead(framePath);
         try
         {
-            return new DecompressionStream(
-                frame,
-                decompressor,
-                bufferSize: 0,
-                checkEndOfStream: true,
-                preserveDecompressor: false,
-                leaveOpen: false);
+            return new StreamingDecoder(frame, dictionary.Bytes);
         }
         catch
         {
             frame.Dispose();
-            decompressor.Dispose();
             throw;
         }
     }
 
-    internal static async Task<byte[]> ReadDictionaryAsync(
+    internal static async Task<PatchGapG3DictionaryRead> ReadDictionaryAsync(
         IReadOnlyList<string> chunkIds,
         Stream baseContent,
         IReadOnlyDictionary<string, CspPatchBuilder.BaseRecord> baseByChunkId,
@@ -205,12 +179,32 @@ internal static class PatchGapG3Codec
 
         byte[] dictionary = new byte[checked((int)length)];
         int at = 0;
+        long bytesRead = 0;
+        int readCalls = 0;
+        int seeks = 0;
+
         foreach (string id in chunkIds)
         {
             CspPatchBuilder.BaseRecord record = baseByChunkId[id];
             Memory<byte> destination = dictionary.AsMemory(at, record.Length);
             baseContent.Position = record.Offset;
-            await ReadExactlyAsync(baseContent, destination, cancellationToken).ConfigureAwait(false);
+            seeks++;
+
+            int written = 0;
+            while (written < destination.Length)
+            {
+                int read = await baseContent
+                    .ReadAsync(destination[written..], cancellationToken)
+                    .ConfigureAwait(false);
+                readCalls++;
+                bytesRead = checked(bytesRead + read);
+                if (read == 0)
+                {
+                    throw new InvalidDataException("G3 base content ended inside an anchor dictionary chunk.");
+                }
+
+                written += read;
+            }
 
             if (PatchHashing.Hash(hashSuite, destination.Span) != record.ChunkId.Value)
             {
@@ -220,7 +214,7 @@ internal static class PatchGapG3Codec
             at += record.Length;
         }
 
-        return dictionary;
+        return new PatchGapG3DictionaryRead(dictionary, bytesRead, readCalls, seeks);
     }
 
     private static async Task ReadExactlyAsync(
@@ -245,6 +239,394 @@ internal static class PatchGapG3Codec
     {
         using FileStream stream = PatchLabFiles.OpenRead(path);
         return Convert.ToHexStringLower(SHA256.HashData(stream));
+    }
+
+    private static void CheckEncoder(nuint result)
+    {
+        if (Methods.ZSTD_isError(result))
+        {
+            throw new InvalidOperationException(
+                $"PATCH-GAP G3 zstd encoder failed: {Methods.ZSTD_getErrorName(result)}.");
+        }
+    }
+
+    private static void CheckDecoder(nuint result)
+    {
+        if (Methods.ZSTD_isError(result))
+        {
+            throw new InvalidDataException(
+                $"PATCH-GAP G3 zstd decoder failed: {Methods.ZSTD_getErrorName(result)}.");
+        }
+    }
+
+    private sealed unsafe class StreamingEncoder : SafeHandle
+    {
+        private const int OutputBufferBytes = 128 * 1024;
+        private readonly byte[] _output = new byte[OutputBufferBytes];
+        private GCHandle _prefixHandle;
+        private bool _prefixPinned;
+        private ZSTD_CCtx_s* _context;
+        private bool _finished;
+
+        internal StreamingEncoder(long targetBytes, byte[] prefix)
+            : base(IntPtr.Zero, ownsHandle: true)
+        {
+            if (targetBytes <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(targetBytes));
+            }
+
+            _context = Methods.ZSTD_createCCtx();
+            if (_context is null)
+            {
+                throw new InvalidOperationException("PATCH-GAP G3 zstd could not create a compression context.");
+            }
+
+            SetHandle((IntPtr)_context);
+
+            try
+            {
+                CheckEncoder(Methods.ZSTD_CCtx_reset(
+                    _context,
+                    ZSTD_ResetDirective.ZSTD_reset_session_and_parameters));
+                CheckEncoder(Methods.ZSTD_CCtx_setParameter(
+                    _context,
+                    ZSTD_cParameter.ZSTD_c_compressionLevel,
+                    Level));
+                CheckEncoder(Methods.ZSTD_CCtx_setParameter(
+                    _context,
+                    ZSTD_cParameter.ZSTD_c_windowLog,
+                    WindowLog));
+
+                ZSTD_compressionParameters chosen = Methods.ZSTD_getCParams(
+                    Level,
+                    checked((ulong)targetBytes),
+                    checked((nuint)prefix.Length));
+                CheckEncoder(Methods.ZSTD_CCtx_setParameter(
+                    _context,
+                    ZSTD_cParameter.ZSTD_c_hashLog,
+                    chosen.hashLog > HashLogCap ? HashLogCap : 0));
+                CheckEncoder(Methods.ZSTD_CCtx_setParameter(
+                    _context,
+                    ZSTD_cParameter.ZSTD_c_chainLog,
+                    chosen.chainLog > ChainLogCap ? ChainLogCap : 0));
+                CheckEncoder(Methods.ZSTD_CCtx_setPledgedSrcSize(
+                    _context,
+                    checked((ulong)targetBytes)));
+
+                if (prefix.Length > 0)
+                {
+                    _prefixHandle = GCHandle.Alloc(prefix, GCHandleType.Pinned);
+                    _prefixPinned = true;
+                    CheckEncoder(Methods.ZSTD_CCtx_refPrefix(
+                        _context,
+                        (void*)_prefixHandle.AddrOfPinnedObject(),
+                        checked((nuint)prefix.Length)));
+                }
+            }
+            catch
+            {
+                Dispose();
+                throw;
+            }
+        }
+
+        public override bool IsInvalid => handle == IntPtr.Zero;
+
+        internal void Write(ReadOnlySpan<byte> inputBytes, Stream destination)
+        {
+            ObjectDisposedException.ThrowIf(IsClosed, this);
+            if (_finished)
+            {
+                throw new InvalidOperationException("G3 encoder was already finalized.");
+            }
+
+            if (inputBytes.IsEmpty)
+            {
+                return;
+            }
+
+            fixed (byte* source = inputBytes)
+            fixed (byte* output = _output)
+            {
+                var input = new ZSTD_inBuffer_s
+                {
+                    src = source,
+                    size = checked((nuint)inputBytes.Length),
+                    pos = 0,
+                };
+
+                while (input.pos < input.size)
+                {
+                    var produced = new ZSTD_outBuffer_s
+                    {
+                        dst = output,
+                        size = checked((nuint)_output.Length),
+                        pos = 0,
+                    };
+                    nuint before = input.pos;
+                    nuint remaining = Methods.ZSTD_compressStream2(
+                        _context,
+                        &produced,
+                        &input,
+                        ZSTD_EndDirective.ZSTD_e_continue);
+                    CheckEncoder(remaining);
+
+                    if (produced.pos > 0)
+                    {
+                        destination.Write(_output.AsSpan(0, checked((int)produced.pos)));
+                    }
+
+                    if (input.pos == before && produced.pos == 0)
+                    {
+                        throw new InvalidOperationException("G3 zstd streaming encoder made no progress.");
+                    }
+                }
+            }
+        }
+
+        internal void Finish(Stream destination)
+        {
+            ObjectDisposedException.ThrowIf(IsClosed, this);
+            if (_finished)
+            {
+                throw new InvalidOperationException("G3 encoder was already finalized.");
+            }
+
+            fixed (byte* output = _output)
+            {
+                var input = new ZSTD_inBuffer_s { src = null, size = 0, pos = 0 };
+                nuint remaining;
+                do
+                {
+                    var produced = new ZSTD_outBuffer_s
+                    {
+                        dst = output,
+                        size = checked((nuint)_output.Length),
+                        pos = 0,
+                    };
+                    remaining = Methods.ZSTD_compressStream2(
+                        _context,
+                        &produced,
+                        &input,
+                        ZSTD_EndDirective.ZSTD_e_end);
+                    CheckEncoder(remaining);
+
+                    if (produced.pos > 0)
+                    {
+                        destination.Write(_output.AsSpan(0, checked((int)produced.pos)));
+                    }
+
+                    if (remaining != 0 && produced.pos == 0)
+                    {
+                        throw new InvalidOperationException("G3 zstd finalizer made no progress.");
+                    }
+                }
+                while (remaining != 0);
+            }
+
+            _finished = true;
+        }
+
+        protected override bool ReleaseHandle()
+        {
+            if (_prefixPinned)
+            {
+                _prefixHandle.Free();
+                _prefixPinned = false;
+            }
+
+            if (_context is not null)
+            {
+                _ = Methods.ZSTD_freeCCtx(_context);
+                _context = null;
+            }
+
+            return true;
+        }
+    }
+
+    private sealed unsafe class StreamingDecoder : Stream
+    {
+        private const int InputBufferBytes = 128 * 1024;
+
+        private readonly Stream _source;
+        private readonly byte[] _input = new byte[InputBufferBytes];
+        private ZSTD_DCtx_s* _context;
+        private GCHandle _prefixHandle;
+        private bool _prefixPinned;
+        private int _inputPosition;
+        private int _inputLength;
+        private bool _finished;
+        private bool _disposed;
+
+        internal StreamingDecoder(Stream source, byte[] prefix)
+        {
+            _source = source;
+            _context = Methods.ZSTD_createDCtx();
+            if (_context is null)
+            {
+                throw new InvalidOperationException("PATCH-GAP G3 zstd could not create a decompression context.");
+            }
+
+            try
+            {
+                CheckDecoder(Methods.ZSTD_DCtx_reset(
+                    _context,
+                    ZSTD_ResetDirective.ZSTD_reset_session_and_parameters));
+                CheckDecoder(Methods.ZSTD_DCtx_setParameter(
+                    _context,
+                    ZSTD_dParameter.ZSTD_d_windowLogMax,
+                    WindowLog));
+
+                if (prefix.Length > 0)
+                {
+                    _prefixHandle = GCHandle.Alloc(prefix, GCHandleType.Pinned);
+                    _prefixPinned = true;
+                    CheckDecoder(Methods.ZSTD_DCtx_refPrefix(
+                        _context,
+                        (void*)_prefixHandle.AddrOfPinnedObject(),
+                        checked((nuint)prefix.Length)));
+                }
+            }
+            catch
+            {
+                Release();
+                throw;
+            }
+        }
+
+        public override bool CanRead => !_disposed;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            Read(buffer.AsSpan(offset, count));
+
+        public override int Read(Span<byte> buffer)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (buffer.IsEmpty || _finished)
+            {
+                return 0;
+            }
+
+            while (true)
+            {
+                if (_inputPosition == _inputLength)
+                {
+                    _inputLength = _source.Read(_input, 0, _input.Length);
+                    _inputPosition = 0;
+                    if (_inputLength == 0)
+                    {
+                        throw new InvalidDataException("G3 zstd frame ended before its declared output completed.");
+                    }
+                }
+
+                fixed (byte* source = _input)
+                fixed (byte* output = buffer)
+                {
+                    var input = new ZSTD_inBuffer_s
+                    {
+                        src = source,
+                        size = checked((nuint)_inputLength),
+                        pos = checked((nuint)_inputPosition),
+                    };
+                    var produced = new ZSTD_outBuffer_s
+                    {
+                        dst = output,
+                        size = checked((nuint)buffer.Length),
+                        pos = 0,
+                    };
+
+                    nuint before = input.pos;
+                    nuint remaining = Methods.ZSTD_decompressStream(
+                        _context,
+                        &produced,
+                        &input);
+                    CheckDecoder(remaining);
+                    _inputPosition = checked((int)input.pos);
+
+                    if (remaining == 0)
+                    {
+                        _finished = true;
+                        if (_inputPosition != _inputLength ||
+                            (_source.CanSeek && _source.Position != _source.Length))
+                        {
+                            throw new InvalidDataException(
+                                "G3 zstd decoder reached frame end before physical frame end.");
+                        }
+                    }
+
+                    if (produced.pos > 0)
+                    {
+                        return checked((int)produced.pos);
+                    }
+
+                    if (_finished)
+                    {
+                        return 0;
+                    }
+
+                    if (input.pos == before && _inputPosition < _inputLength)
+                    {
+                        throw new InvalidDataException("G3 zstd streaming decoder made no progress.");
+                    }
+                }
+            }
+        }
+
+        public override ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return new ValueTask<int>(Read(buffer.Span));
+        }
+
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            Release();
+            if (disposing)
+            {
+                _source.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
+
+        private void Release()
+        {
+            if (_prefixPinned)
+            {
+                _prefixHandle.Free();
+                _prefixPinned = false;
+            }
+
+            if (_context is not null)
+            {
+                _ = Methods.ZSTD_freeDCtx(_context);
+                _context = null;
+            }
+        }
     }
 }
 
@@ -372,7 +754,7 @@ internal static class PatchGapG3FrameEnvelope
             }
 
             long storedBlockBytes = type == 1 ? 1L : blockSize;
-            if (storedBlockBytes < 0 || stream.Position > stream.Length - storedBlockBytes)
+            if (stream.Position > stream.Length - storedBlockBytes)
             {
                 throw new InvalidDataException("G3 zstd block overruns the frame.");
             }
