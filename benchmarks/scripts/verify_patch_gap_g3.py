@@ -147,6 +147,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
                 previous_group = gid
 
                 indexes = [int(value) for value in group["firstTargetIndexes"]]
+                offsets = [int(value) for value in group["targetOffsets"]]
                 ids = list(group["chunkIds"])
                 lengths = [int(value) for value in group["targetLengths"]]
                 h0_stored = [int(value) for value in group["h0StoredBytes"]]
@@ -154,13 +155,31 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
                 count = len(indexes)
                 require(
                     count >= 2
-                    and len(ids) == len(lengths) == len(h0_stored) == len(h0_refs) == count,
+                    and len(offsets) == len(ids) == len(lengths) == len(h0_stored) == len(h0_refs) == count,
                     f"G3 group member arrays malformed: {detail_path.name}/{lane}/{gid}",
                 )
                 require(
-                    indexes == sorted(indexes) and len(set(indexes)) == count,
-                    f"G3 group target indexes malformed: {detail_path.name}/{lane}/{gid}",
+                    indexes == sorted(indexes)
+                    and len(set(indexes)) == count
+                    and offsets == sorted(offsets)
+                    and len(set(offsets)) == count,
+                    f"G3 group target indexes/offsets malformed: {detail_path.name}/{lane}/{gid}",
                 )
+                expected_kind = "RUN" if lane == "G3-RUN" else "FILE"
+                require(
+                    group["kind"] == expected_kind,
+                    f"G3 group kind mismatch: {detail_path.name}/{lane}/{gid}",
+                )
+                if lane == "G3-RUN":
+                    require(
+                        all(indexes[i] == indexes[i - 1] + 1 for i in range(1, count))
+                        and all(
+                            offsets[i] == offsets[i - 1] + lengths[i - 1]
+                            for i in range(1, count)
+                        ),
+                        f"G3 RUN group is not manifest-consecutive/physically-adjacent: "
+                        f"{detail_path.name}/{gid}",
+                    )
                 require(
                     all(length > 0 for length in lengths)
                     and all(stored > 0 for stored in h0_stored)
@@ -244,6 +263,21 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
                 and int(item["groupDictionarySeeks"]) >= 0,
                 f"G3 negative read counters: {detail_path.name}/{lane}",
             )
+
+            total_groups = int(item["groupCount"])
+            coalesced_groups = int(item["coalescedGroupCount"])
+            payload_entries = int(detail["payloadEntryCount"])
+            require(
+                total_groups >= coalesced_groups
+                and payload_entries == members + (total_groups - coalesced_groups),
+                f"G3 singleton/coalesced coverage mismatch: {detail_path.name}/{lane}",
+            )
+            if lane == "G3-FILE":
+                require(
+                    total_groups == (0 if payload_entries == 0 else 1)
+                    and coalesced_groups == (1 if payload_entries >= 2 else 0),
+                    f"G3 FILE grouping is not the frozen all-payload grouping: {detail_path.name}",
+                )
 
             factor_totals[lane] += expected_factor
             extra_reads[lane] += detail_reads
