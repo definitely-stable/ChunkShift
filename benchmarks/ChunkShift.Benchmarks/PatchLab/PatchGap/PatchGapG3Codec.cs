@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using ChunkShift.Patching.Encoding;
 using ChunkShift.Patching.Format;
