@@ -1,0 +1,23 @@
+{
+  "schema": "chunkshift.patch-gap-001-g1-evaluation-artifacts.v1",
+  "evaluationArtifact": {
+    "workflowName": "PATCH-GAP-001 G1 evaluation",
+    "workflowRunId": 37432365043,
+    "workflowRunNumber": 2,
+    "workflowRunAttempt": 1,
+    "artifactId": 11409716915,
+    "artifactName": "patch-gap-001-g1-evaluation-2-8983eb11faa3e7c2df17b74d201249a19dd3dc13",
+    "artifactZipSha256": "dc2a725f1612556f711d07b819f3de17d3b887bcd2e38a598eb557f9ae3ed2b0",
+    "artifactExpiresAt": "2027-01-04T07:52:11Z"
+  },
+  "shardingValidationArtifact": {
+    "workflowName": "PATCH-GAP-001 G1 sharding validation",
+    "workflowRunId": 37358264022,
+    "workflowRunNumber": 1,
+    "workflowRunAttempt": 1,
+    "artifactId": 11367281304,
+    "artifactName": "patch-gap-001-g1-sharding-validation-1-8983eb11faa3e7c2df17b74d201249a19dd3dc13",
+    "artifactZipSha256": "5a8f71af37758f26a754cbf9ac33542e00805c5de6893691715f829c516fba8f",
+    "artifactExpiresAt": "2026-11-04T19:13:34Z"
+  }
+}
