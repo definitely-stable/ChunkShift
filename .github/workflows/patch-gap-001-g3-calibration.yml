@@ -1,0 +1,444 @@
+name: PATCH-GAP-001 G3 calibration
+
+on:
+  workflow_dispatch:
+    inputs:
+      run-date:
+        description: "Frozen RunId UTC date (YYYYMMDD)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: patch-gap-001-g3-calibration
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+  PROTOCOL_COMMIT: 5372678ae8451a71cc95eb24f30855cbbd7e0633
+  PAIRS_SHA256: 8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd
+  H0_CALIBRATION_BYTES: "11860274"
+
+jobs:
+  g3-calibration:
+    name: g3-calibration-linux-x64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Validate decision identity
+        shell: bash
+        env:
+          RUN_DATE: ${{ inputs.run-date }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
+            echo "PATCH-GAP-001 G3 decision evidence rejects workflow re-runs." >&2
+            exit 2
+          fi
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "PATCH-GAP-001 G3 calibration must run from main." >&2
+            exit 2
+          fi
+          if (( GITHUB_RUN_NUMBER > 999 )); then
+            echo "RunId NNN supports workflow run numbers 001..999." >&2
+            exit 2
+          fi
+          python3 - "$RUN_DATE" <<'PY'
+          import datetime as dt
+          import re
+          import sys
+          value = sys.argv[1]
+          if not re.fullmatch(r"\d{8}", value):
+              raise SystemExit("run-date must be YYYYMMDD")
+          dt.datetime.strptime(value, "%Y%m%d")
+          PY
+
+          sequence="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
+          short_commit="${GITHUB_SHA:0:7}"
+          {
+            echo "SOURCE_COMMIT=$GITHUB_SHA"
+            echo "RUN_ID=PATCH-GAP-001/RUN-${RUN_DATE}-${sequence}-${short_commit}-linux-x64-g3-calibration"
+            echo "CORPUS_ROOT=$HOME/patch-corpus"
+            echo "OUT=$RUNNER_TEMP/patch-gap-001-g3-calibration"
+          } >> "$GITHUB_ENV"
+
+      - name: Enforce one successful G3 calibration
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs="$RUNNER_TEMP/g3-calibration-runs.json"
+          gh api \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/patch-gap-001-g3-calibration.yml/runs?event=workflow_dispatch&status=success&per_page=100" \
+            > "$runs"
+          python3 - "$runs" "$GITHUB_RUN_ID" <<'PY'
+          import json
+          import sys
+          path, current = sys.argv[1:]
+          data = json.load(open(path, encoding="utf-8"))
+          prior = [
+              int(run["id"])
+              for run in data.get("workflow_runs", [])
+              if str(run["id"]) != current and run.get("conclusion") == "success"
+          ]
+          if prior:
+              raise SystemExit(
+                  "PATCH-GAP-001 G3 calibration already has successful decision evidence: "
+                  + ", ".join(map(str, prior))
+              )
+          PY
+
+      - name: Checkout tested main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify clean tested checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          test -z "$(git status --porcelain=v1 --untracked-files=normal)"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Restore frozen patch-corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize and lock frozen patch corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$CORPUS_ROOT" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download \
+            --lock
+          test "$(sha256sum "$CORPUS_ROOT/pairs.json" | cut -d' ' -f1)" = "$PAIRS_SHA256"
+
+      - name: Restore and build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Regenerate and require frozen H0 anchor
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT"
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          dotnet "$dll" patch-lab gap h0 \
+            --corpus "$CORPUS_ROOT" \
+            --output "$OUT/h0-anchor.json" \
+            --source-commit "$SOURCE_COMMIT" \
+            --run-id "$RUN_ID-h0-preflight"
+
+          python3 - "$OUT/h0-anchor.json" "$SOURCE_COMMIT" "$PROTOCOL_COMMIT" "$PAIRS_SHA256" <<'PY'
+          import json
+          import pathlib
+          import sys
+          path = pathlib.Path(sys.argv[1])
+          source, protocol, pairs = sys.argv[2:]
+          root = json.loads(path.read_text(encoding="utf-8"))
+          checks = {
+              "schema": root.get("schema") == "chunkshift.patch-gap-h0-anchor.v1",
+              "protocol": root.get("protocolCommit") == protocol,
+              "source": root.get("sourceCommit") == source,
+              "dataset": root.get("corpusPairsSha256") == pairs,
+              "anchor": root.get("matchesFrozenAnchor") is True,
+          }
+          failed = [name for name, ok in checks.items() if not ok]
+          if failed:
+              raise SystemExit("G3 H0 preflight rejected: " + ", ".join(failed))
+
+          summary = [
+              "### PATCH-GAP-001 frozen H0 preflight",
+              "",
+              f"- files: {int(root['files']):,}",
+              f"- calibration bytes: {int(root['calibrationBytes']):,}",
+              f"- evaluation bytes: {int(root['evaluationBytes']):,}",
+              f"- total bytes: {int(root['totalBytes']):,}",
+              f"- patch-set SHA-256: `{root['patchSetSha256']}`",
+              "- frozen anchor: PASS",
+          ]
+          pathlib.Path(path.parent / "h0-summary.md").write_text(
+              "\n".join(summary) + "\n",
+              encoding="utf-8",
+              newline="\n",
+          )
+          PY
+          cat "$OUT/h0-summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run frozen G3 calibration byte study
+        shell: bash
+        run: |
+          set -euo pipefail
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          dotnet "$dll" patch-lab gap g3 \
+            --corpus "$CORPUS_ROOT" \
+            --dataset-role calibration \
+            --output "$OUT/g3-index.json" \
+            --detail-dir "$OUT/detail" \
+            --source-commit "$SOURCE_COMMIT" \
+            --run-id "$RUN_ID"
+
+      - name: Recompute fail-closed G3 calibration invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$OUT/g3-index.json" "$OUT/detail" "$SOURCE_COMMIT" "$PROTOCOL_COMMIT" "$PAIRS_SHA256" "$H0_CALIBRATION_BYTES" <<'PY'
+          import hashlib
+          import json
+          import math
+          import pathlib
+          import sys
+
+          index_path = pathlib.Path(sys.argv[1])
+          detail_dir = pathlib.Path(sys.argv[2])
+          source_commit, protocol_commit, pairs_sha, expected_h0 = sys.argv[3:]
+          expected_h0 = int(expected_h0)
+          lanes_expected = ["G3-RUN", "G3-FILE"]
+
+          root = json.loads(index_path.read_text(encoding="utf-8"))
+          checks = {
+              "schema": root.get("schema") == "chunkshift.patch-gap-g3-byte-study.v1",
+              "experiment": root.get("experimentId") == "PATCH-GAP-001",
+              "protocol": root.get("protocolCommit") == protocol_commit,
+              "source": root.get("sourceCommit") == source_commit,
+              "role": root.get("datasetRole") == "calibration",
+              "dataset": root.get("datasetSha256") == pairs_sha,
+              "policy": root.get("researchPolicy") == "G3-RUN+FILE-L19-H20C20-W20-ANCHOR-H0-FIRST",
+          }
+          failed = [name for name, ok in checks.items() if not ok]
+          if failed:
+              raise SystemExit("G3 index identity mismatch: " + ", ".join(failed))
+
+          files = root.get("files")
+          lanes = root.get("lanes")
+          if not isinstance(files, list) or not files:
+              raise SystemExit("G3 calibration has no file rows")
+          if not isinstance(lanes, list) or [x.get("lane") for x in lanes] != lanes_expected:
+              raise SystemExit("G3 lane order/coverage differs from frozen RUN/FILE set")
+
+          h0 = sum(int(row["h0PatchBytes"]) for row in files)
+          if h0 != expected_h0:
+              raise SystemExit(f"G3 H0 calibration bytes {h0} != frozen {expected_h0}")
+
+          factor_totals = {lane: 0 for lane in lanes_expected}
+          extra_reads = {lane: 0 for lane in lanes_expected}
+          group_counts = {lane: 0 for lane in lanes_expected}
+          member_counts = {lane: 0 for lane in lanes_expected}
+          group_target_bytes = {lane: 0 for lane in lanes_expected}
+          h0_reads = 0
+          referenced = set()
+
+          for row in files:
+              path = detail_dir / row["detailPath"]
+              if not path.is_file():
+                  raise SystemExit(f"missing G3 detail document: {path.name}")
+              raw = path.read_bytes()
+              if hashlib.sha256(raw).hexdigest() != row["detailSha256"]:
+                  raise SystemExit(f"G3 detail digest mismatch: {path.name}")
+              if len(raw) != int(row["detailBytes"]):
+                  raise SystemExit(f"G3 detail size mismatch: {path.name}")
+              referenced.add(path.name)
+
+              detail = json.loads(raw)
+              if detail.get("schema") != "chunkshift.patch-gap-g3-file.v1":
+                  raise SystemExit(f"G3 file schema mismatch: {path.name}")
+              if int(detail["h0PatchBytes"]) != int(row["h0PatchBytes"]):
+                  raise SystemExit(f"G3 file H0 bytes disagree with compact row: {path.name}")
+              h0_reads += int(detail["h0BaseBytesRead"])
+
+              detail_lanes = {item["lane"]: item for item in detail["lanes"]}
+              if list(detail_lanes) != lanes_expected:
+                  raise SystemExit(f"G3 file lane order differs from frozen order: {path.name}")
+
+              for lane in lanes_expected:
+                  item = detail_lanes[lane]
+                  if item.get("reconstructionPass") is not True:
+                      raise SystemExit(f"G3 reconstruction did not pass: {path.name}/{lane}")
+                  if int(item["h0PatchBytes"]) != int(row["h0PatchBytes"]):
+                      raise SystemExit(f"G3 lane H0 mismatch: {path.name}/{lane}")
+
+                  groups = item["groups"]
+                  removed = 0
+                  added = 0
+                  members = 0
+                  target_bytes = 0
+                  previous_group = -1
+
+                  for group in groups:
+                      gid = int(group["groupId"])
+                      if gid <= previous_group:
+                          raise SystemExit(f"G3 group ids not strictly increasing: {path.name}/{lane}")
+                      previous_group = gid
+
+                      indexes = [int(x) for x in group["firstTargetIndexes"]]
+                      ids = list(group["chunkIds"])
+                      lengths = [int(x) for x in group["targetLengths"]]
+                      h0_stored = [int(x) for x in group["h0StoredBytes"]]
+                      h0_refs = [int(x) for x in group["h0DictionaryReferences"]]
+                      n = len(indexes)
+                      if n < 2 or not (len(ids) == len(lengths) == len(h0_stored) == len(h0_refs) == n):
+                          raise SystemExit(f"G3 group member arrays malformed: {path.name}/{lane}/{gid}")
+                      if indexes != sorted(indexes) or len(set(indexes)) != n:
+                          raise SystemExit(f"G3 group target indexes malformed: {path.name}/{lane}/{gid}")
+                      if any(length <= 0 for length in lengths) or any(ref < 0 for ref in h0_refs):
+                          raise SystemExit(f"G3 group member cost fields invalid: {path.name}/{lane}/{gid}")
+
+                      h0_variable = sum(stored + 32 * refs for stored, refs in zip(h0_stored, h0_refs))
+                      if h0_variable != int(group["h0VariableBytes"]):
+                          raise SystemExit(f"G3 H0 variable-byte equation mismatch: {path.name}/{lane}/{gid}")
+
+                      anchor_refs = int(group["anchorDictionaryReferences"])
+                      anchor_ids = list(group["anchorDictionaryChunkIds"])
+                      if anchor_refs != len(anchor_ids) or anchor_refs != h0_refs[0]:
+                          raise SystemExit(f"G3 anchor dictionary mismatch: {path.name}/{lane}/{gid}")
+                      if sum(lengths) != int(group["groupTargetBytes"]):
+                          raise SystemExit(f"G3 group target-byte sum mismatch: {path.name}/{lane}/{gid}")
+
+                      frame = int(group["groupFrameBytes"])
+                      if frame <= 0 or frame > 0xffffffff:
+                          raise SystemExit(f"G3 group frame length invalid: {path.name}/{lane}/{gid}")
+                      if len(str(group["groupFrameSha256"])) != 64:
+                          raise SystemExit(f"G3 group frame digest malformed: {path.name}/{lane}/{gid}")
+
+                      removed += h0_variable
+                      added += frame + 32 * anchor_refs
+                      members += n
+                      target_bytes += sum(lengths)
+
+                  expected_factor = int(row["h0PatchBytes"]) - removed + added
+                  if expected_factor != int(item["factorPatchBytes"]):
+                      raise SystemExit(f"G3 file physical-byte equation mismatch: {path.name}/{lane}")
+                  if expected_factor != int(row["lanePatchBytes"][lane]):
+                      raise SystemExit(f"G3 compact/file lane bytes disagree: {path.name}/{lane}")
+                  if int(item["savedBytes"]) != int(row["h0PatchBytes"]) - expected_factor:
+                      raise SystemExit(f"G3 file savedBytes mismatch: {path.name}/{lane}")
+                  if int(item["coalescedGroupCount"]) != len(groups):
+                      raise SystemExit(f"G3 coalesced-group count mismatch: {path.name}/{lane}")
+                  if int(item["coalescedMemberCount"]) != members:
+                      raise SystemExit(f"G3 coalesced-member count mismatch: {path.name}/{lane}")
+                  if int(item["coalescedTargetBytes"]) != target_bytes:
+                      raise SystemExit(f"G3 coalesced-target byte mismatch: {path.name}/{lane}")
+
+                  factor_totals[lane] += expected_factor
+                  extra_reads[lane] += int(item["groupDictionaryBaseBytesRead"])
+                  group_counts[lane] += len(groups)
+                  member_counts[lane] += members
+                  group_target_bytes[lane] += target_bytes
+
+          actual = {path.name for path in detail_dir.glob("*.json")}
+          if actual != referenced:
+              raise SystemExit("G3 detail directory contains stale or unreferenced evidence")
+
+          for aggregate in lanes:
+              lane = aggregate["lane"]
+              factor = factor_totals[lane]
+              if int(aggregate["h0Bytes"]) != h0 or int(aggregate["factorBytes"]) != factor:
+                  raise SystemExit(f"G3 aggregate byte totals mismatch: {lane}")
+              saved = h0 - factor
+              reduction = saved / h0
+              if int(aggregate["savedBytes"]) != saved:
+                  raise SystemExit(f"G3 aggregate savedBytes mismatch: {lane}")
+              if not math.isclose(float(aggregate["reductionVsCsp"]), reduction, rel_tol=0.0, abs_tol=1e-15):
+                  raise SystemExit(f"G3 aggregate reduction mismatch: {lane}")
+              gate = 20 * saved >= 3 * h0
+              if bool(aggregate["meetsRfcSizeGate"]) != gate:
+                  raise SystemExit(f"G3 RFC size gate mismatch: {lane}")
+
+              factor_reads = h0_reads + extra_reads[lane]
+              if int(aggregate["h0BaseBytesRead"]) != h0_reads:
+                  raise SystemExit(f"G3 H0 base-read total mismatch: {lane}")
+              if int(aggregate["factorBaseBytesRead"]) != factor_reads:
+                  raise SystemExit(f"G3 factor base-read total mismatch: {lane}")
+              expected_amp = None if h0_reads == 0 else factor_reads / h0_reads
+              if expected_amp is None:
+                  if aggregate.get("baseReadAmplification") is not None:
+                      raise SystemExit(f"G3 unexpected base-read amplification: {lane}")
+              elif not math.isclose(
+                  float(aggregate["baseReadAmplification"]),
+                  expected_amp,
+                  rel_tol=0.0,
+                  abs_tol=1e-12,
+              ):
+                  raise SystemExit(f"G3 base-read amplification mismatch: {lane}")
+              if int(aggregate["coalescedGroups"]) != group_counts[lane]:
+                  raise SystemExit(f"G3 aggregate group count mismatch: {lane}")
+              if int(aggregate["coalescedMembers"]) != member_counts[lane]:
+                  raise SystemExit(f"G3 aggregate member count mismatch: {lane}")
+              if int(aggregate["coalescedTargetBytes"]) != group_target_bytes[lane]:
+                  raise SystemExit(f"G3 aggregate grouped-target byte mismatch: {lane}")
+
+          summary = [
+              "### PATCH-GAP-001 G3 calibration",
+              "",
+              f"- RunId: `{root['provenance']['runId']}`",
+              f"- sourceCommit: `{source_commit}`",
+              f"- files: {len(files)}",
+              f"- H0 bytes: {h0:,}",
+              "",
+          ]
+          for lane in lanes:
+              summary.append(
+                  f"- {lane['lane']}: {int(lane['factorBytes']):,} B; "
+                  f"saved={int(lane['savedBytes']):,} B; "
+                  f"reduction={float(lane['reductionVsCsp']):.6%}; "
+                  f"size-gate={lane['meetsRfcSizeGate']}; "
+                  f"base-read-amplification={lane.get('baseReadAmplification')}; "
+                  f"groups={int(lane['coalescedGroups']):,}"
+              )
+          pathlib.Path(index_path.parent / "summary.md").write_text(
+              "\n".join(summary) + "\n",
+              encoding="utf-8",
+              newline="\n",
+          )
+          print("PATCH-GAP-001 G3 calibration independent recomputation: PASS")
+          PY
+          cat "$OUT/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload G3 calibration evidence
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-001-g3-calibration-${{ github.run_number }}-${{ github.sha }}
+          path: ${{ env.OUT }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Record raw artifact identity
+        shell: bash
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          {
+            echo
+            echo "- Actions artifact id: `$ARTIFACT_ID`"
+            echo "- Actions artifact digest: `$ARTIFACT_DIGEST`"
+            echo "- Retention: 90 days"
+            echo
+            echo "Calibration only. Both G3-RUN and G3-FILE remain mandatory on the fixed evaluation split."
+          } >> "$GITHUB_STEP_SUMMARY"
