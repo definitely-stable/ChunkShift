@@ -1,0 +1,234 @@
+{
+  "schema": "chunkshift.patch-gap-001-g1-evaluation-compact.v1",
+  "evidenceId": "PATCH-GAP-001/G1-EVALUATION-EVIDENCE-20261006-001",
+  "experimentId": "PATCH-GAP-001",
+  "protocolCommit": "5372678ae8451a71cc95eb24f30855cbbd7e0633",
+  "sourceCommit": "8983eb11faa3e7c2df17b74d201249a19dd3dc13",
+  "runId": "PATCH-GAP-001/RUN-20261006-002-8983eb1-linux-x64-g1-evaluation",
+  "datasetSha256": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+  "sampleFileCount": 844,
+  "unchangedFileCountB32": 837,
+  "h0BaseBytesRead": 6742496615,
+  "factorBaseBytesRead": 596652111119,
+  "detailManifest": {
+    "count": 844,
+    "bytes": 57780953,
+    "sha256": "c6bda73d2cf826fca2732ef57b0b6559518ef7bb1dd23d4b551577b6ef1fc87e"
+  },
+  "h0Anchor": {
+    "files": 1893,
+    "calibrationBytes": 11860274,
+    "evaluationBytes": 26363364,
+    "totalBytes": 38223638,
+    "patchSetSha256": "4a1f5c272da5cb12ba0d07c5d6b379701d7da154bdc1e92886bd27a8fc3781c6",
+    "matchesFrozenAnchor": true
+  },
+  "lanes": [
+    {
+      "lane": "G1-B1-R64",
+      "h0Bytes": 26363364,
+      "factorBytes": 26020421,
+      "savedBytes": 342943,
+      "reductionVsCsp": 0.013008317147993708,
+      "meetsRfcSizeGate": false
+    },
+    {
+      "lane": "G1-B4-R256",
+      "h0Bytes": 26363364,
+      "factorBytes": 25789917,
+      "savedBytes": 573447,
+      "reductionVsCsp": 0.021751662648211358,
+      "meetsRfcSizeGate": false
+    },
+    {
+      "lane": "G1-B8-R512",
+      "h0Bytes": 26363364,
+      "factorBytes": 25763908,
+      "savedBytes": 599456,
+      "reductionVsCsp": 0.02273822111624298,
+      "meetsRfcSizeGate": false
+    },
+    {
+      "lane": "G1-B32-R2048",
+      "h0Bytes": 26363364,
+      "factorBytes": 25763908,
+      "savedBytes": 599456,
+      "reductionVsCsp": 0.02273822111624298,
+      "meetsRfcSizeGate": false
+    }
+  ],
+  "families": {
+    "chunkshift-source": {
+      "fileCount": 2,
+      "h0Bytes": 379167,
+      "improvedFileCountB32": 1,
+      "lanes": {
+        "G1-B1-R64": 378818,
+        "G1-B4-R256": 378818,
+        "G1-B8-R512": 378818,
+        "G1-B32-R2048": 378818
+      }
+    },
+    "node-linux-x64": {
+      "fileCount": 531,
+      "h0Bytes": 16996890,
+      "improvedFileCountB32": 4,
+      "lanes": {
+        "G1-B1-R64": 16667210,
+        "G1-B4-R256": 16436706,
+        "G1-B8-R512": 16410697,
+        "G1-B32-R2048": 16410697
+      }
+    },
+    "node-win-x64": {
+      "fileCount": 283,
+      "h0Bytes": 8951678,
+      "improvedFileCountB32": 2,
+      "lanes": {
+        "G1-B1-R64": 8938764,
+        "G1-B4-R256": 8938764,
+        "G1-B8-R512": 8938764,
+        "G1-B32-R2048": 8938764
+      }
+    },
+    "tzdata": {
+      "fileCount": 28,
+      "h0Bytes": 35629,
+      "improvedFileCountB32": 0,
+      "lanes": {
+        "G1-B1-R64": 35629,
+        "G1-B4-R256": 35629,
+        "G1-B8-R512": 35629,
+        "G1-B32-R2048": 35629
+      }
+    }
+  },
+  "improvedFilesB32": [
+    {
+      "savedBytesB32": 384257,
+      "family": "node-linux-x64",
+      "baseVersion": "24.19.0",
+      "targetVersion": "24.20.0",
+      "path": "bin/node",
+      "h0PatchBytes": 11070438,
+      "lanePatchBytes": {
+        "G1-B1-R64": 10942694,
+        "G1-B4-R256": 10712190,
+        "G1-B8-R512": 10686181,
+        "G1-B32-R2048": 10686181
+      },
+      "h0BaseBytesRead": 2019056945,
+      "g1BaseBytesRead": 176505351988,
+      "detailSha256": "c7d9bf6a935251742e23e3ebfacfd7544d2c78e279a6a748b619d453ef1169b6",
+      "detailBytes": 15621282
+    },
+    {
+      "savedBytesB32": 201643,
+      "family": "node-linux-x64",
+      "baseVersion": "24.20.0",
+      "targetVersion": "24.21.0",
+      "path": "bin/node",
+      "h0PatchBytes": 5399091,
+      "lanePatchBytes": {
+        "G1-B1-R64": 5197448,
+        "G1-B4-R256": 5197448,
+        "G1-B8-R512": 5197448,
+        "G1-B32-R2048": 5197448
+      },
+      "h0BaseBytesRead": 1913618600,
+      "g1BaseBytesRead": 166674007848,
+      "detailSha256": "f7b2fc3e207a67310fcdbca46b7a37350a761f340e730f9286bb874e6da00a3c",
+      "detailBytes": 14949777
+    },
+    {
+      "savedBytesB32": 8836,
+      "family": "node-win-x64",
+      "baseVersion": "24.20.0",
+      "targetVersion": "24.21.0",
+      "path": "node.exe",
+      "h0PatchBytes": 3124720,
+      "lanePatchBytes": {
+        "G1-B1-R64": 3115884,
+        "G1-B4-R256": 3115884,
+        "G1-B8-R512": 3115884,
+        "G1-B32-R2048": 3115884
+      },
+      "h0BaseBytesRead": 1311960840,
+      "g1BaseBytesRead": 124545811327,
+      "detailSha256": "a9982416b707a398439e56602370d80a59b9560240e95dfd8b4eeffd0fd9ad5e",
+      "detailBytes": 11094272
+    },
+    {
+      "savedBytesB32": 4078,
+      "family": "node-win-x64",
+      "baseVersion": "24.19.0",
+      "targetVersion": "24.20.0",
+      "path": "node.exe",
+      "h0PatchBytes": 5544188,
+      "lanePatchBytes": {
+        "G1-B1-R64": 5540110,
+        "G1-B4-R256": 5540110,
+        "G1-B8-R512": 5540110,
+        "G1-B32-R2048": 5540110
+      },
+      "h0BaseBytesRead": 1416881665,
+      "g1BaseBytesRead": 128771520353,
+      "detailSha256": "a8bb0c4f6679e69fb3a4f7bb53f3053d39d41df2d9d6e541c4a0ca8637033fe0",
+      "detailBytes": 11881157
+    },
+    {
+      "savedBytesB32": 349,
+      "family": "chunkshift-source",
+      "baseVersion": "9e7fd3a",
+      "targetVersion": "27aa319",
+      "path": "source.tar",
+      "h0PatchBytes": 356797,
+      "lanePatchBytes": {
+        "G1-B1-R64": 356448,
+        "G1-B4-R256": 356448,
+        "G1-B8-R512": 356448,
+        "G1-B32-R2048": 356448
+      },
+      "h0BaseBytesRead": 28007287,
+      "g1BaseBytesRead": 65706084,
+      "detailSha256": "2b231ce7b72f038f7e3193a1f3b9eff9f233ff98b3040009d3643b34f185d217",
+      "detailBytes": 206493
+    },
+    {
+      "savedBytesB32": 227,
+      "family": "node-linux-x64",
+      "baseVersion": "24.19.0",
+      "targetVersion": "24.20.0",
+      "path": "CHANGELOG.md",
+      "h0PatchBytes": 14129,
+      "lanePatchBytes": {
+        "G1-B1-R64": 13902,
+        "G1-B4-R256": 13902,
+        "G1-B8-R512": 13902,
+        "G1-B32-R2048": 13902
+      },
+      "h0BaseBytesRead": 3001574,
+      "g1BaseBytesRead": 5519188,
+      "detailSha256": "db3f78bd7b173bda176f1b0b0a5aee349bd4266bdf10e923c65872635d44b46a",
+      "detailBytes": 32606
+    },
+    {
+      "savedBytesB32": 66,
+      "family": "node-linux-x64",
+      "baseVersion": "24.20.0",
+      "targetVersion": "24.21.0",
+      "path": "CHANGELOG.md",
+      "h0PatchBytes": 9765,
+      "lanePatchBytes": {
+        "G1-B1-R64": 9699,
+        "G1-B4-R256": 9699,
+        "G1-B8-R512": 9699,
+        "G1-B32-R2048": 9699
+      },
+      "h0BaseBytesRead": 1004271,
+      "g1BaseBytesRead": 2165860,
+      "detailSha256": "f462d8db589b016bf85fdd52091485fd82837caf5a15e96e99d1063a41002818",
+      "detailBytes": 12471
+    }
+  ]
+}

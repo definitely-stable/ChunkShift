@@ -55,7 +55,7 @@ Physical CSP bytes remain non-contractual under PATCHING-DECISIONS D7.
 | Future CDC algorithms / RepMaxCDC / SeqCDC / Chonkers | #14/#136 |
 | Exact dirty-range incremental rechunk | #150 / `PATCH-INCR-001` |
 | Create candidate selection / resemblance / level ladder | #181 / `PATCH-ENC-005` — complete: REJECT / `STOP_RESEMBLANCE`; D15 unchanged |
-| CSP size-gap decomposition, generic executable/container factors | #183 / `PATCH-GAP-001` |
+| CSP size-gap decomposition, generic executable/container factors | #183 / `PATCH-GAP-001` — G1 REJECT; G3 RUN/FILE next |
 | Tree/update sets and cross-file reuse | #184 / `PATCH-TREE-001` |
 | Trust/signature/update policy | #185 / `TRUST-SIG-001` |
 | Repository one-hop delta storage | #151 / `REPO-DELTA-001` |
@@ -146,13 +146,13 @@ stable task/representation shape + #220 keying
 
 ### NOW
 
-- finish PATCH-GAP-001 exactly as frozen, prioritizing G1 dictionary envelope, G3 frame/run granularity and G4 executable normalization;
+- continue PATCH-GAP-001 exactly as frozen: G1 is complete/rejected; run G3 frame/run granularity next, then G4 executable normalization;
 - run PATCH-TREE-001, PATCH-META-001 and PATCH-INCR-001 as compatible #251 Research Freeze work;
 - retain exact/deterministic evidence discipline and fail-closed invalid-run handling.
 
 ### NEXT
 
-- composite multi-run dictionaries after G1/G2 evidence and #184 before cross-file lanes;
+- composite multi-run dictionaries use the completed negative G1/G2 evidence; require #184 before any cross-file lanes;
 - .NET semantic normalization after generic G4 evidence;
 - required interaction experiments when multiple individually useful factors are not safely composable.
 

@@ -1,0 +1,34 @@
+{
+  "schema": "chunkshift.patch-gap-001-g1-evaluation-documents.v1",
+  "documents": {
+    "detail-manifest": {
+      "count": 844,
+      "bytes": 57780953,
+      "sha256": "c6bda73d2cf826fca2732ef57b0b6559518ef7bb1dd23d4b551577b6ef1fc87e"
+    },
+    "g1-index.json": {
+      "bytes": 760646,
+      "sha256": "73be4009cda2e8f4af6a302f4863be04039b2ae327379bfb582eed91fe66a953"
+    },
+    "h0-anchor.json": {
+      "bytes": 1539,
+      "sha256": "ca80d2606465bc7acfe8681b1b5328bba0b9925900e72326d644de44df220689"
+    },
+    "h0-summary.md": {
+      "bytes": 253,
+      "sha256": "9485253758e3b5fa6a5e0cf3776e0afd16ed7ac659bdba60945a8fae44edb543"
+    },
+    "summary.md": {
+      "bytes": 586,
+      "sha256": "46b6cf98360d3437c74ec5aa5a235fbe406c98a0076eb73286256226831adff0"
+    },
+    "execution.json": {
+      "bytes": 522,
+      "sha256": "95c5b040dfdc2db63714d1c899f59bf17b0cec97d2b884850f5572169ec1113a"
+    },
+    "shards/manifest.json": {
+      "bytes": 11424,
+      "sha256": "2fa800b9bf26a21f8cfd0ca3bce42dac63976d95e20c2b043e1b66934d6b4784"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-10-05",
+  "updated": "2026-10-06",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -396,8 +396,9 @@
       "question": "decompose the CSP size gap to zstd --patch-from, bsdiff, HDiffPatch, Zucchini",
       "protocol": "docs/benchmarks/PATCH-GAP-001-PROTOCOL.md",
       "evidence": "docs/research/results/PATCH-GAP-001-EVIDENCE-20261003-001.md",
-      "decision": "Stage-A inventory locked; G5 NOT_PRESENT. G1 calibration: B1 0.728836%, B4/B8/B32 0.761391%, no lane reaches the frozen 15% threshold; no early runtime gate; fixed evaluation for all four G1 lanes remains mandatory.",
-      "calibrationEvidence": "docs/research/results/PATCH-GAP-001-G1-CALIBRATION-EVIDENCE-20261004-001.md"
+      "decision": "Stage-A inventory locked; G5 NOT_PRESENT. G1 REJECT: evaluation best B8/B32 2.273822% vs frozen 15% gate, 88.491273x base-read amplification, no G1 runtime gate; advance to frozen G3 RUN/FILE.",
+      "calibrationEvidence": "docs/research/results/PATCH-GAP-001-G1-CALIBRATION-EVIDENCE-20261004-001.md",
+      "g1EvaluationEvidence": "docs/research/results/PATCH-GAP-001-G1-EVALUATION-EVIDENCE-20261006-001.md"
     },
     {
       "id": "PATCH-TREE-001",
