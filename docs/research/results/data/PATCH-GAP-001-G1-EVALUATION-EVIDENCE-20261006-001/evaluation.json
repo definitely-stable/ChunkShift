@@ -1,0 +1,61 @@
+{
+  "schema": "chunkshift.patch-gap-001-g1-evaluation-result.v1",
+  "evidenceId": "PATCH-GAP-001/G1-EVALUATION-EVIDENCE-20261006-001",
+  "experimentId": "PATCH-GAP-001",
+  "protocolCommit": "5372678ae8451a71cc95eb24f30855cbbd7e0633",
+  "sourceCommit": "8983eb11faa3e7c2df17b74d201249a19dd3dc13",
+  "datasetSha256": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+  "runId": "PATCH-GAP-001/RUN-20261006-002-8983eb1-linux-x64-g1-evaluation",
+  "status": "REJECT",
+  "h0AnchorPass": true,
+  "sampleFileCount": 844,
+  "improvedFileCountB32": 7,
+  "h0BaseBytesRead": 6742496615,
+  "factorBaseBytesRead": 596652111119,
+  "baseReadAmplification": 88.4912733647698,
+  "lanes": [
+    {
+      "lane": "G1-B1-R64",
+      "h0Bytes": 26363364,
+      "factorBytes": 26020421,
+      "savedBytes": 342943,
+      "reductionVsCsp": 0.013008317147993708,
+      "meetsRfcSizeGate": false
+    },
+    {
+      "lane": "G1-B4-R256",
+      "h0Bytes": 26363364,
+      "factorBytes": 25789917,
+      "savedBytes": 573447,
+      "reductionVsCsp": 0.021751662648211358,
+      "meetsRfcSizeGate": false
+    },
+    {
+      "lane": "G1-B8-R512",
+      "h0Bytes": 26363364,
+      "factorBytes": 25763908,
+      "savedBytes": 599456,
+      "reductionVsCsp": 0.02273822111624298,
+      "meetsRfcSizeGate": false
+    },
+    {
+      "lane": "G1-B32-R2048",
+      "h0Bytes": 26363364,
+      "factorBytes": 25763908,
+      "savedBytes": 599456,
+      "reductionVsCsp": 0.02273822111624298,
+      "meetsRfcSizeGate": false
+    }
+  ],
+  "runtimeEligibleLanes": [],
+  "shardingValidationRunId": 37358264022,
+  "invalidPredecessorRunId": 37296111468,
+  "blockedRedispatchRunId": 37485500579,
+  "nextAction": "RUN_G3_CALIBRATION_AND_EVALUATION",
+  "notes": [
+    "All four predeclared G1 evaluation lanes fail the frozen 15% RFC size gate.",
+    "B8/R512 and B32/R2048 tie, so holdout size benefit saturates by B8.",
+    "No G1 three-platform runtime/apply-RSS characterization is required.",
+    "PATCH-GAP-001 remains RUNNING and advances to G3."
+  ]
+}
