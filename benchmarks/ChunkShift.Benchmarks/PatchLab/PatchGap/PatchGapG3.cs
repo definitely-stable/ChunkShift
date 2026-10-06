@@ -322,6 +322,154 @@ internal static class PatchGapG3ReconstructionOracle
         }
     }
 
+    /// <summary>
+    /// Bounded full-target oracle used by the real G3 runner. Decoded group
+    /// streams are opened lazily and disposed immediately after their final
+    /// member. RUN therefore holds at most one group decoder; FILE holds its
+    /// single file-payload decoder while ordinary records are interleaved.
+    /// </summary>
+    internal static async Task VerifyFullTargetAsync(
+        IReadOnlyList<PatchGapG3TargetRecord> targetRecords,
+        IReadOnlyList<PatchGapG3Group> groups,
+        Func<int, Stream> openDecodedGroup,
+        Func<PatchGapG3TargetRecord, Memory<byte>, CancellationToken, ValueTask> resolveOrdinary,
+        Func<ReadOnlyMemory<byte>, string> identity,
+        string expectedTargetSha256,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(targetRecords);
+        ArgumentNullException.ThrowIfNull(groups);
+        ArgumentNullException.ThrowIfNull(openDecodedGroup);
+        ArgumentNullException.ThrowIfNull(resolveOrdinary);
+        ArgumentNullException.ThrowIfNull(identity);
+
+        if (targetRecords.Count == 0)
+        {
+            throw new InvalidDataException("G3 full-target oracle requires every target-manifest record.");
+        }
+
+        PatchGapEvidence.RequireSha256(expectedTargetSha256, "G3 target SHA-256");
+
+        var groupedByTargetIndex =
+            new Dictionary<long, (PatchGapG3Group Group, PatchGapG3Entry Member)>();
+        var lastMemberByGroup = new Dictionary<int, long>();
+
+        foreach (PatchGapG3Group group in groups)
+        {
+            if (!group.IsCoalesced)
+            {
+                continue;
+            }
+
+            if (!lastMemberByGroup.TryAdd(group.GroupId, group.Members[^1].FirstTargetIndex))
+            {
+                throw new InvalidDataException($"Duplicate G3 group id {group.GroupId}.");
+            }
+
+            foreach (PatchGapG3Entry member in group.Members)
+            {
+                if (!groupedByTargetIndex.TryAdd(member.FirstTargetIndex, (group, member)))
+                {
+                    throw new InvalidDataException(
+                        $"G3 target index {member.FirstTargetIndex} appears in more than one coalesced group.");
+                }
+            }
+        }
+
+        int maximum = targetRecords.Max(static record => record.TargetLength);
+        if (maximum <= 0)
+        {
+            throw new InvalidDataException("G3 target records must have positive lengths.");
+        }
+
+        byte[] buffer = new byte[maximum];
+        using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var active = new Dictionary<int, Stream>();
+
+        try
+        {
+            long expectedIndex = 0;
+            foreach (PatchGapG3TargetRecord record in targetRecords)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (record.TargetIndex != expectedIndex || record.TargetLength <= 0)
+                {
+                    throw new InvalidDataException(
+                        "G3 full-target records must cover every target index exactly once in manifest order.");
+                }
+                expectedIndex++;
+
+                Memory<byte> target = buffer.AsMemory(0, record.TargetLength);
+
+                if (groupedByTargetIndex.TryGetValue(record.TargetIndex, out var grouped))
+                {
+                    if (grouped.Member.TargetLength != record.TargetLength ||
+                        !string.Equals(
+                            grouped.Member.ChunkIdentity,
+                            record.ChunkIdentity,
+                            StringComparison.Ordinal))
+                    {
+                        throw new InvalidDataException(
+                            $"G3 group metadata disagrees with target record {record.TargetIndex}.");
+                    }
+
+                    if (!active.TryGetValue(grouped.Group.GroupId, out Stream? decoded))
+                    {
+                        decoded = openDecodedGroup(grouped.Group.GroupId)
+                            ?? throw new InvalidDataException(
+                                $"G3 group {grouped.Group.GroupId} decoder factory returned null.");
+                        if (!active.TryAdd(grouped.Group.GroupId, decoded))
+                        {
+                            decoded.Dispose();
+                            throw new InvalidDataException(
+                                $"G3 group {grouped.Group.GroupId} decoder was opened twice.");
+                        }
+                    }
+
+                    await ReadExactlyAsync(decoded, target, cancellationToken).ConfigureAwait(false);
+
+                    if (record.TargetIndex == lastMemberByGroup[grouped.Group.GroupId])
+                    {
+                        await RequireEofAsync(
+                            decoded,
+                            $"G3 decoded group {grouped.Group.GroupId} contains extra output bytes.",
+                            cancellationToken).ConfigureAwait(false);
+                        decoded.Dispose();
+                        _ = active.Remove(grouped.Group.GroupId);
+                    }
+                }
+                else
+                {
+                    await resolveOrdinary(record, target, cancellationToken).ConfigureAwait(false);
+                }
+
+                VerifyIdentity(record.TargetIndex, record.ChunkIdentity, target, identity);
+                hash.AppendData(target.Span);
+            }
+
+            if (active.Count != 0)
+            {
+                throw new InvalidDataException(
+                    "G3 full-target oracle ended with an incomplete active group decoder.");
+            }
+
+            string actual = Convert.ToHexStringLower(hash.GetHashAndReset());
+            if (!string.Equals(actual, expectedTargetSha256, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException(
+                    $"G3 complete target hashes to {actual}, expected {expectedTargetSha256}.");
+            }
+        }
+        finally
+        {
+            foreach (Stream stream in active.Values)
+            {
+                stream.Dispose();
+            }
+        }
+    }
+
     internal static async Task VerifyFileSha256Async(
         Stream reconstructed,
         string expectedSha256,
