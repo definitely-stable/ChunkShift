@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: patch-gap-001-g3-calibration
@@ -65,6 +66,35 @@ jobs:
             echo "CORPUS_ROOT=$HOME/patch-corpus"
             echo "OUT=$RUNNER_TEMP/patch-gap-001-g3-calibration"
           } >> "$GITHUB_ENV"
+
+      - name: Enforce one successful calibration dispatch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs="$RUNNER_TEMP/g3-calibration-runs.json"
+          gh api \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/patch-gap-001-g3-calibration.yml/runs?event=workflow_dispatch&status=success&per_page=100" \
+            > "$runs"
+          python3 - "$runs" "$GITHUB_RUN_ID" <<'PY'
+          import json
+          import sys
+
+          path, current = sys.argv[1:]
+          data = json.load(open(path, encoding="utf-8"))
+          prior = [
+              int(run["id"])
+              for run in data.get("workflow_runs", [])
+              if str(run.get("id")) != current
+              and run.get("conclusion") == "success"
+          ]
+          if prior:
+              raise SystemExit(
+                  "PATCH-GAP-001 G3 calibration is one-shot; prior successful "
+                  "dispatch(es): " + ", ".join(map(str, prior))
+              )
+          PY
 
       - name: Checkout tested main commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
