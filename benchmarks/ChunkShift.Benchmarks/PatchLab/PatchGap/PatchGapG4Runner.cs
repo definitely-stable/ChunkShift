@@ -522,6 +522,14 @@ internal static class PatchGapG4Runner
 
             PatchGapExecutableArchitecture architecture = inventoryRow!.Target.Architecture;
             byte syntheticEncoding = PatchGapG4Model.EncodingFor(architecture);
+            PatchGapG4BaseRecord[] canonicalRecords =
+            [
+                .. baseRecords.Select(static record =>
+                    new PatchGapG4BaseRecord(
+                        record.ChunkId.ToString(),
+                        record.Offset,
+                        record.Length)),
+            ];
             var runtimeDecisions = new Dictionary<long, PatchGapG4RuntimeDecision>();
             var entryEvidence = new List<PatchGapG4EntryEvidence>(traces.Length);
             long trialBaseBytesRead = 0;
@@ -630,7 +638,7 @@ internal static class PatchGapG4Runner
                     }
 
                     int canonicalStart = PatchGapG4Model.CanonicalSequenceStart(
-                        baseRecords,
+                        canonicalRecords,
                         candidate.StartIndex,
                         candidate.RecordCount);
                     PatchGapG4DictionaryRead read = await ReadDictionaryAsync(
