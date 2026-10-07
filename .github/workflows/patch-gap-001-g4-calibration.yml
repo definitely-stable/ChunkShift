@@ -117,7 +117,7 @@ jobs:
           lib="$(find "$xz_build" -type f -name 'liblzma.so*' | sort | head -n 1)"
           test -n "$lib"
           for symbol in lzma_bcj_x86_encode lzma_bcj_x86_decode lzma_bcj_arm64_encode lzma_bcj_arm64_decode; do
-            nm -D "$lib" | grep -Eq "[[:space:]]$symbol$"
+            nm -D "$lib" | grep -Eq "[[:space:]]${symbol}(@@?[^[:space:]]+)?$"
           done
           {
             echo "PATCH_GAP_G4_LIBLZMA=$lib"
