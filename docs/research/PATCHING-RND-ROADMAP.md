@@ -1,7 +1,7 @@
 # Patching R&D roadmap
 
 Status: Active research roadmap  
-Last reviewed: 2026-10-04  
+Last reviewed: 2026-10-07  
 Architecture proposal: [RFC-0005](../architecture/RFC-0005-patch-compiler-architecture.md) (**Proposed**, not yet an accepted authority)
 
 ## 1. Purpose
