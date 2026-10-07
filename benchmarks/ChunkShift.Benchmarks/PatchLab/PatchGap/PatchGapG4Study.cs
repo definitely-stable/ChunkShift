@@ -97,7 +97,7 @@ internal static class PatchGapG4Model
 
         var winner = new PatchGapG4Winner(
             "H0",
-            encoding: 0,
+            Encoding: 0,
             CandidateOrdinal: -1,
             CandidateStartIndex: -1,
             CanonicalStartIndex: -1,
