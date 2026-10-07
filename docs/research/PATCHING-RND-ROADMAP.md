@@ -55,7 +55,7 @@ Physical CSP bytes remain non-contractual under PATCHING-DECISIONS D7.
 | Future CDC algorithms / RepMaxCDC / SeqCDC / Chonkers | #14/#136 |
 | Exact dirty-range incremental rechunk | #150 / `PATCH-INCR-001` |
 | Create candidate selection / resemblance / level ladder | #181 / `PATCH-ENC-005` — complete: REJECT / `STOP_RESEMBLANCE`; D15 unchanged |
-| CSP size-gap decomposition, generic executable/container factors | #183 / `PATCH-GAP-001` — G1 REJECT; G3 RUN/FILE next |
+| CSP size-gap decomposition, generic executable/container factors | #183 / `PATCH-GAP-001` — G1 REJECT; G3 REJECT; G4 executable normalization next |
 | Tree/update sets and cross-file reuse | #184 / `PATCH-TREE-001` |
 | Trust/signature/update policy | #185 / `TRUST-SIG-001` |
 | Repository one-hop delta storage | #151 / `REPO-DELTA-001` |
@@ -146,7 +146,7 @@ stable task/representation shape + #220 keying
 
 ### NOW
 
-- continue PATCH-GAP-001 exactly as frozen: G1 is complete/rejected; run G3 frame/run granularity next, then G4 executable normalization;
+- continue PATCH-GAP-001 exactly as frozen: G1 and G3 are complete/rejected; run G4 executable normalization next;
 - run PATCH-TREE-001, PATCH-META-001 and PATCH-INCR-001 as compatible #251 Research Freeze work;
 - retain exact/deterministic evidence discipline and fail-closed invalid-run handling.
 
