@@ -27,7 +27,7 @@ internal sealed record PatchGapG4TrialEvidence(
     long BaseBytesRead,
     int BaseReadCalls,
     int BaseSeeks,
-    PatchGapG4NormalizationSpan DictionaryNormalization);
+    PatchGapG4NormalizationSpan? DictionaryNormalization);
 
 internal sealed record PatchGapG4EntryEvidence(
     long TargetIndex,
@@ -481,6 +481,18 @@ internal static class PatchGapG4Runner
             bool gateEligible = inventoryRow?.GateEligible == true;
             if (!gateEligible)
             {
+                long applyBaseBytesRead = await VerifyFullTargetAsync(
+                    new Dictionary<long, PatchGapG4RuntimeDecision>(),
+                    temporaryPatch,
+                    baseContentPath,
+                    file.TargetSha256,
+                    targetRecords,
+                    baseRecords,
+                    hashSuite,
+                    bcj,
+                    working,
+                    cancellationToken).ConfigureAwait(false);
+
                 return new PatchGapG4FileEvidence(
                     FileSchema,
                     PatchGapProtocol.DatasetRole(pair.Family),
@@ -501,7 +513,7 @@ internal static class PatchGapG4Runner
                     h0BaseBytesRead,
                     G4TrialBaseBytesRead: 0,
                     FactorBaseBytesRead: h0BaseBytesRead,
-                    ApplyBaseBytesRead: 0,
+                    ApplyBaseBytesRead: applyBaseBytesRead,
                     EligiblePayloadEntries: 0,
                     BcjWinnerEntries: 0,
                     ReconstructionPass: true,
@@ -513,6 +525,12 @@ internal static class PatchGapG4Runner
             var runtimeDecisions = new Dictionary<long, PatchGapG4RuntimeDecision>();
             var entryEvidence = new List<PatchGapG4EntryEvidence>(traces.Length);
             long trialBaseBytesRead = 0;
+
+            var firstTargetOccurrences = new Dictionary<ChunkId, long>();
+            foreach (TargetRecord record in targetRecords)
+            {
+                firstTargetOccurrences.TryAdd(record.Id, record.Index);
+            }
 
             await using FileStream targetSource = PatchLabFiles.OpenRead(targetContentPath);
             await using FileStream baseSource = PatchLabFiles.OpenRead(baseContentPath);
@@ -527,10 +545,22 @@ internal static class PatchGapG4Runner
                 cancellationToken.ThrowIfCancellationRequested();
                 if (trace.TargetLength <= 0 ||
                     trace.TargetLength > PatchGapG1Model.MaximumTargetBytes ||
+                    trace.TargetIndex < 0 ||
+                    trace.TargetIndex >= targetRecords.Length ||
                     trace.CandidateCount != trace.Candidates.Count ||
                     trace.CandidateCount > PatchGapG1Model.MaximumCandidateStarts)
                 {
                     throw new InvalidDataException("PATCH-GAP G4 received an invalid H0 trace row.");
+                }
+
+                TargetRecord firstTarget = targetRecords[checked((int)trace.TargetIndex)];
+                if (!string.Equals(firstTarget.Id.ToString(), trace.TargetChunkId, StringComparison.Ordinal) ||
+                    firstTarget.Offset != trace.TargetOffset ||
+                    firstTarget.Length != trace.TargetLength ||
+                    firstTargetOccurrences[firstTarget.Id] != trace.TargetIndex)
+                {
+                    throw new InvalidDataException(
+                        "PATCH-GAP G4 target normalization is not bound to the first target-record occurrence.");
                 }
 
                 byte[] normalizedTarget = new byte[trace.TargetLength];
@@ -560,6 +590,23 @@ internal static class PatchGapG4Runner
                     noDictionaryFrame.Length,
                     DictionaryReferences: 0);
                 trials.Add(noDictionary);
+                trialEvidence.Add(new PatchGapG4TrialEvidence(
+                    noDictionary.StoredForm,
+                    CandidateOrdinal: -1,
+                    CandidateStartIndex: -1,
+                    CanonicalStartIndex: -1,
+                    CandidateStartOffset: -1,
+                    CanonicalStartOffset: -1,
+                    CanonicalStartDiffers: false,
+                    DictionaryChunkIds: [],
+                    DictionaryBytes: 0,
+                    DictionaryReferences: 0,
+                    noDictionary.StoredBytes,
+                    noDictionary.CostBytes,
+                    BaseBytesRead: 0,
+                    BaseReadCalls: 0,
+                    BaseSeeks: 0,
+                    DictionaryNormalization: null));
                 if (noDictionary.CostBytes < bestCost)
                 {
                     bestCost = noDictionary.CostBytes;
@@ -572,9 +619,14 @@ internal static class PatchGapG4Runner
                 {
                     if (candidate.RecordCount <= 0 ||
                         candidate.StartIndex < 0 ||
-                        candidate.StartIndex > baseRecords.Count - candidate.RecordCount)
+                        candidate.StartIndex > baseRecords.Count - candidate.RecordCount ||
+                        candidate.StartOffset != baseRecords[candidate.StartIndex].Offset ||
+                        !string.Equals(
+                            candidate.FirstChunkId,
+                            baseRecords[candidate.StartIndex].ChunkId.ToString(),
+                            StringComparison.Ordinal))
                     {
-                        throw new InvalidDataException("PATCH-GAP G4 H0 candidate range is invalid.");
+                        throw new InvalidDataException("PATCH-GAP G4 H0 candidate range/identity is invalid.");
                     }
 
                     int canonicalStart = PatchGapG4Model.CanonicalSequenceStart(
@@ -634,6 +686,11 @@ internal static class PatchGapG4Runner
                         bestTrial = trial;
                         bestFrame = frame.ToArray();
                     }
+                }
+
+                if (trialEvidence.Count != trace.Candidates.Count + 1)
+                {
+                    throw new InvalidDataException("PATCH-GAP G4 did not retain every frozen BCJ trial.");
                 }
 
                 PatchGapG4Winner winner = PatchGapG4Model.ChooseWinner(
