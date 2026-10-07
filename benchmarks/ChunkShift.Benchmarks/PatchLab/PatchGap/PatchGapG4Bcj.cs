@@ -234,18 +234,33 @@ internal static class PatchGapG4Positions
             throw new ArgumentOutOfRangeException(nameof(candidateStartIndex));
         }
 
-        for (int start = 0; start <= candidateStartIndex; start++)
-        {
-            if (start > baseChunkIds.Count - recordCount)
-            {
-                break;
-            }
+        ChunkId[] sequence =
+        [
+            .. baseChunkIds
+                .Skip(candidateStartIndex)
+                .Take(recordCount),
+        ];
+        return CanonicalSequenceStart(baseChunkIds, sequence);
+    }
 
+    internal static int CanonicalSequenceStart(
+        IReadOnlyList<ChunkId> baseChunkIds,
+        IReadOnlyList<ChunkId> sequence)
+    {
+        ArgumentNullException.ThrowIfNull(baseChunkIds);
+        ArgumentNullException.ThrowIfNull(sequence);
+
+        if (sequence.Count == 0 || sequence.Count > baseChunkIds.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(sequence));
+        }
+
+        for (int start = 0; start <= baseChunkIds.Count - sequence.Count; start++)
+        {
             bool equal = true;
-            for (int offset = 0; offset < recordCount; offset++)
+            for (int offset = 0; offset < sequence.Count; offset++)
             {
-                if (baseChunkIds[start + offset] !=
-                    baseChunkIds[candidateStartIndex + offset])
+                if (baseChunkIds[start + offset] != sequence[offset])
                 {
                     equal = false;
                     break;
@@ -259,6 +274,6 @@ internal static class PatchGapG4Positions
         }
 
         throw new InvalidDataException(
-            "PATCH-GAP G4 could not locate the candidate dictionary sequence in the base manifest.");
+            "PATCH-GAP G4 could not locate the ordered dictionary ChunkId sequence in the base manifest.");
     }
 }
