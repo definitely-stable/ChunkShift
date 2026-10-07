@@ -1,0 +1,102 @@
+name: PATCH-GAP G3 evidence materializer
+
+on:
+  pull_request:
+    types: [synchronize, opened, reopened]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  materialize:
+    if: github.event.pull_request.number == 259 && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      CAL_ARTIFACT_ID: "11458943321"
+      EVAL_ARTIFACT_ID: "11469621374"
+      OUT: docs/research/results/data/PATCH-GAP-001-G3-EVALUATION-EVIDENCE-20261007-001/files.tsv
+      EXPECTED_SHA256: 97b5af75eda19561c687c6e6154cfb88ec244f4f0c33560ab958ffa9f1937a12
+      EXPECTED_BYTES: "237575"
+      EXPECTED_LINES: "1894"
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.HEAD_REF }}
+          fetch-depth: 1
+
+      - name: Download retained decision artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/g3/cal" "$RUNNER_TEMP/g3/eval"
+          for spec in "cal:$CAL_ARTIFACT_ID" "eval:$EVAL_ARTIFACT_ID"; do
+            role="${spec%%:*}"
+            id="${spec##*:}"
+            curl -fsSL \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" \
+              -o "$RUNNER_TEMP/g3/$role.zip"
+            unzip -q "$RUNNER_TEMP/g3/$role.zip" -d "$RUNNER_TEMP/g3/$role"
+          done
+
+      - name: Materialize canonical per-file decision table
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/g3/cal/g3-index.json" "$RUNNER_TEMP/g3/eval/g3-index.json" "$OUT" <<'PY'
+          import csv
+          import json
+          import sys
+          from pathlib import Path
+
+          rows = []
+          for role, source in (("calibration", sys.argv[1]), ("evaluation", sys.argv[2])):
+              root = json.loads(Path(source).read_text(encoding="utf-8"))
+              if root["datasetRole"] != role:
+                  raise SystemExit(f"datasetRole mismatch: {source}")
+              for row in root["files"]:
+                  rows.append((
+                      role,
+                      row["family"],
+                      row["baseVersion"],
+                      row["targetVersion"],
+                      row["path"],
+                      int(row["h0PatchBytes"]),
+                      int(row["lanePatchBytes"]["G3-RUN"]),
+                      int(row["lanePatchBytes"]["G3-FILE"]),
+                  ))
+
+          rows.sort(key=lambda r: r[:5])
+          out = Path(sys.argv[3])
+          out.parent.mkdir(parents=True, exist_ok=True)
+          with out.open("w", encoding="utf-8", newline="") as f:
+              w = csv.writer(f, delimiter="\t", lineterminator="\n")
+              w.writerow(("datasetRole","family","baseVersion","targetVersion","path","h0Bytes","g3RunBytes","g3FileBytes"))
+              w.writerows(rows)
+          PY
+
+          test "$(wc -l < "$OUT")" = "$EXPECTED_LINES"
+          test "$(stat -c %s "$OUT")" = "$EXPECTED_BYTES"
+          actual="$(sha256sum "$OUT" | cut -d' ' -f1)"
+          test "$actual" = "$EXPECTED_SHA256"
+
+      - name: Commit durable per-file evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$OUT"
+          if git diff --cached --quiet; then
+            echo "Per-file evidence is already materialized."
+            exit 0
+          fi
+          git commit -m "docs(research): retain per-file G3 decision rows"
+          git push origin "HEAD:$HEAD_REF"
