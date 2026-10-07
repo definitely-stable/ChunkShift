@@ -681,13 +681,13 @@ internal static class PatchGapG4Runner
     }
 
     private static async Task VerifyFullTargetAsync(
-        IReadOnlyDictionary<long, PatchGapG4Winner> winners,
+        Dictionary<long, PatchGapG4Winner> winners,
         string h0PatchPath,
         string baseContentPath,
         string expectedTargetSha256,
         TargetRecord[] targetRecords,
         List<CspPatchBuilder.BaseRecord> baseRecords,
-        IReadOnlyDictionary<ChunkId, CspPatchBuilder.BaseRecord> baseById,
+        Dictionary<ChunkId, CspPatchBuilder.BaseRecord> baseById,
         HashSuiteId hashSuite,
         PatchGapExecutableArchitecture architecture,
         PatchGapG4BcjNative bcj,
@@ -863,7 +863,7 @@ internal static class PatchGapG4Runner
 
     private static void ValidateCandidate(
         CspCandidateTraceCandidate candidate,
-        IReadOnlyList<CspPatchBuilder.BaseRecord> baseRecords)
+        List<CspPatchBuilder.BaseRecord> baseRecords)
     {
         if (candidate.StartIndex < 0 ||
             candidate.RecordCount <= 0 ||
@@ -879,7 +879,7 @@ internal static class PatchGapG4Runner
     }
 
     private static int DictionaryLength(
-        IReadOnlyList<CspPatchBuilder.BaseRecord> baseRecords,
+        List<CspPatchBuilder.BaseRecord> baseRecords,
         int start,
         int count)
     {
@@ -899,7 +899,7 @@ internal static class PatchGapG4Runner
 
     private static async Task<long> ReadDictionaryAsync(
         Stream baseContent,
-        IReadOnlyList<CspPatchBuilder.BaseRecord> baseRecords,
+        List<CspPatchBuilder.BaseRecord> baseRecords,
         int start,
         int count,
         Memory<byte> destination,
