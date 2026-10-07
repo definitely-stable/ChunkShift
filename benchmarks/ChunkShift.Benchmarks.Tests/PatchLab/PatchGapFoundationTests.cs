@@ -6,6 +6,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using ChunkShift.Benchmarks.PatchLab;
 using ChunkShift.Benchmarks.PatchLab.PatchGap;
+using ChunkShift.Patching.Creation;
+using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks.Tests.PatchLab;
 
@@ -299,6 +301,57 @@ public class PatchGapFoundationTests
         BinaryPrimitives.WriteUInt32LittleEndian(pe.AsSpan(section + 8, 4), 0x400);
         BinaryPrimitives.WriteUInt32LittleEndian(pe.AsSpan(section + 16, 4), 0x20);
         Assert.Equal(PatchGapExecutableKind.Malformed, PatchGapG4Classifier.Classify(pe).Kind);
+    }
+
+    [Fact]
+    public void G4BcjPlansFreezeX86AndArm64Positions()
+    {
+        PatchGapG4TransformPlan x86 = PatchGapG4BcjNative.Plan(
+            PatchGapExecutableArchitecture.X64,
+            (1L << 32) + 0x1234,
+            33);
+        Assert.Equal(0, x86.PrefixBytes);
+        Assert.Equal(0x1234u, x86.StartOffset);
+        Assert.Equal(33, x86.TransformBytes);
+
+        PatchGapG4TransformPlan arm64 = PatchGapG4BcjNative.Plan(
+            PatchGapExecutableArchitecture.Arm64,
+            5,
+            20);
+        Assert.Equal(3, arm64.PrefixBytes);
+        Assert.Equal(8u, arm64.StartOffset);
+        Assert.Equal(17, arm64.TransformBytes);
+
+        PatchGapG4TransformPlan shortArm64 = PatchGapG4BcjNative.Plan(
+            PatchGapExecutableArchitecture.Arm64,
+            5,
+            2);
+        Assert.Equal(2, shortArm64.PrefixBytes);
+        Assert.Equal(0u, shortArm64.StartOffset);
+        Assert.Equal(0, shortArm64.TransformBytes);
+    }
+
+    [Fact]
+    public void G4CanonicalDictionaryPositionUsesEarliestFullSequence()
+    {
+        ChunkId a = Chunk(0x11);
+        ChunkId b = Chunk(0x22);
+        ChunkId c = Chunk(0x33);
+        ChunkId d = Chunk(0x44);
+
+        CspPatchBuilder.BaseRecord[] records =
+        [
+            new(0, 10, a),
+            new(10, 10, c),
+            new(20, 10, a),
+            new(30, 10, b),
+            new(40, 10, d),
+            new(50, 10, a),
+            new(60, 10, b),
+        ];
+
+        Assert.Equal(2, PatchGapG4Positions.CanonicalSequenceStart(records, 5, 2));
+        Assert.Equal(0, PatchGapG4Positions.CanonicalSequenceStart(records, 2, 1));
     }
 
     [Fact]
@@ -887,6 +940,10 @@ public class PatchGapFoundationTests
 
     private static string Sha256(ReadOnlySpan<byte> bytes) =>
         Convert.ToHexStringLower(SHA256.HashData(bytes));
+
+    private static ChunkId Chunk(byte value) =>
+        new(Hash256.FromBytes(Enumerable.Repeat(value, 32).ToArray()));
+
 
     private static byte[] Pe(bool managed, bool r2r)
     {
