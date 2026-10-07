@@ -10,7 +10,7 @@ internal static class PatchGapRunner
     {
         if (args.Length == 0)
         {
-            Console.Error.WriteLine("patch-lab gap needs a mode: h0, g1, g1-aggregate, g1-memory, g1-apply-child, g3, inventory or finalize-inventory.");
+            Console.Error.WriteLine("patch-lab gap needs a mode: h0, g1, g1-aggregate, g1-memory, g1-apply-child, g3, g4, inventory or finalize-inventory.");
             return 2;
         }
 
@@ -22,6 +22,7 @@ internal static class PatchGapRunner
             "g1-memory" => PatchGapG1ApplyMemory.ExecuteMemory(args[1..]),
             "g1-apply-child" => PatchGapG1ApplyMemory.ExecuteApplyChild(args[1..]),
             "g3" => PatchGapG3Runner.Execute(args[1..]),
+            "g4" => PatchGapG4Runner.Execute(args[1..]),
             "inventory" => RunInventory(args[1..]),
             "finalize-inventory" => RunFinalizeInventory(args[1..]),
             _ => Unknown(args[0]),
@@ -650,7 +651,7 @@ internal static class PatchGapRunner
 
     private static int Unknown(string mode)
     {
-        Console.Error.WriteLine($"Unknown patch-lab gap mode '{mode}'; expected h0, g1, g1-aggregate, g1-memory, g1-apply-child, g3, inventory or finalize-inventory.");
+        Console.Error.WriteLine($"Unknown patch-lab gap mode '{mode}'; expected h0, g1, g1-aggregate, g1-memory, g1-apply-child, g3, g4, inventory or finalize-inventory.");
         return 2;
     }
 }
