@@ -663,8 +663,8 @@ internal static class PatchGapG4Runner
                     h0PatchBytes - g4PatchBytes,
                     h0BaseBytesRead,
                     extraBaseReads,
-                    ReconstructionPass: true,
-                    [.. entries])));
+                    true,
+                    [.. entries]));
         }
         finally
         {
