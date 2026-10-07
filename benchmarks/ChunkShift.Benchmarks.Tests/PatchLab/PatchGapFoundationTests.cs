@@ -6,6 +6,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using ChunkShift.Benchmarks.PatchLab;
 using ChunkShift.Benchmarks.PatchLab.PatchGap;
+using ChunkShift.Patching.Creation;
+using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks.Tests.PatchLab;
 
@@ -313,6 +315,76 @@ public class PatchGapFoundationTests
             "node-win-x64", "1", "2", "node", 10, 5, Pe(false, false), Elf(2, 62));
         Assert.False(mixed.SameExecutableFamilyAndArchitecture);
         Assert.False(mixed.GateEligible);
+    }
+
+    [Fact]
+    public void G4BcjPositionPlanPinsX86AndArm64Offsets()
+    {
+        Assert.Equal(
+            (0, 0xfffffffEu, 17),
+            PatchGapG4Bcj.Plan(0xfffffffEL, 17, PatchGapExecutableArchitecture.X64));
+
+        Assert.Equal(
+            (3, 4u, 14),
+            PatchGapG4Bcj.Plan(1, 17, PatchGapExecutableArchitecture.Arm64));
+
+        Assert.Equal(
+            (2, 4u, 0),
+            PatchGapG4Bcj.Plan(2, 2, PatchGapExecutableArchitecture.Arm64));
+
+        Assert.Throws<InvalidDataException>(() =>
+            PatchGapG4Bcj.Plan(0, 1, PatchGapExecutableArchitecture.Unknown));
+    }
+
+    [Fact]
+    public void G4CanonicalDictionaryUsesEarliestWholeSequence()
+    {
+        ChunkId a = TestChunkId(1);
+        ChunkId b = TestChunkId(2);
+        ChunkId c = TestChunkId(3);
+        ChunkId d = TestChunkId(4);
+
+        CspPatchBuilder.BaseRecord[] records =
+        [
+            new(0, 10, a),
+            new(10, 11, b),
+            new(21, 12, c),
+            new(33, 10, a),
+            new(43, 11, b),
+            new(54, 13, d),
+            new(67, 12, c),
+        ];
+
+        Assert.Equal(0, PatchGapG4Model.CanonicalSequenceStart(records, 3, 2));
+        Assert.Equal(2, PatchGapG4Model.CanonicalSequenceStart(records, 2, 1));
+        Assert.Equal(5, PatchGapG4Model.CanonicalSequenceStart(records, 5, 2));
+    }
+
+    [Fact]
+    public void G4WinnerKeepsH0OnTieAndEarlierTrialOnLaterTie()
+    {
+        PatchGapG4Winner tiedH0 = PatchGapG4Model.ChooseWinner(
+            h0StoredBytes: 100,
+            h0DictionaryReferences: 0,
+            [
+                new("bcj-zstd", PatchGapG4Model.EncodingX86, -1, -1, -1, 100, 0),
+            ]);
+        Assert.Equal("H0", tiedH0.StoredForm);
+
+        PatchGapG4Winner trial = PatchGapG4Model.ChooseWinner(
+            h0StoredBytes: 100,
+            h0DictionaryReferences: 0,
+            [
+                new("bcj-zstd", PatchGapG4Model.EncodingX86, -1, -1, -1, 90, 0),
+                new("bcj-zstd-dictionary", PatchGapG4Model.EncodingX86, 0, 4, 1, 58, 1),
+                new("bcj-zstd-dictionary", PatchGapG4Model.EncodingX86, 1, 8, 8, 58, 1),
+            ]);
+
+        Assert.Equal("bcj-zstd", trial.StoredForm);
+        Assert.Equal(90, trial.CostBytes);
+        Assert.Equal(
+            990,
+            PatchGapG4Model.PhysicalPatchBytes(1000, [(100L, trial.CostBytes)]));
     }
 
     [Fact]
@@ -884,6 +956,9 @@ public class PatchGapFoundationTests
         long stored,
         string[] dictionary) =>
         new(index, offset, bytes.Length, Sha256(bytes), stored, dictionary.Length, dictionary);
+
+    private static ChunkId TestChunkId(byte marker) =>
+        new(Hash256.FromBytes(Enumerable.Repeat(marker, 32).ToArray()));
 
     private static string Sha256(ReadOnlySpan<byte> bytes) =>
         Convert.ToHexStringLower(SHA256.HashData(bytes));
