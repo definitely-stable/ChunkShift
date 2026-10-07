@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using ChunkShift.Patching.Creation;
+using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks.PatchLab.PatchGap;
 
@@ -221,22 +221,22 @@ internal sealed unsafe class PatchGapG4BcjNative : IDisposable
 internal static class PatchGapG4Positions
 {
     internal static int CanonicalSequenceStart(
-        IReadOnlyList<CspPatchBuilder.BaseRecord> baseRecords,
+        IReadOnlyList<ChunkId> baseChunkIds,
         int candidateStartIndex,
         int recordCount)
     {
-        ArgumentNullException.ThrowIfNull(baseRecords);
+        ArgumentNullException.ThrowIfNull(baseChunkIds);
 
         if (candidateStartIndex < 0 ||
             recordCount <= 0 ||
-            candidateStartIndex > baseRecords.Count - recordCount)
+            candidateStartIndex > baseChunkIds.Count - recordCount)
         {
             throw new ArgumentOutOfRangeException(nameof(candidateStartIndex));
         }
 
         for (int start = 0; start <= candidateStartIndex; start++)
         {
-            if (start > baseRecords.Count - recordCount)
+            if (start > baseChunkIds.Count - recordCount)
             {
                 break;
             }
@@ -244,8 +244,8 @@ internal static class PatchGapG4Positions
             bool equal = true;
             for (int offset = 0; offset < recordCount; offset++)
             {
-                if (baseRecords[start + offset].ChunkId !=
-                    baseRecords[candidateStartIndex + offset].ChunkId)
+                if (baseChunkIds[start + offset] !=
+                    baseChunkIds[candidateStartIndex + offset])
                 {
                     equal = false;
                     break;
