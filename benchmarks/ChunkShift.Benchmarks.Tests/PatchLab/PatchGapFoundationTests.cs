@@ -6,8 +6,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using ChunkShift.Benchmarks.PatchLab;
 using ChunkShift.Benchmarks.PatchLab.PatchGap;
-using ChunkShift.Patching.Creation;
-using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks.Tests.PatchLab;
 
@@ -339,20 +337,15 @@ public class PatchGapFoundationTests
     [Fact]
     public void G4CanonicalDictionaryUsesEarliestWholeSequence()
     {
-        ChunkId a = TestChunkId(1);
-        ChunkId b = TestChunkId(2);
-        ChunkId c = TestChunkId(3);
-        ChunkId d = TestChunkId(4);
-
-        CspPatchBuilder.BaseRecord[] records =
+        PatchGapG4BaseRecord[] records =
         [
-            new(0, 10, a),
-            new(10, 11, b),
-            new(21, 12, c),
-            new(33, 10, a),
-            new(43, 11, b),
-            new(54, 13, d),
-            new(67, 12, c),
+            new("a", 0, 10),
+            new("b", 10, 11),
+            new("c", 21, 12),
+            new("a", 33, 10),
+            new("b", 43, 11),
+            new("d", 54, 13),
+            new("c", 67, 12),
         ];
 
         Assert.Equal(0, PatchGapG4Model.CanonicalSequenceStart(records, 3, 2));
@@ -956,9 +949,6 @@ public class PatchGapFoundationTests
         long stored,
         string[] dictionary) =>
         new(index, offset, bytes.Length, Sha256(bytes), stored, dictionary.Length, dictionary);
-
-    private static ChunkId TestChunkId(byte marker) =>
-        new(Hash256.FromBytes(Enumerable.Repeat(marker, 32).ToArray()));
 
     private static string Sha256(ReadOnlySpan<byte> bytes) =>
         Convert.ToHexStringLower(SHA256.HashData(bytes));
