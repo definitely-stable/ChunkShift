@@ -1,7 +1,7 @@
 # ChunkShift roadmap
 
 Status: Active  
-Last reviewed: 2026-10-03
+Last reviewed: 2026-10-07
 
 Authority:
 
