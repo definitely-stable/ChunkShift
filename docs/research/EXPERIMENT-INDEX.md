@@ -1,7 +1,7 @@
 # Experiment index
 
 Status: Active registry
-Last reviewed: 2026-10-06
+Last reviewed: 2026-10-07
 
 This table is the human-readable research index. Machine-readable experiment definitions may also live under `benchmarks/experiments/`.
 
