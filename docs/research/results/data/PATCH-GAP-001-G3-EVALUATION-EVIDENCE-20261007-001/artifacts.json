@@ -1,0 +1,5 @@
+{
+  "schema":"chunkshift.patch-gap-001-g3-artifacts.v1",
+  "calibrationArtifact":{"workflowName":"PATCH-GAP-001 G3 calibration","workflowRunId":37566276539,"workflowRunNumber":1,"workflowRunAttempt":1,"artifactId":11458943321,"artifactName":"patch-gap-001-g3-calibration-1-4975b0d4121b0bee426b9a7e3fce140918cce151","artifactZipSha256":"061c02256b53dc2d15c1f5a64ccef0af062087b6dd40e1f547443be5f6a5464a","artifactExpiresAt":"2027-01-05T03:20:20Z"},
+  "evaluationArtifact":{"workflowName":"PATCH-GAP-001 G3 evaluation","workflowRunId":37590709260,"workflowRunNumber":1,"workflowRunAttempt":1,"artifactId":11469621374,"artifactName":"patch-gap-001-g3-evaluation-1-4975b0d4121b0bee426b9a7e3fce140918cce151","artifactZipSha256":"0a8d5766c19c6520ccf5a18378720de253c1d698164f0c687d144213ff5805bb","artifactExpiresAt":"2027-01-05T07:58:35Z"}
+}

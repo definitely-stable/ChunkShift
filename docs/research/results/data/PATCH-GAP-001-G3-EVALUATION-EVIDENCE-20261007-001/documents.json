@@ -1,0 +1,17 @@
+{
+  "schema":"chunkshift.patch-gap-001-g3-documents.v1",
+  "documents":{
+    "calibration":{
+      "g3-index.json":{"bytes":864453,"sha256":"9bc172052e28ba5b6635a852843e9a94f1e21d8708bf2b5160469c4bd735a4fd"},
+      "h0-anchor.json":{"bytes":1532,"sha256":"a2f9ad269fa309ab7f61802d12cf7af148b676730e7b3d52321166c05c478f73"},
+      "summary.md":{"bytes":489,"sha256":"19fb743855e81d27834ff0728a0d27bfedad6e920da14080d6fe27f58f5f5edd"},
+      "detail-manifest":{"count":1049,"bytes":2114265,"sha256":"2359c44818209d6ac66900d1f99c6b4e36bc35bbf9fc2ce7cea937ee52746ecd","format":"sorted detailPath\\tdetailSha256\\tdetailBytes\\n"}
+    },
+    "evaluation":{
+      "g3-index.json":{"bytes":659353,"sha256":"610999421b7fd24ea7501a2e5d713fc3c707467ad56ed5c766e6503cb44c04f5"},
+      "h0-anchor.json":{"bytes":1529,"sha256":"05f3f8e4ca75c11e1f7ab3d02e390a19c45bbb98b19d86651a91e4f196d09eac"},
+      "summary.md":{"bytes":484,"sha256":"416a804077ec676cbba45ad47e1c4f9a9bade8c7166f1b9b10f72da27c613a0a"},
+      "detail-manifest":{"count":844,"bytes":1652233,"sha256":"6d43650df2c36168442f824b75fffac94b019388762434a3ba03b00405b49bfe","format":"sorted detailPath\\tdetailSha256\\tdetailBytes\\n"}
+    }
+  }
+}
