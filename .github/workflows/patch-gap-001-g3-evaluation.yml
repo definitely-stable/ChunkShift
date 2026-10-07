@@ -34,7 +34,7 @@ jobs:
       - name: Validate decision identity
         shell: bash
         env:
-          RUN_DATE: ${{ inputs.run-date }}
+          RUN_DATE: ${{ inputs['run-date'] }}
         run: |
           set -euo pipefail
           if [[ "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
@@ -260,8 +260,8 @@ jobs:
       - name: Record raw artifact identity
         shell: bash
         env:
-          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
-          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+          ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
         run: |
           set -euo pipefail
           {
