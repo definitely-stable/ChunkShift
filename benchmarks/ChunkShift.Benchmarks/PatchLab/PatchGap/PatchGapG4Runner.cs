@@ -758,12 +758,12 @@ internal static class PatchGapG4Runner
     }
 
     private static async Task<long> VerifyFullTargetAsync(
-        IReadOnlyDictionary<long, PatchGapG4RuntimeDecision> decisions,
+        Dictionary<long, PatchGapG4RuntimeDecision> decisions,
         string h0PatchPath,
         string baseContentPath,
         string expectedTargetSha256,
         TargetRecord[] targetRecords,
-        IReadOnlyList<CspPatchBuilder.BaseRecord> baseRecords,
+        List<CspPatchBuilder.BaseRecord> baseRecords,
         HashSuiteId hashSuite,
         PatchGapG4Bcj bcj,
         string working,
@@ -965,7 +965,7 @@ internal static class PatchGapG4Runner
 
     private static async Task<PatchGapG4DictionaryRead> ReadDictionaryAsync(
         Stream baseContent,
-        IReadOnlyList<CspPatchBuilder.BaseRecord> records,
+        List<CspPatchBuilder.BaseRecord> records,
         int start,
         int count,
         HashSuiteId hashSuite,
