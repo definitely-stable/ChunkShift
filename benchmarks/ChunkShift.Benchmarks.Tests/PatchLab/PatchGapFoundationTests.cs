@@ -6,7 +6,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using ChunkShift.Benchmarks.PatchLab;
 using ChunkShift.Benchmarks.PatchLab.PatchGap;
-using ChunkShift.Patching.Creation;
 using ChunkShift.Primitives;
 
 namespace ChunkShift.Benchmarks.Tests.PatchLab;
@@ -339,16 +338,7 @@ public class PatchGapFoundationTests
         ChunkId c = Chunk(0x33);
         ChunkId d = Chunk(0x44);
 
-        CspPatchBuilder.BaseRecord[] records =
-        [
-            new(0, 10, a),
-            new(10, 10, c),
-            new(20, 10, a),
-            new(30, 10, b),
-            new(40, 10, d),
-            new(50, 10, a),
-            new(60, 10, b),
-        ];
+        ChunkId[] records = [a, c, a, b, d, a, b];
 
         Assert.Equal(2, PatchGapG4Positions.CanonicalSequenceStart(records, 5, 2));
         Assert.Equal(0, PatchGapG4Positions.CanonicalSequenceStart(records, 2, 1));
