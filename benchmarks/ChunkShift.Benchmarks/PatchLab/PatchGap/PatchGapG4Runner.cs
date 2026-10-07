@@ -542,6 +542,11 @@ internal static class PatchGapG4Runner
                         hashSuite,
                         cancellationToken).ConfigureAwait(false);
                     extraBaseReads = checked(extraBaseReads + readBytes);
+                    if (!CspDictionary.IsUsable(originalDictionary))
+                    {
+                        throw new InvalidDataException(
+                            "PATCH-GAP G4 trace admitted a dictionary that production H0 considers unusable.");
+                    }
 
                     int canonical = PatchGapG4Positions.CanonicalSequenceStart(
                         baseIds,
