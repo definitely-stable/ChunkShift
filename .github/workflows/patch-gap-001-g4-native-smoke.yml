@@ -1,0 +1,63 @@
+name: PATCH-GAP-001 G4 native smoke
+
+on:
+  pull_request:
+    paths:
+      - "benchmarks/ChunkShift.Benchmarks/PatchLab/PatchGap/PatchGapG4*.cs"
+      - "benchmarks/ChunkShift.Benchmarks/PatchLab/PatchGap/PatchGapRunner.cs"
+      - "benchmarks/ChunkShift.Benchmarks.Tests/PatchLab/PatchGapFoundationTests.cs"
+      - "benchmarks/scripts/verify_patch_gap_g4.py"
+      - ".github/workflows/patch-gap-001-g4-*.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+  XZ_COMMIT: d3e650e63c110e830fd5391e7f8b45df0b91d3da
+
+jobs:
+  native-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Build pinned liblzma
+        shell: bash
+        run: |
+          set -euo pipefail
+          src="$RUNNER_TEMP/xz"
+          build="$RUNNER_TEMP/xz-build"
+          git clone --filter=blob:none https://github.com/tukaani-project/xz.git "$src"
+          git -C "$src" checkout --detach "$XZ_COMMIT"
+          test "$(git -C "$src" rev-parse HEAD)" = "$XZ_COMMIT"
+          cmake -S "$src" -B "$build" -G Ninja             -DCMAKE_BUILD_TYPE=Release             -DBUILD_SHARED_LIBS=ON             -DXZ_NLS=OFF
+          cmake --build "$build" --target liblzma
+          lib="$(find "$build" -type f -name 'liblzma.so*' | sort | head -n 1)"
+          test -n "$lib"
+          for symbol in lzma_bcj_x86_encode lzma_bcj_x86_decode lzma_bcj_arm64_encode lzma_bcj_arm64_decode; do
+            nm -D "$lib" | grep -Eq "[[:space:]]$symbol$"
+          done
+          echo "PATCH_GAP_G4_LIBLZMA=$lib" >> "$GITHUB_ENV"
+
+      - name: Build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Run x86 ARM64 and raw-prefix self-test
+        shell: bash
+        run: |
+          set -euo pipefail
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          dotnet "$dll" patch-lab gap g4-selftest
