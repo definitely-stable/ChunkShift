@@ -145,6 +145,69 @@ def main() -> int:
                     != int(target_norm["inputBytes"])
                 ):
                     raise SystemExit("target normalization boundary equation mismatch")
+
+                trials = entry["trials"]
+                if not trials:
+                    raise SystemExit("eligible G4 entry lost the mandatory no-dictionary trial")
+                first_trial = trials[0]
+                if (
+                    first_trial["storedForm"] != "bcj-zstd"
+                    or int(first_trial["candidateOrdinal"]) != -1
+                    or int(first_trial["dictionaryReferences"]) != 0
+                    or first_trial["dictionaryNormalization"] is not None
+                ):
+                    raise SystemExit("first G4 trial is not the frozen no-dictionary trial")
+
+                expected_trial = None
+                expected_cost = h0_cost
+                for trial in trials:
+                    refs = int(trial["dictionaryReferences"])
+                    trial_cost = int(trial["costBytes"])
+                    if trial_cost != int(trial["frameBytes"]) + 32 * refs:
+                        raise SystemExit("G4 trial cost equation mismatch")
+                    if refs == 0:
+                        if trial["dictionaryChunkIds"] or int(trial["dictionaryBytes"]) != 0:
+                            raise SystemExit("no-dictionary trial carries dictionary metadata")
+                    else:
+                        if len(trial["dictionaryChunkIds"]) != refs:
+                            raise SystemExit("G4 dictionary reference count mismatch")
+                        norm = trial["dictionaryNormalization"]
+                        if norm is None:
+                            raise SystemExit("G4 dictionary trial lost normalization metadata")
+                        if (
+                            int(norm["untouchedPrefixBytes"])
+                            + int(norm["processedBytes"])
+                            + int(norm["untouchedTailBytes"])
+                            != int(norm["inputBytes"])
+                        ):
+                            raise SystemExit("dictionary normalization boundary equation mismatch")
+                        if int(norm["inputBytes"]) != int(trial["dictionaryBytes"]):
+                            raise SystemExit("dictionary normalization length mismatch")
+                        candidate_start = int(trial["candidateStartIndex"])
+                        canonical_start = int(trial["canonicalStartIndex"])
+                        if canonical_start > candidate_start:
+                            raise SystemExit("canonical dictionary occurrence is later than H0 candidate")
+                        if bool(trial["canonicalStartDiffers"]) != (canonical_start != candidate_start):
+                            raise SystemExit("canonical-start-differs flag mismatch")
+                    if trial_cost < expected_cost:
+                        expected_cost = trial_cost
+                        expected_trial = trial
+
+                if int(entry["winnerCostBytes"]) != expected_cost:
+                    raise SystemExit("strict G4 winner cost mismatch")
+                if expected_trial is None:
+                    if entry["winnerStoredForm"] != "H0":
+                        raise SystemExit("G4 replaced H0 on a tie/non-improvement")
+                else:
+                    if (
+                        entry["winnerStoredForm"] != expected_trial["storedForm"]
+                        or int(entry["winnerEncoding"]) not in (2, 3)
+                        or int(entry["winnerCandidateOrdinal"]) != int(expected_trial["candidateOrdinal"])
+                        or int(entry["winnerCandidateStartIndex"]) != int(expected_trial["candidateStartIndex"])
+                        or int(entry["winnerCanonicalStartIndex"]) != int(expected_trial["canonicalStartIndex"])
+                    ):
+                        raise SystemExit("G4 winner metadata differs from first strict minimum")
+
                 if entry["winnerStoredForm"] != "H0":
                     winners += 1
                     if int(entry["winnerEncoding"]) not in (2, 3):
