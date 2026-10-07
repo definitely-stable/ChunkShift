@@ -1,0 +1,51 @@
+{
+  "schema":"chunkshift.patch-gap-001-g3-compact.v1",
+  "evidenceId":"PATCH-GAP-001/G3-EVALUATION-EVIDENCE-20261007-001",
+  "experimentId":"PATCH-GAP-001",
+  "protocolCommit":"5372678ae8451a71cc95eb24f30855cbbd7e0633",
+  "datasetSha256":"8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+  "splits":{
+    "calibration":{
+      "runId":"PATCH-GAP-001/RUN-20261007-001-4975b0d-linux-x64-g3-calibration",
+      "sourceCommit":"4975b0d4121b0bee426b9a7e3fce140918cce151",
+      "sampleFileCount":1049,
+      "lanes":[
+        {"lane":"G3-RUN","h0Bytes":11860274,"factorBytes":31473592,"savedBytes":-19613318,"reductionVsCsp":-1.6536985570485134,"meetsRfcSizeGate":false,"h0BaseBytesRead":3113635436,"factorBaseBytesRead":3203608767,"baseReadAmplification":1.0288965528718372,"coalescedGroups":433,"coalescedMembers":1923,"coalescedTargetBytes":148289948},
+        {"lane":"G3-FILE","h0Bytes":11860274,"factorBytes":44856434,"savedBytes":-32996160,"reductionVsCsp":-2.782074006047415,"meetsRfcSizeGate":false,"h0BaseBytesRead":3113635436,"factorBaseBytesRead":3216393479,"baseReadAmplification":1.0330025929856483,"coalescedGroups":446,"coalescedMembers":2321,"coalescedTargetBytes":181636353}
+      ],
+      "families":{
+        "dotnet-aspnetcore-win-x64":{"fileCount":669,"h0Bytes":7324878,"lanes":{"G3-RUN":{"factorBytes":16709270,"improvedFiles":226,"unchangedFiles":418,"worseFiles":25,"coalescedGroups":291,"coalescedMembers":1096},"G3-FILE":{"factorBytes":24865095,"improvedFiles":172,"unchangedFiles":370,"worseFiles":127,"coalescedGroups":299,"coalescedMembers":1340}}},
+        "dotnet-runtime-linux-arm64":{"fileCount":380,"h0Bytes":4535396,"lanes":{"G3-RUN":{"factorBytes":14764322,"improvedFiles":100,"unchangedFiles":262,"worseFiles":18,"coalescedGroups":142,"coalescedMembers":827},"G3-FILE":{"factorBytes":19991339,"improvedFiles":63,"unchangedFiles":234,"worseFiles":83,"coalescedGroups":147,"coalescedMembers":981}}}
+      }
+    },
+    "evaluation":{
+      "runId":"PATCH-GAP-001/RUN-20261007-001-4975b0d-linux-x64-g3-evaluation",
+      "sourceCommit":"4975b0d4121b0bee426b9a7e3fce140918cce151",
+      "sampleFileCount":844,
+      "lanes":[
+        {"lane":"G3-RUN","h0Bytes":26363364,"factorBytes":75922335,"savedBytes":-49558971,"reductionVsCsp":-1.879842458648297,"meetsRfcSizeGate":false,"h0BaseBytesRead":6742496615,"factorBaseBytesRead":6775406929,"baseReadAmplification":1.004881027886137,"coalescedGroups":109,"coalescedMembers":3277,"coalescedTargetBytes":270289592},
+        {"lane":"G3-FILE","h0Bytes":26363364,"factorBytes":79825697,"savedBytes":-53462333,"reductionVsCsp":-2.0279025468828635,"meetsRfcSizeGate":false,"h0BaseBytesRead":6742496615,"factorBaseBytesRead":6747375722,"baseReadAmplification":1.0007236350685214,"coalescedGroups":25,"coalescedMembers":3314,"coalescedTargetBytes":274397954}
+      ],
+      "families":{
+        "chunkshift-source":{"fileCount":2,"h0Bytes":379167,"lanes":{"G3-RUN":{"factorBytes":314453,"improvedFiles":2,"unchangedFiles":0,"worseFiles":0,"coalescedGroups":5,"coalescedMembers":29},"G3-FILE":{"factorBytes":450573,"improvedFiles":1,"unchangedFiles":0,"worseFiles":1,"coalescedGroups":2,"coalescedMembers":31}}},
+        "node-linux-x64":{"fileCount":531,"h0Bytes":16996890,"lanes":{"G3-RUN":{"factorBytes":44564758,"improvedFiles":8,"unchangedFiles":521,"worseFiles":2,"coalescedGroups":59,"coalescedMembers":1875},"G3-FILE":{"factorBytes":46577195,"improvedFiles":7,"unchangedFiles":521,"worseFiles":3,"coalescedGroups":10,"coalescedMembers":1905}}},
+        "node-win-x64":{"fileCount":283,"h0Bytes":8951678,"lanes":{"G3-RUN":{"factorBytes":31008039,"improvedFiles":4,"unchangedFiles":277,"worseFiles":2,"coalescedGroups":39,"coalescedMembers":1361},"G3-FILE":{"factorBytes":32762892,"improvedFiles":3,"unchangedFiles":277,"worseFiles":3,"coalescedGroups":6,"coalescedMembers":1364}}},
+        "tzdata":{"fileCount":28,"h0Bytes":35629,"lanes":{"G3-RUN":{"factorBytes":35085,"improvedFiles":6,"unchangedFiles":22,"worseFiles":0,"coalescedGroups":6,"coalescedMembers":12},"G3-FILE":{"factorBytes":35037,"improvedFiles":7,"unchangedFiles":21,"worseFiles":0,"coalescedGroups":7,"coalescedMembers":14}}}
+      },
+      "largestRegressions":{
+        "G3-RUN":[
+          {"addedBytes":15744945,"family":"node-linux-x64","path":"bin/node","versions":"24.20.0 -> 24.21.0"},
+          {"addedBytes":11823991,"family":"node-linux-x64","path":"bin/node","versions":"24.19.0 -> 24.20.0"},
+          {"addedBytes":11461934,"family":"node-win-x64","path":"node.exe","versions":"24.20.0 -> 24.21.0"},
+          {"addedBytes":10595230,"family":"node-win-x64","path":"node.exe","versions":"24.19.0 -> 24.20.0"}
+        ],
+        "G3-FILE":[
+          {"addedBytes":17060638,"family":"node-linux-x64","path":"bin/node","versions":"24.20.0 -> 24.21.0"},
+          {"addedBytes":12516421,"family":"node-win-x64","path":"node.exe","versions":"24.20.0 -> 24.21.0"},
+          {"addedBytes":12502496,"family":"node-linux-x64","path":"bin/node","versions":"24.19.0 -> 24.20.0"},
+          {"addedBytes":11269960,"family":"node-win-x64","path":"node.exe","versions":"24.19.0 -> 24.20.0"}
+        ]
+      }
+    }
+  }
+}
