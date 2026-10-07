@@ -481,7 +481,7 @@ internal static class PatchGapG4Runner
             bool gateEligible = inventoryRow?.GateEligible == true;
             if (!gateEligible)
             {
-                long applyBaseBytesRead = await VerifyFullTargetAsync(
+                long h0ApplyBaseBytesRead = await VerifyFullTargetAsync(
                     new Dictionary<long, PatchGapG4RuntimeDecision>(),
                     temporaryPatch,
                     baseContentPath,
@@ -513,7 +513,7 @@ internal static class PatchGapG4Runner
                     h0BaseBytesRead,
                     G4TrialBaseBytesRead: 0,
                     FactorBaseBytesRead: h0BaseBytesRead,
-                    ApplyBaseBytesRead: applyBaseBytesRead,
+                    ApplyBaseBytesRead: h0ApplyBaseBytesRead,
                     EligiblePayloadEntries: 0,
                     BcjWinnerEntries: 0,
                     ReconstructionPass: true,
