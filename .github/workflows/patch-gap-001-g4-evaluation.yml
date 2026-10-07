@@ -1,0 +1,238 @@
+name: PATCH-GAP-001 G4 evaluation
+
+on:
+  workflow_dispatch:
+    inputs:
+      run-date:
+        description: "Frozen RunId UTC date (YYYYMMDD)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: patch-gap-001-g4-evaluation
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+  PROTOCOL_COMMIT: 5372678ae8451a71cc95eb24f30855cbbd7e0633
+  PAIRS_SHA256: 8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd
+  H0_EVALUATION_BYTES: "26363364"
+  G4_INVENTORY_SHA256: d2bf3e49da5ddf228e67abbd03fdc7d97af403a88804858dca3de4075e225ad6
+  XZ_COMMIT: d3e650e63c110e830fd5391e7f8b45df0b91d3da
+
+jobs:
+  g4-evaluation:
+    name: g4-evaluation-linux-x64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Validate decision identity
+        shell: bash
+        env:
+          RUN_DATE: ${{ inputs['run-date'] }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = "1"
+          test "$GITHUB_REF" = "refs/heads/main"
+          if (( GITHUB_RUN_NUMBER > 999 )); then exit 2; fi
+          python3 - "$RUN_DATE" <<'PY'
+          import datetime as dt, re, sys
+          value = sys.argv[1]
+          if not re.fullmatch(r"\d{8}", value):
+              raise SystemExit("run-date must be YYYYMMDD")
+          dt.datetime.strptime(value, "%Y%m%d")
+          PY
+          sequence="$(printf '%03d' "$GITHUB_RUN_NUMBER")"
+          short_commit="${GITHUB_SHA:0:7}"
+          {
+            echo "SOURCE_COMMIT=$GITHUB_SHA"
+            echo "RUN_ID=PATCH-GAP-001/RUN-${RUN_DATE}-${sequence}-${short_commit}-linux-x64-g4-evaluation"
+            echo "CORPUS_ROOT=$HOME/patch-corpus"
+            echo "OUT=$RUNNER_TEMP/patch-gap-001-g4-evaluation"
+            echo "G4_INVENTORY=$GITHUB_WORKSPACE/docs/research/results/data/PATCH-GAP-001-20261003-001/subsets/g4.json"
+          } >> "$GITHUB_ENV"
+
+      - name: Enforce single G4 evaluation dispatch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs="$RUNNER_TEMP/g4-evaluation-runs.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/patch-gap-001-g4-evaluation.yml/runs?event=workflow_dispatch&per_page=100" > "$runs"
+          python3 - "$runs" "$GITHUB_RUN_ID" <<'PY'
+          import json, sys
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          current = sys.argv[2]
+          prior = [str(r["id"]) for r in data.get("workflow_runs", []) if str(r["id"]) != current]
+          if prior:
+              raise SystemExit("PATCH-GAP-001 G4 evaluation is single-dispatch; prior: " + ", ".join(prior))
+          PY
+
+      - name: Require successful G4 calibration on this source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs="$RUNNER_TEMP/g4-calibration-runs.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/patch-gap-001-g4-calibration.yml/runs?event=workflow_dispatch&status=success&per_page=100" > "$runs"
+          python3 - "$runs" "$GITHUB_SHA" <<'PY'
+          import json, sys
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          source = sys.argv[2]
+          matches = [str(r["id"]) for r in data.get("workflow_runs", [])
+                     if r.get("conclusion") == "success"
+                     and r.get("head_sha") == source
+                     and int(r.get("run_attempt", 0)) == 1]
+          if not matches:
+              raise SystemExit("No successful G4 calibration exists for this exact source commit")
+          print("G4 calibration run:", matches[0])
+          PY
+      - name: Checkout tested main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify clean tested checkout and frozen G4 inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          test -z "$(git status --porcelain=v1 --untracked-files=normal)"
+          test "$(sha256sum "$G4_INVENTORY" | cut -d' ' -f1)" = "$G4_INVENTORY_SHA256"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Build pinned XZ 5.8.4 liblzma
+        shell: bash
+        run: |
+          set -euo pipefail
+          xz_src="$RUNNER_TEMP/xz"
+          xz_build="$RUNNER_TEMP/xz-build"
+          git clone --filter=blob:none https://github.com/tukaani-project/xz.git "$xz_src"
+          git -C "$xz_src" checkout --detach "$XZ_COMMIT"
+          test "$(git -C "$xz_src" rev-parse HEAD)" = "$XZ_COMMIT"
+          tree_sha="$(git -C "$xz_src" archive --format=tar HEAD | sha256sum | cut -d' ' -f1)"
+
+          cmake -S "$xz_src" -B "$xz_build" -G Ninja             -DCMAKE_BUILD_TYPE=Release             -DBUILD_SHARED_LIBS=ON             -DXZ_NLS=OFF
+          cmake --build "$xz_build" --target liblzma
+
+          lib="$(find "$xz_build" -type f -name 'liblzma.so*' | sort | head -n 1)"
+          test -n "$lib"
+          for symbol in lzma_bcj_x86_encode lzma_bcj_x86_decode lzma_bcj_arm64_encode lzma_bcj_arm64_decode; do
+            nm -D "$lib" | grep -Eq "[[:space:]]$symbol$"
+          done
+          {
+            echo "PATCH_GAP_G4_LIBLZMA=$lib"
+            echo "XZ_TREE_ARCHIVE_SHA256=$tree_sha"
+            echo "LIBLZMA_SHA256=$(sha256sum "$lib" | cut -d' ' -f1)"
+          } >> "$GITHUB_ENV"
+
+      - name: Restore frozen patch-corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize and lock frozen patch corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py             --root "$CORPUS_ROOT"             --sources "$HOME/patch-corpus/sources"             --download             --lock
+          test "$(sha256sum "$CORPUS_ROOT/pairs.json" | cut -d' ' -f1)" = "$PAIRS_SHA256"
+
+      - name: Restore and build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Regenerate and require frozen H0 anchor
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT"
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          dotnet "$dll" patch-lab gap h0             --corpus "$CORPUS_ROOT"             --output "$OUT/h0-anchor.json"             --source-commit "$SOURCE_COMMIT"             --run-id "$RUN_ID-h0-preflight"
+          python3 - "$OUT/h0-anchor.json" "$PROTOCOL_COMMIT" "$PAIRS_SHA256" <<'PY'
+          import json, pathlib, sys
+          root = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          if root.get("protocolCommit") != sys.argv[2] or root.get("corpusPairsSha256") != sys.argv[3] or root.get("matchesFrozenAnchor") is not True:
+              raise SystemExit("G4 H0 preflight rejected")
+          pathlib.Path("$OUT/h0-summary.md")
+          PY
+
+      - name: Record XZ provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$OUT/xz-provenance.json" <<'PY'
+          import json, os, pathlib, subprocess, sys
+          out = pathlib.Path(sys.argv[1])
+          payload = {
+              "xzCommit": os.environ["XZ_COMMIT"],
+              "treeArchiveSha256": os.environ["XZ_TREE_ARCHIVE_SHA256"],
+              "libLzmaSha256": os.environ["LIBLZMA_SHA256"],
+              "libLzmaPath": os.environ["PATCH_GAP_G4_LIBLZMA"],
+              "cmake": subprocess.check_output(["cmake", "--version"], text=True).splitlines()[0],
+              "cc": subprocess.check_output(["cc", "--version"], text=True).splitlines()[0],
+          }
+          out.write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+          PY
+
+      - name: Run frozen G4 calibration byte study
+        shell: bash
+        run: |
+          set -euo pipefail
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          dotnet "$dll" patch-lab gap g4             --corpus "$CORPUS_ROOT"             --dataset-role evaluation             --inventory "$G4_INVENTORY"             --output "$OUT/g4-index.json"             --detail-dir "$OUT/detail"             --source-commit "$SOURCE_COMMIT"             --run-id "$RUN_ID"
+
+      - name: Recompute fail-closed G4 calibration invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/verify_patch_gap_g4.py             --index "$OUT/g4-index.json"             --detail-dir "$OUT/detail"             --source-commit "$SOURCE_COMMIT"             --protocol-commit "$PROTOCOL_COMMIT"             --pairs-sha "$PAIRS_SHA256"             --dataset-role evaluation             --expected-h0 "$H0_EVALUATION_BYTES"             --summary "$OUT/summary.md"
+          cat "$OUT/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload G4 calibration evidence
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-001-g4-evaluation-${{ github.run_number }}-${{ github.sha }}
+          path: ${{ env.OUT }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Record raw artifact identity
+        shell: bash
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
+        run: |
+          {
+            echo
+            echo "- Actions artifact id: `$ARTIFACT_ID`"
+            echo "- Actions artifact digest: `$ARTIFACT_DIGEST`"
+            echo "- XZ commit: `$XZ_COMMIT`"
+            echo "- liblzma SHA-256: `$LIBLZMA_SHA256`"
+            echo "- Retention: 90 days"
+            echo
+            echo "This is the single frozen G4 evaluation byte run. Do not rerun or retune."
+          } >> "$GITHUB_STEP_SUMMARY"
