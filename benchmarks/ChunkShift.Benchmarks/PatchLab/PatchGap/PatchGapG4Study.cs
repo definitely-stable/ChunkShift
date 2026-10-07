@@ -1,7 +1,9 @@
-using ChunkShift.Patching.Creation;
-using ChunkShift.Primitives;
-
 namespace ChunkShift.Benchmarks.PatchLab.PatchGap;
+
+internal sealed record PatchGapG4BaseRecord(
+    string ChunkIdentity,
+    long Offset,
+    int Length);
 
 internal sealed record PatchGapG4TrialCost(
     string StoredForm,
@@ -32,7 +34,7 @@ internal static class PatchGapG4Model
     internal const byte EncodingArm64 = 3;
 
     internal static int CanonicalSequenceStart(
-        IReadOnlyList<CspPatchBuilder.BaseRecord> records,
+        IReadOnlyList<PatchGapG4BaseRecord> records,
         int candidateStart,
         int recordCount)
     {
@@ -49,9 +51,9 @@ internal static class PatchGapG4Model
             bool equal = true;
             for (int offset = 0; offset < recordCount; offset++)
             {
-                CspPatchBuilder.BaseRecord expected = records[candidateStart + offset];
-                CspPatchBuilder.BaseRecord actual = records[start + offset];
-                if (actual.ChunkId != expected.ChunkId || actual.Length != expected.Length)
+                PatchGapG4BaseRecord expected = records[candidateStart + offset];
+                PatchGapG4BaseRecord actual = records[start + offset];
+                if (!string.Equals(actual.ChunkIdentity, expected.ChunkIdentity, StringComparison.Ordinal) || actual.Length != expected.Length)
                 {
                     equal = false;
                     break;
@@ -66,19 +68,6 @@ internal static class PatchGapG4Model
 
         throw new InvalidDataException(
             "PATCH-GAP G4 could not find the H0 dictionary sequence in the base manifest.");
-    }
-
-    internal static ChunkId[] DictionaryIds(
-        IReadOnlyList<CspPatchBuilder.BaseRecord> records,
-        int start,
-        int count)
-    {
-        if (start < 0 || count <= 0 || start > records.Count - count)
-        {
-            throw new InvalidDataException("PATCH-GAP G4 dictionary range is invalid.");
-        }
-
-        return [.. records.Skip(start).Take(count).Select(static record => record.ChunkId)];
     }
 
     internal static PatchGapG4Winner ChooseWinner(
