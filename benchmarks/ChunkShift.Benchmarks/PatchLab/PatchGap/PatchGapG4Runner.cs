@@ -542,11 +542,7 @@ internal static class PatchGapG4Runner
 
             await using FileStream targetSource = PatchLabFiles.OpenRead(targetContentPath);
             await using FileStream baseSource = PatchLabFiles.OpenRead(baseContentPath);
-            using var encoder = new CspPayloadEncoder(
-                PatchGapG1Model.Level,
-                CspDictionaryLoad.Prefix,
-                PatchGapG1Model.HashLog,
-                PatchGapG1Model.ChainLog);
+            using var encoder = new PatchGapG4Codec();
 
             foreach (CspCandidateTraceEntry trace in traces)
             {
@@ -588,7 +584,7 @@ internal static class PatchGapG4Runner
                 PatchGapG4TrialCost? bestTrial = null;
 
                 ReadOnlySpan<byte> noDictionaryFrame =
-                    encoder.EncodeZstd(normalizedTarget, ReadOnlySpan<byte>.Empty);
+                    encoder.Encode(normalizedTarget, ReadOnlySpan<byte>.Empty);
                 var noDictionary = new PatchGapG4TrialCost(
                     "bcj-zstd",
                     syntheticEncoding,
@@ -659,7 +655,7 @@ internal static class PatchGapG4Runner
                     long canonicalOffset = baseRecords[canonicalStart].Offset;
                     PatchGapG4NormalizationSpan dictionaryNormalization =
                         bcj.Encode(read.Bytes, canonicalOffset, architecture);
-                    ReadOnlySpan<byte> frame = encoder.EncodeZstd(normalizedTarget, read.Bytes);
+                    ReadOnlySpan<byte> frame = encoder.Encode(normalizedTarget, read.Bytes);
                     var trial = new PatchGapG4TrialCost(
                         "bcj-zstd-dictionary",
                         syntheticEncoding,
@@ -872,6 +868,7 @@ internal static class PatchGapG4Runner
 
         await using FileStream baseContent = PatchLabFiles.OpenRead(baseContentPath);
         using var h0Decoder = new CspPayloadDecoder();
+        using var g4Decoder = new PatchGapG4Codec();
 
         foreach (TargetRecord record in targetRecords)
         {
@@ -937,8 +934,7 @@ internal static class PatchGapG4Runner
                         dictionary = destination;
                     }
 
-                    h0Decoder.Decode(
-                        CspFormat.EncodingZstd,
+                    g4Decoder.Decode(
                         stored,
                         dictionary.Span,
                         chunk.Span);
