@@ -43,7 +43,7 @@ RS01 is an explicitly **non-production research envelope**, not a CSP section/en
 | Target SHA-256 | 32 | exact decoded target content bytes |
 | Stored body | variable | one frame or canonical sparse runs |
 
-**Header = 85 bytes.** Total = 85 + exactly `StoredLength`, using checked arithmetic. Decoder rejects missing/extra bytes, unsupported mode, invalid base offset/digest, invalid sizes, noncanonical/overlapping/adjacent/unchanged sparse runs and corrupt zstd. After reconstruction it independently checks SHA-256 of the exact decoded target so a structurally legal payload alteration cannot silently succeed. No allocation based on an untrusted length before validating the 1 MiB output bound. Sparse body starts with LE int32 count, then `(start:i32,len:i32,bytes[len])` for each maximal run.
+**Header = 85 bytes.** Total = 85 + exactly `StoredLength`, using checked arithmetic. Decoder rejects missing/extra bytes, unsupported mode, invalid base offset/digest, invalid sizes, noncanonical/overlapping/adjacent/unchanged sparse runs and corrupt zstd. After reconstruction it independently checks SHA-256 of the exact decoded target so a structurally legal payload alteration cannot silently succeed. No allocation based on an untrusted length before validating the 1 MiB output bound. Reject overflowing base ranges (`BaseOffset + TargetLength` must fit `long`). Reject a stored body beyond the **representation-specific** bound before reconstruction: R1 `Compressor.GetCompressBound(TargetLength)` and R2 `4 + TargetLength + 8 * ceil(TargetLength / 2)` (a conservative maximum given canonical separated runs). Do not treat the envelope-level cap alone as sufficient for tiny targets. Sparse body starts with LE int32 count, then `(start:i32,len:i32,bytes[len])` for each maximal run.
 
 Important: RS01 base/target SHA-256/offset/header costs are **not CSP vNext overhead estimates**. A production representation could use a different verified-source model. Neither naked zstd-frame size nor RS01 size may be compared as if it were full CSP physical size.
 
@@ -51,7 +51,8 @@ Important: RS01 base/target SHA-256/offset/header costs are **not CSP vNext over
 
 - Exact round trips for both modes, even when input is low-entropy, periodic or random.
 - Repeatable encoding for equal bytes and the same backend/toolchain.
-- Wrong base and mismatched offset fail closed; malformed headers, sparse payloads and target-content tampering are rejected.
+- Wrong base, nonrepresentable/incorrect base offset and target-content tampering fail closed; malformed or oversized bodies and sparse payloads are rejected.
+- Independent hand-authored sparse wire vector and exhaustive binary pairs through six bytes agree with the canonical generator.
 - Every synthetic header/stored byte is accounted; no claimed compressed-byte gain yet.
 - No changes under `src/`, CSM/CSP, `CspEncoderPolicy.Default`, PublicAPI or publication repository.
 - Existing `benchmark-lab.yml` on standard GitHub-hosted runners must build and test the benchmark solution.

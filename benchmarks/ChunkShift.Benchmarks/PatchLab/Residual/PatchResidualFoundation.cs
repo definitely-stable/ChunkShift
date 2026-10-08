@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
+using ZstdSharp;
 using ChunkShift.Patching.Encoding;
 
 namespace ChunkShift.Benchmarks.PatchLab.Residual;
@@ -16,7 +17,6 @@ internal static class PatchResidualFoundation
     internal const int HeaderBytes = 85; // magic(4), kind(1), length(4), offset(8), stored(4), base SHA-256(32), target SHA-256(32)
     internal const byte XorZstd = 1;
     internal const byte SparseRuns = 2;
-    private const int MaximumStoredBytes = MaximumBytes * 6 + 4;
 
     internal static byte[] EncodeXorZstd(
         ReadOnlySpan<byte> verifiedBase,
@@ -94,8 +94,14 @@ internal static class PatchResidualFoundation
         if (targetLength is <= 0 or > MaximumBytes ||
             targetLength != verifiedBase.Length ||
             offset < 0 || offset != expectedBaseOffset ||
-            storedLength < 0 || storedLength > MaximumStoredBytes ||
+            offset > long.MaxValue - targetLength ||
+            storedLength < 0 ||
             envelope.Length - HeaderBytes != storedLength)
+        {
+            throw new InvalidDataException("Residual length, base offset or payload bound mismatch.");
+        }
+
+        if (storedLength > MaximumBodyBytes(kind, targetLength))
         {
             throw new InvalidDataException("Residual length, base offset or payload bound mismatch.");
         }
@@ -203,7 +209,7 @@ internal static class PatchResidualFoundation
         long baseOffset,
         ReadOnlySpan<byte> stored)
     {
-        if (stored.Length > MaximumStoredBytes)
+        if (stored.Length > MaximumBodyBytes(kind, target.Length))
         {
             throw new ArgumentOutOfRangeException(nameof(stored));
         }
@@ -232,5 +238,16 @@ internal static class PatchResidualFoundation
         }
 
         ArgumentOutOfRangeException.ThrowIfNegative(baseOffset);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            baseOffset, long.MaxValue - target.Length);
     }
+
+    private static int MaximumBodyBytes(byte kind, int targetLength) =>
+        kind switch
+        {
+            XorZstd => Compressor.GetCompressBound(targetLength),
+            // At most ceil(n/2) disjoint runs and at most n changed bytes.
+            SparseRuns => checked(4 + targetLength + 8 * ((targetLength + 1) / 2)),
+            _ => throw new InvalidDataException("Unknown residual representation."),
+        };
 }
