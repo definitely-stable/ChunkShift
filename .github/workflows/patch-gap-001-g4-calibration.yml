@@ -240,7 +240,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 benchmarks/scripts/verify_patch_gap_g4.py             --index "$OUT/g4-index.json"             --detail-dir "$OUT/detail"             --inventory "$G4_INVENTORY"             --dataset-role calibration             | tee "$OUT/verify.txt"
+          python3 benchmarks/scripts/verify_patch_gap_g4.py             --index "$OUT/g4-index.json"             --detail-dir "$OUT/detail"             --inventory "$G4_INVENTORY"             --xz-provenance "$OUT/xz-provenance.json" --dataset-role calibration             | tee "$OUT/verify.txt"
           python3 - "$OUT/g4-index.json" "$OUT/summary.md" <<'PY'
           import json, pathlib, sys
           root = json.load(open(sys.argv[1], encoding="utf-8"))
