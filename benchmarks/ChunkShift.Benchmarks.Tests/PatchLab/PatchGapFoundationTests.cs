@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using ChunkShift.Benchmarks.PatchLab;
 using ChunkShift.Benchmarks.PatchLab.PatchGap;
+using ChunkShift.Patching.Format;
 
 namespace ChunkShift.Benchmarks.Tests.PatchLab;
 
