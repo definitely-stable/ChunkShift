@@ -36,7 +36,32 @@ jobs:
         with:
           python-version: "3.14"
 
+      - name: Require completed, successful source-locked decision runs
+        id: readiness
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cal="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/37802323920" --jq '.conclusion // "pending"')"
+          ev="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/37808520559" --jq '.conclusion // "pending"')"
+          if [[ "$cal" != success ]]; then
+            echo "Frozen G4 calibration is not successful; cannot import." >&2
+            exit 2
+          fi
+          if [[ "$ev" == pending ]]; then
+            echo 'G4 evaluation is still running; archival deferred without writing evidence.' >> "$GITHUB_STEP_SUMMARY"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$ev" != success ]]; then
+            echo "Frozen G4 evaluation failed ($ev); do not import or infer a verdict." >&2
+            exit 2
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
       - name: Download successful frozen G4 runs
+        if: steps.readiness.outputs.ready == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -58,6 +83,7 @@ jobs:
           done
 
       - name: Verify and materialize durable compact G4 evidence
+        if: steps.readiness.outputs.ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -74,6 +100,7 @@ jobs:
             --root docs/research/results/data/PATCH-GAP-001-G4-EVIDENCE-20261008-001
 
       - name: Commit verified evidence only to this PR branch
+        if: steps.readiness.outputs.ready == 'true'
         shell: bash
         env:
           TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
