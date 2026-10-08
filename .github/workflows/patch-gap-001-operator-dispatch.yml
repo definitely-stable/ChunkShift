@@ -1,0 +1,106 @@
+name: PATCH-GAP-001 operator dispatch
+
+# Operational bridge; only the frozen G4 workflows produce decision evidence.
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: patch-gap-001-operator-dispatch
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: >-
+      github.event.issue.number == 183 &&
+      github.event.issue.pull_request == null &&
+      github.event.comment.user.id == 271974079 &&
+      (startsWith(github.event.comment.body, '/g4-calibration ') ||
+       startsWith(github.event.comment.body, '/g4-evaluation '))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OPERATOR_COMMAND: ${{ github.event.comment.body }}
+    steps:
+      - name: Enforce single dispatch and exact frozen source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import datetime as dt
+          import json
+          import os
+          import pathlib
+          import re
+          import subprocess
+
+          command = os.environ["OPERATOR_COMMAND"]
+          match = re.fullmatch(r"/g4-(calibration|evaluation) (20[0-9]{6})", command)
+          if match is None:
+              raise SystemExit("Only exact G4 operator commands are allowed")
+          lane, date = match.groups()
+          dt.datetime.strptime(date, "%Y%m%d")
+          repo = os.environ["GITHUB_REPOSITORY"]
+          source = os.environ["GITHUB_SHA"]
+
+          def api(path):
+              return json.loads(subprocess.check_output(
+                  ["gh", "api", "repos/" + repo + "/" + path], text=True
+              ))
+
+          def main_sha():
+              return api("branches/main")["commit"]["sha"]
+
+          if source != main_sha():
+              raise SystemExit("main advanced after the comment; refusing stale source identity")
+
+          def runs(workflow):
+              value = api(
+                  "actions/workflows/" + workflow +
+                  "/runs?event=workflow_dispatch&per_page=100"
+              )
+              if int(value.get("total_count", 0)) > 100:
+                  raise SystemExit("Run history exceeds audited bound")
+              return value.get("workflow_runs", [])
+
+          calibration = runs("patch-gap-001-g4-calibration.yml")
+          evaluation = runs("patch-gap-001-g4-evaluation.yml")
+          if evaluation:
+              raise SystemExit("G4 evaluation already dispatched: one attempt only")
+          if lane == "calibration":
+              if any(
+                  r.get("conclusion") == "success" or r.get("status") != "completed"
+                  for r in calibration
+              ):
+                  raise SystemExit("G4 calibration already successful or active")
+          elif not any(
+              r.get("conclusion") == "success"
+              and r.get("head_sha") == source
+              and int(r.get("run_attempt", 0)) == 1
+              for r in calibration
+          ):
+              raise SystemExit("Evaluation requires successful calibration on the exact SHA")
+
+          if source != main_sha():
+              raise SystemExit("main advanced before dispatch")
+          workflow = "patch-gap-001-g4-" + lane + ".yml"
+          subprocess.run(
+              ["gh", "api", "--method", "POST",
+               "repos/" + repo + "/actions/workflows/" + workflow + "/dispatches",
+               "-f", "ref=main", "-f", "inputs[run-date]=" + date],
+              check=True,
+          )
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write(
+                  "### Frozen G4 workflow submitted\n"
+                  "- workflow: " + workflow + "\n"
+                  "- source SHA: " + source + "\n"
+                  "- date: " + date + "\n"
+                  "- Submission alone is **not** experimental evidence.\n"
+              )
+          PY
