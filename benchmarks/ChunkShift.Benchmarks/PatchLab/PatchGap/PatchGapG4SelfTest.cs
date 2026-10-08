@@ -82,6 +82,15 @@ internal static class PatchGapG4SelfTest
         // A transformed dictionary remains an explicit raw prefix even if the
         // transformed bytes happen to begin with zstd trained-dictionary magic.
         byte[] normalizedDictionary = new byte[4096];
+        uint state = 0xC0FFEE11u;
+        for (int index = 0; index < normalizedDictionary.Length; index++)
+        {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            normalizedDictionary[index] = unchecked((byte)state);
+        }
+
         normalizedDictionary[0] = 0x37;
         normalizedDictionary[1] = 0xA4;
         normalizedDictionary[2] = 0x30;
@@ -92,11 +101,10 @@ internal static class PatchGapG4SelfTest
                 "G4 self-test expected production trained-dictionary magic rejection.");
         }
 
-        byte[] normalizedTarget = new byte[32 * 1024];
-        for (int index = 0; index < normalizedTarget.Length; index++)
-        {
-            normalizedTarget[index] = normalizedDictionary[index % normalizedDictionary.Length];
-        }
+        // A single incompressible target equal to the raw prefix forces the
+        // emitted frame to depend on that prefix instead of succeeding through
+        // target-internal repetition.
+        byte[] normalizedTarget = (byte[])normalizedDictionary.Clone();
 
         using var codec = new PatchGapG4Codec();
         byte[] frame = codec.Encode(normalizedTarget, normalizedDictionary).ToArray();
@@ -106,6 +114,24 @@ internal static class PatchGapG4SelfTest
         {
             throw new InvalidDataException(
                 "G4 raw-prefix zstd self-test failed exact reconstruction.");
+        }
+
+        byte[] withoutPrefix = new byte[normalizedTarget.Length];
+        bool prefixWasRequired;
+        try
+        {
+            codec.Decode(frame, ReadOnlySpan<byte>.Empty, withoutPrefix);
+            prefixWasRequired = !withoutPrefix.AsSpan().SequenceEqual(normalizedTarget);
+        }
+        catch (InvalidDataException)
+        {
+            prefixWasRequired = true;
+        }
+
+        if (!prefixWasRequired)
+        {
+            throw new InvalidDataException(
+                "G4 raw-prefix smoke produced a frame that did not depend on the transformed prefix.");
         }
 
         Console.WriteLine(
