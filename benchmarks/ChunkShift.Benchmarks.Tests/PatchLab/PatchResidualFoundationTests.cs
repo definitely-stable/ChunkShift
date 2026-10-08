@@ -113,6 +113,18 @@ public class PatchResidualFoundationTests
         BinaryPrimitives.WriteInt32LittleEndian(overlap.AsSpan(secondStart), 2);
         Assert.Throws<InvalidDataException>(() =>
             PatchResidualFoundation.Decode(overlap, old, 0));
+
+        // Canonical and structurally valid payload tampering must still fail
+        // final target-identity verification.
+        byte[] wrongTarget = (byte[])sparse.Clone();
+        wrongTarget[firstPayloadByte] = 8; // original is 9, base is 2
+        Assert.Throws<InvalidDataException>(() =>
+            PatchResidualFoundation.Decode(wrongTarget, old, 0));
+
+        byte[] wrongDigest = (byte[])sparse.Clone();
+        wrongDigest[53] ^= 0xFF;
+        Assert.Throws<InvalidDataException>(() =>
+            PatchResidualFoundation.Decode(wrongDigest, old, 0));
     }
 
     [Fact]
