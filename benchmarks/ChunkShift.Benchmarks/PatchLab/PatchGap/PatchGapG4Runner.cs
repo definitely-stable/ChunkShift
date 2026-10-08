@@ -697,7 +697,15 @@ internal static class PatchGapG4Runner
                     throw new InvalidDataException("PATCH-GAP G4 did not retain every frozen BCJ trial.");
                 }
 
+                byte h0Encoding = trace.SelectedEncoding switch
+                {
+                    "raw" => CspFormat.EncodingRaw,
+                    "zstd" or "zstd-dictionary" => CspFormat.EncodingZstd,
+                    _ => throw new InvalidDataException(
+                        $"PATCH-GAP G4 H0 trace has unknown selected encoding '{trace.SelectedEncoding}'."),
+                };
                 PatchGapG4Winner winner = PatchGapG4Model.ChooseWinner(
+                    h0Encoding,
                     trace.StoredBytes,
                     trace.DictionaryRefs,
                     trials);
