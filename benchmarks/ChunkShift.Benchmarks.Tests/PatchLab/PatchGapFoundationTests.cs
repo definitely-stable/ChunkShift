@@ -357,14 +357,17 @@ public class PatchGapFoundationTests
     public void G4WinnerKeepsH0OnTieAndEarlierTrialOnLaterTie()
     {
         PatchGapG4Winner tiedH0 = PatchGapG4Model.ChooseWinner(
+            h0Encoding: CspFormat.EncodingZstd,
             h0StoredBytes: 100,
             h0DictionaryReferences: 0,
             [
                 new("bcj-zstd", PatchGapG4Model.EncodingX86, -1, -1, -1, 100, 0),
             ]);
         Assert.Equal("H0", tiedH0.StoredForm);
+        Assert.Equal(CspFormat.EncodingZstd, tiedH0.Encoding);
 
         PatchGapG4Winner trial = PatchGapG4Model.ChooseWinner(
+            h0Encoding: CspFormat.EncodingRaw,
             h0StoredBytes: 100,
             h0DictionaryReferences: 0,
             [
