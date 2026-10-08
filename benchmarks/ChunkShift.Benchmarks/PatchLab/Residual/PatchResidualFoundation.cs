@@ -13,7 +13,7 @@ namespace ChunkShift.Benchmarks.PatchLab.Residual;
 internal static class PatchResidualFoundation
 {
     internal const int MaximumBytes = 1024 * 1024;
-    internal const int HeaderBytes = 53; // magic(4), kind(1), length(4), offset(8), stored(4), SHA-256(32)
+    internal const int HeaderBytes = 85; // magic(4), kind(1), length(4), offset(8), stored(4), base SHA-256(32), target SHA-256(32)
     internal const byte XorZstd = 1;
     internal const byte SparseRuns = 2;
     private const int MaximumStoredBytes = MaximumBytes * 6 + 4;
@@ -31,7 +31,7 @@ internal static class PatchResidualFoundation
         }
 
         using var encoder = new CspPayloadEncoder(19);
-        return Wrap(XorZstd, verifiedBase, target.Length, baseOffset,
+        return Wrap(XorZstd, verifiedBase, target, baseOffset,
             encoder.EncodeZstd(residual, ReadOnlySpan<byte>.Empty));
     }
 
@@ -73,7 +73,7 @@ internal static class PatchResidualFoundation
         BinaryPrimitives.WriteInt32LittleEndian(runCount, runs);
         payload.Write(runCount);
 
-        return Wrap(SparseRuns, verifiedBase, target.Length, baseOffset, payload.ToArray());
+        return Wrap(SparseRuns, verifiedBase, target, baseOffset, payload.ToArray());
     }
 
     internal static byte[] Decode(
@@ -119,16 +119,24 @@ internal static class PatchResidualFoundation
             {
                 target[i] ^= xor[i];
             }
-            return target;
         }
-
-        if (kind == SparseRuns)
+        else if (kind == SparseRuns)
         {
             ApplySparse(stored, verifiedBase, target);
-            return target;
+        }
+        else
+        {
+            throw new InvalidDataException("Unknown residual representation.");
         }
 
-        throw new InvalidDataException("Unknown residual representation.");
+        Span<byte> targetDigest = stackalloc byte[32];
+        SHA256.HashData(target, targetDigest);
+        if (!CryptographicOperations.FixedTimeEquals(targetDigest, envelope.Slice(53, 32)))
+        {
+            throw new InvalidDataException("Residual reconstructed target identity mismatch.");
+        }
+
+        return target;
     }
 
     private static void ApplySparse(
@@ -191,7 +199,7 @@ internal static class PatchResidualFoundation
     private static byte[] Wrap(
         byte kind,
         ReadOnlySpan<byte> verifiedBase,
-        int targetLength,
+        ReadOnlySpan<byte> target,
         long baseOffset,
         ReadOnlySpan<byte> stored)
     {
@@ -203,10 +211,11 @@ internal static class PatchResidualFoundation
         byte[] envelope = new byte[checked(HeaderBytes + stored.Length)];
         "RS01"u8.CopyTo(envelope);
         envelope[4] = kind;
-        BinaryPrimitives.WriteInt32LittleEndian(envelope.AsSpan(5), targetLength);
+        BinaryPrimitives.WriteInt32LittleEndian(envelope.AsSpan(5), target.Length);
         BinaryPrimitives.WriteInt64LittleEndian(envelope.AsSpan(9), baseOffset);
         BinaryPrimitives.WriteInt32LittleEndian(envelope.AsSpan(17), stored.Length);
         SHA256.HashData(verifiedBase, envelope.AsSpan(21, 32));
+        SHA256.HashData(target, envelope.AsSpan(53, 32));
         stored.CopyTo(envelope.AsSpan(HeaderBytes));
         return envelope;
     }
