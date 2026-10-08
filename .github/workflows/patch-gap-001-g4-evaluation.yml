@@ -154,11 +154,12 @@ jobs:
           test -n "$lzma"
           test -f "$lzma"
           echo "LZMA_PATH=$lzma" >> "$GITHUB_ENV"
+          source_archive_sha="$(git -C "$src" archive --format=tar HEAD | sha256sum | cut -d' ' -f1)"
 
           mkdir -p "$OUT"
-          python3 - "$OUT/xz-provenance.json" "$src" "$lzma" "$XZ_COMMIT" <<'PY'
+          python3 - "$OUT/xz-provenance.json" "$src" "$lzma" "$XZ_COMMIT" "$source_archive_sha" <<'PY'
           import hashlib, json, pathlib, subprocess, sys
-          out, src, lib, expected = sys.argv[1:]
+          out, src, lib, expected, source_archive_sha = sys.argv[1:]
           commit = subprocess.check_output(
               ["git", "-C", src, "rev-parse", "HEAD"], text=True
           ).strip()
@@ -171,6 +172,14 @@ jobs:
               "version": "5.8.4",
               "librarySha256": hashlib.sha256(data).hexdigest(),
               "libraryBytes": len(data),
+              "libraryPath": str(pathlib.Path(lib).resolve()),
+              "sourceArchiveSha256": source_archive_sha,
+              "buildCommand": (
+                  "cmake -S <xz-src> -B <xz-build> -DCMAKE_BUILD_TYPE=Release "
+                  "-DBUILD_SHARED_LIBS=ON -DXZ_NLS=OFF -DXZ_TOOL_XZ=OFF "
+                  "-DXZ_TOOL_XZDEC=OFF -DXZ_TOOL_LZMADEC=OFF -DXZ_TOOL_LZMAINFO=OFF; "
+                  "cmake --build <xz-build> --target liblzma --parallel 2"
+              ),
               "cmakeVersion": subprocess.check_output(
                   ["cmake", "--version"], text=True
               ).splitlines()[0],
@@ -243,7 +252,7 @@ jobs:
         run: |
           set -euo pipefail
           dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
-          dotnet "$dll" patch-lab gap g4             --corpus "$CORPUS_ROOT"             --inventory "$G4_INVENTORY"             --dataset-role evaluation             --output "$OUT/g4-index.json"             --detail-dir "$OUT/detail"             --source-commit "$SOURCE_COMMIT"             --run-id "$RUN_ID"             --lzma "$LZMA_PATH"
+          dotnet "$dll" patch-lab gap g4             --corpus "$CORPUS_ROOT"             --inventory "$G4_INVENTORY"             --xz-provenance "$OUT/xz-provenance.json"             --dataset-role evaluation             --output "$OUT/g4-index.json"             --detail-dir "$OUT/detail"             --source-commit "$SOURCE_COMMIT"             --run-id "$RUN_ID"             --lzma "$LZMA_PATH"
 
       - name: Independently recompute G4 evaluation
         shell: bash
