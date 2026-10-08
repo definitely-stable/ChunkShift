@@ -32,6 +32,8 @@ internal sealed record PatchGapG4Winner(
 
 internal static class PatchGapG4Model
 {
+    internal const byte H0EncodingRaw = CspFormat.EncodingRaw;
+    internal const byte H0EncodingZstd = CspFormat.EncodingZstd;
     internal const byte EncodingX86 = 2;
     internal const byte EncodingArm64 = 3;
 
@@ -78,10 +80,10 @@ internal static class PatchGapG4Model
         int h0DictionaryReferences,
         IEnumerable<PatchGapG4TrialCost> trials)
     {
-        if (h0Encoding is not (CspFormat.EncodingRaw or CspFormat.EncodingZstd) ||
+        if (h0Encoding is not (H0EncodingRaw or H0EncodingZstd) ||
             h0StoredBytes <= 0 ||
             h0DictionaryReferences < 0 ||
-            (h0Encoding == CspFormat.EncodingRaw && h0DictionaryReferences != 0))
+            (h0Encoding == H0EncodingRaw && h0DictionaryReferences != 0))
         {
             throw new InvalidDataException("PATCH-GAP G4 preserved H0 encoding/cost is invalid.");
         }
