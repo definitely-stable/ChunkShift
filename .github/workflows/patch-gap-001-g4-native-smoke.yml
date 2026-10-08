@@ -1,0 +1,69 @@
+name: PATCH-GAP-001 G4 native smoke
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/patch-gap-001-g4-*.yml"
+      - "benchmarks/ChunkShift.Benchmarks/PatchLab/PatchGap/PatchGapG4*.cs"
+      - "benchmarks/ChunkShift.Benchmarks/PatchLab/PatchGap/PatchGapRunner.cs"
+      - "benchmarks/ChunkShift.Benchmarks/Program.cs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+  XZ_COMMIT: d3e650e63c110e830fd5391e7f8b45df0b91d3da
+
+jobs:
+  native-smoke:
+    name: native-smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Build pinned XZ 5.8.4 liblzma
+        shell: bash
+        run: |
+          set -euo pipefail
+          src="$RUNNER_TEMP/xz"
+          build="$RUNNER_TEMP/xz-build"
+          git clone --filter=blob:none https://github.com/tukaani-project/xz.git "$src"
+          git -C "$src" checkout --detach "$XZ_COMMIT"
+          test "$(git -C "$src" rev-parse HEAD)" = "$XZ_COMMIT"
+
+          cmake -S "$src" -B "$build" -G Ninja             -DCMAKE_BUILD_TYPE=Release             -DBUILD_SHARED_LIBS=ON             -DXZ_NLS=OFF             -DXZ_TOOL_XZ=OFF             -DXZ_TOOL_XZDEC=OFF             -DXZ_TOOL_LZMADEC=OFF             -DXZ_TOOL_LZMAINFO=OFF
+          cmake --build "$build" --target liblzma --parallel 2
+
+          lib="$(find "$build" -type f -name 'liblzma.so*' -print | sort | head -n 1)"
+          test -n "$lib"
+          test -f "$lib"
+          for symbol in             lzma_bcj_x86_encode             lzma_bcj_x86_decode             lzma_bcj_arm64_encode             lzma_bcj_arm64_decode; do
+            nm -D "$lib" | grep -Eq "[[:space:]]${symbol}(@@?[^[:space:]]+)?$"
+          done
+          echo "LZMA_PATH=$lib" >> "$GITHUB_ENV"
+
+      - name: Build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Execute pinned BCJ and zstd smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          dll=benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          dotnet "$dll" patch-lab gap g4-selftest --lzma "$LZMA_PATH"

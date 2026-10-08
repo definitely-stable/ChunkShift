@@ -316,6 +316,88 @@ public class PatchGapFoundationTests
     }
 
     [Fact]
+    public void G4BcjPositionPlanPinsX86AndArm64Offsets()
+    {
+        Assert.Equal(
+            (0, 0xfffffffEu, 17),
+            PatchGapG4Bcj.Plan(0xfffffffEL, 17, PatchGapExecutableArchitecture.X64));
+
+        Assert.Equal(
+            (3, 4u, 14),
+            PatchGapG4Bcj.Plan(1, 17, PatchGapExecutableArchitecture.Arm64));
+
+        Assert.Equal(
+            (2, 4u, 0),
+            PatchGapG4Bcj.Plan(2, 2, PatchGapExecutableArchitecture.Arm64));
+
+        Assert.Throws<InvalidDataException>(() =>
+            PatchGapG4Bcj.Plan(0, 1, PatchGapExecutableArchitecture.Unknown));
+    }
+
+    [Fact]
+    public void G4CanonicalDictionaryUsesEarliestWholeSequence()
+    {
+        PatchGapG4BaseRecord[] records =
+        [
+            // Canonicalization is defined by the ordered ChunkId sequence only;
+            // lengths/offsets belong to the chosen physical occurrence.
+            new("a", 0, 7),
+            new("b", 7, 9),
+            new("c", 16, 12),
+            new("a", 28, 10),
+            new("b", 38, 11),
+            new("d", 54, 13),
+            new("c", 67, 12),
+        ];
+
+        Assert.Equal(0, PatchGapG4Model.CanonicalSequenceStart(records, 3, 2));
+        Assert.Equal(2, PatchGapG4Model.CanonicalSequenceStart(records, 2, 1));
+        Assert.Equal(5, PatchGapG4Model.CanonicalSequenceStart(records, 5, 2));
+    }
+
+    [Fact]
+    public void G4WinnerKeepsH0OnTieAndEarlierTrialOnLaterTie()
+    {
+        PatchGapG4Winner tiedH0 = PatchGapG4Model.ChooseWinner(
+            h0Encoding: PatchGapG4Model.H0EncodingZstd,
+            h0StoredBytes: 100,
+            h0DictionaryReferences: 0,
+            [
+                new("bcj-zstd", PatchGapG4Model.EncodingX86, -1, -1, -1, 100, 0),
+            ]);
+        Assert.Equal("H0", tiedH0.StoredForm);
+        Assert.Equal(PatchGapG4Model.H0EncodingZstd, tiedH0.Encoding);
+
+        PatchGapG4Winner dictionaryH0 = PatchGapG4Model.ChooseWinner(
+            h0Encoding: PatchGapG4Model.H0EncodingZstd,
+            h0StoredBytes: 60,
+            h0DictionaryReferences: 1,
+            [
+                new("bcj-zstd-dictionary", PatchGapG4Model.EncodingX86, 0, 4, 1, 61, 1),
+            ]);
+        Assert.Equal("H0", dictionaryH0.StoredForm);
+        Assert.Equal(PatchGapG4Model.H0EncodingZstd, dictionaryH0.Encoding);
+        Assert.Equal(1, dictionaryH0.DictionaryReferences);
+        Assert.Equal(92, dictionaryH0.CostBytes);
+
+        PatchGapG4Winner trial = PatchGapG4Model.ChooseWinner(
+            h0Encoding: PatchGapG4Model.H0EncodingRaw,
+            h0StoredBytes: 100,
+            h0DictionaryReferences: 0,
+            [
+                new("bcj-zstd", PatchGapG4Model.EncodingX86, -1, -1, -1, 90, 0),
+                new("bcj-zstd-dictionary", PatchGapG4Model.EncodingX86, 0, 4, 1, 58, 1),
+                new("bcj-zstd-dictionary", PatchGapG4Model.EncodingX86, 1, 8, 8, 58, 1),
+            ]);
+
+        Assert.Equal("bcj-zstd", trial.StoredForm);
+        Assert.Equal(90, trial.CostBytes);
+        Assert.Equal(
+            990,
+            PatchGapG4Model.PhysicalPatchBytes(1000, [(100L, trial.CostBytes)]));
+    }
+
+    [Fact]
     public void G5ParsesConcatenatedGzipAndRejectsTrailingOrCorruptMembers()
     {
         byte[] first = GzipBytes("first");
