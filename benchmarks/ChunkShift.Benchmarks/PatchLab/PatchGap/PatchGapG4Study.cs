@@ -1,3 +1,5 @@
+using ChunkShift.Patching.Format;
+
 namespace ChunkShift.Benchmarks.PatchLab.PatchGap;
 
 internal sealed record PatchGapG4BaseRecord(
@@ -71,13 +73,17 @@ internal static class PatchGapG4Model
     }
 
     internal static PatchGapG4Winner ChooseWinner(
+        byte h0Encoding,
         long h0StoredBytes,
         int h0DictionaryReferences,
         IEnumerable<PatchGapG4TrialCost> trials)
     {
-        if (h0StoredBytes <= 0 || h0DictionaryReferences < 0)
+        if (h0Encoding is not (CspFormat.EncodingRaw or CspFormat.EncodingZstd) ||
+            h0StoredBytes <= 0 ||
+            h0DictionaryReferences < 0 ||
+            (h0Encoding == CspFormat.EncodingRaw && h0DictionaryReferences != 0))
         {
-            throw new InvalidDataException("PATCH-GAP G4 preserved H0 cost is invalid.");
+            throw new InvalidDataException("PATCH-GAP G4 preserved H0 encoding/cost is invalid.");
         }
 
         long h0Cost = checked(
@@ -86,7 +92,7 @@ internal static class PatchGapG4Model
 
         var winner = new PatchGapG4Winner(
             "H0",
-            Encoding: 0,
+            Encoding: h0Encoding,
             CandidateOrdinal: -1,
             CandidateStartIndex: -1,
             CanonicalStartIndex: -1,
