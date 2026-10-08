@@ -249,6 +249,10 @@ internal static class PatchGapG4Runner
                 string.Equals(row.DatasetRole, datasetRole, StringComparison.Ordinal)),
         ];
         var inventoryByKey = roleInventory.ToDictionary(static row => row.Key, StringComparer.Ordinal);
+        var inventoryFamilies = roleInventory
+            .Select(static row => row.Family)
+            .ToHashSet(StringComparer.Ordinal);
+        var consumedInventoryKeys = new HashSet<string>(StringComparer.Ordinal);
         int expectedEligible = datasetRole == "calibration"
             ? FrozenCalibrationEligibleFiles
             : FrozenEvaluationEligibleFiles;
@@ -287,6 +291,19 @@ internal static class PatchGapG4Runner
                 cancellationToken.ThrowIfCancellationRequested();
                 string key = $"{pair.Family}\0{pair.Base}\0{pair.Target}\0{file.Path.Replace('\\', '/')}";
                 inventoryByKey.TryGetValue(key, out PatchGapG4InventoryRow? inventoryRow);
+                if (inventoryRow is null)
+                {
+                    if (inventoryFamilies.Contains(pair.Family))
+                    {
+                        throw new InvalidDataException(
+                            $"PATCH-GAP G4 frozen inventory lost subset row '{key}'.");
+                    }
+                }
+                else if (!consumedInventoryKeys.Add(key))
+                {
+                    throw new InvalidDataException(
+                        $"PATCH-GAP G4 frozen inventory row '{key}' was consumed more than once.");
+                }
 
                 PatchGapG4FileEvidence detail = await EvaluateFileAsync(
                     corpus,
@@ -341,6 +358,15 @@ internal static class PatchGapG4Runner
                     detailSha,
                     detailBytes));
             }
+        }
+
+        if (consumedInventoryKeys.Count != roleInventory.Length)
+        {
+            string firstMissing = roleInventory
+                .Select(static row => row.Key)
+                .First(key => !consumedInventoryKeys.Contains(key));
+            throw new InvalidDataException(
+                $"PATCH-GAP G4 did not consume every frozen {datasetRole} inventory row; first missing '{firstMissing}'.");
         }
 
         long expectedH0 = datasetRole == "calibration"
