@@ -35,6 +35,9 @@ internal sealed record PatchGapG4EntryEvidence(
     int TargetLength,
     string TargetChunkId,
     string H0Encoding,
+    int H0SelectedCandidateOrdinal,
+    int H0CandidateStartIndex,
+    long H0CandidateStartOffset,
     long H0StoredBytes,
     int H0DictionaryReferences,
     long H0CostBytes,
@@ -574,9 +577,48 @@ internal static class PatchGapG4Runner
                 PatchGapG4NormalizationSpan targetNormalization =
                     bcj.Encode(normalizedTarget, trace.TargetOffset, architecture);
 
+                int h0SelectedOrdinal = -1;
+                int h0CandidateStartIndex = -1;
+                long h0CandidateStartOffset = -1;
+                if (string.Equals(trace.SelectedEncoding, "zstd-dictionary", StringComparison.Ordinal))
+                {
+                    if (trace.SelectedCandidate is not int selectedOrdinal ||
+                        trace.DictionaryRefs <= 0)
+                    {
+                        throw new InvalidDataException(
+                            "PATCH-GAP G4 H0 dictionary winner lost selected-candidate identity.");
+                    }
+
+                    CspCandidateTraceCandidate selected = trace.Candidates.Single(candidate =>
+                        candidate.Ordinal == selectedOrdinal && candidate.Selected);
+                    if (selected.RecordCount != trace.DictionaryRefs ||
+                        selected.FinalFrameBytes != trace.StoredBytes ||
+                        selected.FinalCostBytes != trace.BaselineCostBytes)
+                    {
+                        throw new InvalidDataException(
+                            "PATCH-GAP G4 H0 selected candidate disagrees with the frozen H0 winner.");
+                    }
+
+                    h0SelectedOrdinal = selected.Ordinal;
+                    h0CandidateStartIndex = selected.StartIndex;
+                    h0CandidateStartOffset = selected.StartOffset;
+                }
+                else if (trace.SelectedCandidate.HasValue ||
+                         trace.DictionaryRefs != 0 ||
+                         trace.Candidates.Any(static candidate => candidate.Selected))
+                {
+                    throw new InvalidDataException(
+                        "PATCH-GAP G4 non-dictionary H0 winner carries selected-candidate metadata.");
+                }
+
                 long h0Cost = checked(
                     (long)trace.StoredBytes +
                     ((long)trace.DictionaryRefs * PatchGapG1Model.DictionaryReferenceBytes));
+                if (h0Cost != trace.BaselineCostBytes)
+                {
+                    throw new InvalidDataException(
+                        "PATCH-GAP G4 H0 cost does not match the trace baseline cost.");
+                }
                 var trials = new List<PatchGapG4TrialCost>(trace.Candidates.Count + 1);
                 var trialEvidence = new List<PatchGapG4TrialEvidence>(trace.Candidates.Count);
                 byte[]? bestFrame = null;
@@ -754,6 +796,9 @@ internal static class PatchGapG4Runner
                     trace.TargetLength,
                     trace.TargetChunkId,
                     trace.SelectedEncoding,
+                    h0SelectedOrdinal,
+                    h0CandidateStartIndex,
+                    h0CandidateStartOffset,
                     trace.StoredBytes,
                     trace.DictionaryRefs,
                     h0Cost,
