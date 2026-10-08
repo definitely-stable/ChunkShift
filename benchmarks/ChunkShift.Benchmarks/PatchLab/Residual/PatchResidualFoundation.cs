@@ -222,9 +222,6 @@ internal static class PatchResidualFoundation
             throw new ArgumentException("Residual foundation requires equal nonzero lengths of at most 1 MiB.");
         }
 
-        if (baseOffset < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(baseOffset));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegative(baseOffset);
     }
 }
