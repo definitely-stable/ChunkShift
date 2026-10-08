@@ -135,18 +135,25 @@ def main() -> int:
                 if h0_cost != int(entry["h0StoredBytes"]) + 32 * h0_refs:
                     raise SystemExit("H0 entry cost equation mismatch")
                 h0_encoding_name = entry["h0Encoding"]
+                h0_selected_ordinal = int(entry["h0SelectedCandidateOrdinal"])
+                h0_candidate_start = int(entry["h0CandidateStartIndex"])
+                h0_candidate_offset = int(entry["h0CandidateStartOffset"])
                 if h0_encoding_name == "raw":
                     expected_h0_encoding = 0
                     if h0_refs != 0:
                         raise SystemExit("raw H0 winner carries dictionary references")
+                    if (h0_selected_ordinal, h0_candidate_start, h0_candidate_offset) != (-1, -1, -1):
+                        raise SystemExit("raw H0 winner carries dictionary candidate identity")
                 elif h0_encoding_name == "zstd":
                     expected_h0_encoding = 1
                     if h0_refs != 0:
                         raise SystemExit("no-dictionary zstd H0 winner carries dictionary references")
+                    if (h0_selected_ordinal, h0_candidate_start, h0_candidate_offset) != (-1, -1, -1):
+                        raise SystemExit("no-dictionary zstd H0 winner carries dictionary candidate identity")
                 elif h0_encoding_name == "zstd-dictionary":
                     expected_h0_encoding = 1
-                    if h0_refs <= 0:
-                        raise SystemExit("dictionary zstd H0 winner lost dictionary references")
+                    if h0_refs <= 0 or h0_selected_ordinal < 0 or h0_candidate_start < 0 or h0_candidate_offset < 0:
+                        raise SystemExit("dictionary zstd H0 winner lost dictionary candidate identity")
                 else:
                     raise SystemExit(f"unknown H0 encoding identity: {h0_encoding_name}")
                 if winner != int(entry["winnerStoredBytes"]) + 32 * int(entry["winnerDictionaryReferences"]):
@@ -166,6 +173,21 @@ def main() -> int:
                 if not trials:
                     raise SystemExit("eligible G4 entry lost the mandatory no-dictionary trial")
                 first_trial = trials[0]
+                if h0_encoding_name == "zstd-dictionary":
+                    selected_trials = [
+                        trial for trial in trials
+                        if int(trial["candidateOrdinal"]) == h0_selected_ordinal
+                    ]
+                    if len(selected_trials) != 1:
+                        raise SystemExit("H0 selected dictionary candidate is not uniquely retained in G4 trials")
+                    h0_trial = selected_trials[0]
+                    if (
+                        int(h0_trial["candidateStartIndex"]) != h0_candidate_start
+                        or int(h0_trial["candidateStartOffset"]) != h0_candidate_offset
+                        or int(h0_trial["dictionaryReferences"]) != h0_refs
+                    ):
+                        raise SystemExit("H0 selected dictionary identity disagrees with retained G4 candidate")
+
                 if (
                     first_trial["storedForm"] != "bcj-zstd"
                     or int(first_trial["candidateOrdinal"]) != -1
