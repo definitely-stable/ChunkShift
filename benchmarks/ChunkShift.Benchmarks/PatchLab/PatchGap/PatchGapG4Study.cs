@@ -57,7 +57,7 @@ internal static class PatchGapG4Model
             {
                 PatchGapG4BaseRecord expected = records[candidateStart + offset];
                 PatchGapG4BaseRecord actual = records[start + offset];
-                if (!string.Equals(actual.ChunkIdentity, expected.ChunkIdentity, StringComparison.Ordinal) || actual.Length != expected.Length)
+                if (!string.Equals(actual.ChunkIdentity, expected.ChunkIdentity, StringComparison.Ordinal))
                 {
                     equal = false;
                     break;
