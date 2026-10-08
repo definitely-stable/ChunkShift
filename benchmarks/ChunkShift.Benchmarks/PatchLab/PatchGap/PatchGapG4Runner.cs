@@ -577,13 +577,25 @@ internal static class PatchGapG4Runner
                 PatchGapG4NormalizationSpan targetNormalization =
                     bcj.Encode(normalizedTarget, trace.TargetOffset, architecture);
 
+                long h0Cost = checked(
+                    (long)trace.StoredBytes +
+                    ((long)trace.DictionaryRefs * PatchGapG1Model.DictionaryReferenceBytes));
+                long expectedBaseline = Math.Min(trace.TargetLength, trace.NoDictionaryFrameBytes);
+                if (trace.BaselineCostBytes != expectedBaseline ||
+                    h0Cost > trace.BaselineCostBytes)
+                {
+                    throw new InvalidDataException(
+                        "PATCH-GAP G4 H0/baseline cost identity is inconsistent.");
+                }
+
                 int h0SelectedOrdinal = -1;
                 int h0CandidateStartIndex = -1;
                 long h0CandidateStartOffset = -1;
                 if (string.Equals(trace.SelectedEncoding, "zstd-dictionary", StringComparison.Ordinal))
                 {
                     if (trace.SelectedCandidate is not int selectedOrdinal ||
-                        trace.DictionaryRefs <= 0)
+                        trace.DictionaryRefs <= 0 ||
+                        h0Cost >= trace.BaselineCostBytes)
                     {
                         throw new InvalidDataException(
                             "PATCH-GAP G4 H0 dictionary winner lost selected-candidate identity.");
@@ -593,7 +605,7 @@ internal static class PatchGapG4Runner
                         candidate.Ordinal == selectedOrdinal && candidate.Selected);
                     if (selected.RecordCount != trace.DictionaryRefs ||
                         selected.FinalFrameBytes != trace.StoredBytes ||
-                        selected.FinalCostBytes != trace.BaselineCostBytes)
+                        selected.FinalCostBytes != h0Cost)
                     {
                         throw new InvalidDataException(
                             "PATCH-GAP G4 H0 selected candidate disagrees with the frozen H0 winner.");
@@ -605,19 +617,11 @@ internal static class PatchGapG4Runner
                 }
                 else if (trace.SelectedCandidate.HasValue ||
                          trace.DictionaryRefs != 0 ||
-                         trace.Candidates.Any(static candidate => candidate.Selected))
+                         trace.Candidates.Any(static candidate => candidate.Selected) ||
+                         h0Cost != trace.BaselineCostBytes)
                 {
                     throw new InvalidDataException(
-                        "PATCH-GAP G4 non-dictionary H0 winner carries selected-candidate metadata.");
-                }
-
-                long h0Cost = checked(
-                    (long)trace.StoredBytes +
-                    ((long)trace.DictionaryRefs * PatchGapG1Model.DictionaryReferenceBytes));
-                if (h0Cost != trace.BaselineCostBytes)
-                {
-                    throw new InvalidDataException(
-                        "PATCH-GAP G4 H0 cost does not match the trace baseline cost.");
+                        "PATCH-GAP G4 non-dictionary H0 winner carries inconsistent candidate/cost metadata.");
                 }
                 var trials = new List<PatchGapG4TrialCost>(trace.Candidates.Count + 1);
                 var trialEvidence = new List<PatchGapG4TrialEvidence>(trace.Candidates.Count);
