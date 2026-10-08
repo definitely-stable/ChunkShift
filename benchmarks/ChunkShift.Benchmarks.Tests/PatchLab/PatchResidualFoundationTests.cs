@@ -71,7 +71,7 @@ public class PatchResidualFoundationTests
         Assert.Throws<InvalidDataException>(() =>
             PatchResidualFoundation.Decode(sparse, baseBytes, 40));
         Assert.Throws<InvalidDataException>(() =>
-            PatchResidualFoundation.Decode(sparse[..^1], baseBytes, 41));
+            PatchResidualFoundation.Decode(sparse.AsSpan(0, sparse.Length - 1), baseBytes, 41));
         Assert.Throws<InvalidDataException>(() =>
             PatchResidualFoundation.Decode([.. sparse, 0], baseBytes, 41));
 
