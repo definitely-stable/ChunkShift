@@ -368,6 +368,18 @@ public class PatchGapFoundationTests
         Assert.Equal("H0", tiedH0.StoredForm);
         Assert.Equal(PatchGapG4Model.H0EncodingZstd, tiedH0.Encoding);
 
+        PatchGapG4Winner dictionaryH0 = PatchGapG4Model.ChooseWinner(
+            h0Encoding: PatchGapG4Model.H0EncodingZstd,
+            h0StoredBytes: 60,
+            h0DictionaryReferences: 1,
+            [
+                new("bcj-zstd-dictionary", PatchGapG4Model.EncodingX86, 0, 4, 1, 61, 1),
+            ]);
+        Assert.Equal("H0", dictionaryH0.StoredForm);
+        Assert.Equal(PatchGapG4Model.H0EncodingZstd, dictionaryH0.Encoding);
+        Assert.Equal(1, dictionaryH0.DictionaryReferences);
+        Assert.Equal(92, dictionaryH0.CostBytes);
+
         PatchGapG4Winner trial = PatchGapG4Model.ChooseWinner(
             h0Encoding: PatchGapG4Model.H0EncodingRaw,
             h0StoredBytes: 100,
