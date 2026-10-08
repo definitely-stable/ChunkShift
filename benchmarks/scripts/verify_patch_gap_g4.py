@@ -86,10 +86,17 @@ def main() -> int:
     if inventory["calibrationSha256"] != CAL_SHA or inventory["evaluationSha256"] != EVAL_SHA:
         raise SystemExit("inventory split digest mismatch")
 
-    eligible_rows = [
-        row for row in inventory["rows"]
-        if row["datasetRole"] == role and row["gateEligible"]
-    ]
+    role_rows = [row for row in inventory["rows"] if row["datasetRole"] == role]
+    inventory_by_key = {
+        (row["family"], row["baseVersion"], row["targetVersion"], row["path"]): row
+        for row in role_rows
+    }
+    if len(inventory_by_key) != len(role_rows):
+        raise SystemExit("duplicate frozen G4 inventory key")
+    inventory_families = {row["family"] for row in role_rows}
+    consumed_inventory = set()
+
+    eligible_rows = [row for row in role_rows if row["gateEligible"]]
     if len(eligible_rows) != ELIGIBLE[role]:
         raise SystemExit("eligible population count mismatch")
     eligible_target = sum(int(row["targetBytes"]) for row in eligible_rows)
@@ -125,6 +132,25 @@ def main() -> int:
                     "eligiblePayloadEntries", "bcjWinnerEntries"):
             if detail[key] != row[key]:
                 raise SystemExit(f"compact/detail mismatch for {key}: {row['path']}")
+
+        inventory_key = (
+            detail["family"],
+            detail["baseVersion"],
+            detail["targetVersion"],
+            detail["path"],
+        )
+        frozen = inventory_by_key.get(inventory_key)
+        if frozen is None:
+            if detail["family"] in inventory_families:
+                raise SystemExit(f"subset file lost frozen G4 inventory row: {detail['path']}")
+        else:
+            if inventory_key in consumed_inventory:
+                raise SystemExit(f"frozen G4 inventory row consumed twice: {detail['path']}")
+            consumed_inventory.add(inventory_key)
+            if bool(frozen["gateEligible"]) != bool(detail["gateEligible"]):
+                raise SystemExit(f"G4 gate eligibility differs from frozen inventory: {detail['path']}")
+            if int(frozen["targetBytes"]) != int(detail["targetBytes"]):
+                raise SystemExit(f"G4 target bytes differ from frozen inventory: {detail['path']}")
 
         h0 = int(detail["h0PatchBytes"])
         factor = int(detail["factorPatchBytes"])
@@ -296,6 +322,10 @@ def main() -> int:
 
     lane = root["lane"]
     expected_saved = h0_total - factor_total
+    if len(consumed_inventory) != len(role_rows):
+        missing = next(key for key in inventory_by_key if key not in consumed_inventory)
+        raise SystemExit(f"frozen G4 inventory row was not consumed: {missing}")
+
     if h0_total != H0[role]:
         raise SystemExit(f"H0 split anchor mismatch: {h0_total} != {H0[role]}")
     if factor_total > h0_total:
