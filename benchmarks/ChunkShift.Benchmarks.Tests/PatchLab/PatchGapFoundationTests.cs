@@ -339,11 +339,13 @@ public class PatchGapFoundationTests
     {
         PatchGapG4BaseRecord[] records =
         [
-            new("a", 0, 10),
-            new("b", 10, 11),
-            new("c", 21, 12),
-            new("a", 33, 10),
-            new("b", 43, 11),
+            // Canonicalization is defined by the ordered ChunkId sequence only;
+            // lengths/offsets belong to the chosen physical occurrence.
+            new("a", 0, 7),
+            new("b", 7, 9),
+            new("c", 16, 12),
+            new("a", 28, 10),
+            new("b", 38, 11),
             new("d", 54, 13),
             new("c", 67, 12),
         ];
