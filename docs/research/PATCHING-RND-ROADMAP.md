@@ -1,7 +1,7 @@
 # Patching R&D roadmap
 
 Status: Active research roadmap  
-Last reviewed: 2026-10-07  
+Last reviewed: 2026-10-08  
 Architecture proposal: [RFC-0005](../architecture/RFC-0005-patch-compiler-architecture.md) (**Proposed**, not yet an accepted authority)
 
 ## 1. Purpose
@@ -85,6 +85,19 @@ Question: at the same total dictionary-byte budget, is a deterministic compositi
 
 Priority: **NEXT / high algorithmic value**. Dependencies: #183 G1/G2 results; #184 before cross-file lanes. The first experiment preserves ChunkId-based base addressing; arbitrary byte ranges require a later ExperimentId/RFC.
 
+### #262 — PATCH-RESIDUAL-001 — exact bounded residual representation oracle
+
+Priority: **PHASE A now / Phase B after frozen G4 evidence**. A separate, lab-only representation question: can XOR+zstd or canonical sparse changed-runs over exact verified equal-length base bytes recover headroom not available to existing zstd dictionary candidate selection? A synthetic 53-byte RS01 envelope, strict decode and corruption tests are a **mechanics foundation only**, not a CSP size result or wire format. Phase B needs a new preregistered matched H0/whole-patch accounting protocol and sealed holdout before any persisted-format RFC. Owner [#262](https://github.com/definitely-stable/ChunkShift/issues/262), [contract](../benchmarks/PATCH-RESIDUAL-001-PROTOCOL.md). Opening this lane does not extend #251 indefinitely: oracle-first and explicit DEFER/REJECT if no decision-grade headroom.
+
+### Critical architecture corrections (2026-10-08)
+
+- **#150 exact incremental manifest:** unchanged logical CSM records can be reused without rehashing source bytes, but current `ManifestIdAccumulator` sequentially hashes every logical record. A Merkle sidecar or external record index does not make existing ManifestId directly composable. Separate source-byte read savings from manifest-record/finalization work.
+- **#184 cross-file source:** current CSP apply materializes a `Dictionary<ChunkId,ChunkInfo>` with an operational bound of 4,194,304 distinct base IDs. A concatenated tree cannot silently inherit arbitrary scale; require a bounded exact locator and memory/build/read measurements before a format choice. Keep the first-occurrence semantic rule.
+- **#220 derived features:** never treat stale cache entries or incomplete source-change metadata as integrity evidence. Missing/corrupt caches fall back to authoritative bytes/CSM.
+- **#181 selector:** choosing a different dictionary candidate within the same representation family showed negligible exact-oracle headroom; do not claim this rules out other representation families.
+- **#183:** G1/G3 remain REJECT, G4 is frozen independently. No residual trial is injected into its calibration/evaluation lanes.
+- **Build I/O/apply:** inspect whole-workflow double-reading, temporary spool costs and forward-only CSP apply feasibility as candidate engineering investigations *inside existing owners* before opening new public APIs. Frozen CSP v1 physical order (TCSM before PAYL), verification order and bounded-apply semantics stay authoritative.
+
 ### #223 — PATCH-ML-001 — learned reference ranking oracle
 
 Question: after #184/#222 and/or transform work creates a richer bounded source/representation universe, how much exact-oracle selection headroom remains, and can learned ranking expose useful features that should be distilled into a simpler deterministic scorer?
@@ -101,7 +114,7 @@ Priority: **NEXT / architectural**, but online implementation is gated. Entry ga
 
 Question: can expensive builder work become deterministic local tasks that are hardware-aware, cacheable and retryable without scheduler/cache behavior changing semantic selection?
 
-Priority: **DESIGN now / implementation later**. PATCH-ENC-005 is complete as an execution-shape experiment, but #181 remains open until its durable final evidence is merged; representation/task shape may still change under #251. #220 caches derived features; #225 caches validated pure task results. Freeze task identities only after #183/#184/#221/#222/#224 establish the work units worth caching. Remote/distributed execution, if justified later, gets a new ExperimentId.
+Priority: **DESIGN now / implementation later**. PATCH-ENC-005 is closed as a candidate-selection research program with durable negative evidence; representation/task shape may still change under #251. #220 caches derived features; #225 caches validated pure task results. Freeze task identities only after #183/#184/#221/#222/#224 establish the work units worth caching. Remote/distributed execution, if justified later, gets a new ExperimentId.
 
 ## 5. Dependency graph
 
@@ -212,7 +225,7 @@ Goal: stop recomputing information/results we can safely derive, identify and va
 
 ### Stage B — improve representation quality
 
-Primary: #221 and #222; #223 as an oracle/headroom study.
+Primary: #221 and #222; #262 as an exact residual-oracle foundation; #223 only if demonstrated headroom.
 
 Goal: improve what candidate representations the builder can see without weakening verification.
 

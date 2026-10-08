@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-10-06",
+  "updated": "2026-10-08",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -538,6 +538,19 @@
       "area": "patching-research",
       "status": "PLANNED",
       "question": "Reusable derived patch features across repeated create"
+    },
+    {
+      "id": "PATCH-RESIDUAL-001",
+      "issues": [
+        262,
+        7,
+        183,
+        251
+      ],
+      "area": "patching-research",
+      "status": "PLANNED",
+      "question": "Lab-only exact equal-length XOR+zstd and canonical sparse changed-run representations; oracle-first size/cost headroom",
+      "protocol": "docs/benchmarks/PATCH-RESIDUAL-001-PROTOCOL.md"
     },
     {
       "id": "PATCH-DOTNET-001",
