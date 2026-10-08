@@ -70,8 +70,14 @@ def main():
     fail_if_false(len(combined) == 1893 and
                   len(canonical) == manifest["combined"]["bytes"] and
                   digest(canonical) == manifest["combined"]["sha256"], "combined digest")
+    fail_if_false(set(values) == {"calibration", "evaluation"}, "role population")
     for role in ("calibration", "evaluation"):
         lane = summary["splits"][role]["lane"]
+        fail_if_false(set(values[role]) == set(summary["splits"][role]["families"]),
+                      "family population")
+        fail_if_false(sum(v["files"] for v in values[role].values()) ==
+                      {"calibration": 1049, "evaluation": 844}[role],
+                      "frozen file count")
         for family, stats in values[role].items():
             fail_if_false(stats == summary["splits"][role]["families"][family],
                           "family " + family)
@@ -88,6 +94,19 @@ def main():
             role, total_h0, total_g4, total_h0 - total_g4, gate))
     expected = ("SIZE_GATE_PASS_NON_SIZE_PENDING" if
                 summary["splits"]["evaluation"]["lane"]["meetsRfcSizeGate"] else "REJECT")
+    for role in ("calibration", "evaluation"):
+        documents = artifacts[role].get("documents", {})
+        fail_if_false(set(documents) == {"g4-index.json", "h0-anchor.json",
+                      "xz-provenance.json", "verify.txt", "details"},
+                      "document provenance")
+        for filename in ("g4-index.json", "h0-anchor.json", "xz-provenance.json", "verify.txt"):
+            record = documents[filename]
+            fail_if_false(record["bytes"] > 0 and len(record["sha256"]) == 64,
+                          "root document identity")
+        details = documents["details"]
+        fail_if_false(details["count"] == {"calibration": 1049, "evaluation": 844}[role]
+                      and len(details["manifestSha256"]) == 64
+                      and details["manifestBytes"] > 0, "detail manifest identity")
     fail_if_false(summary["status"] == expected, "verdict")
     print("G4 durable evidence recomputation PASS; rows=1893")
 

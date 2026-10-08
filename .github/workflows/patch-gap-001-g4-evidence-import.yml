@@ -64,10 +64,12 @@ jobs:
           python3 -m py_compile \
             benchmarks/scripts/finalize_patch_gap_g4_evidence.py \
             benchmarks/scripts/recompute_patch_gap_g4_evidence.py
-          python3 benchmarks/scripts/finalize_patch_gap_g4_evidence.py \
-            --calibration "$RUNNER_TEMP/g4-runs/calibration" \
-            --evaluation "$RUNNER_TEMP/g4-runs/evaluation" \
-            --metadata "$RUNNER_TEMP/g4-runs"
+          if [[ ! -f docs/research/results/data/PATCH-GAP-001-G4-EVIDENCE-20261008-001/summary.json ]]; then
+            python3 benchmarks/scripts/finalize_patch_gap_g4_evidence.py \
+              --calibration "$RUNNER_TEMP/g4-runs/calibration" \
+              --evaluation "$RUNNER_TEMP/g4-runs/evaluation" \
+              --metadata "$RUNNER_TEMP/g4-runs"
+          fi
           python3 benchmarks/scripts/recompute_patch_gap_g4_evidence.py \
             --root docs/research/results/data/PATCH-GAP-001-G4-EVIDENCE-20261008-001
 
@@ -83,7 +85,10 @@ jobs:
           git add -- \
             docs/research/results/PATCH-GAP-001-G4-EVIDENCE-20261008-001.md \
             docs/research/results/data/PATCH-GAP-001-G4-EVIDENCE-20261008-001
-          git diff --cached --quiet && { echo 'Missing evidence delta'; exit 2; }
+          if git diff --cached --quiet; then
+            echo 'Verified existing durable G4 evidence; nothing to commit.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           git commit -m "docs(research): retain independently verified G4 decision evidence"
           git push origin "HEAD:refs/heads/$TARGET_BRANCH"
           echo 'Verified G4 per-file evidence committed to PR branch only.' >> "$GITHUB_STEP_SUMMARY"

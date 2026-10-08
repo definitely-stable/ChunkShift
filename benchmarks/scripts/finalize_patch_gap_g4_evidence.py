@@ -94,10 +94,25 @@ def process(role, artifact_dir, metadata_dir):
                 sum(v["winners"] for v in totals.values()) == lane["bcjWinnerEntries"],
                 "aggregate divergence")
     records = sorted(table.items())
+    documents = {}
+    for filename in ("g4-index.json", "h0-anchor.json", "xz-provenance.json", "verify.txt"):
+        data = (artifact_dir / filename).read_bytes()
+        documents[filename] = {"sha256": sha(data), "bytes": len(data)}
+    detail_entries = [(r["detailPath"], r["detailSha256"], r["detailBytes"])
+                      for r in doc["files"]]
+    assert_true(len(set(path for path, _, _ in detail_entries)) == len(detail_entries),
+                "duplicate detail paths")
+    canonical_details = "".join(
+        "{}\\t{}\\t{}\\n".format(path, digest, length)
+        for path, digest, length in sorted(detail_entries)
+    ).encode("utf-8")
+    documents["details"] = {"count": len(detail_entries),
+                            "manifestSha256": sha(canonical_details),
+                            "manifestBytes": len(canonical_details)}
     info = {"runId": doc["provenance"]["runId"], "run": RUNS[role],
             "url": run["html_url"], "sourceCommit": SOURCE, "artifact": item["id"],
             "zipSha256": item["digest"].split(":", 1)[1],
-            "expires": item["expires_at"]}
+            "expires": item["expires_at"], "documents": documents}
     return lane, dict(sorted(totals.items())), records, info
 
 
