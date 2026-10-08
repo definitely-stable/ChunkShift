@@ -46,6 +46,7 @@ def main() -> int:
     parser.add_argument("--index", required=True, type=Path)
     parser.add_argument("--detail-dir", required=True, type=Path)
     parser.add_argument("--inventory", required=True, type=Path)
+    parser.add_argument("--xz-provenance", required=True, type=Path)
     parser.add_argument("--dataset-role", required=True, choices=("calibration", "evaluation"))
     args = parser.parse_args()
 
@@ -64,6 +65,18 @@ def main() -> int:
         raise SystemExit("frozen G4 inventory split identity mismatch")
     if root["bcj"]["version"] != XZ_VERSION or root["bcj"]["sourceCommit"] != XZ_COMMIT:
         raise SystemExit("foreign XZ/liblzma identity")
+
+    xz = load(args.xz_provenance)
+    if (
+        xz.get("schema") != "chunkshift.patch-gap-g4-xz-build.v1"
+        or xz.get("sourceCommit") != XZ_COMMIT
+        or xz.get("version") != XZ_VERSION
+        or xz.get("librarySha256") != root["bcj"]["librarySha256"]
+        or not isinstance(xz.get("sourceArchiveSha256"), str)
+        or len(xz["sourceArchiveSha256"]) != 64
+        or not xz.get("buildCommand")
+    ):
+        raise SystemExit("G4 XZ build provenance does not bind the measured liblzma")
 
     inventory = load(args.inventory)
     if inventory["schema"] != "chunkshift.patch-gap-g4-inventory.v1":
