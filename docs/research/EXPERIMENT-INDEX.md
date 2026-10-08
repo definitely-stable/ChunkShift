@@ -1,7 +1,7 @@
 # Experiment index
 
 Status: Active registry
-Last reviewed: 2026-10-07
+Last reviewed: 2026-10-08
 
 This table is the human-readable research index. Machine-readable experiment definitions may also live under `benchmarks/experiments/`.
 
@@ -47,6 +47,7 @@ This table is the human-readable research index. Machine-readable experiment def
 | PATCH-GAP-001 | Patching research | #183, #7 | Decompose the CSP size gap to `zstd --patch-from`, bsdiff, HDiffPatch and Zucchini | RUNNING | [Stage-A](results/PATCH-GAP-001-EVIDENCE-20261003-001.md): G4/G5 inventory locked, G5 NOT_PRESENT; [G1 evaluation](results/PATCH-GAP-001-G1-EVALUATION-EVIDENCE-20261006-001.md): **G1 REJECT**, best 2.273822% vs 15%; [G3 evaluation](results/PATCH-GAP-001-G3-EVALUATION-EVIDENCE-20261007-001.md): **G3 REJECT**, RUN -187.984246%, FILE -202.790255%; next G4 executable normalization |
 | PATCH-TREE-001 | Patching research | #184, #7 | Update sets: cross-file base reuse, tree manifest, atomic tree publication | PLANNED | — |
 | PATCH-META-001 | Patching research | #220, #7, #150, #181 | Reusable derived patch features across repeated create | PLANNED | — |
+| PATCH-RESIDUAL-001 | Patching research | #262, #7, #183, #251 | Bounded XOR+zstd and canonical sparse changed-runs; mechanics foundation, no CSP v1 change; Phase B oracle gated by G4 | PLANNED | [Phase A contract](../benchmarks/PATCH-RESIDUAL-001-PROTOCOL.md) |
 | PATCH-DOTNET-001 | Patching research | #221, #7, #183 | Reversible .NET/CLR semantic normalization after generic executable evidence | PLANNED | — |
 | PATCH-DICT-001 | Patching research | #222, #7, #183, #184 | Bounded composite dictionaries from verified base chunk runs under equal byte budgets | PLANNED | — |
 | PATCH-ML-001 | Patching research | #223, #7, #181, #183 | Learned reference ranking as a build-side oracle / distillation experiment | PLANNED | — |
