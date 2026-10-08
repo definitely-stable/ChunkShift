@@ -127,6 +127,13 @@ internal static class PatchGapG4SelfTest
         {
             prefixWasRequired = true;
         }
+        catch (InvalidOperationException)
+        {
+            // The lab codec surfaces zstd backend corruption as an operation
+            // failure; for this negative probe that still proves the raw
+            // prefix is required to decode the frame.
+            prefixWasRequired = true;
+        }
 
         if (!prefixWasRequired)
         {
