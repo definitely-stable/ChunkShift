@@ -26,7 +26,7 @@ Two intentionally elementary representations are permitted:
 
 Phase A is **not** a search algorithm; its caller supplies one exact base byte span and a corresponding target span. Inputs have the **same nonzero length, at most 1 MiB**, with a nonnegative base offset. Inserts/deletes and whole-file alignment are out of scope. Source corruption must reject, never continue by guessing.
 
-The SHA-256 base binding is a synthetic Phase-A source identity to test exact decode failures. It is **not a ChunkId**, does not replace the CSM HashSuite, and cannot be carried into an actual CSP vNext design without a separate persisted-format RFC.
+The SHA-256 base/target bindings are synthetic Phase-A identities to test exact decode failures. It is **not a ChunkId**, does not replace the CSM HashSuite, and cannot be carried into an actual CSP vNext design without a separate persisted-format RFC.
 
 ## 3. Synthetic RS01 envelope and accounting
 
@@ -40,17 +40,18 @@ RS01 is an explicitly **non-production research envelope**, not a CSP section/en
 | Base offset | 8 | nonnegative LE int64, caller binding |
 | Stored length | 4 | bounded LE int32 |
 | Base SHA-256 | 32 | exact supplied base content bytes |
+| Target SHA-256 | 32 | exact decoded target content bytes |
 | Stored body | variable | one frame or canonical sparse runs |
 
-**Header = 53 bytes.** Total = 53 + exactly `StoredLength`, using checked arithmetic. Decoder rejects missing/extra bytes, unsupported mode, invalid base offset/digest, invalid sizes, noncanonical/overlapping/adjacent/unchanged sparse runs and corrupt zstd. No allocation based on an untrusted length before validating the 1 MiB output bound. Sparse body starts with LE int32 count, then `(start:i32,len:i32,bytes[len])` for each maximal run.
+**Header = 85 bytes.** Total = 85 + exactly `StoredLength`, using checked arithmetic. Decoder rejects missing/extra bytes, unsupported mode, invalid base offset/digest, invalid sizes, noncanonical/overlapping/adjacent/unchanged sparse runs and corrupt zstd. After reconstruction it independently checks SHA-256 of the exact decoded target so a structurally legal payload alteration cannot silently succeed. No allocation based on an untrusted length before validating the 1 MiB output bound. Sparse body starts with LE int32 count, then `(start:i32,len:i32,bytes[len])` for each maximal run.
 
-Important: RS01 SHA-256/offset/header costs are **not CSP vNext overhead estimates**. A production representation could use a different verified-source model. Neither naked zstd-frame size nor RS01 size may be compared as if it were full CSP physical size.
+Important: RS01 base/target SHA-256/offset/header costs are **not CSP vNext overhead estimates**. A production representation could use a different verified-source model. Neither naked zstd-frame size nor RS01 size may be compared as if it were full CSP physical size.
 
 ## 4. Phase A acceptance
 
 - Exact round trips for both modes, even when input is low-entropy, periodic or random.
 - Repeatable encoding for equal bytes and the same backend/toolchain.
-- Wrong base and mismatched offset fail closed; malformed headers and sparse payloads are rejected.
+- Wrong base and mismatched offset fail closed; malformed headers, sparse payloads and target-content tampering are rejected.
 - Every synthetic header/stored byte is accounted; no claimed compressed-byte gain yet.
 - No changes under `src/`, CSM/CSP, `CspEncoderPolicy.Default`, PublicAPI or publication repository.
 - Existing `benchmark-lab.yml` on standard GitHub-hosted runners must build and test the benchmark solution.
