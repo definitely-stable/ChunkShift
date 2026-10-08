@@ -131,8 +131,24 @@ def main() -> int:
                 winner = int(entry["winnerCostBytes"])
                 if winner <= 0 or winner > h0_cost:
                     raise SystemExit("entry violates additive non-regression")
-                if h0_cost != int(entry["h0StoredBytes"]) + 32 * int(entry["h0DictionaryReferences"]):
+                h0_refs = int(entry["h0DictionaryReferences"])
+                if h0_cost != int(entry["h0StoredBytes"]) + 32 * h0_refs:
                     raise SystemExit("H0 entry cost equation mismatch")
+                h0_encoding_name = entry["h0Encoding"]
+                if h0_encoding_name == "raw":
+                    expected_h0_encoding = 0
+                    if h0_refs != 0:
+                        raise SystemExit("raw H0 winner carries dictionary references")
+                elif h0_encoding_name == "zstd":
+                    expected_h0_encoding = 1
+                    if h0_refs != 0:
+                        raise SystemExit("no-dictionary zstd H0 winner carries dictionary references")
+                elif h0_encoding_name == "zstd-dictionary":
+                    expected_h0_encoding = 1
+                    if h0_refs <= 0:
+                        raise SystemExit("dictionary zstd H0 winner lost dictionary references")
+                else:
+                    raise SystemExit(f"unknown H0 encoding identity: {h0_encoding_name}")
                 if winner != int(entry["winnerStoredBytes"]) + 32 * int(entry["winnerDictionaryReferences"]):
                     raise SystemExit("G4 winner cost equation mismatch")
                 target_norm = entry["targetNormalization"]
@@ -195,13 +211,21 @@ def main() -> int:
 
                 if int(entry["winnerCostBytes"]) != expected_cost:
                     raise SystemExit("strict G4 winner cost mismatch")
+                architecture = detail["architecture"]
+                expected_synthetic_encoding = 3 if architecture == "ARM64" else 2
+                if architecture not in ("X86", "X64", "ARM64"):
+                    raise SystemExit(f"unsupported G4 architecture identity: {architecture}")
+
                 if expected_trial is None:
-                    if entry["winnerStoredForm"] != "H0":
-                        raise SystemExit("G4 replaced H0 on a tie/non-improvement")
+                    if (
+                        entry["winnerStoredForm"] != "H0"
+                        or int(entry["winnerEncoding"]) != expected_h0_encoding
+                    ):
+                        raise SystemExit("G4 H0 winner encoding/identity was not preserved exactly")
                 else:
                     if (
                         entry["winnerStoredForm"] != expected_trial["storedForm"]
-                        or int(entry["winnerEncoding"]) not in (2, 3)
+                        or int(entry["winnerEncoding"]) != expected_synthetic_encoding
                         or int(entry["winnerCandidateOrdinal"]) != int(expected_trial["candidateOrdinal"])
                         or int(entry["winnerCandidateStartIndex"]) != int(expected_trial["candidateStartIndex"])
                         or int(entry["winnerCanonicalStartIndex"]) != int(expected_trial["canonicalStartIndex"])
@@ -210,8 +234,8 @@ def main() -> int:
 
                 if entry["winnerStoredForm"] != "H0":
                     winners += 1
-                    if int(entry["winnerEncoding"]) not in (2, 3):
-                        raise SystemExit("synthetic G4 winner has invalid encoding")
+                    if int(entry["winnerEncoding"]) != expected_synthetic_encoding:
+                        raise SystemExit("synthetic G4 winner encoding does not match executable architecture")
                     if not entry["winnerFrameSha256"]:
                         raise SystemExit("synthetic G4 winner lost frame identity")
                 removed += h0_cost
