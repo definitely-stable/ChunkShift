@@ -6,7 +6,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using ChunkShift.Benchmarks.PatchLab;
 using ChunkShift.Benchmarks.PatchLab.PatchGap;
-using ChunkShift.Patching.Format;
 
 namespace ChunkShift.Benchmarks.Tests.PatchLab;
 
@@ -358,17 +357,17 @@ public class PatchGapFoundationTests
     public void G4WinnerKeepsH0OnTieAndEarlierTrialOnLaterTie()
     {
         PatchGapG4Winner tiedH0 = PatchGapG4Model.ChooseWinner(
-            h0Encoding: CspFormat.EncodingZstd,
+            h0Encoding: PatchGapG4Model.H0EncodingZstd,
             h0StoredBytes: 100,
             h0DictionaryReferences: 0,
             [
                 new("bcj-zstd", PatchGapG4Model.EncodingX86, -1, -1, -1, 100, 0),
             ]);
         Assert.Equal("H0", tiedH0.StoredForm);
-        Assert.Equal(CspFormat.EncodingZstd, tiedH0.Encoding);
+        Assert.Equal(PatchGapG4Model.H0EncodingZstd, tiedH0.Encoding);
 
         PatchGapG4Winner trial = PatchGapG4Model.ChooseWinner(
-            h0Encoding: CspFormat.EncodingRaw,
+            h0Encoding: PatchGapG4Model.H0EncodingRaw,
             h0StoredBytes: 100,
             h0DictionaryReferences: 0,
             [
