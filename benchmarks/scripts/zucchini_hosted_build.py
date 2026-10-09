@@ -95,7 +95,8 @@ def version(executable: str, *args: str) -> str:
 
 
 def manifest(pin: dict, checkout: Path, depot: Path, binary: Path,
-             gn_command: str, ninja_command: str, compiler_command: str) -> dict:
+             gn_command: str, ninja_command: str, compiler_command: str,
+             compiler_sha256: str = "", dep_snapshot_sha256: str = "") -> dict:
     identity = verify_source(pin, checkout, depot)
     require(binary.is_file() and binary.stat().st_size > 0, "missing compiled Zucchini")
     # The command-line and GN arguments are pinned *exactly*; a different build
@@ -107,6 +108,8 @@ def manifest(pin: dict, checkout: Path, depot: Path, binary: Path,
         "binarySha256": digest(binary),
         "binaryBytes": binary.stat().st_size,
         "compilerIdentity": compiler_command,
+        "compilerBinarySha256": compiler_sha256,
+        "dependencySnapshotSha256": dep_snapshot_sha256,
         "buildCommand": BUILD_COMMAND,
         "gnArgs": GN_ARGS,
         "buildSystemIdentity": f"{gn_command}; {ninja_command}",
@@ -119,6 +122,8 @@ def manifest(pin: dict, checkout: Path, depot: Path, binary: Path,
         "scope": "built tool identity only, no Zucchini reference/patch-size result",
     }
     require(len(data["binarySha256"]) == 64, "invalid binary digest")
+    require(not compiler_sha256 or len(compiler_sha256) == 64, "invalid compiler identity digest")
+    require(not dep_snapshot_sha256 or len(dep_snapshot_sha256) == 64, "invalid dependency snapshot digest")
     return data
 
 
@@ -130,6 +135,7 @@ def main() -> None:
     p.add_argument("--depot", type=Path)
     p.add_argument("--binary", type=Path)
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--dependency-snapshot", type=Path)
     args = p.parse_args()
     if args.mode == "preflight":
         require(args.workspace is not None, "preflight workspace is required")
@@ -138,9 +144,14 @@ def main() -> None:
         require(all((args.checkout, args.depot, args.binary)),
                 "source/depot/binary are all required")
         pin = json.loads(PIN.read_text(encoding="utf-8"))
+        compiler = args.checkout / "third_party/llvm-build/Release+Asserts/bin/clang"
+        require(compiler.is_file(), "Chromium pinned Clang compiler missing")
+        require(args.dependency_snapshot is not None and args.dependency_snapshot.is_file(),
+                "materialized DEPS dependency snapshot missing")
         data = manifest(pin, args.checkout, args.depot, args.binary,
                         version("gn", "--version"), version("ninja", "--version"),
-                        version("clang", "--version"))
+                        version(str(compiler), "--version"), digest(compiler),
+                        digest(args.dependency_snapshot))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n",
                            encoding="utf-8")
