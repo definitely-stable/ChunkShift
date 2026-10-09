@@ -110,6 +110,15 @@ def verify(reference: dict, h0: dict[tuple, int], role: str) -> dict:
                 check(not r["structuralCandidate"], "excluded structurally valid pair")
             else:
                 check(bool(r["structuralCandidate"]), "unsupported structurally excluded row")
+                # Only upstream Zucchini exit code 6 is a valid parser miss.
+                exit_codes = (r.get("baseParserExit"), r.get("targetParserExit"))
+                expected = {
+                    "UNSUPPORTED_BASE": (6, 0),
+                    "UNSUPPORTED_TARGET": (0, 6),
+                    "UNSUPPORTED_BASE_AND_TARGET": (6, 6),
+                }
+                check(exit_codes == expected[status],
+                      "unsupported status is not backed by parser exit code 6")
     check(sum(counters.values()) == len(rows), "status total")
     check(counters == Counter(reference["counts"]), "reported status counts")
     # This is a *matched subset descriptive comparison*, not a CSP factor gate.
