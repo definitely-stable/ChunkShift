@@ -49,7 +49,7 @@ jobs:
     name: source-pinned Zucchini binary (explicit larger hosted runner only)
     if: github.event_name == 'workflow_dispatch'
     needs: contract-tests
-    runs-on: ${{ inputs.runner-label }}
+    runs-on: ${{ inputs['runner-label'] }}
     timeout-minutes: 360
     steps:
       - name: Reject a non-GitHub-hosted runner before repository checkout
