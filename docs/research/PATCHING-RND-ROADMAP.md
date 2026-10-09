@@ -55,7 +55,7 @@ Physical CSP bytes remain non-contractual under PATCHING-DECISIONS D7.
 | Future CDC algorithms / RepMaxCDC / SeqCDC / Chonkers | #14/#136 |
 | Exact dirty-range incremental rechunk | #150 / `PATCH-INCR-001` |
 | Create candidate selection / resemblance / level ladder | #181 / `PATCH-ENC-005` — complete: REJECT / `STOP_RESEMBLANCE`; D15 unchanged |
-| CSP size-gap decomposition, generic executable/container factors | #183 / `PATCH-GAP-001` — G1 REJECT; G3 REJECT; G4 executable normalization next |
+| CSP size-gap decomposition, generic executable/container factors | #183 / `PATCH-GAP-001` — G1 REJECT; G3 REJECT; G4-BCJ REJECT (0.955265% holdout vs 15%); Zucchini subset reference pending |
 | Tree/update sets and cross-file reuse | #184 / `PATCH-TREE-001` |
 | Trust/signature/update policy | #185 / `TRUST-SIG-001` |
 | Repository one-hop delta storage | #151 / `REPO-DELTA-001` |
@@ -87,7 +87,7 @@ Priority: **NEXT / high algorithmic value**. Dependencies: #183 G1/G2 results; #
 
 ### #262 — PATCH-RESIDUAL-001 — exact bounded residual representation oracle
 
-Priority: **PHASE A now / Phase B after frozen G4 evidence**. A separate, lab-only representation question: can XOR+zstd or canonical sparse changed-runs over exact verified equal-length base bytes recover headroom not available to existing zstd dictionary candidate selection? A synthetic 53-byte RS01 envelope, strict decode and corruption tests are a **mechanics foundation only**, not a CSP size result or wire format. Phase B needs a new preregistered matched H0/whole-patch accounting protocol and sealed holdout before any persisted-format RFC. Owner [#262](https://github.com/definitely-stable/ChunkShift/issues/262), [contract](../benchmarks/PATCH-RESIDUAL-001-PROTOCOL.md). Opening this lane does not extend #251 indefinitely: oracle-first and explicit DEFER/REJECT if no decision-grade headroom.
+Priority: **PHASE A now / Phase B after frozen G4 evidence**. A separate, lab-only representation question: can XOR+zstd or canonical sparse changed-runs over exact verified equal-length base bytes recover headroom not available to existing zstd dictionary candidate selection? A synthetic 85-byte RS01 header, strict decode and corruption tests are a **mechanics foundation only**, not a CSP size result or wire format. Phase B needs a new preregistered matched H0/whole-patch accounting protocol and sealed holdout before any persisted-format RFC. Owner [#262](https://github.com/definitely-stable/ChunkShift/issues/262), [contract](../benchmarks/PATCH-RESIDUAL-001-PROTOCOL.md). Opening this lane does not extend #251 indefinitely: oracle-first and explicit DEFER/REJECT if no decision-grade headroom.
 
 ### Critical architecture corrections (2026-10-08)
 
@@ -95,7 +95,7 @@ Priority: **PHASE A now / Phase B after frozen G4 evidence**. A separate, lab-on
 - **#184 cross-file source:** current CSP apply materializes a `Dictionary<ChunkId,ChunkInfo>` with an operational bound of 4,194,304 distinct base IDs. A concatenated tree cannot silently inherit arbitrary scale; require a bounded exact locator and memory/build/read measurements before a format choice. Keep the first-occurrence semantic rule.
 - **#220 derived features:** never treat stale cache entries or incomplete source-change metadata as integrity evidence. Missing/corrupt caches fall back to authoritative bytes/CSM.
 - **#181 selector:** choosing a different dictionary candidate within the same representation family showed negligible exact-oracle headroom; do not claim this rules out other representation families.
-- **#183:** G1/G3 remain REJECT, G4 is frozen independently. No residual trial is injected into its calibration/evaluation lanes.
+- **#183:** G1/G3 and G4-BCJ are REJECT on their frozen lanes; the G4 Zucchini reference remains pending. No residual trial is injected into its calibration/evaluation lanes.
 - **Build I/O/apply:** inspect whole-workflow double-reading, temporary spool costs and forward-only CSP apply feasibility as candidate engineering investigations *inside existing owners* before opening new public APIs. Frozen CSP v1 physical order (TCSM before PAYL), verification order and bounded-apply semantics stay authoritative.
 
 ### #223 — PATCH-ML-001 — learned reference ranking oracle
@@ -159,7 +159,7 @@ stable task/representation shape + #220 keying
 
 ### NOW
 
-- continue PATCH-GAP-001 exactly as frozen: G1 and G3 are complete/rejected; run G4 executable normalization next;
+- continue PATCH-GAP-001 exactly as frozen: G1, G3 and G4-BCJ are complete/rejected; finish the pinned Zucchini reference and final #183 factor synthesis before closing the study;
 - run PATCH-TREE-001, PATCH-META-001 and PATCH-INCR-001 as compatible #251 Research Freeze work;
 - retain exact/deterministic evidence discipline and fail-closed invalid-run handling.
 

@@ -1,0 +1,121 @@
+name: PATCH-GAP-001 G4 durable evidence import
+
+# Research-only archival automation. Never changes main or decision lanes.
+# Fail closed while a frozen run is incomplete: green CI must not mean a no-op import.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/patch-gap-001-g4-evidence-import.yml"
+      - "benchmarks/scripts/finalize_patch_gap_g4_evidence.py"
+      - "benchmarks/scripts/recompute_patch_gap_g4_evidence.py"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: patch-gap-g4-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'research/patch-gap-g4-evidence'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout trusted evidence branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: true
+
+      - name: Setup pinned Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Require completed, successful source-locked decision runs
+        id: readiness
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cal="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/37802323920" --jq '.conclusion // "pending"')"
+          ev="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/37808520559" --jq '.conclusion // "pending"')"
+          if [[ "$cal" != success ]]; then
+            echo "Frozen G4 calibration is not successful; cannot import." >&2
+            exit 2
+          fi
+          if [[ "$ev" == pending ]]; then
+            echo 'Frozen G4 evaluation is incomplete; archival cannot pass without committed evidence.' >&2
+            exit 2
+          fi
+          if [[ "$ev" != success ]]; then
+            echo "Frozen G4 evaluation failed ($ev); do not import or infer a verdict." >&2
+            exit 2
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Download successful frozen G4 runs
+        if: steps.readiness.outputs.ready == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/g4-runs"
+          for spec in calibration:37802323920 evaluation:37808520559; do
+            role="$(cut -d: -f1 <<< "$spec")"
+            id="$(cut -d: -f2 <<< "$spec")"
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" > "$RUNNER_TEMP/g4-runs/$role-run.json"
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" > "$RUNNER_TEMP/g4-runs/$role-artifacts.json"
+            test "$(jq -r '.conclusion' "$RUNNER_TEMP/g4-runs/$role-run.json")" = success
+            test "$(jq -r '.run_attempt' "$RUNNER_TEMP/g4-runs/$role-run.json")" = 1
+            test "$(jq -r '.head_sha' "$RUNNER_TEMP/g4-runs/$role-run.json")" = c71f0c8fa483c45bf65fee4850d293c45f7878a6
+            name="$(jq -r --arg role "$role" '.artifacts[] | select(.name | startswith("patch-gap-001-g4-" + $role + "-")) | .name' "$RUNNER_TEMP/g4-runs/$role-artifacts.json")"
+            test -n "$name"
+            test "$(printf '%s\n' "$name" | wc -l)" = 1
+            gh run download "$id" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/g4-runs/$role"
+          done
+
+      - name: Verify and materialize durable compact G4 evidence
+        if: steps.readiness.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            benchmarks/scripts/finalize_patch_gap_g4_evidence.py \
+            benchmarks/scripts/recompute_patch_gap_g4_evidence.py
+          if [[ ! -f docs/research/results/data/PATCH-GAP-001-G4-EVIDENCE-20261008-001/summary.json ]]; then
+            python3 benchmarks/scripts/finalize_patch_gap_g4_evidence.py \
+              --calibration "$RUNNER_TEMP/g4-runs/calibration" \
+              --evaluation "$RUNNER_TEMP/g4-runs/evaluation" \
+              --metadata "$RUNNER_TEMP/g4-runs"
+          fi
+          python3 benchmarks/scripts/recompute_patch_gap_g4_evidence.py \
+            --root docs/research/results/data/PATCH-GAP-001-G4-EVIDENCE-20261008-001
+
+      - name: Commit verified evidence only to this PR branch
+        if: steps.readiness.outputs.ready == 'true'
+        shell: bash
+        env:
+          TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          test "$TARGET_BRANCH" = research/patch-gap-g4-evidence
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            docs/research/results/PATCH-GAP-001-G4-EVIDENCE-20261008-001.md \
+            docs/research/results/data/PATCH-GAP-001-G4-EVIDENCE-20261008-001
+          if git diff --cached --quiet; then
+            echo 'Verified existing durable G4 evidence; nothing to commit.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git commit -m "docs(research): retain independently verified G4 decision evidence"
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+          echo 'Verified G4 per-file evidence committed to PR branch only.' >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,66 @@
+{
+  "calibration": {
+    "artifact": 11562028028,
+    "documents": {
+      "details": {
+        "count": 1049,
+        "manifestBytes": 149664,
+        "manifestSha256": "074777cd315da67b7c50e275dc18d0e87ad29a33e871669b78b169028c2d3780"
+      },
+      "g4-index.json": {
+        "bytes": 704718,
+        "sha256": "ee7c27634f4e010da9d25321ee719f3b6816e79829d33582753f9d9a2659c6fb"
+      },
+      "h0-anchor.json": {
+        "bytes": 1532,
+        "sha256": "dc9fd09baba4b473e01d0cb77a06182f363289c596c6942de43f3086c1440b0e"
+      },
+      "verify.txt": {
+        "bytes": 176,
+        "sha256": "547a3dd55227c114ae0e714a2659943d123ad111ce1ffdcf1d7209095f706724"
+      },
+      "xz-provenance.json": {
+        "bytes": 736,
+        "sha256": "9ccbc89bd4c177ddfce5c01366e6e00d221956032d2b1fed2779a37ba15d9448"
+      }
+    },
+    "expires": "2027-01-06T15:37:45Z",
+    "run": 37802323920,
+    "runId": "PATCH-GAP-001/RUN-20261008-002-c71f0c8-linux-x64-g4-calibration",
+    "sourceCommit": "c71f0c8fa483c45bf65fee4850d293c45f7878a6",
+    "url": "https://github.com/definitely-stable/ChunkShift/actions/runs/37802323920",
+    "zipSha256": "0232ce60597b952e500f384953d97465c1255e273285e303a8491a53dea5d4a0"
+  },
+  "evaluation": {
+    "artifact": 11565593726,
+    "documents": {
+      "details": {
+        "count": 844,
+        "manifestBytes": 119864,
+        "manifestSha256": "1165553817585797c01cf63ab8c881616ff83b3847fbde65c89d6bd43d48f8d3"
+      },
+      "g4-index.json": {
+        "bytes": 533394,
+        "sha256": "74dc0eb85a095c4365a5a3dbbce5c664d23ca5e2a9d944c2c9df02d2750536ed"
+      },
+      "h0-anchor.json": {
+        "bytes": 1529,
+        "sha256": "55469aa28f68a18fcc08021990b313fa6666ec9e766e5e1616a4cc94cd50c25b"
+      },
+      "verify.txt": {
+        "bytes": 173,
+        "sha256": "b66e91ec135b087f8e057e5150ea5f83648173c5cb1bbf31ab9a7af3c479342c"
+      },
+      "xz-provenance.json": {
+        "bytes": 736,
+        "sha256": "9ccbc89bd4c177ddfce5c01366e6e00d221956032d2b1fed2779a37ba15d9448"
+      }
+    },
+    "expires": "2027-01-06T16:24:24Z",
+    "run": 37808520559,
+    "runId": "PATCH-GAP-001/RUN-20261008-001-c71f0c8-linux-x64-g4-evaluation",
+    "sourceCommit": "c71f0c8fa483c45bf65fee4850d293c45f7878a6",
+    "url": "https://github.com/definitely-stable/ChunkShift/actions/runs/37808520559",
+    "zipSha256": "d6a25631dbf1fbac9e49644548644696e28a84efd1b0b9862d42f26bf799327b"
+  }
+}

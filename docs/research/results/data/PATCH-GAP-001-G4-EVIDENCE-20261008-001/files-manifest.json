@@ -1,0 +1,71 @@
+{
+  "canonicalHeader": "datasetRole\tfamily\tbaseVersion\ttargetVersion\tpath\th0Bytes\tg4Bytes\tsavedBytes\teligible\twinners",
+  "combined": {
+    "bytes": 239916,
+    "rows": 1893,
+    "sha256": "0fa6e322869c96ef6f4402da0557e282e211a144699d3d34e7ddbcdda3b6f6c7"
+  },
+  "schema": "chunkshift.patch-gap-g4-files.v1",
+  "shards": [
+    {
+      "datasetRole": "calibration",
+      "family": "dotnet-aspnetcore-win-x64",
+      "gzipBytes": 8280,
+      "gzipSha256": "7e307a703e1965cd5192a740a76d94c32e699dac8c8ba2cf9d4d30bf23a23edf",
+      "path": "files/calibration-dotnet-aspnetcore-win-x64.tsv.gz.b64",
+      "rows": 669,
+      "tsvBytes": 96781,
+      "tsvSha256": "bb1025a102c8ffb4b61ccf72e2fdc37d7ea52287f58a54ecc00595b44897ec55"
+    },
+    {
+      "datasetRole": "calibration",
+      "family": "dotnet-runtime-linux-arm64",
+      "gzipBytes": 4161,
+      "gzipSha256": "fe3da7517baf275bb040904a0e21239ba406a8b496e0132e34460583ce6d40a7",
+      "path": "files/calibration-dotnet-runtime-linux-arm64.tsv.gz.b64",
+      "rows": 380,
+      "tsvBytes": 52796,
+      "tsvSha256": "78d631496b1611f75e7322283c521e156f0c1122da925df092d547907ff6d7ff"
+    },
+    {
+      "datasetRole": "evaluation",
+      "family": "chunkshift-source",
+      "gzipBytes": 162,
+      "gzipSha256": "be1281bb483fe03135b2be4e03df8e9b8c942df74c388918af6c5e3597d369e4",
+      "path": "files/evaluation-chunkshift-source.tsv.gz.b64",
+      "rows": 2,
+      "tsvBytes": 244,
+      "tsvSha256": "1ad49fee6ae7270c67d1fe3d30958f10287a6a8d5e60dac12db76938346e7ff8"
+    },
+    {
+      "datasetRole": "evaluation",
+      "family": "node-linux-x64",
+      "gzipBytes": 3846,
+      "gzipSha256": "bb36b7f37f71405e0fd7e98a4b57e31e3237e6909fd9f9b7449f9b81702edb72",
+      "path": "files/evaluation-node-linux-x64.tsv.gz.b64",
+      "rows": 531,
+      "tsvBytes": 59639,
+      "tsvSha256": "5ef2760e61d9e66e7c1a10a31b14a22550470598bf38dffe08b21dee988b246d"
+    },
+    {
+      "datasetRole": "evaluation",
+      "family": "node-win-x64",
+      "gzipBytes": 2527,
+      "gzipSha256": "76359bf4145b11f842b5f4c38bd5ed5cb03c21d114b5b8ef8404a565d29f2f01",
+      "path": "files/evaluation-node-win-x64.tsv.gz.b64",
+      "rows": 283,
+      "tsvBytes": 29288,
+      "tsvSha256": "0dc89be49e0bd5ae1237be1ce04c191e515bcc14ac3a8e8644070e29309bba54"
+    },
+    {
+      "datasetRole": "evaluation",
+      "family": "tzdata",
+      "gzipBytes": 415,
+      "gzipSha256": "b4ba0b8e1f7d84f8209363b89ad39e2bfcf0ac376b299b9060b050f36bf794ed",
+      "path": "files/evaluation-tzdata.tsv.gz.b64",
+      "rows": 28,
+      "tsvBytes": 1638,
+      "tsvSha256": "2d25e54fc7c15f3e1d30aa3ac0d962e0160b77ee54f1c8e3b8a2e4549a602dba"
+    }
+  ]
+}

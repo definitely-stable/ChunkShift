@@ -227,7 +227,7 @@ Remaining exit items (CSP v1 frozen 2026-09-28):
 
 Linked research that does not block the exit:
 
-- `PATCH-GAP-001` ([#183](https://github.com/definitely-stable/ChunkShift/issues/183)): RUNNING. Stage-A locked the G4/G5 populations; G5 is `NOT_PRESENT` on the frozen materialized corpus. G1 is REJECT (best 2.273822% vs the 15% gate); G3 is REJECT (RUN -187.984246%, FILE -202.790255% on evaluation); G4 executable normalization is next;
+- `PATCH-GAP-001` ([#183](https://github.com/definitely-stable/ChunkShift/issues/183)): RUNNING. Stage-A locked the G4/G5 populations; G5 is `NOT_PRESENT` on the frozen materialized corpus. G1 is REJECT (best 2.273822% vs the 15% gate); G3 is REJECT (RUN -187.984246%, FILE -202.790255% on evaluation); G4-BCJ is REJECT (0.955265% on evaluation vs the 15% gate, [durable evidence](docs/research/results/PATCH-GAP-001-G4-EVIDENCE-20261008-001.md)); the separately frozen Zucchini reference and overall #183 synthesis remain outstanding;
 - `PATCH-TREE-001` ([#184](https://github.com/definitely-stable/ChunkShift/issues/184)): update sets;
 - `TRUST-SIG-001` ([#185](https://github.com/definitely-stable/ChunkShift/issues/185)): the trust-envelope RFC.
 
@@ -287,7 +287,7 @@ Cross-cutting Repository rules:
 ## Immediate work order
 
 1. land the final `PATCH-ENC-005` H6-O evidence and close #181 with REJECT / `STOP_RESEMBLANCE`; do not retune the frozen selector study.
-2. execute the [Patching Research Freeze](https://github.com/definitely-stable/ChunkShift/issues/251). `PATCH-GAP-001` G1 and G3 are complete/rejected; G4 executable normalization is the immediate next decision slice. Run `PATCH-TREE-001`, `PATCH-META-001` and `PATCH-INCR-001` as compatible parallel research.
+2. execute the [Patching Research Freeze](https://github.com/definitely-stable/ChunkShift/issues/251). `PATCH-GAP-001` G1, G3 and G4-BCJ are complete/rejected. The next #183 slice is the frozen Zucchini executable reference and final factor synthesis (not a CSP v1 change). Run `PATCH-TREE-001`, `PATCH-META-001` and `PATCH-INCR-001` as compatible parallel research.
 3. after their dependencies, complete `PATCH-DICT-001`, `PATCH-DOTNET-001`, and only then evaluate `PATCH-ML-001` against a richer proven source/representation universe. Enter `PATCH-COMPILER-001` only with >=2 decision-grade representation families; defer `PATCH-EXEC-001` implementation until task/representation shape is stable.
 4. complete #185 trust/update-policy design and any required cross-factor interaction ExperimentId, then produce the #251 final synthesis: CSP v1 remains sufficient or a versioned CSP vNext/new representation is required.
 5. only after #251 closes, make [#140](https://github.com/definitely-stable/ChunkShift/issues/140), the Patching public-API freeze and publication-repository port release-critical.
