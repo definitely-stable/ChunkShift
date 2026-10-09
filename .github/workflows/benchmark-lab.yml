@@ -99,7 +99,8 @@ jobs:
             benchmarks/scripts/recompute_patch_gap_g4_evidence.py \
             benchmarks/scripts/patch_gap_g4_zucchini_reference.py \
             benchmarks/scripts/verify_patch_gap_g4_zucchini_reference.py \
-            benchmarks/scripts/verify_patch_gap_zucchini_source_pin.py
+            benchmarks/scripts/verify_patch_gap_zucchini_source_pin.py \
+            benchmarks/scripts/zucchini_hosted_build.py
           python3 -m unittest \
             benchmarks/scripts/test_summarize_apply_check.py \
             benchmarks/scripts/test_patch_enc_005_paired.py \
@@ -114,7 +115,8 @@ jobs:
             benchmarks/scripts/test_patch_gap_g4_evidence.py \
             benchmarks/scripts/test_patch_gap_g4_zucchini_reference.py \
             benchmarks/scripts/test_verify_patch_gap_g4_zucchini_reference.py \
-            benchmarks/scripts/test_verify_patch_gap_zucchini_source_pin.py
+            benchmarks/scripts/test_verify_patch_gap_zucchini_source_pin.py \
+            benchmarks/scripts/test_zucchini_hosted_build.py
           python3 benchmarks/scripts/check_research_registry.py
           python3 docs/research/results/data/PATCH-ENC-005-G2-EVIDENCE-20261003-001/recompute.py \
             --oracle docs/research/results/data/PATCH-ENC-005-G2-EVIDENCE-20261003-001/oracle.json \
