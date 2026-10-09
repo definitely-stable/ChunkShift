@@ -1,0 +1,196 @@
+name: PATCH-GAP-001 G4 Zucchini sealed evaluation
+
+# Not a CSP-v1 factor or decision gate. A single whole-file holdout reference
+# can run only after one independently audited authentic calibration artifact.
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/patch-gap-001-g4-zucchini-evaluation.yml"
+      - "benchmarks/scripts/verify_zucchini_calibration_evidence.py"
+      - "benchmarks/scripts/test_verify_zucchini_calibration_evidence.py"
+  workflow_dispatch:
+    inputs:
+      calibration-run-id:
+        description: "Successful main-branch frozen Zucchini calibration workflow_dispatch"
+        required: true
+        type: string
+      build-run-id:
+        description: "Same original real Zucchini binary build run ID used by calibration"
+        required: true
+        type: string
+      run-date:
+        description: "UTC YYYYMMDD for RunId (no corpus selection)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: patch-gap-001-g4-zucchini-sealed-evaluation
+  cancel-in-progress: false
+
+env:
+  INVENTORY: docs/research/results/data/PATCH-GAP-001-20261003-001/subsets/g4.json
+  PAIRS_SHA256: 8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Test holdout isolation and calibration seal (fixtures ONLY)
+        run: |
+          set -euo pipefail
+          python3 -m py_compile benchmarks/scripts/verify_zucchini_calibration_evidence.py
+          python3 -m unittest \
+            benchmarks/scripts/test_verify_zucchini_calibration_evidence.py \
+            benchmarks/scripts/test_verify_zucchini_build_artifact.py \
+            benchmarks/scripts/test_verify_patch_gap_g4_zucchini_reference.py
+          echo 'Synthetic origin/evaluation contracts PASS. No holdout bytes measured.' >> "$GITHUB_STEP_SUMMARY"
+
+  evaluation:
+    if: github.event_name == 'workflow_dispatch'
+    needs: contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout main research contract (no new configuration)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Require original main run and an untouched, one-shot sealed holdout
+        env:
+          CAL_RUN_ID: ${{ inputs['calibration-run-id'] }}
+          BUILD_RUN_ID: ${{ inputs['build-run-id'] }}
+          RUN_DATE: ${{ inputs['run-date'] }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          [[ "$CAL_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$BUILD_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$RUN_DATE" =~ ^[0-9]{8}$ ]]
+          python3 - "$RUN_DATE" <<'PY'
+          from datetime import datetime
+          import sys
+          datetime.strptime(sys.argv[1], "%Y%m%d")
+          PY
+          echo "CAL_RUN_ID=$CAL_RUN_ID" >> "$GITHUB_ENV"
+          echo "BUILD_RUN_ID=$BUILD_RUN_ID" >> "$GITHUB_ENV"
+          echo "OUT=$RUNNER_TEMP/zucchini-sealed-evaluation" >> "$GITHUB_ENV"
+          echo "CORPUS_ROOT=$HOME/patch-corpus" >> "$GITHUB_ENV"
+          echo "REFERENCE_RUN_ID=PATCH-GAP-001/RUN-$RUN_DATE-$GITHUB_RUN_NUMBER-$(printf %.7s "$GITHUB_SHA")-linux-x64-zucchini-evaluation" >> "$GITHUB_ENV"
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/patch-gap-001-g4-zucchini-evaluation.yml/runs?event=workflow_dispatch&per_page=1" \
+            > "$RUNNER_TEMP/zucchini-prior-evaluations.json"
+          python3 - "$RUNNER_TEMP/zucchini-prior-evaluations.json" "$GITHUB_RUN_ID" <<'PY'
+          import json, sys
+          report=json.load(open(sys.argv[1],encoding="utf-8"))
+          rows=report["workflow_runs"]
+          if report["total_count"] != 1 or len(rows) != 1 or str(rows[0]["id"]) != sys.argv[2]:
+              raise SystemExit("Sealed holdout was already dispatched, including failed/cancelled attempts. Stop and review protocol; no rerun.")
+          PY
+
+      - name: Download real calibration and independently validate its origin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT/calibration" "$OUT/origin"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CAL_RUN_ID" > "$OUT/origin/calibration-run.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CAL_RUN_ID/jobs?per_page=100" > "$OUT/origin/calibration-jobs.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CAL_RUN_ID/artifacts?per_page=100" > "$OUT/origin/calibration-artifacts.json"
+          original="$(jq -er '.head_sha' "$OUT/origin/calibration-run.json")"
+          gh run download "$CAL_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name "patch-gap-001-zucchini-calibration-$BUILD_RUN_ID-$original" \
+            --dir "$OUT/calibration"
+          python3 benchmarks/scripts/verify_zucchini_calibration_evidence.py \
+            --run-json "$OUT/origin/calibration-run.json" \
+            --jobs-json "$OUT/origin/calibration-jobs.json" \
+            --artifacts-json "$OUT/origin/calibration-artifacts.json" \
+            --calibration-dir "$OUT/calibration" \
+            --calibration-run-id "$CAL_RUN_ID" --build-run-id "$BUILD_RUN_ID" \
+            --output "$OUT/origin/calibration-seal.json"
+          test "$(jq -er '.status' "$OUT/origin/calibration-seal.json")" = SEALED_CALIBRATION_VERIFIED
+          test "$(jq -er '.evaluationStatus' "$OUT/origin/calibration-seal.json")" = NOT_RUN
+          chmod 755 "$OUT/calibration/source/zucchini"
+
+      - name: Restore the immutable frozen corpus source archives
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/corpus-lock.json') }}
+
+      - name: Materialize heldout frozen files, reject any corpus drift
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$CORPUS_ROOT" --sources "$HOME/patch-corpus/sources" --download --lock
+          test "$(sha256sum "$CORPUS_ROOT/pairs.json" | cut -d' ' -f1)" = "$PAIRS_SHA256"
+
+      - name: Verify frozen heldout 814-member G4 structural population
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/patch_gap_g4_zucchini_reference.py \
+            --mode inventory --role evaluation --corpus "$CORPUS_ROOT" \
+            --inventory "$INVENTORY" --output "$OUT/evaluation-inventory.json"
+
+      - name: Execute one frozen Zucchini executable-aware holdout reference
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/patch_gap_g4_zucchini_reference.py \
+            --mode measure --role evaluation --corpus "$CORPUS_ROOT" \
+            --inventory "$INVENTORY" \
+            --zucchini "$OUT/calibration/source/zucchini" \
+            --tool-manifest "$OUT/calibration/source/tool-manifest.json" \
+            --output "$OUT/evaluation-reference.json" --timeout 600
+
+      - name: Independently audit holdout against frozen same-file H0 archive
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/verify_patch_gap_g4_zucchini_reference.py \
+            --reference "$OUT/evaluation-reference.json" --role evaluation \
+            --output "$OUT/evaluation-audit.json"
+          python3 - "$OUT/evaluation-audit.json" "$OUT/origin/calibration-seal.json" <<'PY'
+          import json,sys
+          evidence=json.load(open(sys.argv[1],encoding="utf-8"))
+          seal=json.load(open(sys.argv[2],encoding="utf-8"))
+          if not evidence["referenceOnly"] or evidence["rfcSizeGate"] != "NOT_APPLICABLE":
+              raise SystemExit("G4 whole-file holdout is not a CSP RFC factor")
+          if seal["status"] != "SEALED_CALIBRATION_VERIFIED":
+              raise SystemExit("No valid sealed calibration")
+          print(json.dumps(evidence,sort_keys=True,indent=2))
+          PY
+          cat "$OUT/evaluation-audit.json" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Sealed reference-only holdout, not CSP-v1 adoption.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Archive unmodified calibration/source, heldout raw bytes and audit
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-001-g4-zucchini-sealed-evaluation-${{ inputs['calibration-run-id'] }}-${{ inputs['build-run-id'] }}-${{ github.sha }}
+          path: ${{ runner.temp }}/zucchini-sealed-evaluation
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Record exact run and artifact hash for durable evidence import
+        env:
+          ART_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ART_SHA: ${{ steps.upload.outputs['artifact-digest'] }}
+        run: |
+          set -euo pipefail
+          test -n "$ART_ID"
+          [[ "$ART_SHA" == sha256:* ]]
+          {
+            echo
+            echo "Sealed evaluation run: $REFERENCE_RUN_ID"
+            echo "Calibration source run: $CAL_RUN_ID"
+            echo "Pinned binary build run: $BUILD_RUN_ID"
+            echo "Evaluation artifact ID: $ART_ID"
+            echo "Evaluation artifact SHA-256: $ART_SHA"
+            echo 'Reference-only heldout results. RFC factor size gate NOT_APPLICABLE.'
+          } >> "$GITHUB_STEP_SUMMARY"
