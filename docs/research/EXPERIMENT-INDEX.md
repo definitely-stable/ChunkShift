@@ -48,7 +48,7 @@ This table is the human-readable research index. Machine-readable experiment def
 | PATCH-TREE-001 | Patching research | #184, #7 | Update sets: cross-file base reuse, tree manifest, atomic tree publication | PLANNED | — |
 | PATCH-META-001 | Patching research | #220, #7, #150, #181 | Reusable derived patch features across repeated create | PLANNED | — |
 | PATCH-RESIDUAL-001 | Patching research | #262, #7, #183, #251 | Bounded XOR+zstd and canonical sparse changed-runs; mechanics foundation, no CSP v1 change; Phase B oracle gated by G4 | PLANNED | [Phase A contract](../benchmarks/PATCH-RESIDUAL-001-PROTOCOL.md) |
-| PATCH-DOTNET-001 | Patching research | #221, #7, #183 | Reversible .NET/CLR semantic normalization after generic executable evidence | FOUNDATION / NO DECISION | [Phase A preregistration](../benchmarks/PATCH-DOTNET-001-PROTOCOL.md) |
+| PATCH-DOTNET-001 | Patching research | #221, #7, #183 | Reversible .NET/CLR semantic normalization after generic executable evidence | RUNNING | [Phase A preregistration](../benchmarks/PATCH-DOTNET-001-PROTOCOL.md) |
 | PATCH-DICT-001 | Patching research | #222, #7, #183, #184 | Bounded composite dictionaries from verified base chunk runs under equal byte budgets | PLANNED | — |
 | PATCH-ML-001 | Patching research | #223, #7, #181, #183 | Learned reference ranking as a build-side oracle / distillation experiment | PLANNED | — |
 | PATCH-COMPILER-001 | Patching research | #224, #7 | Deterministic multi-objective representation compiler | PLANNED | — |
