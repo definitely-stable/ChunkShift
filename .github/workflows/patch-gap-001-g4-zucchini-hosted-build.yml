@@ -52,10 +52,7 @@ jobs:
     runs-on: ${{ inputs.runner-label }}
     timeout-minutes: 360
     steps:
-      - name: Checkout ChunkShift research
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Validate genuine GitHub-hosted runner and resources BEFORE checkout
+      - name: Reject a non-GitHub-hosted runner before repository checkout
         shell: bash
         env:
           RUNNER_CLASS: ${{ runner.environment }}
@@ -66,6 +63,14 @@ jobs:
             exit 2
           }
           uname -m | grep -qx x86_64
+
+      - name: Checkout ChunkShift research
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Enforce resource minima BEFORE Chromium checkout
+        shell: bash
+        run: |
+          set -euo pipefail
           mkdir -p "$RUNNER_TEMP/zucchini-build-evidence"
           python3 benchmarks/scripts/zucchini_hosted_build.py \
             --mode preflight --workspace "$RUNNER_TEMP" \
