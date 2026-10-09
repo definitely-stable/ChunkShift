@@ -1,0 +1,13 @@
+{
+  "schema": "chunkshift.patch-gap-g4-zucchini-source-pin.v1",
+  "experimentId": "PATCH-GAP-001",
+  "protocolCommit": "5372678ae8451a71cc95eb24f30855cbbd7e0633",
+  "sourceRepository": "https://github.com/chromium/chromium",
+  "sourceCommit": "26ec7d02bd81e5dc8c48f974d536a3f5fb043dc0",
+  "componentPath": "components/zucchini",
+  "componentTreeSha": "b8e9fb206f712991ac446b2e9a158a5c615fcf81",
+  "componentMirrorRepository": "https://chromium.googlesource.com/chromium/src/components/zucchini",
+  "componentMirrorCommit": "667ffb4e19970939936af2e7a169175ae4c1da5b",
+  "sourceCommitReference": "GitOrigin-RevId from the mirrored component commit",
+  "claim": "source identity only; no built binary or Zucchini size evidence"
+}
