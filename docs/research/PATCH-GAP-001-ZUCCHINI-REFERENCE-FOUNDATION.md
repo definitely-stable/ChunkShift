@@ -48,7 +48,7 @@ Zucchini is a Chromium GN/Ninja build target (`//components/zucchini:zucchini`) 
    }
    ```
 4. Materialize the original frozen corpus with `materialize_patch_corpus.py --lock` using GitHub-hosted runners. Preflight both frozen roles before launching the expensive reference execution.
-5. Execute each role on a frozen source checkout. Archive the complete output, binary/tool manifest, raw probe diagnostics, exact population and SHA-256 fingerprints; independently recompute per-family bytes and supported/unsupported counts. No silent omissions.
+5. Execute each role on a frozen source checkout. Archive the complete output, binary/tool manifest, raw probe diagnostics, exact population and SHA-256 fingerprints. Run `verify_patch_gap_g4_zucchini_reference.py` against the committed G4 H0 per-file shards: it verifies exact reference membership and totals, rejects unsupported zero-byte claims, and compares **only the verified matched subset** with existing H0 (never invokes the CSP 15% gate). No silent omissions.
 6. Compare only Zucchini-supported pairs against same-subset H0 and generic references, and show explicit excluded/ineligible contribution. No extrapolation from subset to 26,363,364-byte CSP evaluation total.
 7. Keep #183 open until reference evidence and final factor synthesis. Never re-run/retune the completed G4-BCJ decision, never change CSP v1, patch formats, D15 or public API.
 
