@@ -1,0 +1,174 @@
+name: PATCH-GAP-001 G4 Zucchini calibration
+
+# Whole-file reference ONLY, not a CSP one-factor counterfactual.
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/patch-gap-001-g4-zucchini-calibration.yml"
+      - "benchmarks/scripts/verify_zucchini_build_artifact.py"
+      - "benchmarks/scripts/test_verify_zucchini_build_artifact.py"
+  workflow_dispatch:
+    inputs:
+      build-run-id:
+        description: "ID of successful, REAL binary build run on main"
+        required: true
+        type: string
+      run-date:
+        description: "UTC date YYYYMMDD for RunId"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: patch-gap-001-zucchini-calibration
+  cancel-in-progress: false
+
+env:
+  INVENTORY: docs/research/results/data/PATCH-GAP-001-20261003-001/subsets/g4.json
+  PAIRS_SHA256: 8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify fail-closed source artifact and oracle tests
+        run: |
+          set -euo pipefail
+          python3 -m py_compile benchmarks/scripts/verify_zucchini_build_artifact.py
+          python3 -m unittest \
+            benchmarks/scripts/test_verify_zucchini_build_artifact.py \
+            benchmarks/scripts/test_verify_patch_gap_g4_zucchini_reference.py \
+            benchmarks/scripts/test_patch_gap_g4_zucchini_reference.py
+          echo 'Fixture-only tests PASS; no actual Zucchini bytes measured.' >> "$GITHUB_STEP_SUMMARY"
+
+  calibration:
+    if: github.event_name == 'workflow_dispatch'
+    needs: contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify frozen run identity and one-shot calibration guard
+        env:
+          BUILD_RUN_ID: ${{ inputs['build-run-id'] }}
+          RUN_DATE: ${{ inputs['run-date'] }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          [[ "$BUILD_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$RUN_DATE" =~ ^[0-9]{8}$ ]]
+          python3 - "$RUN_DATE" <<'PY'
+          from datetime import datetime
+          import sys
+          datetime.strptime(sys.argv[1], "%Y%m%d")
+          PY
+          echo "BUILD_RUN_ID=$BUILD_RUN_ID" >> "$GITHUB_ENV"
+          echo "OUT=$RUNNER_TEMP/zucchini-calibration" >> "$GITHUB_ENV"
+          echo "CORPUS_ROOT=$HOME/patch-corpus" >> "$GITHUB_ENV"
+          echo "REFERENCE_RUN_ID=PATCH-GAP-001/RUN-$RUN_DATE-$GITHUB_RUN_NUMBER-$(printf %.7s "$GITHUB_SHA")-linux-x64-zucchini-calibration" >> "$GITHUB_ENV"
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/patch-gap-001-g4-zucchini-calibration.yml/runs?event=workflow_dispatch&status=success&per_page=100" > "$RUNNER_TEMP/previous-zucchini-calibrations.json"
+          python3 - "$RUNNER_TEMP/previous-zucchini-calibrations.json" "$GITHUB_RUN_ID" <<'PY'
+          import json, sys
+          runs=json.load(open(sys.argv[1],encoding="utf-8"))["workflow_runs"]
+          prior=[int(r["id"]) for r in runs if str(r["id"])!=sys.argv[2] and r["conclusion"]=="success"]
+          if prior:
+              raise SystemExit("Frozen Zucchini calibration already succeeded; no repeated decision run: "+str(prior))
+          PY
+
+      - name: Fetch and validate the actual completed upstream build artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT/source" "$OUT/origin"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID" > "$OUT/origin/run.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID/jobs?per_page=100" > "$OUT/origin/jobs.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID/artifacts?per_page=100" > "$OUT/origin/artifacts.json"
+          original="$(jq -er '.head_sha' "$OUT/origin/run.json")"
+          gh run download "$BUILD_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name "patch-gap-001-g4-zucchini-pinned-binary-$original" --dir "$OUT/source"
+          python3 benchmarks/scripts/verify_zucchini_build_artifact.py \
+            --run-json "$OUT/origin/run.json" --jobs-json "$OUT/origin/jobs.json" \
+            --artifacts-json "$OUT/origin/artifacts.json" --artifact-dir "$OUT/source" \
+            --run-id "$BUILD_RUN_ID" --output "$OUT/origin/origin-proof.json"
+          chmod 755 "$OUT/source/zucchini"
+
+      - name: Restore frozen corpus source archives
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize and require exact frozen corpus SHA-256
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$CORPUS_ROOT" --sources "$HOME/patch-corpus/sources" --download --lock
+          test "$(sha256sum "$CORPUS_ROOT/pairs.json" | cut -d' ' -f1)" = "$PAIRS_SHA256"
+
+      - name: Frozen structural inventory preflight
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/patch_gap_g4_zucchini_reference.py \
+            --mode inventory --role calibration --corpus "$CORPUS_ROOT" \
+            --inventory "$INVENTORY" --output "$OUT/inventory.json"
+
+      - name: Generate/apply exact pinned Zucchini executable reference
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/patch_gap_g4_zucchini_reference.py \
+            --mode measure --role calibration --corpus "$CORPUS_ROOT" \
+            --inventory "$INVENTORY" --zucchini "$OUT/source/zucchini" \
+            --tool-manifest "$OUT/source/tool-manifest.json" \
+            --output "$OUT/calibration-reference.json" --timeout 600
+
+      - name: Independently verify exact matched-file H0 attribution
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/verify_patch_gap_g4_zucchini_reference.py \
+            --reference "$OUT/calibration-reference.json" --role calibration \
+            --output "$OUT/calibration-audit.json"
+          python3 - "$OUT/calibration-audit.json" <<'PY'
+          import json,sys
+          r=json.load(open(sys.argv[1],encoding="utf-8"))
+          if not r["referenceOnly"] or r["rfcSizeGate"]!="NOT_APPLICABLE":
+              raise SystemExit("Whole-file reference cannot pass the CSP RFC gate")
+          print(json.dumps(r,sort_keys=True,indent=2))
+          PY
+          cat "$OUT/calibration-audit.json" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Whole-file reference only; no CSP v1 adoption.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Archive complete calibration evidence, origin and attribution
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-001-zucchini-calibration-${{ inputs['build-run-id'] }}-${{ github.sha }}
+          path: ${{ runner.temp }}/zucchini-calibration
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Record independent calibration artifact identity
+        env:
+          ID: ${{ steps.upload.outputs['artifact-id'] }}
+          DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
+        run: |
+          set -euo pipefail
+          test -n "$ID"
+          [[ "$DIGEST" == sha256:* ]]
+          {
+            echo "Calibration run: $REFERENCE_RUN_ID"
+            echo "Actual build run: $BUILD_RUN_ID"
+            echo "Artifact ID: $ID"
+            echo "Artifact SHA-256: $DIGEST"
+            echo 'CALIBRATION ONLY. No holdout run or CSP format decision here.'
+          } >> "$GITHUB_STEP_SUMMARY"
