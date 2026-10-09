@@ -142,7 +142,7 @@ internal static class PatchDotnet001
 
                     if (!OperandTypes.TryGetValue(opcode, out OperandType operand))
                     {
-                        reason = $"IL_OPCODE_UNSUPPORTED_0x{opcode:X4}_METHOD_RVA_{rva:X8}_AT_{cursor - 1}_HEX_{Convert.ToHexString(il.AsSpan(Math.Max(0, cursor - 44), Math.Min(88, il.Length - Math.Max(0, cursor - 44))))}";
+                        reason = $"IL_OPCODE_UNSUPPORTED_0x{opcode:X4}_METHOD_RVA_{rva:X8}_AT_{cursor - 1}";
                         return false;
                     }
 
@@ -206,6 +206,8 @@ internal static class PatchDotnet001
                             if (type.ResolutionScope.Kind != HandleKind.AssemblyReference)
                             {
                                 // Nested/module-scoped TypeRefs are not supported by this slice.
+                                // The IL operand must still be consumed before moving on.
+                                cursor += width;
                                 continue;
                             }
 
