@@ -75,7 +75,7 @@ def verify_gn_args(path: Path) -> str:
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        match = re.fullmatch(r"([a-z_]+)\\s*=\\s*(false|true|[0-9]+)", line)
+        match = re.fullmatch(r"([a-z_]+)\s*=\s*(false|true|[0-9]+)", line)
         require(match is not None, "unexpected GN build option: " + line[:120])
         require(match.group(1) not in args, "duplicate GN build option")
         args[match.group(1)] = match.group(2)
