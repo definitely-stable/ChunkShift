@@ -155,6 +155,8 @@ jobs:
               raise SystemExit("Full build provenance requires pinned compiler and deps snapshot")
           print("Zucchini full-source pinned binary identity PASS")
           PY
+          cp "$CHROMIUM_ROOT/out/Zucchini/args.gn" \
+            "$RUNNER_TEMP/zucchini-build-evidence/args.gn"
           cp "$CHROMIUM_ROOT/out/Zucchini/zucchini" \
             "$RUNNER_TEMP/zucchini-build-evidence/zucchini"
           echo 'Pinned executable provenance PASS. No frozen corpus reference bytes have been measured.' >> "$GITHUB_STEP_SUMMARY"
