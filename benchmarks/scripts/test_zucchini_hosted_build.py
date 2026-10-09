@@ -59,7 +59,7 @@ class HostedBuildGates(unittest.TestCase):
             tool.write_bytes(b"fake executable bytes: provenance fixture only")
             args = Path(td) / "source/out/Zucchini/args.gn"
             args.parent.mkdir(parents=True)
-            args.write_text("is_debug = false\\nis_component_build = false\\nsymbol_level = 0\\n",
+            args.write_text("is_debug = false\nis_component_build = false\nsymbol_level = 0\n",
                             encoding="utf-8")
             with patch.object(mod, "git", side_effect=pinned_git):
                 result = mod.manifest(PIN, Path(td) / "source", Path(td) / "depot",
@@ -73,16 +73,16 @@ class HostedBuildGates(unittest.TestCase):
     def test_gn_args_extra_option_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             args = Path(td) / "args.gn"
-            args.write_text("is_debug = false\\nis_component_build = false\\n"
-                            "symbol_level = 0\\nuse_remoteexec = true\\n", encoding="utf-8")
+            args.write_text("is_debug = false\nis_component_build = false\n"
+                            "symbol_level = 0\nuse_remoteexec = true\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "GN flags diverge"):
                 mod.verify_gn_args(args)
 
     def test_gn_args_wrong_flag_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             args = Path(td) / "args.gn"
-            args.write_text("is_debug = true\\nis_component_build = false\\n"
-                            "symbol_level = 0\\n", encoding="utf-8")
+            args.write_text("is_debug = true\nis_component_build = false\n"
+                            "symbol_level = 0\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "GN flags diverge"):
                 mod.verify_gn_args(args)
 
