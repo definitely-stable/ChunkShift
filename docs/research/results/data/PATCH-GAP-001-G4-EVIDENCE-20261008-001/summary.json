@@ -1,0 +1,100 @@
+{
+  "protocolCommit": "5372678ae8451a71cc95eb24f30855cbbd7e0633",
+  "schema": "chunkshift.patch-gap-g4-evidence.v1",
+  "sourceCommit": "c71f0c8fa483c45bf65fee4850d293c45f7878a6",
+  "splits": {
+    "calibration": {
+      "families": {
+        "dotnet-aspnetcore-win-x64": {
+          "eligible": 489,
+          "files": 669,
+          "g4": 7271182,
+          "h0": 7324878,
+          "saved": 53696,
+          "winners": 94
+        },
+        "dotnet-runtime-linux-arm64": {
+          "eligible": 32,
+          "files": 380,
+          "g4": 4487016,
+          "h0": 4535396,
+          "saved": 48380,
+          "winners": 113
+        }
+      },
+      "lane": {
+        "applyBaseBytesRead": 781255473,
+        "baseReadAmplification": 1.74698456540819,
+        "bcjWinnerEntries": 207,
+        "eligiblePayloadEntries": 1929,
+        "factorBaseBytesRead": 5439473049,
+        "factorBytes": 11758198,
+        "fileCount": 1049,
+        "gateEligibleFiles": 521,
+        "gateEligibleTargetBytes": 249559624,
+        "gateEligibleUniqueMissingBytes": 149566512,
+        "h0BaseBytesRead": 3113635436,
+        "h0Bytes": 11860274,
+        "lane": "G4-BCJ",
+        "meetsRfcSizeGate": false,
+        "reductionVsCsp": 0.008606546526665404,
+        "savedBytes": 102076
+      }
+    },
+    "evaluation": {
+      "families": {
+        "chunkshift-source": {
+          "eligible": 0,
+          "files": 2,
+          "g4": 379167,
+          "h0": 379167,
+          "saved": 0,
+          "winners": 0
+        },
+        "node-linux-x64": {
+          "eligible": 2,
+          "files": 531,
+          "g4": 16830367,
+          "h0": 16996890,
+          "saved": 166523,
+          "winners": 135
+        },
+        "node-win-x64": {
+          "eligible": 2,
+          "files": 283,
+          "g4": 8866361,
+          "h0": 8951678,
+          "saved": 85317,
+          "winners": 247
+        },
+        "tzdata": {
+          "eligible": 0,
+          "files": 28,
+          "g4": 35629,
+          "h0": 35629,
+          "saved": 0,
+          "winners": 0
+        }
+      },
+      "lane": {
+        "applyBaseBytesRead": 1246838335,
+        "baseReadAmplification": 1.987989824893668,
+        "bcjWinnerEntries": 382,
+        "eligiblePayloadEntries": 3237,
+        "factorBaseBytesRead": 13404014665,
+        "factorBytes": 26111524,
+        "fileCount": 844,
+        "gateEligibleFiles": 4,
+        "gateEligibleTargetBytes": 440015656,
+        "gateEligibleUniqueMissingBytes": 268652516,
+        "h0BaseBytesRead": 6742496615,
+        "h0Bytes": 26363364,
+        "lane": "G4-BCJ",
+        "meetsRfcSizeGate": false,
+        "reductionVsCsp": 0.00955265041289875,
+        "savedBytes": 251840
+      }
+    }
+  },
+  "status": "REJECT"
+}
