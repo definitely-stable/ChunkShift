@@ -142,7 +142,7 @@ internal static class PatchDotnet001
 
                     if (!OperandTypes.TryGetValue(opcode, out OperandType operand))
                     {
-                        reason = "IL_OPCODE_UNSUPPORTED";
+                        reason = $"IL_OPCODE_UNSUPPORTED_0x{opcode:X4}_METHOD_RVA_{rva:X8}_AT_{cursor - 1}";
                         return false;
                     }
 
