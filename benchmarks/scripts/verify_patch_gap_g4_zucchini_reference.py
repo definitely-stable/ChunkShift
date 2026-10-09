@@ -70,6 +70,42 @@ def frozen_h0(root: Path, role: str) -> dict[tuple, int]:
     return h0
 
 
+INVENTORY = Path("docs/research/results/data/PATCH-GAP-001-20261003-001/subsets/g4.json")
+
+
+def verify_frozen_population(reference: dict, inventory_path: Path) -> None:
+    """Independently re-derive each row's fixed PE/ELF classification."""
+    frozen_bytes = inventory_path.read_bytes()
+    inventory = json.loads(frozen_bytes)
+    check(reference.get("frozenInventorySha256") == digest(frozen_bytes),
+          "frozen structural inventory SHA-256 mismatch")
+    check(inventory.get("schema") == "chunkshift.patch-gap-g4-inventory.v1" and
+          inventory.get("protocolCommit") == "5372678ae8451a71cc95eb24f30855cbbd7e0633" and
+          inventory.get("corpusPairsSha256") == EXPECTED_LOCK,
+          "invalid frozen G4 inventory identity")
+    role = reference["datasetRole"]
+    expected = {}
+    for r in inventory["rows"]:
+        if r["datasetRole"] != role:
+            continue
+        key = (role, r["family"], r["baseVersion"], r["targetVersion"], r["path"])
+        check(key not in expected, "duplicate frozen inventory entry")
+        expected[key] = r
+    actual = set()
+    for r in reference["files"]:
+        key = (role, r["family"], r["baseVersion"], r["targetVersion"], r["path"])
+        check(key in expected and key not in actual, "missing/duplicate frozen structural member")
+        actual.add(key)
+        frozen = expected[key]
+        structural = frozen["base"]["kind"] != 0 and frozen["target"]["kind"] != 0
+        check(r["structuralCandidate"] is structural, "structural candidate changed")
+        check(r["g4BcjGateEligible"] is frozen["gateEligible"], "BCJ eligibility changed")
+        check(r["baseKind"] == frozen["base"]["detail"] and
+              r["targetKind"] == frozen["target"]["detail"], "PE/ELF subtype changed")
+        check(r["targetBytes"] == frozen["targetBytes"], "target file length changed")
+    check(actual == set(expected), "incomplete frozen structural population")
+
+
 def verify(reference: dict, h0: dict[tuple, int], role: str) -> dict:
     check(reference["schema"] == EXPECTED_SCHEMA and reference["datasetRole"] == role,
           "reference schema/role")
@@ -110,6 +146,15 @@ def verify(reference: dict, h0: dict[tuple, int], role: str) -> dict:
                 check(not r["structuralCandidate"], "excluded structurally valid pair")
             else:
                 check(bool(r["structuralCandidate"]), "unsupported structurally excluded row")
+                # Only upstream Zucchini exit code 6 is a valid parser miss.
+                exit_codes = (r.get("baseParserExit"), r.get("targetParserExit"))
+                expected = {
+                    "UNSUPPORTED_BASE": (6, 0),
+                    "UNSUPPORTED_TARGET": (0, 6),
+                    "UNSUPPORTED_BASE_AND_TARGET": (6, 6),
+                }
+                check(exit_codes == expected[status],
+                      "unsupported status is not backed by parser exit code 6")
     check(sum(counters.values()) == len(rows), "status total")
     check(counters == Counter(reference["counts"]), "reported status counts")
     # This is a *matched subset descriptive comparison*, not a CSP factor gate.
@@ -134,7 +179,9 @@ def main() -> None:
     p.add_argument("--h0-evidence", type=Path, default=EVIDENCE)
     p.add_argument("--output", type=Path)
     args = p.parse_args()
-    report = verify(load(args.reference), frozen_h0(args.h0_evidence, args.role), args.role)
+    reference = load(args.reference)
+    verify_frozen_population(reference, INVENTORY)
+    report = verify(reference, frozen_h0(args.h0_evidence, args.role), args.role)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n", encoding="utf-8")
