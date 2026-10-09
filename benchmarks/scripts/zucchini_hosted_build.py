@@ -8,7 +8,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -67,6 +67,23 @@ def total_memory() -> int:
     raise ValueError("cannot determine Linux physical memory")
 
 
+def verify_gn_args(path: Path) -> str:
+    require(path.is_file(), "compiled GN args.gn is missing")
+    data = path.read_text(encoding="utf-8")
+    args = {}
+    for line in data.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        match = re.fullmatch(r"([a-z_]+)\\s*=\\s*(false|true|[0-9]+)", line)
+        require(match is not None, "unexpected GN build option: " + line[:120])
+        require(match.group(1) not in args, "duplicate GN build option")
+        args[match.group(1)] = match.group(2)
+    require(args == {"is_debug": "false", "is_component_build": "false",
+                     "symbol_level": "0"}, "GN flags diverge from fixed build")
+    return digest(path)
+
+
 def verify_source(pin: dict, checkout: Path, depot: Path) -> dict:
     require(git(checkout, "rev-parse", "HEAD") == pin["sourceCommit"],
             "incorrect Chromium source commit")
@@ -99,6 +116,7 @@ def manifest(pin: dict, checkout: Path, depot: Path, binary: Path,
              compiler_sha256: str = "", dep_snapshot_sha256: str = "") -> dict:
     identity = verify_source(pin, checkout, depot)
     require(binary.is_file() and binary.stat().st_size > 0, "missing compiled Zucchini")
+    gn_args_sha = verify_gn_args(checkout / "out/Zucchini/args.gn")
     # The command-line and GN arguments are pinned *exactly*; a different build
     # or a prebuilt substitute is a different research artifact.
     data = {
@@ -112,6 +130,7 @@ def manifest(pin: dict, checkout: Path, depot: Path, binary: Path,
         "dependencySnapshotSha256": dep_snapshot_sha256,
         "buildCommand": BUILD_COMMAND,
         "gnArgs": GN_ARGS,
+        "gnArgsFileSha256": gn_args_sha,
         "buildSystemIdentity": f"{gn_command}; {ninja_command}",
         "sourceCheckoutProvenance": ";".join(f"{k}={v}" for k,v in sorted(identity.items())),
         "sourceObjects": identity,
