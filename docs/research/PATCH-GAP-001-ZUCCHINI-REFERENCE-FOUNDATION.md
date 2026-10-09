@@ -106,3 +106,21 @@ Sources: [GitHub larger runner specifications](https://docs.github.com/en/action
 The calibration workflow is fail-closed on a run re-attempt, non-main ref, an already successful previous calibration, a missing/expired build artifact, any provenance mismatch or incomplete reconstructed file. The resulting raw JSON, independent audit, source/origin metadata and frozen cohort inventory are uploaded together as a 90-day artifact with artifact ID and SHA-256 digest in the GitHub run summary.
 
 **This PR does not run calibration.** It has no authentic built binary yet, and its CI runs synthetic fixtures only. Never equate passing its contract tests with valid reference evidence. Once real calibration passes and the raw result is archived durably, a separately gated **single sealed evaluation/holdout run** is required before synthesizing #183. No CSP v1 production changes or new RFC gate result follow from the reference.
+
+## Sealed evaluation from independently audited calibration (2026-10-09)
+
+The next separate research-only workflow, `.github/workflows/patch-gap-001-g4-zucchini-evaluation.yml`, does **not** run on PRs. Its normal PR job tests only synthetic negative and provenance scenarios. The holdout can only run via an explicit, single-attempt, main-branch `workflow_dispatch` with `calibration-run-id`, `build-run-id` and UTC `run-date`.
+
+Before touching holdout content, the workflow rejects **any previous evaluation dispatch, including failed/cancelled runs**. This is intentionally stricter than a success-only guard: an invalid or partial first holdout attempt halts the lane for manual protocol review instead of silently providing unlimited after-the-fact retries. GitHub Actions concurrency serializes dispatches. An evaluation retry or alternate build is *not* allowed as an unnoticed rerun.
+
+The independent `verify_zucchini_calibration_evidence.py` checks:
+
+1. The given calibration is a completed successful first-attempt main-branch execution of the frozen calibration workflow, with the actual `calibration` job **success**, not merely green PR contract tests.
+2. The single non-expired calibration artifact belongs to that run, carries a SHA-256 GitHub archive digest and its name binds the supplied original build-run ID to the frozen calibration checkout.
+3. Its retained origin proof binds the real Zucchini executable SHA-256 to the same original build run. The verifier re-executes the earlier independent **build** artifact audit, not simply trusting the prior reported PASS, so source/tree/DEPS/depot_tools/GN/compiler/dependency and hosted-capacity identities are rechecked.
+4. It independently re-verifies **all 1,049 calibration file identities** and their frozen structural inventory against the durable H0 per-file archive, then recomputes the exact same-subset audit. Any tampered or missing reference/AUDIT row rejects.
+5. Its resulting `SEALED_CALIBRATION_VERIFIED` proof records the source/candidate, calibration artifact ID and digest, actual original binary digest, calibration reference/audit digests, and frozen inventory digest. Its evaluation state is explicitly `NOT_RUN` until the **separate** evaluation job finishes.
+
+Only after this seal is validated does the runner re-materialize the same locked `pairs.json` SHA-256 and execute the frozen **814-file held-out G4 population** in Zucchini `-read/-gen/-apply` mode, then independently recheck exact target SHA-256, unsupported-parser codes and identical-subset physical H0 comparison. It archives raw calibration/source/evaluation JSON, original Github run/job/artifact metadata, the seal, and independent evaluation audit with a new artifact ID/digest.
+
+**Non-claims:** the evaluation workflow currently has no real build-run ID nor calibration artifact to consume. A green PR check never means that holdout was executed. Zucchini's whole-file patch bytes may be compared only on the matched supported subset: they are *not* an RFC 15%-gate result and cannot change CSP v1. Durable import of actual evidence and the #183 synthesis are **subsequent** tasks. #251 remains OPEN.
