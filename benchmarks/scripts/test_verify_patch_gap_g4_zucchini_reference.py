@@ -31,7 +31,7 @@ def build(role="calibration"):
                        reconstructionSha256="a" * 64, baseParserExit=0, targetParserExit=0)
         elif i % 2 == 0:
             row.update(status="UNSUPPORTED_TARGET", patchBytes=None,
-                       baseParserExit=0, targetParserExit=1)
+                       baseParserExit=0, targetParserExit=6)
         else:
             row.update(status="OUTSIDE_STRUCTURAL_SUBSET", patchBytes=None)
         rows.append(row)
@@ -88,6 +88,12 @@ class FrozenReferenceAuditTests(unittest.TestCase):
         reference, controls = build()
         reference["files"][1]["status"] = "VERIFIED"
         with self.assertRaisesRegex(ValueError, "verified row without physical patch bytes"):
+            mod.verify(reference, controls, "calibration")
+
+    def test_tool_io_failure_cannot_be_relabelled_unsupported(self):
+        reference, controls = build()
+        reference["files"][2]["targetParserExit"] = 2
+        with self.assertRaisesRegex(ValueError, "exit code 6"):
             mod.verify(reference, controls, "calibration")
 
     def test_missing_original_h0_key_fails_closed(self):
