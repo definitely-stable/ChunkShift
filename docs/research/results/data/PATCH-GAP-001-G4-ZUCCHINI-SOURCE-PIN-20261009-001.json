@@ -9,5 +9,8 @@
   "componentMirrorRepository": "https://chromium.googlesource.com/chromium/src/components/zucchini",
   "componentMirrorCommit": "667ffb4e19970939936af2e7a169175ae4c1da5b",
   "sourceCommitReference": "GitOrigin-RevId from the mirrored component commit",
-  "claim": "source identity only; no built binary or Zucchini size evidence"
+  "claim": "source identity only; no built binary or Zucchini size evidence",
+  "sourceTreeSha": "67b8972002b0ae317388df742d6981fe2c1250ac",
+  "componentsTreeSha": "e029e7c57f439872faa704439b2edef433464c31",
+  "chromiumDepsBlobSha": "759cf2d5212d049c3f8ec0f8ef0dbd89af3c5118"
 }
