@@ -1,0 +1,163 @@
+name: PATCH-GAP-001 Zucchini pinned hosted build
+
+# Build-only reference prerequisite. No CSP change, decision run or byte verdict.
+# PR checks are lightweight; only an explicit workflow_dispatch can use a
+# configured GitHub-hosted LARGER runner (100 GiB free / >=8 GiB RAM).
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/patch-gap-001-g4-zucchini-hosted-build.yml"
+      - "benchmarks/scripts/zucchini_hosted_build.py"
+      - "benchmarks/scripts/test_zucchini_hosted_build.py"
+  workflow_dispatch:
+    inputs:
+      runner-label:
+        description: "Name of a configured GitHub-hosted larger Linux x64 runner (>=100 GiB free disk)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: patch-gap-001-zucchini-hosted-build
+  cancel-in-progress: false
+
+env:
+  CHROMIUM_SHA: 26ec7d02bd81e5dc8c48f974d536a3f5fb043dc0
+  DEPOT_TOOLS_SHA: ce92a2e156beaaf1f2ed3a651a5c96f55bb78b80
+  DEPOT_TOOLS_UPDATE: "0"
+  CHROMIUM_PIN: docs/research/results/data/PATCH-GAP-001-G4-ZUCCHINI-SOURCE-PIN-20261009-001.json
+
+jobs:
+  contract-tests:
+    name: pinned build plan and resource guard tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout ChunkShift research
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Contract tests (no Chromium build)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile benchmarks/scripts/zucchini_hosted_build.py
+          python3 -m unittest benchmarks/scripts/test_zucchini_hosted_build.py
+          echo 'Hosted builder contract tests PASS. No executable was built.' >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: source-pinned Zucchini binary (explicit larger hosted runner only)
+    if: github.event_name == 'workflow_dispatch'
+    needs: contract-tests
+    runs-on: ${{ inputs.runner-label }}
+    timeout-minutes: 360
+    steps:
+      - name: Checkout ChunkShift research
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate genuine GitHub-hosted runner and resources BEFORE checkout
+        shell: bash
+        env:
+          RUNNER_CLASS: ${{ runner.environment }}
+        run: |
+          set -euo pipefail
+          test "$RUNNER_CLASS" = github-hosted || {
+            echo 'Self-hosted runners are forbidden for PATCH-GAP evidence.' >&2
+            exit 2
+          }
+          uname -m | grep -qx x86_64
+          mkdir -p "$RUNNER_TEMP/zucchini-build-evidence"
+          python3 benchmarks/scripts/zucchini_hosted_build.py \
+            --mode preflight --workspace "$RUNNER_TEMP" \
+            --output "$RUNNER_TEMP/zucchini-build-evidence/resource-preflight.json"
+          echo 'Resource gate PASS; proceeding with source-pinned Chromium.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Setup pinned Python 3.11
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Checkout immutable depot_tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          depot="$RUNNER_TEMP/chromium-depot-tools"
+          git clone --filter=blob:none --no-checkout \
+            https://chromium.googlesource.com/chromium/tools/depot_tools.git "$depot"
+          git -C "$depot" checkout --detach "$DEPOT_TOOLS_SHA"
+          test "$(git -C "$depot" rev-parse HEAD)" = "$DEPOT_TOOLS_SHA"
+          echo "$depot" >> "$GITHUB_PATH"
+          echo "DEPOT_ROOT=$depot" >> "$GITHUB_ENV"
+
+      - name: Materialize the exact Chromium commit and DEPS (no HEAD drift)
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/chromium-zucchini"
+          mkdir -p "$work"
+          cd "$work"
+          gclient config --name src https://chromium.googlesource.com/chromium/src.git
+          gclient sync --revision "src@$CHROMIUM_SHA" --no-history --nohooks --jobs 8
+          src="$work/src"
+          python3 "$GITHUB_WORKSPACE/benchmarks/scripts/verify_patch_gap_zucchini_source_pin.py" \
+            --pin "$GITHUB_WORKSPACE/$CHROMIUM_PIN" \
+            --checkout "$src" \
+            --output "$RUNNER_TEMP/zucchini-build-evidence/source-proof.json"
+          test "$(git -C "$src" rev-parse HEAD)" = "$CHROMIUM_SHA"
+          echo "CHROMIUM_ROOT=$src" >> "$GITHUB_ENV"
+
+      - name: Materialize pinned build tools and retain dependency resolution
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$CHROMIUM_ROOT"
+          gclient runhooks
+          gclient revinfo > "$RUNNER_TEMP/zucchini-build-evidence/deps-revisions.txt"
+          test -s "$RUNNER_TEMP/zucchini-build-evidence/deps-revisions.txt"
+          python3 "$GITHUB_WORKSPACE/benchmarks/scripts/verify_patch_gap_zucchini_source_pin.py" \
+            --pin "$GITHUB_WORKSPACE/$CHROMIUM_PIN" --checkout "$CHROMIUM_ROOT"
+
+      - name: Build only the upstream Zucchini executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$CHROMIUM_ROOT"
+          gn gen out/Zucchini --args='is_debug=false is_component_build=false symbol_level=0'
+          autoninja -C out/Zucchini components/zucchini:zucchini
+          test -x out/Zucchini/zucchini
+          file out/Zucchini/zucchini | tee "$RUNNER_TEMP/zucchini-build-evidence/binary-file.txt"
+          out/Zucchini/zucchini -crc32 out/Zucchini/zucchini \
+            > "$RUNNER_TEMP/zucchini-build-evidence/cli-smoke.txt"
+          sha256sum out/Zucchini/zucchini \
+            > "$RUNNER_TEMP/zucchini-build-evidence/zucchini.sha256"
+
+      - name: Record binary and exact source/toolchain manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/zucchini_hosted_build.py --mode manifest \
+            --checkout "$CHROMIUM_ROOT" --depot "$DEPOT_ROOT" \
+            --binary "$CHROMIUM_ROOT/out/Zucchini/zucchini" \
+            --dependency-snapshot "$RUNNER_TEMP/zucchini-build-evidence/deps-revisions.txt" \
+            --output "$RUNNER_TEMP/zucchini-build-evidence/tool-manifest.json"
+          python3 - "$RUNNER_TEMP/zucchini-build-evidence/tool-manifest.json" "$CHROMIUM_ROOT/out/Zucchini/zucchini" <<'PY'
+          import json, pathlib, sys
+          sys.path.insert(0, "benchmarks/scripts")
+          from patch_gap_g4_zucchini_reference import validate_tool
+          executable = pathlib.Path(sys.argv[2])
+          manifest = validate_tool(executable, pathlib.Path(sys.argv[1]))
+          if not manifest.get("compilerBinarySha256") or not manifest.get("dependencySnapshotSha256"):
+              raise SystemExit("Full build provenance requires pinned compiler and deps snapshot")
+          print("Zucchini full-source pinned binary identity PASS")
+          PY
+          cp "$CHROMIUM_ROOT/out/Zucchini/zucchini" \
+            "$RUNNER_TEMP/zucchini-build-evidence/zucchini"
+          echo 'Pinned executable provenance PASS. No frozen corpus reference bytes have been measured.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Archive actual Zucchini executable and build provenance
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-001-g4-zucchini-pinned-binary-${{ github.sha }}
+          path: ${{ runner.temp }}/zucchini-build-evidence
+          if-no-files-found: error
+          retention-days: 90
