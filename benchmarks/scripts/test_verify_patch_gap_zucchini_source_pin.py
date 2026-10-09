@@ -13,11 +13,13 @@ spec.loader.exec_module(mod)
 class UpstreamSourceLockTests(unittest.TestCase):
     def setUp(self):
         self.pin = mod.load(Path(__file__).resolve().parents[2] / mod.PIN_PATH)
-        self.root_sha = "a" * 40
-        self.parent_sha = "b" * 40
+        self.root_sha = self.pin["sourceTreeSha"]
+        self.parent_sha = self.pin["componentsTreeSha"]
         self.commit = {"sha": self.pin["sourceCommit"], "commit": {"tree": {"sha": self.root_sha}}}
         self.root = {"sha": self.root_sha, "truncated": False, "tree": [
             {"path": "components", "type": "tree", "mode": "040000", "sha": self.parent_sha},
+            {"path": "DEPS", "type": "blob", "mode": "100644",
+             "sha": self.pin["chromiumDepsBlobSha"]},
         ]}
         self.components = {"sha": self.parent_sha, "truncated": False, "tree": [
             {"path": "zucchini", "type": "tree", "mode": "040000",
@@ -47,6 +49,11 @@ class UpstreamSourceLockTests(unittest.TestCase):
     def test_wrong_root_rejected(self):
         self.root["sha"] = "d" * 40
         with self.assertRaisesRegex(ValueError, "root tree identity"):
+            mod.verify_remote(self.pin, self.commit, self.root, self.components)
+
+    def test_modified_deps_blob_rejected(self):
+        self.root["tree"][1]["sha"] = "0" * 40
+        with self.assertRaisesRegex(ValueError, "DEPS blob identity"):
             mod.verify_remote(self.pin, self.commit, self.root, self.components)
 
     def test_components_not_bound_to_root_rejected(self):
