@@ -34,6 +34,9 @@ def verify_pin(pin: dict) -> None:
     require(pin["sourceCommit"] == "26ec7d02bd81e5dc8c48f974d536a3f5fb043dc0",
             "source SHA mismatch")
     require(pin["componentPath"] == "components/zucchini", "component path mismatch")
+    require(pin["sourceTreeSha"] == "67b8972002b0ae317388df742d6981fe2c1250ac", "source tree pin mismatch")
+    require(pin["componentsTreeSha"] == "e029e7c57f439872faa704439b2edef433464c31", "components tree pin mismatch")
+    require(pin["chromiumDepsBlobSha"] == "759cf2d5212d049c3f8ec0f8ef0dbd89af3c5118", "DEPS blob pin mismatch")
     require(pin["componentTreeSha"] == "b8e9fb206f712991ac446b2e9a158a5c615fcf81",
             "component tree SHA mismatch")
     require(pin["componentMirrorCommit"] == "667ffb4e19970939936af2e7a169175ae4c1da5b",
@@ -55,8 +58,14 @@ def verify_remote(pin: dict, commit: dict, root: dict, components: dict) -> dict
     verify_pin(pin)
     require(commit["sha"] == pin["sourceCommit"], "commit identity")
     tree_sha = commit["commit"]["tree"]["sha"]
-    require(len(tree_sha) == 40 and root["sha"] == tree_sha, "root tree identity")
-    parent = sole_tree_entry(root, "components")
+    require(tree_sha == pin["sourceTreeSha"] and root["sha"] == tree_sha,
+            "root tree identity")
+    dependencies = [e for e in root["tree"] if e.get("path") == "DEPS"]
+    require(len(dependencies) == 1 and dependencies[0].get("type") == "blob" and
+            dependencies[0].get("mode") == "100644" and
+            dependencies[0].get("sha") == pin["chromiumDepsBlobSha"],
+            "source DEPS blob identity")
+    parent = sole_tree_entry(root, "components", pin["componentsTreeSha"])
     require(components["sha"] == parent["sha"], "components tree identity")
     child = sole_tree_entry(components, "zucchini", pin["componentTreeSha"])
     require(not root.get("truncated") and not components.get("truncated"),
@@ -68,6 +77,7 @@ def verify_remote(pin: dict, commit: dict, root: dict, components: dict) -> dict
         "componentsTreeSha": parent["sha"],
         "componentTreeSha": child["sha"],
         "componentMirrorCommit": pin["componentMirrorCommit"],
+        "chromiumDepsBlobSha": dependencies[0]["sha"],
         "checkedBy": "GitHub official Chromium mirror commit/tree REST API",
         "result": "SOURCE_PIN_PASS",
         "notProven": ["Chromium DEPS resolution", "GN/Ninja/toolchain provenance",
@@ -85,6 +95,8 @@ def verify_checkout(pin: dict, checkout: Path) -> dict:
             "built source checkout is not frozen")
     require(git(checkout, "rev-parse", "HEAD:components/zucchini") ==
             pin["componentTreeSha"], "built component tree is not frozen")
+    require(git(checkout, "rev-parse", "HEAD:DEPS") == pin["chromiumDepsBlobSha"],
+            "checkout DEPS git blob identity")
     deps_bytes = subprocess.check_output(["git", "-C", str(checkout),
                                           "show", "HEAD:DEPS"])
     return {
