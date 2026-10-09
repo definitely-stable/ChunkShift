@@ -17,7 +17,8 @@ import pathlib, sys
 args = sys.argv[1:]
 mode = args[0]
 if mode == '-read':
-    sys.exit(1 if pathlib.Path(args[1]).read_bytes().startswith(b'BAD') else 0)
+    data = pathlib.Path(args[1]).read_bytes()
+    sys.exit(6 if data.startswith(b'BAD') else 2 if data.startswith(b'IOFAIL') else 0)
 if mode == '-gen':
     pathlib.Path(args[3]).write_bytes(pathlib.Path(args[2]).read_bytes())
     sys.exit(0)
@@ -80,6 +81,12 @@ class ZucchiniReferenceTests(unittest.TestCase):
         result = mod.measure([self.row], self.root, self.tool, 10)[0]
         self.assertEqual(result["status"], "UNSUPPORTED_BASE")
         self.assertIsNone(result["patchBytes"])
+
+    def test_probe_io_failure_is_not_parser_unsupported(self):
+        self.base.write_bytes(b"IOFAIL" + bytes(12))
+        self.row["baseSha256"] = mod.sha(self.base)
+        with self.assertRaisesRegex(ValueError, "reason other than unsupported image"):
+            mod.measure([self.row], self.root, self.tool, 10)
 
     def test_reconstruction_mismatch_fails_closed(self):
         self.tool.write_text(CORRUPT, encoding="utf-8")
