@@ -1,0 +1,65 @@
+name: PATCH-GAP-001 Zucchini upstream source lock
+
+# Cheap hosted preflight only; no full Chromium checkout and no byte-decision run.
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/patch-gap-001-g4-zucchini-source-pin.yml"
+      - "benchmarks/scripts/verify_patch_gap_zucchini_source_pin.py"
+      - "benchmarks/scripts/test_verify_patch_gap_zucchini_source_pin.py"
+      - "docs/research/results/data/PATCH-GAP-001-G4-ZUCCHINI-SOURCE-PIN-20261009-001.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upstream-source-pin:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout tested ChunkShift ref
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Test source-lock verifier
+        run: |
+          set -euo pipefail
+          python3 -m py_compile benchmarks/scripts/verify_patch_gap_zucchini_source_pin.py
+          python3 -m unittest benchmarks/scripts/test_verify_patch_gap_zucchini_source_pin.py
+
+      - name: Fetch immutable Chromium source and subtree identities
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/zucchini-source-pin"
+          pin=docs/research/results/data/PATCH-GAP-001-G4-ZUCCHINI-SOURCE-PIN-20261009-001.json
+          revision="$(jq -r '.sourceCommit' "$pin")"
+          test "$revision" = 26ec7d02bd81e5dc8c48f974d536a3f5fb043dc0
+
+          gh api "repos/chromium/chromium/commits/$revision" \
+            > "$RUNNER_TEMP/zucchini-source-pin/commit.json"
+          tree="$(jq -er '.commit.tree.sha' "$RUNNER_TEMP/zucchini-source-pin/commit.json")"
+          gh api "repos/chromium/chromium/git/trees/$tree" \
+            > "$RUNNER_TEMP/zucchini-source-pin/root.json"
+          components="$(jq -er '.tree[] | select(.path == "components" and .type == "tree") | .sha' "$RUNNER_TEMP/zucchini-source-pin/root.json")"
+          gh api "repos/chromium/chromium/git/trees/$components" \
+            > "$RUNNER_TEMP/zucchini-source-pin/components.json"
+
+          python3 benchmarks/scripts/verify_patch_gap_zucchini_source_pin.py \
+            --pin "$pin" \
+            --commit-json "$RUNNER_TEMP/zucchini-source-pin/commit.json" \
+            --root-tree-json "$RUNNER_TEMP/zucchini-source-pin/root.json" \
+            --components-tree-json "$RUNNER_TEMP/zucchini-source-pin/components.json" \
+            --output "$RUNNER_TEMP/zucchini-source-pin/proof.json"
+          test "$(jq -r '.result' "$RUNNER_TEMP/zucchini-source-pin/proof.json")" = SOURCE_PIN_PASS
+          echo 'Frozen Chromium source SHA and Zucchini git tree match exactly. This proves source identity only, not a built executable or byte result.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Archive upstream source-lock proof
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-001-g4-zucchini-source-lock
+          path: ${{ runner.temp }}/zucchini-source-pin
+          if-no-files-found: error
+          retention-days: 90
