@@ -1,6 +1,7 @@
 name: PATCH-GAP-001 G4 durable evidence import
 
 # Research-only archival automation. Never changes main or decision lanes.
+# Fail closed while a frozen run is incomplete: green CI must not mean a no-op import.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -50,9 +51,8 @@ jobs:
             exit 2
           fi
           if [[ "$ev" == pending ]]; then
-            echo 'G4 evaluation is still running; archival deferred without writing evidence.' >> "$GITHUB_STEP_SUMMARY"
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo 'Frozen G4 evaluation is incomplete; archival cannot pass without committed evidence.' >&2
+            exit 2
           fi
           if [[ "$ev" != success ]]; then
             echo "Frozen G4 evaluation failed ($ev); do not import or infer a verdict." >&2
