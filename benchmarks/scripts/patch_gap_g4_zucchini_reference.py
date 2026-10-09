@@ -146,15 +146,17 @@ def measure(rows: list[dict], corpus: Path, exe: Path, timeout: int) -> list[dic
         # A rejection is recorded, not a successful zero-byte delta.
         base_probe, _ = invoke(exe, ["-read", str(base)], timeout)
         target_probe, _ = invoke(exe, ["-read", str(target)], timeout)
-        # Signals/crashes are tool errors, not evidence of parser non-support.
-        require(base_probe.returncode >= 0 and target_probe.returncode >= 0,
-                "Zucchini parser probe terminated by signal")
+        # Frozen upstream components/zucchini/zucchini.h status::Code:
+        # success=0; invalid old image=6. All other codes are tool failures
+        # (invalid args=1, file read=2, fatal=10...), NEVER unsupported.
+        require(base_probe.returncode in (0, 6) and target_probe.returncode in (0, 6),
+                "Zucchini parser probe failed for a reason other than unsupported image")
         result["baseParserExit"] = base_probe.returncode
         result["targetParserExit"] = target_probe.returncode
-        if base_probe.returncode != 0 or target_probe.returncode != 0:
-            result["status"] = ("UNSUPPORTED_BASE_AND_TARGET" if base_probe.returncode != 0
-                                and target_probe.returncode != 0 else
-                                "UNSUPPORTED_BASE" if base_probe.returncode != 0 else "UNSUPPORTED_TARGET")
+        if base_probe.returncode == 6 or target_probe.returncode == 6:
+            result["status"] = ("UNSUPPORTED_BASE_AND_TARGET" if base_probe.returncode == 6
+                                and target_probe.returncode == 6 else
+                                "UNSUPPORTED_BASE" if base_probe.returncode == 6 else "UNSUPPORTED_TARGET")
             output.append(result)
             continue
         with tempfile.TemporaryDirectory(prefix="chunkshift-zucchini-") as td:
