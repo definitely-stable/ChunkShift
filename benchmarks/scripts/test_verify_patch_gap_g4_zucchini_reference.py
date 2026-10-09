@@ -47,6 +47,47 @@ def build(role="calibration"):
 
 
 class FrozenReferenceAuditTests(unittest.TestCase):
+    def test_structural_inventory_mismatch_fails_closed(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "inventory.json"
+            row = {
+                "datasetRole": "calibration", "family": "dotnet-aspnetcore-win-x64",
+                "baseVersion": "old", "targetVersion": "new", "path": "app.dll",
+                "base": {"kind": 1, "detail": "PE_NATIVE"},
+                "target": {"kind": 1, "detail": "PE_NATIVE"},
+                "gateEligible": True, "targetBytes": 32,
+            }
+            inventory = {
+                "schema": "chunkshift.patch-gap-g4-inventory.v1",
+                "protocolCommit": "5372678ae8451a71cc95eb24f30855cbbd7e0633",
+                "corpusPairsSha256": mod.EXPECTED_LOCK,
+                "rows": [row],
+            }
+            path.write_text(json.dumps(inventory), encoding="utf-8")
+            reference = {
+                "datasetRole": "calibration",
+                "frozenInventorySha256": mod.digest(path.read_bytes()),
+                "files": [{
+                    "datasetRole": "calibration", "family": row["family"],
+                    "baseVersion": "old", "targetVersion": "new",
+                    "path": "app.dll", "structuralCandidate": True,
+                    "g4BcjGateEligible": True, "baseKind": "PE_NATIVE",
+                    "targetKind": "PE_NATIVE", "targetBytes": 32,
+                }],
+            }
+            mod.verify_frozen_population(reference, path)
+            reference["files"][0]["structuralCandidate"] = False
+            with self.assertRaisesRegex(ValueError, "structural candidate changed"):
+                mod.verify_frozen_population(reference, path)
+            reference["files"][0]["structuralCandidate"] = True
+            reference["files"][0]["targetBytes"] = 31
+            with self.assertRaisesRegex(ValueError, "target file length changed"):
+                mod.verify_frozen_population(reference, path)
+            reference["files"][0]["targetBytes"] = 32
+            reference["frozenInventorySha256"] = "0" * 64
+            with self.assertRaisesRegex(ValueError, "inventory SHA-256 mismatch"):
+                mod.verify_frozen_population(reference, path)
+
     def test_original_committed_h0_roots(self):
         source = ROOT / mod.EVIDENCE
         for role, count, expected in (
