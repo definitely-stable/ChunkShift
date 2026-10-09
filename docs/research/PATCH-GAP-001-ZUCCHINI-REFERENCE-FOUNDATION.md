@@ -31,7 +31,7 @@ This is **NOT** evidence of a real Zucchini size reduction. The tests use an int
 
 Zucchini is a Chromium GN/Ninja build target (`//components/zucchini:zucchini`) with Chromium `//base` and build-system dependencies. A standalone checkout of the component alone is not an adequate reproducible build. On GitHub-hosted Linux:
 
-1. Obtain a pinned *full Chromium checkout* containing the stated component revision. Record the immutable Chromium source-tree commit as well as the component revision, checkout/deps provenance and any toolchain downloads/checksums. An arbitrary Chromium HEAD is prohibited.
+1. Obtain the pinned **full Chromium source commit** `26ec7d02bd81e5dc8c48f974d536a3f5fb043dc0` (the `GitOrigin-RevId` of the component mirror commit). Its exact `components/zucchini` Git tree must equal `b8e9fb206f712991ac446b2e9a158a5c615fcf81`. Both identities are independently locked in [the source-pin record](results/data/PATCH-GAP-001-G4-ZUCCHINI-SOURCE-PIN-20261009-001.json) and checked by `verify_patch_gap_zucchini_source_pin.py`. The dedicated GitHub-hosted preflight workflow validates the immutable Git trees from the official Chromium GitHub mirror; it is **not** a binary build. Record DEPS resolution and toolchain downloads/checksums in the later full checkout; never use arbitrary Chromium HEAD.
 2. Build the executable from that checkout with documented `gn` arguments, `ninja`/compiler identity and complete command. Hash its bytes with SHA-256 and record the source-to-binary linkage.
 3. Supply a tool-manifest JSON:
    ```json
@@ -69,3 +69,9 @@ python3 benchmarks/scripts/patch_gap_g4_zucchini_reference.py \
 ```
 
 The foundation itself is reviewable/mergeable without a real Chromium build; it does **not** satisfy completion of the §8.3 reference.
+
+## Hosted runner feasibility boundary
+
+The official Chromium Linux build documentation specifies **at least 100 GB free disk** for a standard checkout/build, in addition to substantial memory. Do not claim that a normal `ubuntu-24.04` GitHub-hosted 14 GB environment can build a complete Chromium source tree. This source-preflight slice uses only official GitHub REST commit/tree metadata, and works on ordinary hosted runners. A later build workflow must preflight actual available disk/RAM *before* downloading Chromium, and either use an eligible GitHub-hosted larger runner or a separately verified dependency-minimal build that preserves the exact frozen Chromium component and toolchain provenance. No self-hosted runner is allowed.
+
+Reference: [Chromium Linux build requirements](https://github.com/chromium/chromium/blob/main/docs/linux/build_instructions.md).
