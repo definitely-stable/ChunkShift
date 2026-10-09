@@ -19,18 +19,18 @@ NativeAOT may look like an ordinary native PE, ELF or Mach-O: classify it as a *
 
 ## Phase A safety contract
 
-Input cap = 64 MiB/file; transform slot cap = 262,144. Recognition: PEReader and MetadataReader must parse the CLR header and metadata; ReadyToRun classification requires the native header signature \`RTR\\0\` at its mapped RVA. Mixed-mode, R2R, metadata-unavailable and malformed PE do not enter Phase A D3. Opcode widths come from platform OpCodes metadata; reject truncated switch, invalid RVA, out-of-bounds/overlapping fixups and ambiguous identities. Only original binary's four-byte IL token operand locations are changed in the canonical stream.
+Input cap = 64 MiB/file; transform slot cap = 262,144. Recognition: PEReader and MetadataReader must parse the CLR header and metadata; ReadyToRun classification requires the native header signature `RTR\0` at its mapped RVA. Mixed-mode, R2R, metadata-unavailable and malformed PE do not enter Phase A D3. Opcode widths come from platform OpCodes metadata; reject truncated switch, invalid RVA, out-of-bounds/overlapping fixups and ambiguous identities. Only original binary's four-byte IL token operand locations are changed in the canonical stream.
 
 Symbol identity (research-only) = length-prefixed assembly simple name, namespace and TypeRef name; duplicate symbols mapping to different token values reject. Canonical value = first LE u32 of SHA-256 of the domain-separated identity; any observed collision rejects. This is **not** a persisted token grammar; named-key identity can have false semantic matches, but exact inverse does not rely on semantic equivalence.
 
-Inverse metadata \`CDN1\`: 4-byte magic, LE u32 original length, LE u32 fixup count, 32-byte original SHA-256 and ascending pairs of LE u32 file offsets / LE u32 original values. Physical metadata bytes **exactly 44 + 8 × N**, including header, hash, and offsets. Independent decode does not require PE parsing; it writes declared original values at bounded offsets and verifies the final SHA-256. Payload bytes, patch container bytes, dictionary/reference headers, fallback indicators and framing must additionally be charged by a future D3 patch runner. No improvement claim from comparing only the normalized streams.
+Inverse metadata `CDN1`: 4-byte magic, LE u32 original length, LE u32 fixup count, 32-byte original SHA-256 and ascending pairs of LE u32 file offsets / LE u32 original values. Physical metadata bytes **exactly 44 + 8 × N**, including header, hash, and offsets. Independent decode does not require PE parsing; it writes declared original values at bounded offsets and verifies the final SHA-256. Payload bytes, patch container bytes, dictionary/reference headers, fallback indicators and framing must additionally be charged by a future D3 patch runner. No improvement claim from comparing only the normalized streams.
 
 Malformations: fail closed to D0 before applying a candidate; never publish an unverified output. No modifications to production encoder, CSP v1, identity/hash/profile contracts, shipped packages or public APIs.
 
 ## Fresh population and holdout lock — MUST precede parameter tuning
 
 Before reading any transform-size results:
-1. Freeze a versioned, checksummed source asset lock (official release manifests + exact immutable asset SHA-256) and \`pairs.json\` membership with normalized relative paths. Record source URLs, family, base/target versions, RID, toolchain, architecture, artifact hashes and materialization script SHA. Fail on missing assets.
+1. Freeze a versioned, checksummed source asset lock (official release manifests + exact immutable asset SHA-256) and `pairs.json` membership with normalized relative paths. Record source URLs, family, base/target versions, RID, toolchain, architecture, artifact hashes and materialization script SHA. Fail on missing assets.
 2. Pre-assign entire **family × version-pair groups** rather than individual files to calibration, fixed evaluation and negative/control subsets; no product/version leakage. Include .NET Runtime, ASP.NET Runtime, SDK, NuGet packages, framework-dependent and self-contained apps, ReadyToRun (including composite where available), plus NativeAOT-labelled negative controls. Windows/Linux and x64/ARM64 are distinct strata; R2R/ILONLY/mixed/unsupported are classified separately before any size results.
 3. Freeze parser-version identifier, mutually exclusive eligible classes, file/byte counts, data provenance, SHA of sorted inventory, exact result schema, and D0/D1 same-population anchors before examining canonicalized patch bytes.
 4. Freeze lane configuration, CPU/RSS/wall measurement settings, apply read amplification and exact same-target decoder contract; run only on GitHub-hosted runners. Do not use the generic G4 Node holdout as a .NET holdout.
@@ -60,4 +60,4 @@ Otherwise mark DEFER/REJECT, retain evidence, and leave CSP unchanged. Negative 
 - Chromium Zucchini: https://chromium.googlesource.com/chromium/src/+/HEAD/components/zucchini/
 - Predecessor evidence: [PATCH-GAP-001 G4](../research/results/PATCH-GAP-001-G4-EVIDENCE-20261008-001.md)
 
-The lab implementation in \`benchmarks/ChunkShift.Benchmarks/PatchLab/PatchDotnet/\` is intentionally an **experimental partial D3 mechanism**, not the end-to-end D0–D5 comparison or an adoption verdict.
+The lab implementation in `benchmarks/ChunkShift.Benchmarks/PatchLab/PatchDotnet/` is intentionally an **experimental partial D3 mechanism**, not the end-to-end D0–D5 comparison or an adoption verdict.

@@ -15,7 +15,7 @@ internal static class PatchDotnet001
     internal const int MaxImageBytes = 64 * 1024 * 1024;
     internal const int MaxSlots = 262_144;
     private const uint ReadyToRunSignature = 0x00525452; // RTR\0
-    private static readonly IReadOnlyDictionary<ushort, OperandType> OperandTypes = BuildOperandTypes();
+    private static readonly Dictionary<ushort, OperandType> OperandTypes = BuildOperandTypes();
 
     internal static PatchDotnetClassification Classify(byte[] image)
     {
@@ -333,7 +333,7 @@ internal static class PatchDotnet001
         return target;
     }
 
-    private static IReadOnlyDictionary<ushort, OperandType> BuildOperandTypes()
+    private static Dictionary<ushort, OperandType> BuildOperandTypes()
     {
         var map = new Dictionary<ushort, OperandType>();
         foreach (FieldInfo field in typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static))
