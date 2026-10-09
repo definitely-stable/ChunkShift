@@ -270,6 +270,7 @@ internal static class PatchDotnet001
 
         PatchDotnetSlot[] slots = [.. sourceSlots.OrderBy(x => x.Offset)];
         var canonicalByKey = new Dictionary<string, uint>(StringComparer.Ordinal);
+        var originalByKey = new Dictionary<string, uint>(StringComparer.Ordinal);
         var keyByCanonical = new Dictionary<uint, string>();
         byte[] normalized = (byte[])original.Clone();
         byte[] metadata = new byte[checked(44 + slots.Length * 8)];
@@ -288,6 +289,11 @@ internal static class PatchDotnet001
                 throw new InvalidDataException("Empty logical symbol.");
             if (BinaryPrimitives.ReadUInt32LittleEndian(original.AsSpan(slot.Offset, 4)) != slot.OriginalToken)
                 throw new InvalidDataException("Slot does not match original bytes.");
+
+            if (originalByKey.TryGetValue(slot.Symbol, out uint priorOriginal) &&
+                priorOriginal != slot.OriginalToken)
+                throw new InvalidDataException("Ambiguous logical symbol maps to multiple original tokens.");
+            originalByKey[slot.Symbol] = slot.OriginalToken;
 
             uint canonical = BinaryPrimitives.ReadUInt32LittleEndian(
                 SHA256.HashData(Encoding.UTF8.GetBytes("chunkshift.dotnet.typeref.v1\0" + slot.Symbol)));
@@ -315,6 +321,7 @@ internal static class PatchDotnet001
         uint length = BinaryPrimitives.ReadUInt32LittleEndian(inverseMetadata.Slice(4, 4));
         uint count = BinaryPrimitives.ReadUInt32LittleEndian(inverseMetadata.Slice(8, 4));
         if (length != normalized.Length || length > MaxImageBytes || count > MaxSlots ||
+            (count != 0 && length < 4) ||
             inverseMetadata.Length != 44L + count * 8L)
             throw new InvalidDataException("Invalid inverse metadata bounds.");
 

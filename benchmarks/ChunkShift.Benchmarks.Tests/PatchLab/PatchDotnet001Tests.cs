@@ -71,6 +71,26 @@ public class PatchDotnet001Tests
     }
 
     [Fact]
+    public void AmbiguousExplicitSymbolIsRejected()
+    {
+        byte[] bytes = new byte[32];
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(8, 4), 0x01000001);
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(16, 4), 0x01000002);
+        Assert.Throws<InvalidDataException>(() => PatchDotnet001.Encode(bytes,
+            [new(8, 0x01000001, "same"), new(16, 0x01000002, "same")]));
+    }
+
+    [Fact]
+    public void ShortImageCannotContainDeclaredFixups()
+    {
+        byte[] sidecar = new byte[52];
+        "CDN1"u8.CopyTo(sidecar);
+        BinaryPrimitives.WriteUInt32LittleEndian(sidecar.AsSpan(4), 3);
+        BinaryPrimitives.WriteUInt32LittleEndian(sidecar.AsSpan(8), 1);
+        Assert.Throws<InvalidDataException>(() => PatchDotnet001.Decode([1, 2, 3], sidecar));
+    }
+
+    [Fact]
     public void DecoderDetectsCorruptionTrailingMetadataAndMalformedPositions()
     {
         byte[] bytes = new byte[32];
