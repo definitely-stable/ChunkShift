@@ -123,7 +123,7 @@ def safe_file(corpus: Path, row: dict, version_key: str) -> Path:
 
 def invoke(exe: Path, args: list[str], timeout: int) -> tuple[subprocess.CompletedProcess, float]:
     started = time.perf_counter()
-    proc = subprocess.run([str(exe), *args], capture_output=True, timeout=timeout, check=False)
+    proc = subprocess.run([str(exe.resolve()), *args], capture_output=True, timeout=timeout, check=False)
     return proc, time.perf_counter() - started
 
 
@@ -146,6 +146,9 @@ def measure(rows: list[dict], corpus: Path, exe: Path, timeout: int) -> list[dic
         # A rejection is recorded, not a successful zero-byte delta.
         base_probe, _ = invoke(exe, ["-read", str(base)], timeout)
         target_probe, _ = invoke(exe, ["-read", str(target)], timeout)
+        # Signals/crashes are tool errors, not evidence of parser non-support.
+        require(base_probe.returncode >= 0 and target_probe.returncode >= 0,
+                "Zucchini parser probe terminated by signal")
         result["baseParserExit"] = base_probe.returncode
         result["targetParserExit"] = target_probe.returncode
         if base_probe.returncode != 0 or target_probe.returncode != 0:
