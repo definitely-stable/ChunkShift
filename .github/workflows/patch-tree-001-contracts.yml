@@ -1,0 +1,38 @@
+name: PATCH-TREE-001 tree inventory contracts
+
+# Research-only preflight: no frozen byte study, no CSP or release mutation.
+on:
+  pull_request:
+    paths:
+      - "benchmarks/scripts/patch_tree_001_inventory.py"
+      - "benchmarks/scripts/test_patch_tree_001_inventory.py"
+      - "docs/benchmarks/PATCH-TREE-001-PHASE-A.md"
+      - ".github/workflows/patch-tree-001-contracts.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tree-foundation:
+    name: Deterministic virtual tree contract
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - name: Checkout frozen research source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup pinned Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Compile and test Phase A only (no corpus download)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/scripts/patch_tree_001_inventory.py benchmarks/scripts/test_patch_tree_001_inventory.py
+          python -m unittest benchmarks/scripts/test_patch_tree_001_inventory.py -v
+          echo 'Phase A fixtures PASS; no real patch results.' >> "$GITHUB_STEP_SUMMARY"
