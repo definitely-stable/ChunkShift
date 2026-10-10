@@ -1,0 +1,128 @@
+name: PATCH-TREE-001 T0-T1 calibration
+
+# Only explicit main-branch dispatch; PR jobs exercise synthetic tests through
+# Benchmark lab. No held-out T0/T1/T2/T3 physical measurements in this workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      run-date:
+        description: "UTC date YYYYMMDD, for calibration-only provenance"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: patch-tree-001-t0-t1-calibration
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+  PAIRS_SHA256: 8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537bfb910fd22dd
+
+jobs:
+  calibration:
+    name: real-calibration-only-linux-x64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - name: Enforce original authorized main dispatch before any checkout
+        shell: bash
+        env:
+          RUN_DATE: ${{ inputs['run-date'] }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$GITHUB_RUN_ATTEMPT" = "1"
+          python3 - "$RUN_DATE" <<'PY'
+          import datetime
+          import re
+          import sys
+          value = sys.argv[1]
+          if not re.fullmatch(r"[0-9]{8}", value):
+              raise SystemExit("run-date must be YYYYMMDD")
+          datetime.datetime.strptime(value, "%Y%m%d")
+          PY
+          echo "RUN_DATE=$RUN_DATE" >> "$GITHUB_ENV"
+
+      - name: Checkout source, including frozen Git history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup pinned .NET from global.json
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Cache checksummed original source releases
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-tree-001-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize exact original corpus and locked tree inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "CORPUS_ROOT=$RUNNER_TEMP/patch-corpus" >> "$GITHUB_ENV"
+          echo "EVIDENCE_DIR=$RUNNER_TEMP/patch-tree-evidence" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/patch-tree-evidence"
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$RUNNER_TEMP/patch-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download --lock
+          echo "$PAIRS_SHA256  $RUNNER_TEMP/patch-corpus/pairs.json" | sha256sum --check
+          python3 benchmarks/scripts/patch_tree_001_inventory.py \
+            --root "$RUNNER_TEMP/patch-corpus" \
+            --output "$RUNNER_TEMP/patch-tree-evidence/layouts.json"
+
+      - name: Build Release production SDK and calibration evaluator
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+          dotnet test benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-build --no-restore \
+            --filter 'FullyQualifiedName~PatchTree'
+
+      - name: Execute calibration T0/T1 only and verify result envelope
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --no-build --project benchmarks/ChunkShift.Benchmarks -c Release -- \
+            patch-lab tree-calibration \
+            --corpus "$CORPUS_ROOT" \
+            --inventory "$EVIDENCE_DIR/layouts.json" \
+            --output "$EVIDENCE_DIR/calibration.json" \
+            --run-id "PATCH-TREE-001/CAL-$RUN_DATE-$GITHUB_RUN_ID"
+          python3 - "$EVIDENCE_DIR/calibration.json" <<'PY'
+          import json
+          import sys
+          doc = json.load(open(sys.argv[1], encoding="utf-8"))
+          assert doc["schema"] == "chunkshift.patch-tree-t0-t1-calibration.v1"
+          assert doc["status"] == "CALIBRATION_ONLY_NOT_DECISION"
+          assert doc["pairsSha256"] == "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537bfb910fd22dd"
+          assert len(doc["pairs"]) > 0
+          for pair in doc["pairs"]:
+              assert pair["family"] in ("dotnet-aspnetcore-win-x64", "dotnet-runtime-linux-arm64")
+              assert pair["t1ColdPhysicalBytes"] >= pair["t1WarmPhysicalBytes"]
+              assert pair["t1WarmPhysicalBytes"] >= pair["targetTreeManifestBytes"]
+              assert pair["t0WarmPhysicalBytes"] >= pair["targetTreeManifestBytes"]
+              assert pair["changedCount"] + pair["addedCount"] == len(pair["files"])
+          PY
+          sha256sum "$EVIDENCE_DIR/layouts.json" "$EVIDENCE_DIR/calibration.json" \
+            > "$EVIDENCE_DIR/SHA256SUMS"
+
+      - name: Archive authentic calibration only
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-001-t0-t1-calibration
+          path: ${{ runner.temp }}/patch-tree-evidence/
+          if-no-files-found: error
+          retention-days: 90
