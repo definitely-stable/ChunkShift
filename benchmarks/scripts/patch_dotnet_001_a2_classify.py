@@ -266,14 +266,22 @@ def analyze(root: Path, plan: Path, lock_file: Path, output: Path) -> dict:
     rows, pairs = load_and_verify(root, plan, lock)
     require(not output.exists(), "A2_OUTPUT_EXISTS")
     by_key: dict[tuple[str, str, str], dict] = {}
+    safe_root = (root / "tree").resolve(strict=True)
     for row in rows:
         path = root / "tree" / row["family"] / row["version"] / row["path"]
+        try:
+            resolved = path.resolve(strict=True)
+        except (OSError, RuntimeError):
+            raise AuditError("A2_FILE_MISSING") from None
+        require(resolved.is_relative_to(safe_root) and resolved == path.absolute(),
+                "A2_SYMLINK_OR_PATH_ESCAPE")
         require(path.is_file() and not path.is_symlink(), "A2_FILE_MISSING")
         require(path.stat().st_size == row["bytes"], "A2_FILE_SIZE_DRIFT")
         require(file_hash(path) == row["sha256"], "A2_FILE_HASH_DRIFT")
         classification = classify(path, lock["bytesClassificationLimit"])
         by_key[row["family"], row["version"], row["path"]] = {
-            **row, **classification, "changedTarget": False, "d3Potential": False,
+            **row, **classification, "parserClassification": classification["kind"],
+            "changedTarget": False, "d3Potential": False,
         }
     pair_summaries = []
     total_changed = total_candidate = total_potential = 0

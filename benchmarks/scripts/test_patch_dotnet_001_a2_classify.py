@@ -74,8 +74,8 @@ class PatchDotnetA2Tests(unittest.TestCase):
                     file.write_bytes(pe_image(**kw))
                     observed = a2.classify(file, 64 * 1024 * 1024)
                     self.assertEqual(kind, observed["kind"], observed)
-                    self.assertEqual("unknown", observed["architecture"]
-                                     if kw.get("machine") == 0x7777 else "unknown") if kw.get("machine")==0x7777 else None
+                    if kw.get("machine") == 0x7777:
+                        self.assertEqual("unknown", observed["architecture"])
 
     def test_native_control_and_corruption(self):
         with tempfile.TemporaryDirectory() as scratch:
@@ -133,6 +133,9 @@ class PatchDotnetA2Tests(unittest.TestCase):
             self.assertEqual(0, left["totals"]["d3PotentialBytes"])
             self.assertEqual("STRUCTURAL_INVENTORY_ONLY_NO_PATCH_VERDICT", left["status"])
             self.assertNotIn("patchSize", json.dumps(left))
+            rows = [json.loads(s) for s in
+                    (folder / "output-a/a2-files.jsonl").read_text().splitlines()]
+            self.assertTrue(all(r["parserClassification"] == r["kind"] for r in rows))
 
     def test_a2_rejects_modified_source_and_role(self):
         with tempfile.TemporaryDirectory() as scratch:
@@ -141,6 +144,18 @@ class PatchDotnetA2Tests(unittest.TestCase):
             file = next((root / "tree").rglob("data.bin"))
             file.write_bytes(b"tampered")
             with self.assertRaisesRegex(a2.AuditError, "DRIFT"):
+                a2.analyze(root, plan, lock, folder / "output")
+
+    def test_a2_rejects_symlinked_intermediate_path(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            folder = Path(scratch)
+            root, plan, lock = self._synthetic(folder)
+            sample = next((root / "tree").rglob("data.bin"))
+            parent = sample.parent
+            moved = parent.with_name(parent.name + "-copy")
+            parent.rename(moved)
+            parent.symlink_to(moved, target_is_directory=True)
+            with self.assertRaisesRegex(a2.AuditError, "SYMLINK_OR_PATH_ESCAPE"):
                 a2.analyze(root, plan, lock, folder / "output")
 
     def test_a2_rejects_plan_and_frozen_pairs_drift(self):
