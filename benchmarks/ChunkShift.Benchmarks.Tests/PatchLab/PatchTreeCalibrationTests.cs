@@ -74,7 +74,7 @@ public sealed class PatchTreeCalibrationTests
     {
         var empty = new PatchTreeCalibration.Layout("chunkshift.patch-tree-layout.v1",
             "NFC UTF-8 byte order", 0, 0, new string('a', 64), []);
-        var p = new PatchTreeCalibration.Pair("family", "old", "new",
+        var p = new PatchTreeCalibration.Pair("dotnet-aspnetcore-win-x64", "old", "new",
             "calibration", empty, empty);
         var valid = new PatchTreeCalibration.Input("chunkshift.patch-tree-inventory.v1",
             PatchTreeCalibration.FrozenPairsSha256, "INVENTORY_ONLY_NOT_PATCH_EVIDENCE",
@@ -84,6 +84,8 @@ public sealed class PatchTreeCalibrationTests
             PatchTreeCalibration.Validate(valid with { PairsSha256 = new string('0', 64) }));
         Assert.Throws<InvalidDataException>(() =>
             PatchTreeCalibration.Validate(valid with { Pairs = [p with { DatasetRole = "training" }] }));
+        Assert.Throws<InvalidDataException>(() =>
+            PatchTreeCalibration.Validate(valid with { Pairs = [p with { DatasetRole = "holdout" }] }));
         Assert.Throws<InvalidDataException>(() =>
             PatchTreeCalibration.Validate(valid with { Pairs = [p with { Base = empty with { FileCount = 1 } }] }));
         Assert.Throws<InvalidDataException>(() =>
