@@ -302,6 +302,22 @@ def materialize(raw: bytes, groups: list[dict], sources: Path, root: Path) -> di
                 dest.mkdir(parents=True)
                 stats = extract_archive(sources / asset["name"], group, dest)
                 extraction.append({"group": group["id"], "version": asset["version"], **stats})
+        # Complete byte/provenance inventory, including identical and fallback files.
+        # This is membership evidence, NOT an IL/PE eligibility verdict.
+        inventory_lines = []
+        for group in groups:
+            for version in (group["base"], group["target"]):
+                for name, (size, digest) in walk_files(
+                        stage / "tree" / group["id"] / version).items():
+                    inventory_lines.append(json.dumps({
+                        "family": group["id"], "role": group["role"],
+                        "version": version, "path": name, "bytes": size,
+                        "sha256": digest,
+                        "candidateScope": any(name.startswith(p) for p in group["candidateAllowPrefixes"]),
+                        "parserClassification": "NOT_SCANNED",
+                    }, sort_keys=True, separators=(",", ":")))
+        inventory_bytes = ("\n".join(inventory_lines) + "\n").encode("utf-8")
+        (stage / "files.jsonl").write_bytes(inventory_bytes)
         pairs = {"schema": PAIR_SCHEMA, "pairs": [pair_record(g, stage) for g in groups]}
         for group, pair in zip(groups, pairs["pairs"]):
             if group["role"] != "negative-control" and not pair["candidatePaths"]:
@@ -314,6 +330,8 @@ def materialize(raw: bytes, groups: list[dict], sources: Path, root: Path) -> di
             "experimentId": "PATCH-DOTNET-001",
             "planSha256": hashlib.sha256(raw).hexdigest(),
             "pairsSha256": hashlib.sha256(pair_bytes).hexdigest(),
+            "filesSha256": hashlib.sha256(inventory_bytes).hexdigest(),
+            "inventoryFileRows": len(inventory_lines),
             "sourceAssets": sorted(checks.values(), key=lambda a: a["name"]),
             "extractions": extraction,
             "roles": {g["id"]: g["role"] for g in groups},
