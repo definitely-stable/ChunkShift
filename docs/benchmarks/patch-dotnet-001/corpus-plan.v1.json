@@ -2,7 +2,7 @@
   "schema": "chunkshift.patch-dotnet-corpus-plan.v1",
   "experimentId": "PATCH-DOTNET-001",
   "freezePolicy": "no-decision-runs-before-materialization-review",
-  "selectionRule": "whole-product-family",
+  "selectionRule": "whole-product-family-with-frozen-candidate-path-scopes-full-population-H0",
   "sources": {
     "dotnet": "https://builds.dotnet.microsoft.com/dotnet/release-metadata/10.0/releases.json",
     "node": "https://nodejs.org/dist/"
@@ -32,6 +32,9 @@
           "digestAlgorithm": "sha256",
           "digest": "9658cfa0b8fd6e2af3b1d8917318b86543f7f16fe32eccd78d41f9da52622a83"
         }
+      ],
+      "candidateAllowPrefixes": [
+        "shared/Microsoft.AspNetCore.App/"
       ]
     },
     {
@@ -58,6 +61,9 @@
           "digestAlgorithm": "sha256",
           "digest": "a7958c89c312b43fbe07e3fc99fc6646ee9f14d6e1eb7522c7de0c24c2a97729"
         }
+      ],
+      "candidateAllowPrefixes": [
+        "shared/Microsoft.NETCore.App/"
       ]
     },
     {
@@ -84,6 +90,9 @@
           "digestAlgorithm": "sha512",
           "digest": "1ac949dfd3929855e3a102a5b12f843967a784ad2d911dfcfff6abdf81a2e78bccf25ddc055547de02b36133bf792aaf97fcba8db8aa6b52ac2e018b86935d05"
         }
+      ],
+      "candidateAllowPrefixes": [
+        "sdk/"
       ]
     },
     {
@@ -110,6 +119,9 @@
           "digestAlgorithm": "sha512",
           "digest": "8b79f679c348aa08a10ee4e1ca75be54b135ae951b7328400fea8499f9eb8450ccb18f9f708af6182b2bcd88fcca719aa282939e907b017422f519de8dd42534"
         }
+      ],
+      "candidateAllowPrefixes": [
+        "shared/Microsoft.WindowsDesktop.App/"
       ]
     },
     {
@@ -136,7 +148,8 @@
           "digestAlgorithm": "sha256",
           "digest": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541"
         }
-      ]
+      ],
+      "candidateAllowPrefixes": []
     }
   ]
 }
