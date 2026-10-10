@@ -120,6 +120,9 @@ def materialize(doc: dict, doc_bytes: bytes, groups: list[dict],
         pairs = [a1.pair_record(g, stage) for g in groups]
         member_records = []
         summaries = []
+        # The three PowerShell deployments share a product/release transition.
+        # Count repeated target bytes only once for distinct calibration coverage.
+        unique_eligible_target_sha256: set[str] = set()
         for group, pair in zip(groups, pairs):
             left = a1.walk_files(stage / "tree" / group["id"] / group["base"])
             right = a1.walk_files(stage / "tree" / group["id"] / group["target"])
@@ -138,9 +141,15 @@ def materialize(doc: dict, doc_bytes: bytes, groups: list[dict],
                              and b["machine"] == t["machine"] and b["architecture"] != "unknown")
                 local["changedFiles"] += 1
                 local["changedTargetBytes"] += row["targetSize"]
+                first_unique_target = potential and (
+                    row["targetSha256"] not in unique_eligible_target_sha256)
                 if potential:
                     local["structuralD3Files"] += 1
                     local["structuralD3TargetBytes"] += row["targetSize"]
+                    if first_unique_target:
+                        unique_eligible_target_sha256.add(row["targetSha256"])
+                        local["distinctStructuralD3Files"] += 1
+                        local["distinctStructuralD3TargetBytes"] += row["targetSize"]
                 if same_bytes_as_eval:
                     local["evalDuplicateFiles"] += 1
                     local["evalDuplicateTargetBytes"] += row["targetSize"]
@@ -150,6 +159,7 @@ def materialize(doc: dict, doc_bytes: bytes, groups: list[dict],
                 row["targetReason"] = t["reason"]
                 row["evaluationContentDuplicate"] = same_bytes_as_eval
                 row["structuralD3Potential"] = potential
+                row["firstDistinctEligibleTarget"] = first_unique_target
             summaries.append({"family": group["id"], "deployment": group["deployment"],
                               "rid": group["rid"], **dict(local),
                               "addedFiles": len(pair["added"]), "removedFiles": len(pair["removed"]),
@@ -168,6 +178,10 @@ def materialize(doc: dict, doc_bytes: bytes, groups: list[dict],
             "totalCalibrationStructuralD3Files": sum(s.get("structuralD3Files", 0) for s in summaries),
             "totalCalibrationStructuralD3TargetBytes": sum(
                 s.get("structuralD3TargetBytes", 0) for s in summaries),
+            "distinctCalibrationStructuralD3Files": len(unique_eligible_target_sha256),
+            "distinctCalibrationStructuralD3TargetBytes": sum(
+                s.get("distinctStructuralD3TargetBytes", 0) for s in summaries),
+            "repeatedDeploymentTargetsAreNotIndependent": True,
             "noPatchBytesMeasured": True, "originalA2HoldoutUnchanged": True,
         }
         (stage / "v2-audit.json").write_bytes(a1.encode_json(audit))
@@ -198,6 +212,8 @@ def main() -> int:
         print("PATCH-DOTNET-001 V2 STRUCTURAL_ONLY " + json.dumps({
             "candidateFiles": audit["totalCalibrationStructuralD3Files"],
             "candidateTargetBytes": audit["totalCalibrationStructuralD3TargetBytes"],
+            "distinctCandidateFiles": audit["distinctCalibrationStructuralD3Files"],
+            "distinctCandidateTargetBytes": audit["distinctCalibrationStructuralD3TargetBytes"],
             "pairsSha256": audit["pairsSha256"]}, sort_keys=True))
         return 0
     except (a1.CorpusError, OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as err:
