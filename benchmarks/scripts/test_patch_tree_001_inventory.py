@@ -178,5 +178,24 @@ class TreeFoundationTests(unittest.TestCase):
                             mod.layout(self.old)["layoutSha256"])
 
 
+
+    def test_calibration_only_does_not_access_any_holdout_tree(self):
+        # Holdout pair metadata is fixed by pairs.json, but the source tree is
+        # deliberately ABSENT. Reading even a single sealed holdout file fails.
+        self.old.rmdir()
+        self.new.rmdir()
+        self.tree.rmdir()
+        pairs = {"schema": "chunkshift.patch-pairs.v1",
+                 "pairs": [{"family": "node-win-x64", "base": "24.19.0",
+                            "target": "24.20.0"}]}
+        body = (json.dumps(pairs, sort_keys=True) + "\n").encode()
+        (self.root / "pairs.json").write_bytes(body)
+        result = mod.inventory(self.root, hashlib.sha256(body).hexdigest(),
+                               calibration_only=True)
+        self.assertEqual(result["pairCount"], 0)
+        self.assertEqual(result["pairs"], [])
+        with self.assertRaisesRegex(ValueError, "missing/symlink tree root"):
+            mod.inventory(self.root, hashlib.sha256(body).hexdigest())
+
 if __name__ == "__main__":
     unittest.main()
