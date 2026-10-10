@@ -67,7 +67,7 @@ internal sealed class VerifiedTreeStream : Stream
                 throw new InvalidDataException("Non-contiguous or overflowing virtual tree offsets.");
             }
 
-            if (item.Sha256.Length != 64 || !Convert.TryFromHexString(item.Sha256, new byte[32], out int written) || written != 32)
+            if (item.Sha256.Length != 64 || !item.Sha256.All(Uri.IsHexDigit))
             {
                 throw new InvalidDataException("Invalid pinned file SHA-256.");
             }
