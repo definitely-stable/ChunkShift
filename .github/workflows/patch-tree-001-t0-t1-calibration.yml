@@ -112,6 +112,7 @@ jobs:
               assert pair["family"] in ("dotnet-aspnetcore-win-x64", "dotnet-runtime-linux-arm64")
               assert pair["t1ColdPhysicalBytes"] >= pair["t1WarmPhysicalBytes"]
               assert pair["t1WarmPhysicalBytes"] >= pair["targetTreeManifestBytes"]
+              assert pair["t0SPhysicalBytes"] >= pair["targetTreeManifestBytes"]
               assert pair["t0WarmPhysicalBytes"] >= pair["targetTreeManifestBytes"]
               assert pair["changedCount"] + pair["addedCount"] == len(pair["files"])
           PY
