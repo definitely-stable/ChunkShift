@@ -1,0 +1,36 @@
+{
+  "schema": "chunkshift.patch-dotnet-a2-lock.v1",
+  "experimentId": "PATCH-DOTNET-001",
+  "phase": "A2_STRUCTURAL_CLASSIFICATION_ONLY",
+  "parserVersion": "patch-dotnet-peclr-a2.v1",
+  "sourceRun": {
+    "workflowRun": 38025480821,
+    "attempt": 1,
+    "commit": "069503508c2d5cc90303cda6162bc7a939d0b201",
+    "artifactId": 11659659254,
+    "artifactZipSha256": "f3e1ff4c1dfdf7daf3ff4fbe4d4400c57bfc3abb43397e23c5b0b8b83486a4d1"
+  },
+  "planSha256": "0ee85c6307ea2c6612e52313485aa1bcf5725b457ae0c01413cf0d1a48e552c8",
+  "pairsSha256": "67b075176a3cbe796cb20831d8caeef602e19253717e07f2c25df619d9dd9942",
+  "filesSha256": "f342be7899b6b18384c96b4384c2796ab8a6c3d099a1cfec47c66f432b40377d",
+  "expectedTotalFileRows": 15686,
+  "expectedChangedFiles": 3907,
+  "expectedChangedTargetBytes": 896579114,
+  "expectedPathCandidateFiles": 2930,
+  "expectedPathCandidateBytes": 582113626,
+  "bytesClassificationLimit": 67108864,
+  "forbiddenResults": [
+    "patch bytes",
+    "compression ratio",
+    "calibration tuning",
+    "production adoption"
+  ],
+  "eligibleForD3OnlyIf": [
+    "path candidate",
+    "base ILONLY",
+    "target ILONLY",
+    "same machine",
+    "file <=64MiB"
+  ],
+  "note": "A2 ILONLY is structural-only. D3 scanner may still fail closed; no patch result or decision is implied."
+}
