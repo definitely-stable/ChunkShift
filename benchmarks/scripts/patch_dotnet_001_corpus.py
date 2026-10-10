@@ -90,6 +90,17 @@ def validate_plan(data: object) -> list[dict]:
             fail("CORPUS_PRODUCT_FAMILY_LEAKAGE")
         role_by_product[product] = role
         counts[role] += 1
+        prefixes = group.get("candidateAllowPrefixes")
+        if not isinstance(prefixes, list) or (role == "negative-control" and prefixes):
+            fail("CORPUS_CANDIDATE_SCOPES")
+        if role != "negative-control" and not prefixes:
+            fail("CORPUS_MISSING_CANDIDATE_SCOPE")
+        if len(prefixes) != len(set(prefixes)):
+            fail("CORPUS_DUPLICATE_CANDIDATE_SCOPE")
+        for prefix in prefixes:
+            if not isinstance(prefix, str) or not prefix or not prefix.endswith("/") or \
+                    relative_member(prefix, "as-is") != prefix.rstrip("/"):
+                fail("CORPUS_UNSAFE_CANDIDATE_SCOPE")
         if group.get("pathRule") not in ALLOWED_RULES or group.get("format") not in {"zip", "tar.gz"}:
             fail("CORPUS_EXTRACTION_RULE")
         if not isinstance(group.get("rid"), str) or not ID.fullmatch(group["rid"]):
@@ -261,9 +272,13 @@ def pair_record(group: dict, root: Path) -> dict:
          "targetSize": right[name][0], "targetSha256": right[name][1]}
         for name in both if left[name][1] != right[name][1]
     ]
+    candidate = [row for row in changed if any(
+        row["path"].startswith(prefix) for prefix in group["candidateAllowPrefixes"])]
     return {
         "family": group["id"], "base": group["base"], "target": group["target"],
         "role": group["role"], "product": group["product"], "rid": group["rid"],
+        "candidatePaths": [row["path"] for row in candidate],
+        "candidateTargetBytes": sum(row["targetSize"] for row in candidate),
         "changed": changed,
         "added": [{"path": n, "size": right[n][0], "sha256": right[n][1]}
                   for n in sorted(right.keys() - left.keys())],
@@ -288,6 +303,9 @@ def materialize(raw: bytes, groups: list[dict], sources: Path, root: Path) -> di
                 stats = extract_archive(sources / asset["name"], group, dest)
                 extraction.append({"group": group["id"], "version": asset["version"], **stats})
         pairs = {"schema": PAIR_SCHEMA, "pairs": [pair_record(g, stage) for g in groups]}
+        for group, pair in zip(groups, pairs["pairs"]):
+            if group["role"] != "negative-control" and not pair["candidatePaths"]:
+                fail(f"CORPUS_NO_CANDIDATES_IN_SCOPE:{group['id']}")
         pair_bytes = encode_json(pairs)
         (stage / "pairs.json").write_bytes(pair_bytes)
         audit = {
