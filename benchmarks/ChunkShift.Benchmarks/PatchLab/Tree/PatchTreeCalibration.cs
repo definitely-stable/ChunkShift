@@ -99,7 +99,13 @@ internal static class PatchTreeCalibration
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (Pair p in doc.Pairs)
         {
-            if (p.DatasetRole is not ("calibration" or "holdout") ||
+            string expectedRole = p.Family switch
+            {
+                "dotnet-aspnetcore-win-x64" or "dotnet-runtime-linux-arm64" => "calibration",
+                "node-win-x64" or "node-linux-x64" or "tzdata" or "chunkshift-source" => "holdout",
+                _ => throw new InvalidDataException("Unknown frozen family.")
+            };
+            if (p.DatasetRole != expectedRole ||
                 !seen.Add(p.Family + "\0" + p.BaseVersion + "\0" + p.TargetVersion))
                 throw new InvalidDataException("Unknown role or duplicate pair.");
             foreach (Layout source in new[] { p.Base, p.Target })
