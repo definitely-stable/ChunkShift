@@ -122,7 +122,7 @@ internal static class PatchTreeCalibration
                        checked((baseCsmBytes ?? 0) + (baseLayoutBytes ?? 0)));
     }
 
-    private static async Task<PairResult> RunPairAsync(string corpusRoot, Pair p, JsonElement original)
+    internal static async Task<PairResult> RunPairAsync(string corpusRoot, Pair p, JsonElement original)
     {
         // Strict original pair checksum/ordering and the Python inventory gate are
         // prerequisites. Opening each source independently rechecks SHA/length.
@@ -223,6 +223,10 @@ internal static class PatchTreeCalibration
                         throw new InvalidDataException("Added raw T0 target hash mismatch.");
                 }
 
+                oldTree.Position = 0;
+                long baseReadsBefore = oldTree.ReadCalls;
+                long baseBytesBefore = oldTree.BytesRead;
+                long baseSeeksBefore = oldTree.SeekCalls;
                 Stopwatch watch = Stopwatch.StartNew();
                 await using (var baseManifest = File.OpenRead(oldCsmPath))
                 await using (var targetManifest = File.OpenRead(targetCsm))
@@ -255,7 +259,10 @@ internal static class PatchTreeCalibration
                 rows.Add(new Row(p.Family, p.BaseVersion, p.TargetVersion,
                     file.Path, kind, file.Length, sizeT0, sizeT1,
                     t0Sha, t1Sha, file.Sha256.ToLowerInvariant(), t0Create, t1Create,
-                    t0Apply, t1Apply, 0, 0, 0));
+                    t0Apply, t1Apply,
+                    oldTree.ReadCalls - baseReadsBefore,
+                    oldTree.BytesRead - baseBytesBefore,
+                    oldTree.SeekCalls - baseSeeksBefore));
             }
 
             // Full path map includes unchanged files; absence of removed paths
