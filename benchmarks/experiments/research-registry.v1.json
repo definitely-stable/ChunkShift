@@ -560,8 +560,11 @@
         183
       ],
       "area": "patching-research",
-      "status": "PLANNED",
-      "question": "Reversible .NET/CLR semantic normalization after generic executable evidence"
+      "status": "RUNNING",
+      "question": "Reversible .NET/CLR semantic normalization after generic executable evidence",
+      "protocol": "docs/benchmarks/PATCH-DOTNET-001-A2-PROTOCOL.md",
+      "evidence": "docs/research/results/PATCH-DOTNET-001-A2-CLASSIFICATION-20261010-001.md",
+      "prerequisiteEvidence": "docs/research/results/PATCH-DOTNET-001-A1-INVENTORY-20261010-001.md"
     },
     {
       "id": "PATCH-DICT-001",
