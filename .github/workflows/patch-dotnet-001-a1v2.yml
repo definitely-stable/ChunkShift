@@ -1,0 +1,133 @@
+name: PATCH-DOTNET-001 A1-v2 calibration inventory
+
+# GitHub-hosted only; existing A2 evaluation remains immutable.
+on:
+  push:
+    branches: [research/patch-dotnet-001-a1v2-calibration]
+    paths:
+      - .github/workflows/patch-dotnet-001-a1v2.yml
+      - benchmarks/scripts/patch_dotnet_001_a1v2.py
+      - benchmarks/scripts/test_patch_dotnet_001_a1v2.py
+      - docs/benchmarks/patch-dotnet-001/calibration-extension-v2.v1.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: patch-dotnet-a1v2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  application-calibration-inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout pinned research code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate immutable inputs and adversarial tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/patch_dotnet_001_a1v2.py validate
+          python3 -m unittest discover -s benchmarks/scripts -p 'test_patch_dotnet_001_a1v2.py' -v
+
+      - name: Download pinned A2 classification artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: patch-dotnet-001-a2-classification
+          repository: definitely-stable/ChunkShift
+          run-id: 38028439773
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/a2-locked
+
+      - name: Verify A2 holdout membership digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+          path = Path(os.environ["RUNNER_TEMP"]) / "a2-locked/a2-files.jsonl"
+          actual = hashlib.sha256(path.read_bytes()).hexdigest()
+          expected = "0cdafee3f5ee6f288ed798bd1f7726a452dd51a919d891855e9436f6e151ad66"
+          if actual != expected:
+              raise ValueError("A2 evaluation index checksum does not match frozen SHA-256")
+          print("A2 holdout membership SHA-256 verified:", actual)
+          PY
+
+      - name: Restore original release assets
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/patch-dotnet-a1v2-sources
+          key: patch-dotnet-a1v2-powershell-${{ hashFiles('docs/benchmarks/patch-dotnet-001/calibration-extension-v2.v1.json') }}
+
+      - name: Download and verify immutable PowerShell releases
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+          from benchmarks.scripts.patch_dotnet_001_a1v2 import validate
+          plan = json.loads(Path("docs/benchmarks/patch-dotnet-001/calibration-extension-v2.v1.json").read_text())
+          groups = validate(plan)
+          sources = Path(os.environ["RUNNER_TEMP"]) / "patch-dotnet-a1v2-sources"
+          sources.mkdir(parents=True, exist_ok=True)
+          assets = {asset["name"]: asset for group in groups for asset in group["assets"]}
+          for name, item in sorted(assets.items()):
+              path = sources / name
+              def digest(source):
+                  h = hashlib.sha256()
+                  with source.open("rb") as handle:
+                      for block in iter(lambda: handle.read(1048576), b""):
+                          h.update(block)
+                  return h.hexdigest()
+              if path.is_file() and not path.is_symlink() and digest(path) == item["digest"]:
+                  print("verified cache", name, flush=True)
+                  continue
+              partial = path.with_name(path.name + ".partial")
+              partial.unlink(missing_ok=True)
+              req = Request(item["url"], headers={"User-Agent": "ChunkShift-PATCH-DOTNET-001-A1v2"})
+              with urlopen(req, timeout=300) as response, partial.open("xb") as output:
+                  received = 0
+                  while (chunk := response.read(1048576)):
+                      received += len(chunk)
+                      if received > 1024**3:
+                          raise ValueError("source archive exceeds 1 GiB cap")
+                      output.write(chunk)
+              if digest(partial) != item["digest"]:
+                  raise ValueError("official release checksum mismatch: " + name)
+              os.replace(partial, path)
+              print("verified official asset", name, received, flush=True)
+          PY
+
+      - name: Materialize application calibration and evaluate structural scope only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/patch_dotnet_001_a1v2.py materialize \
+            --sources "$RUNNER_TEMP/patch-dotnet-a1v2-sources" \
+            --a2-index "$RUNNER_TEMP/a2-locked/a2-files.jsonl" \
+            --root "$RUNNER_TEMP/patch-dotnet-a1v2"
+          mkdir -p artifacts/patch-dotnet-a1v2
+          cp "$RUNNER_TEMP/patch-dotnet-a1v2/v2-audit.json" artifacts/patch-dotnet-a1v2/
+          cp "$RUNNER_TEMP/patch-dotnet-a1v2/v2-pairs.json" artifacts/patch-dotnet-a1v2/
+          cp "$RUNNER_TEMP/patch-dotnet-a1v2/v2-files.jsonl" artifacts/patch-dotnet-a1v2/
+          sha256sum artifacts/patch-dotnet-a1v2/* > artifacts/patch-dotnet-a1v2/SHA256SUMS
+          cat artifacts/patch-dotnet-a1v2/v2-audit.json
+
+      - name: Archive calibration inventory without patch-size claims
+        if: success()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-dotnet-001-a1v2-calibration-inventory
+          path: artifacts/patch-dotnet-a1v2/
+          if-no-files-found: error
+          retention-days: 90

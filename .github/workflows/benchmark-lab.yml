@@ -104,7 +104,8 @@ jobs:
             benchmarks/scripts/verify_zucchini_build_artifact.py \
             benchmarks/scripts/verify_zucchini_calibration_evidence.py \
             benchmarks/scripts/patch_dotnet_001_corpus.py \
-            benchmarks/scripts/patch_dotnet_001_a2_classify.py
+            benchmarks/scripts/patch_dotnet_001_a2_classify.py \
+            benchmarks/scripts/patch_dotnet_001_a1v2.py
           python3 -m unittest \
             benchmarks/scripts/test_summarize_apply_check.py \
             benchmarks/scripts/test_patch_enc_005_paired.py \
@@ -124,7 +125,8 @@ jobs:
             benchmarks/scripts/test_verify_zucchini_build_artifact.py \
             benchmarks/scripts/test_verify_zucchini_calibration_evidence.py \
             benchmarks/scripts/test_patch_dotnet_001_corpus.py \
-            benchmarks/scripts/test_patch_dotnet_001_a2_classify.py
+            benchmarks/scripts/test_patch_dotnet_001_a2_classify.py \
+            benchmarks/scripts/test_patch_dotnet_001_a1v2.py
           python3 benchmarks/scripts/patch_dotnet_001_corpus.py validate
           python3 benchmarks/scripts/check_research_registry.py
           python3 docs/research/results/data/PATCH-ENC-005-G2-EVIDENCE-20261003-001/recompute.py \
