@@ -80,7 +80,7 @@ class CorpusLockTests(unittest.TestCase):
                 rule = group["pathRule"]
                 prefix = "node-package" if rule == "strip-first" else ""
                 scoped = group["candidateAllowPrefixes"][0] if group["candidateAllowPrefixes"] else "nested/"
-                name = f"{prefix + '/' if prefix else ''}{scoped}{version}/data.bin"
+                name = f"{prefix + '/' if prefix else ''}{scoped}{version + '/' if rule != 'strip-first' else ''}data.bin"
                 if tamper == "escape" and group["id"] == plan["groups"][0]["id"] \
                         and version == group["base"]:
                     name = "../escape.bin"
