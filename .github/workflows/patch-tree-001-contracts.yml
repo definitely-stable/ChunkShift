@@ -6,6 +6,8 @@ on:
     paths:
       - "benchmarks/scripts/patch_tree_001_inventory.py"
       - "benchmarks/scripts/test_patch_tree_001_inventory.py"
+      - "benchmarks/scripts/verify_patch_tree_001_calibration.py"
+      - "benchmarks/scripts/test_verify_patch_tree_001_calibration.py"
       - "docs/benchmarks/PATCH-TREE-001-PHASE-A.md"
       - ".github/workflows/patch-tree-001-contracts.yml"
   workflow_dispatch:
@@ -34,5 +36,5 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile benchmarks/scripts/patch_tree_001_inventory.py benchmarks/scripts/test_patch_tree_001_inventory.py
-          python -m unittest benchmarks/scripts/test_patch_tree_001_inventory.py -v
+          python -m unittest benchmarks/scripts/test_patch_tree_001_inventory.py benchmarks/scripts/test_verify_patch_tree_001_calibration.py -v
           echo 'Phase A fixtures PASS; no real patch results.' >> "$GITHUB_STEP_SUMMARY"
