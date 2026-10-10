@@ -49,6 +49,16 @@ class CorpusLockTests(unittest.TestCase):
         with self.assertRaisesRegex(c.CorpusError, "PROVENANCE"):
             c.validate_plan(plan)
 
+    def test_reject_missing_candidate_scope(self):
+        plan = copy.deepcopy(self.plan)
+        plan["groups"][2]["candidateAllowPrefixes"] = []
+        with self.assertRaisesRegex(c.CorpusError, "MISSING_CANDIDATE_SCOPE"):
+            c.validate_plan(plan)
+        plan = copy.deepcopy(self.plan)
+        plan["groups"][0]["candidateAllowPrefixes"] = ["../escape/"]
+        with self.assertRaises(c.CorpusError):
+            c.validate_plan(plan)
+
     def test_strict_member_paths(self):
         for name in ("../evil", "/etc/passwd", "foo/../../escape", "C:/attack",
                      "a\\..\\evil", "a/\x00xyz"):
@@ -68,8 +78,9 @@ class CorpusLockTests(unittest.TestCase):
             for asset in group["assets"]:
                 version = asset["version"]
                 rule = group["pathRule"]
-                prefix = "node-package" if rule == "strip-first" else version
-                name = f"{prefix}/nested/data.bin"
+                prefix = "node-package" if rule == "strip-first" else ""
+                scoped = group["candidateAllowPrefixes"][0] if group["candidateAllowPrefixes"] else "nested/"
+                name = f"{prefix + '/' if prefix else ''}{scoped}{version}/data.bin"
                 if tamper == "escape" and group["id"] == plan["groups"][0]["id"] \
                         and version == group["base"]:
                     name = "../escape.bin"
@@ -112,8 +123,10 @@ class CorpusLockTests(unittest.TestCase):
             self.assertEqual(5, len(pairs["pairs"]))
             for pair in pairs["pairs"]:
                 self.assertEqual(1, len(pair["changed"]))
-                self.assertEqual("{version}/nested/data.bin" if pair["product"] != "node"
-                                 else "nested/data.bin", pair["changed"][0]["path"])
+                self.assertEqual(0 if pair["role"] == "negative-control" else 1,
+                                 len(pair["candidatePaths"]))
+                self.assertEqual(pair["changed"][0]["targetSize"] if pair["candidatePaths"] else 0,
+                                 pair["candidateTargetBytes"])
                 self.assertNotEqual(pair["changed"][0]["baseSha256"],
                                     pair["changed"][0]["targetSha256"])
             with self.assertRaisesRegex(c.CorpusError, "ALREADY_EXISTS"):
