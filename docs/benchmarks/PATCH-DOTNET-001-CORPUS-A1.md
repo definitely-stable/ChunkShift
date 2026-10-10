@@ -36,7 +36,7 @@ python3 benchmarks/scripts/patch_dotnet_001_corpus.py materialize \
   --root /new-empty-path/dotnet-a1
 \`\`\`
 
-\`materialize\` is intentionally **offline**: it does not fetch unpinned URLs or autonomously select versions. Download the named archives from the exact source URLs using a GitHub-hosted runner and supply all ten original assets. The materializer verifies every asset's pinned SHA-256/SHA-512 before any extraction; it also records a SHA-256 of each asset. It rejects missing/symlinked sources, unsafe absolute/traversal/member paths, case-insensitive collisions, suspicious member types, mismatched sizes/digests and excessive member/output bytes. Known symlink/hardlink archive entries are skipped and counted, never followed. A staging directory is atomically published only on success; an already existing output directory is rejected.
+\`materialize\` is intentionally **offline**: it does not fetch unpinned URLs or autonomously select versions. The dedicated `patch-dotnet-001-corpus.yml` workflow automatically downloads exactly these ten pinned assets on a GitHub-hosted runner on research-branch changes, validates their expected digest, and archives only the evidence documents; no user-side download is required. The local materializer itself remains offline. The materializer verifies every asset's pinned SHA-256/SHA-512 before any extraction; it also records a SHA-256 of each asset. It rejects missing/symlinked sources, unsafe absolute/traversal/member paths, case-insensitive collisions, suspicious member types, mismatched sizes/digests and excessive member/output bytes. Known symlink/hardlink archive entries are skipped and counted, never followed. A staging directory is atomically published only on success; an already existing output directory is rejected.
 
 Outputs:
 
@@ -44,7 +44,7 @@ Outputs:
 - \`files.jsonl\`: **all** extracted base and target paths, byte lengths, per-file SHA-256, role and path-scope flags. \`parserClassification\` is deliberately \`NOT_SCANNED\`; path eligibility is not a CLR/R2R classification.
 - \`audit.json\`: raw plan SHA-256, pairs SHA-256, complete file-inventory SHA-256, archive identities and extraction/link-skip counts. No performance or patch-size fields are populated.
 
-A future independent auditor must rerun extraction from the pinned archives and compare both inventory hashes and the signed/immutable CI run identity. Never silently replace a pinned digest after a vendor asset changes.
+An auditor must rerun extraction from the pinned archives and compare both inventory hashes and the signed/immutable CI run identity. Never silently replace a pinned digest after a vendor asset changes.
 
 ## Acceptance and next slice
 
