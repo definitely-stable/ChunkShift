@@ -120,6 +120,9 @@ jobs:
               assert pair["t0WarmPhysicalBytes"] >= pair["targetTreeManifestBytes"]
               assert pair["changedCount"] + pair["addedCount"] == len(pair["files"])
           PY
+          python3 benchmarks/scripts/verify_patch_tree_001_calibration.py \
+            --result "$EVIDENCE_DIR/calibration.json" \
+            --pairs "$CORPUS_ROOT/pairs.json"
           sha256sum "$EVIDENCE_DIR/layouts.json" "$EVIDENCE_DIR/calibration.json" \
             > "$EVIDENCE_DIR/SHA256SUMS"
 
