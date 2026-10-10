@@ -1,14 +1,17 @@
-name: PATCH-DOTNET-001 A1 corpus inventory
+name: PATCH-DOTNET-001 A1/A2 source classification
 
 # Only GitHub-hosted research inventory: no patch creation or decision evidence.
 on:
   push:
-    branches: [research/patch-dotnet-001-corpus-lock]
+    branches: [research/patch-dotnet-001-corpus-lock, research/patch-dotnet-001-a2-classification]
     paths:
       - .github/workflows/patch-dotnet-001-corpus.yml
       - benchmarks/scripts/patch_dotnet_001_corpus.py
       - benchmarks/scripts/test_patch_dotnet_001_corpus.py
       - docs/benchmarks/patch-dotnet-001/corpus-plan.v1.json
+      - docs/benchmarks/patch-dotnet-001/a2-classification-lock.v1.json
+      - benchmarks/scripts/patch_dotnet_001_a2_classify.py
+      - benchmarks/scripts/test_patch_dotnet_001_a2_classify.py
   workflow_dispatch:
 
 permissions:
@@ -109,5 +112,28 @@ jobs:
         with:
           name: patch-dotnet-001-a1-source-inventory
           path: artifacts/patch-dotnet-a1/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Classify all byte-verified A1 files (A2, no patch runs)
+        if: github.ref_name == 'research/patch-dotnet-001-a2-classification'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s benchmarks/scripts -p 'test_patch_dotnet_001_a2_classify.py' -v
+          python3 benchmarks/scripts/patch_dotnet_001_a2_classify.py \
+            --root "$RUNNER_TEMP/patch-dotnet-a1-inventory" \
+            --output "$RUNNER_TEMP/patch-dotnet-a2"
+          mkdir -p artifacts/patch-dotnet-a2
+          cp "$RUNNER_TEMP/patch-dotnet-a2/a2-files.jsonl" artifacts/patch-dotnet-a2/
+          cp "$RUNNER_TEMP/patch-dotnet-a2/a2-summary.json" artifacts/patch-dotnet-a2/
+          sha256sum artifacts/patch-dotnet-a2/* > artifacts/patch-dotnet-a2/SHA256SUMS
+          cat artifacts/patch-dotnet-a2/a2-summary.json
+
+      - name: Archive locked A2 structural evidence
+        if: success() && github.ref_name == 'research/patch-dotnet-001-a2-classification'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-dotnet-001-a2-classification
+          path: artifacts/patch-dotnet-a2/
           if-no-files-found: error
           retention-days: 90
