@@ -38,7 +38,7 @@ Other families are the future sealed holdout and must **not be measured** by thi
 With the exact corpus in \`$CORPUS\` already materialized by the established frozen recipe:
 
 \`\`\`sh
-python3 benchmarks/scripts/patch_tree_001_inventory.py --root "$CORPUS" --output "$RUN_DIR/layouts.json"
+python3 benchmarks/scripts/patch_tree_001_inventory.py --root "$CORPUS" --output "$RUN_DIR/layouts.json" --calibration-only
 dotnet run --project benchmarks/ChunkShift.Benchmarks -c Release -- \
   patch-lab tree-calibration --corpus "$CORPUS" \
   --inventory "$RUN_DIR/layouts.json" --output "$RUN_DIR/t0-t1-calibration.json"
