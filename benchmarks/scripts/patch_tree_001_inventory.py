@@ -135,7 +135,16 @@ def read_at(tree: Path, directory: dict, offset: int, length: int) -> bytes:
                 "virtual read has a gap")
         take = min(length - len(result),
                    entry["offset"] + entry["length"] - position)
-        path = tree / entry["path"]
+        # A layout loaded from disk is not automatically trustworthy: recheck
+        # the path and every ancestor before opening a positional source.
+        name = canonical_path(entry["path"])
+        require(tree.is_dir() and not tree.is_symlink(), "invalid virtual tree root")
+        parent = tree
+        for part in name.split("/")[:-1]:
+            parent = parent / part
+            require(stat.S_ISDIR(parent.lstat().st_mode),
+                    "symlink/special virtual source directory")
+        path = parent / name.split("/")[-1]
         require(stat.S_ISREG(path.lstat().st_mode), "virtual source not regular")
         with path.open("rb") as source:
             source.seek(position - entry["offset"])
