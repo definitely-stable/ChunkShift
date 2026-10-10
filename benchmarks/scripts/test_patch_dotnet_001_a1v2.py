@@ -101,11 +101,28 @@ class CalibrationExtensionTests(unittest.TestCase):
             self.assertTrue(first["noPatchBytesMeasured"])
             self.assertTrue(first["originalA2HoldoutUnchanged"])
             self.assertEqual(0, first["totalCalibrationStructuralD3Files"])
+            self.assertEqual(0, first["distinctCalibrationStructuralD3Files"])
             pairs = json.loads((folder / "one/v2-pairs.json").read_text())["pairs"]
             self.assertEqual(3, len(pairs))
             self.assertTrue(all(len(g["changed"]) == 1 for g in pairs))
             self.assertTrue(all(g["changed"][0]["evaluationContentDuplicate"] for g in pairs))
             self.assertEqual(a1.sha256_file(folder / "one/v2-files.jsonl"), first["filesSha256"])
+
+    def test_repeated_deployment_bytes_count_only_once_for_calibration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            doc = copy.deepcopy(self.plan)
+            sources, _ = self.fixture(doc, folder)
+            audit = v2.materialize(doc, a1.encode_json(doc), v2.validate(doc),
+                                   sources, folder / "without-eval-overlap", set())
+            self.assertEqual(3, audit["totalCalibrationStructuralD3Files"])
+            self.assertEqual(1, audit["distinctCalibrationStructuralD3Files"])
+            self.assertEqual(2048, audit["distinctCalibrationStructuralD3TargetBytes"])
+            pairs = json.loads((folder / "without-eval-overlap/v2-pairs.json").read_text())["pairs"]
+            self.assertEqual(1, sum(int(r["firstDistinctEligibleTarget"])
+                                    for p in pairs for r in p["changed"]))
+            self.assertTrue(all(r["structuralD3Potential"] for p in pairs
+                                for r in p["changed"]))
 
     def test_digest_mismatch_fails_before_any_output(self):
         with tempfile.TemporaryDirectory() as tmp:
