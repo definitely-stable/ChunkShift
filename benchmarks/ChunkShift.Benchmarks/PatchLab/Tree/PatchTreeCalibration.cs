@@ -215,7 +215,7 @@ internal static class PatchTreeCalibration
                     {
                         string staged = Path.Combine(temporary, "t0-result-" + rows.Count);
                         PatchApplyResult applied = await ChunkPatch.ApplyAsync(patch, baseManifest, baseContent, staged);
-                        if (!applied.IsApplied || await DigestFile(staged) != file.Sha256.ToLowerInvariant())
+                        if (!applied.IsApplied || !string.Equals(await DigestFile(staged), file.Sha256, StringComparison.OrdinalIgnoreCase))
                             throw new InvalidDataException("T0 exact reconstruction failure: " + pairLabel + "/" + file.Path);
                     }
                     t0Apply = sw.Elapsed.TotalSeconds;
@@ -225,7 +225,7 @@ internal static class PatchTreeCalibration
                     // Frozen T0 semantics: a newly added path without same-path
                     // old base is transported as exact raw full bytes.
                     sizeT0 = file.Length;
-                    if (await DigestFile(target) != file.Sha256.ToLowerInvariant())
+                    if (!string.Equals(await DigestFile(target), file.Sha256, StringComparison.OrdinalIgnoreCase))
                         throw new InvalidDataException("Added raw T0 target hash mismatch.");
                 }
 
@@ -245,7 +245,7 @@ internal static class PatchTreeCalibration
                     await using (var selfContainedPatch = File.OpenRead(standalone))
                     {
                         PatchApplyResult applied = await ChunkPatch.ApplyAsync(selfContainedPatch, staged);
-                        if (!applied.IsApplied || await DigestFile(staged) != file.Sha256.ToLowerInvariant())
+                        if (!applied.IsApplied || !string.Equals(await DigestFile(staged), file.Sha256, StringComparison.OrdinalIgnoreCase))
                             throw new InvalidDataException("T0S exact reconstruction failure: " + pairLabel + "/" + file.Path);
                     }
                 }
@@ -276,7 +276,7 @@ internal static class PatchTreeCalibration
                     oldTree.Position = 0;
                     string staged = Path.Combine(temporary, "t1-result-" + rows.Count);
                     PatchApplyResult applied = await ChunkPatch.ApplyAsync(patch, baseManifest, oldTree, staged);
-                    if (!applied.IsApplied || await DigestFile(staged) != file.Sha256.ToLowerInvariant())
+                    if (!applied.IsApplied || !string.Equals(await DigestFile(staged), file.Sha256, StringComparison.OrdinalIgnoreCase))
                         throw new InvalidDataException("T1 exact reconstruction failure: " + pairLabel + "/" + file.Path);
                 }
                 double t1Apply = watch.Elapsed.TotalSeconds;
@@ -296,7 +296,7 @@ internal static class PatchTreeCalibration
             // Full path map includes unchanged files; absence of removed paths
             // is represented by omission, and both lanes pay its exact UTF-8 bytes.
             // Modes, symlinks and empty directories were dropped by materialization.
-            byte[] targetManifest = JsonSerializer.SerializeToUtf8Bytes(new
+            byte[] targetTreeManifestBytes = JsonSerializer.SerializeToUtf8Bytes(new
             {
                 schema = "chunkshift.patch-tree-regular-files-reference.v1",
                 files = p.Target.Files.Select(f => new
@@ -317,13 +317,13 @@ internal static class PatchTreeCalibration
             long csmBytes = new FileInfo(oldCsmPath).Length;
             return new PairResult(p.Family, p.BaseVersion, p.TargetVersion,
                 oldInfo.ManifestId.ToString(), csmBytes, baseLayout.Length,
-                targetManifest.Length, changed.Count, added.Count, removed.Count,
+                targetTreeManifestBytes.Length, changed.Count, added.Count, removed.Count,
                 newFiles.Count - changed.Count - added.Count,
                 t0Bytes, t1Bytes,
-                SafeWholeUpdateTotal(t0Bytes, targetManifest.Length),
-                SafeWholeUpdateTotal(t0sBytes, targetManifest.Length),
-                SafeWholeUpdateTotal(t1Bytes, targetManifest.Length),
-                SafeWholeUpdateTotal(t1Bytes, targetManifest.Length, csmBytes, baseLayout.Length),
+                SafeWholeUpdateTotal(t0Bytes, targetTreeManifestBytes.Length),
+                SafeWholeUpdateTotal(t0sBytes, targetTreeManifestBytes.Length),
+                SafeWholeUpdateTotal(t1Bytes, targetTreeManifestBytes.Length),
+                SafeWholeUpdateTotal(t1Bytes, targetTreeManifestBytes.Length, csmBytes, baseLayout.Length),
                 [.. rows]);
         }
         finally
