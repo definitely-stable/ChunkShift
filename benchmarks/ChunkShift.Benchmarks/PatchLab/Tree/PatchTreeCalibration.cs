@@ -64,20 +64,22 @@ internal static class PatchTreeCalibration
 
         using JsonDocument pairs = JsonDocument.Parse(File.ReadAllBytes(pairsPath));
         JsonElement originalPairs = pairs.RootElement.GetProperty("pairs");
-        if (originalPairs.GetArrayLength() != document.PairCount)
-            throw new InvalidDataException("Frozen pair population mismatch.");
+        JsonElement[] calibrationPairs = originalPairs.EnumerateArray()
+            .Where(p => IsCalibrationFamily(p.GetProperty("family").GetString()))
+            .ToArray();
+        if (calibrationPairs.Length == 0 || calibrationPairs.Length != document.PairCount)
+            throw new InvalidDataException("Frozen calibration pair population mismatch.");
 
         var pairResults = new List<PairResult>();
-        for (int index = 0; index < document.PairCount; index++)
+        for (int index = 0; index < calibrationPairs.Length; index++)
         {
             Pair current = document.Pairs[index];
-            JsonElement original = originalPairs[index];
+            JsonElement original = calibrationPairs[index];
             if (original.GetProperty("family").GetString() != current.Family ||
                 original.GetProperty("base").GetString() != current.BaseVersion ||
                 original.GetProperty("target").GetString() != current.TargetVersion)
-                throw new InvalidDataException("Inventory/pairs alignment mismatch.");
-            if (current.DatasetRole == "calibration")
-                pairResults.Add(RunPairAsync(root, current, original).GetAwaiter().GetResult());
+                throw new InvalidDataException("Inventory/calibration pairs alignment mismatch.");
+            pairResults.Add(RunPairAsync(root, current, original).GetAwaiter().GetResult());
         }
 
         if (pairResults.Count == 0)
@@ -99,13 +101,7 @@ internal static class PatchTreeCalibration
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (Pair p in doc.Pairs)
         {
-            string expectedRole = p.Family switch
-            {
-                "dotnet-aspnetcore-win-x64" or "dotnet-runtime-linux-arm64" => "calibration",
-                "node-win-x64" or "node-linux-x64" or "tzdata" or "chunkshift-source" => "holdout",
-                _ => throw new InvalidDataException("Unknown frozen family.")
-            };
-            if (p.DatasetRole != expectedRole ||
+            if (!IsCalibrationFamily(p.Family) || p.DatasetRole != "calibration" ||
                 !seen.Add(p.Family + "\0" + p.BaseVersion + "\0" + p.TargetVersion))
                 throw new InvalidDataException("Unknown role or duplicate pair.");
             foreach (Layout source in new[] { p.Base, p.Target })
@@ -118,6 +114,9 @@ internal static class PatchTreeCalibration
             }
         }
     }
+
+    private static bool IsCalibrationFamily(string? family) =>
+        family is "dotnet-aspnetcore-win-x64" or "dotnet-runtime-linux-arm64";
 
     internal static long SafeWholeUpdateTotal(long payloadBytes, long treeMetadataBytes,
         long? baseCsmBytes = null, long? baseLayoutBytes = null)
