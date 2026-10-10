@@ -19,7 +19,7 @@ Source-of-truth JSON: [calibration-extension-v2.v1.json](patch-dotnet-001/calibr
 | `ps-linux-fdd` | Linux x64 framework-dependent tar.gz | 7.5.3 → 7.5.4 | 1 |
 | `ps-win-sc` | Windows x64 self-contained ZIP | 7.5.3 → 7.5.4 | 1 |
 
-**Correlation caveat:** these are **three deployment strata of one product and one version transition**, not three statistically independent release/version families. They are deliberately calibration-only. The Windows self-contained files may include shared framework assemblies also present in other .NET distributions; file-hash duplicate exclusion and final semantic overlap review are mandatory.
+**Correlation caveat:** these are **three deployment strata of one product and one version transition**, not three statistically independent release/version families. In addition to raw eligible counts, the inventory reports **distinct eligible target SHA-256 counts and bytes**; a DLL repeated in multiple PowerShell distributions contributes at most once to effective calibration coverage. Raw per-deployment counts and all changed target bytes remain visible without suppression. They are deliberately calibration-only. The Windows self-contained files may include shared framework assemblies also present in other .NET distributions; file-hash duplicate exclusion and final semantic overlap review are mandatory.
 
 ## Exact eligibility and provenance contract
 
