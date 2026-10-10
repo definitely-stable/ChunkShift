@@ -107,6 +107,26 @@ class TreeFoundationTests(unittest.TestCase):
         with self.assertRaises((FileNotFoundError, ValueError)):
             mod.read_at(self.old, data, 0, 1)
 
+    def test_tampered_virtual_layout_path_is_rejected(self):
+        self.put(self.old, "a", b"A")
+        record = mod.layout(self.old)
+        record["files"][0]["path"] = "../../outside"
+        with self.assertRaisesRegex(ValueError, "ambiguous path"):
+            mod.read_at(self.old, record, 0, 1)
+
+    def test_virtual_reader_refuses_symlink_ancestor_after_inventory(self):
+        self.put(self.old, "nested/x", b"X")
+        record = mod.layout(self.old)
+        real = self.old / "nested"
+        replacement = self.old / "saved"
+        real.rename(replacement)
+        try:
+            real.symlink_to(replacement, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            self.skipTest("symlinks unavailable on runner")
+        with self.assertRaisesRegex(ValueError, "symlink/special virtual source directory"):
+            mod.read_at(self.old, record, 0, 1)
+
     def test_symlink_file_rejected(self):
         p = self.put(self.old, "real", b"A")
         try:
