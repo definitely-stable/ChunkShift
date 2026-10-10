@@ -82,7 +82,8 @@ jobs:
           echo "$PAIRS_SHA256  $RUNNER_TEMP/patch-corpus/pairs.json" | sha256sum --check
           python3 benchmarks/scripts/patch_tree_001_inventory.py \
             --root "$RUNNER_TEMP/patch-corpus" \
-            --output "$RUNNER_TEMP/patch-tree-evidence/layouts.json"
+            --output "$RUNNER_TEMP/patch-tree-evidence/layouts.json" \
+            --calibration-only
 
       - name: Build Release production SDK and calibration evaluator
         shell: bash
