@@ -125,10 +125,10 @@ def read_at(tree: Path, directory: dict, offset: int, length: int) -> bytes:
         return b""
     entries = directory["files"]
     ends = [item["offset"] + item["length"] for item in entries]
-    index = bisect.bisect_right(ends, offset)
     result = bytearray()
     position = offset
     while len(result) < length:
+        index = bisect.bisect_right(ends, position)
         require(index < len(entries), "virtual read truncated")
         entry = entries[index]
         require(entry["offset"] <= position < entry["offset"] + entry["length"],
@@ -143,7 +143,6 @@ def read_at(tree: Path, directory: dict, offset: int, length: int) -> bytes:
         require(len(data) == take, "short virtual source read")
         result.extend(data)
         position += take
-        index += 1
     return bytes(result)
 
 
