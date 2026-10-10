@@ -169,6 +169,38 @@ internal static class PatchTreeCalibration
                     .ToHashSet(StringComparer.Ordinal).SetEquals(changed))
                 throw new InvalidDataException("Frozen changed/added/removed names do not match verified trees.");
 
+            foreach (JsonElement row in original.GetProperty("changed").EnumerateArray())
+            {
+                string path = row.GetProperty("path").GetString()!;
+                if (!oldFiles.TryGetValue(path, out VerifiedTreeStream.TreeFile previous) ||
+                    !newFiles.TryGetValue(path, out VerifiedTreeStream.TreeFile next) ||
+                    previous.Length != row.GetProperty("baseSize").GetInt64() ||
+                    next.Length != row.GetProperty("targetSize").GetInt64() ||
+                    !string.Equals(previous.Sha256, row.GetProperty("baseSha256").GetString(),
+                        StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(next.Sha256, row.GetProperty("targetSha256").GetString(),
+                        StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("Frozen changed-file content identity mismatch.");
+            }
+
+            foreach (JsonElement row in original.GetProperty("added").EnumerateArray())
+            {
+                string path = row.GetProperty("path").GetString()!;
+                if (!newFiles.TryGetValue(path, out VerifiedTreeStream.TreeFile next) ||
+                    next.Length != row.GetProperty("size").GetInt64() ||
+                    !string.Equals(next.Sha256, row.GetProperty("sha256").GetString(),
+                        StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("Frozen added-file content identity mismatch.");
+            }
+
+            string[] unchangedPaths = newFiles.Keys.Intersect(oldFiles.Keys)
+                .Where(path => !changed.Contains(path)).ToArray();
+            if (unchangedPaths.Length != original.GetProperty("identicalFiles").GetInt32() ||
+                unchangedPaths.Sum(path => newFiles[path].Length) !=
+                    original.GetProperty("identicalBytes").GetInt64())
+                throw new InvalidDataException("Frozen unchanged-file population mismatch.");
+
+
             var rows = new List<Row>();
             long t0Bytes = 0, t0sBytes = 0, t1Bytes = 0;
             foreach (VerifiedTreeStream.TreeFile file in p.Target.Files)
