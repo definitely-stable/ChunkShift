@@ -33,9 +33,17 @@ public sealed class PatchTreeCalibrationTests
 
             using JsonDocument original = JsonDocument.Parse(JsonSerializer.Serialize(new
             {
-                changed = new[] { new { path = "changed" } },
-                added = new[] { new { path = "renamed.bin" } },
+                changed = new[] { new { path = "changed",
+                    baseSize = old.Files.Single(x => x.Path == "changed").Length,
+                    baseSha256 = old.Files.Single(x => x.Path == "changed").Sha256,
+                    targetSize = target.Files.Single(x => x.Path == "changed").Length,
+                    targetSha256 = target.Files.Single(x => x.Path == "changed").Sha256 } },
+                added = new[] { new { path = "renamed.bin",
+                    size = moved.LongLength,
+                    sha256 = target.Files.Single(x => x.Path == "renamed.bin").Sha256 } },
                 removed = new[] { "original.bin" },
+                identicalFiles = 1,
+                identicalBytes = "unchanged".Length,
             }));
             PatchTreeCalibration.PairResult actual =
                 await PatchTreeCalibration.RunPairAsync(root, pair, original.RootElement);
