@@ -48,6 +48,8 @@ public sealed class PatchTreeCalibrationTests
             Assert.Equal(2, actual.Files.Select(f => f.Path).Distinct().Count());
             Assert.Equal(actual.T0PayloadBytes + actual.TargetTreeManifestBytes,
                 actual.T0WarmPhysicalBytes);
+            Assert.Equal(actual.Files.Sum(row => row.T0SBytes) + actual.TargetTreeManifestBytes,
+                actual.T0SPhysicalBytes);
             Assert.Equal(actual.T1PayloadBytes + actual.TargetTreeManifestBytes,
                 actual.T1WarmPhysicalBytes);
             Assert.Equal(actual.T1WarmPhysicalBytes + actual.OldTreeCsmBytes + actual.BaseLayoutBytes,
@@ -60,6 +62,7 @@ public sealed class PatchTreeCalibrationTests
             });
             Assert.Equal(moved.LongLength,
                 actual.Files.Single(x => x.Path == "renamed.bin").T0Bytes);
+            Assert.True(actual.Files.Single(x => x.Path == "renamed.bin").T0SBytes > 0);
             Assert.True(actual.Files.Sum(f => f.T1BaseReads) > 0);
             Assert.True(actual.Files.Sum(f => f.T1BaseBytesRead) > 0);
         }
