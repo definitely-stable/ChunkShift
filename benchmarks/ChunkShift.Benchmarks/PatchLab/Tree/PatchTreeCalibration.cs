@@ -30,7 +30,7 @@ internal static class PatchTreeCalibration
         string LayoutSha256, VerifiedTreeStream.TreeFile[] Files);
 
     internal sealed record Row(string Family, string BaseVersion, string TargetVersion,
-        string Path, string Kind, long TargetBytes, long T0Bytes, long T1Bytes,
+        string Path, string Kind, long TargetBytes, long T0Bytes, long T0SBytes, long T1Bytes,
         string? T0PatchSha256, string T1PatchSha256, string TargetSha256,
         double T0CreateSeconds, double T1CreateSeconds, double T0ApplySeconds,
         double T1ApplySeconds, long T1BaseReads, long T1BaseBytesRead, long T1BaseSeeks);
@@ -39,7 +39,7 @@ internal static class PatchTreeCalibration
         string OldTreeManifestId, long OldTreeCsmBytes, long BaseLayoutBytes,
         long TargetTreeManifestBytes, int ChangedCount, int AddedCount, int RemovedCount,
         int UnchangedCount, long T0PayloadBytes, long T1PayloadBytes,
-        long T0WarmPhysicalBytes, long T1WarmPhysicalBytes, long T1ColdPhysicalBytes,
+        long T0WarmPhysicalBytes, long T0SPhysicalBytes, long T1WarmPhysicalBytes, long T1ColdPhysicalBytes,
         Row[] Files);
 
     internal sealed record Result(string Schema, string Status, string PairsSha256,
@@ -171,7 +171,7 @@ internal static class PatchTreeCalibration
                 throw new InvalidDataException("Frozen changed/added/removed names do not match verified trees.");
 
             var rows = new List<Row>();
-            long t0Bytes = 0, t1Bytes = 0;
+            long t0Bytes = 0, t0sBytes = 0, t1Bytes = 0;
             foreach (VerifiedTreeStream.TreeFile file in p.Target.Files)
             {
                 if (!changed.Contains(file.Path) && !added.Contains(file.Path))
@@ -229,6 +229,27 @@ internal static class PatchTreeCalibration
                         throw new InvalidDataException("Added raw T0 target hash mismatch.");
                 }
 
+                // T0S isolates generic self-contained compression of added bytes
+                // from any actual cross-file reuse. It is informative, not a
+                // replacement for the frozen raw-added T0 baseline.
+                long sizeT0S = sizeT0;
+                if (kind == "added")
+                {
+                    string standalone = Path.Combine(temporary, "t0s-" + rows.Count + ".csp");
+                    await using (var targetManifest = File.OpenRead(targetCsm))
+                    await using (var targetContent = File.OpenRead(target))
+                    await using (var selfContainedPatch = File.Create(standalone))
+                        _ = await ChunkPatch.CreateAsync(targetManifest, targetContent, selfContainedPatch);
+                    sizeT0S = new FileInfo(standalone).Length;
+                    string staged = Path.Combine(temporary, "t0s-result-" + rows.Count);
+                    await using (var selfContainedPatch = File.OpenRead(standalone))
+                    {
+                        PatchApplyResult applied = await ChunkPatch.ApplyAsync(selfContainedPatch, staged);
+                        if (!applied.IsApplied || await DigestFile(staged) != file.Sha256.ToLowerInvariant())
+                            throw new InvalidDataException("T0S exact reconstruction failure: " + pairLabel + "/" + file.Path);
+                    }
+                }
+
                 oldTree.Position = 0;
                 long baseReadsBefore = oldTree.ReadCalls;
                 long baseBytesBefore = oldTree.BytesRead;
@@ -261,9 +282,10 @@ internal static class PatchTreeCalibration
                 double t1Apply = watch.Elapsed.TotalSeconds;
 
                 t0Bytes = checked(t0Bytes + sizeT0);
+                t0sBytes = checked(t0sBytes + sizeT0S);
                 t1Bytes = checked(t1Bytes + sizeT1);
                 rows.Add(new Row(p.Family, p.BaseVersion, p.TargetVersion,
-                    file.Path, kind, file.Length, sizeT0, sizeT1,
+                    file.Path, kind, file.Length, sizeT0, sizeT0S, sizeT1,
                     t0Sha, t1Sha, file.Sha256.ToLowerInvariant(), t0Create, t1Create,
                     t0Apply, t1Apply,
                     oldTree.ReadCalls - baseReadsBefore,
@@ -299,6 +321,7 @@ internal static class PatchTreeCalibration
                 newFiles.Count - changed.Count - added.Count,
                 t0Bytes, t1Bytes,
                 SafeWholeUpdateTotal(t0Bytes, targetManifest.Length),
+                SafeWholeUpdateTotal(t0sBytes, targetManifest.Length),
                 SafeWholeUpdateTotal(t1Bytes, targetManifest.Length),
                 SafeWholeUpdateTotal(t1Bytes, targetManifest.Length, csmBytes, baseLayout.Length),
                 [.. rows]);
