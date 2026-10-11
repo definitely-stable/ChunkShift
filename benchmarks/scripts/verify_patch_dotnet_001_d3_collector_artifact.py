@@ -32,6 +32,11 @@ def audit(blob: Path, pairs_path: Path) -> dict:
     found = {}
     for line in ledger:
         digest, separator, name = line.partition("  ")
+        # sha256sum is invoked from the repository root, but upload-artifact
+        # flattens the common output directory into the ZIP root.
+        prefix = "artifacts/patch-dotnet-d3/"
+        if name.startswith(prefix):
+            name = name[len(prefix):]
         oracle.demand(separator and name in EXPECTED - {"SHA256SUMS"} and
                       name not in found and
                       len(digest) == 64 and all(c in "0123456789abcdef" for c in digest),
