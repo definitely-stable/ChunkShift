@@ -64,12 +64,21 @@ public sealed class PatchTreeCalibrationTests
                 actual.T1WarmPhysicalBytes);
             Assert.Equal(actual.T1WarmPhysicalBytes + actual.OldTreeCsmBytes + actual.BaseLayoutBytes,
                 actual.T1ColdPhysicalBytes);
+            Assert.True(actual.OldTreePreflightSeconds >= 0);
+            Assert.True(actual.TargetTreePreflightSeconds >= 0);
+            Assert.True(actual.OldTreeCsmCreateSeconds >= 0);
+            Assert.True(actual.OldTreeCsmVerifySeconds >= 0);
             Assert.All(actual.Files, f =>
             {
                 Assert.True(f.T0Bytes >= 0);
                 Assert.True(f.T1Bytes > 0);
                 Assert.Equal(64, f.T1PatchSha256.Length);
+                Assert.True(f.TargetCsmCreateSeconds >= 0);
+                Assert.True(f.T0BaseCsmCreateSeconds >= 0);
+                Assert.True(f.T0SCreateSeconds >= 0);
+                Assert.True(f.T0SApplySeconds >= 0);
             });
+            Assert.True(actual.Files.Single(x => x.Path == "renamed.bin").T0SCreateSeconds >= 0);
             Assert.Equal(moved.LongLength,
                 actual.Files.Single(x => x.Path == "renamed.bin").T0Bytes);
             Assert.True(actual.Files.Single(x => x.Path == "renamed.bin").T0SBytes > 0);
