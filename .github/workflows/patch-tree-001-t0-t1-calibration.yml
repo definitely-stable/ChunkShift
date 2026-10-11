@@ -123,8 +123,38 @@ jobs:
           python3 benchmarks/scripts/verify_patch_tree_001_calibration.py \
             --result "$EVIDENCE_DIR/calibration.json" \
             --pairs "$CORPUS_ROOT/pairs.json"
-          sha256sum "$EVIDENCE_DIR/layouts.json" "$EVIDENCE_DIR/calibration.json" \
-            > "$EVIDENCE_DIR/SHA256SUMS"
+          python3 - "$EVIDENCE_DIR" <<'PY'
+          import json
+          import os
+          import pathlib
+          import subprocess
+          import sys
+
+          evidence = pathlib.Path(sys.argv[1])
+          provenance = {
+              "schema": "chunkshift.patch-tree-calibration-provenance.v1",
+              "status": "CALIBRATION_ONLY_NOT_DECISION",
+              "commit": subprocess.check_output(
+                  ["git", "rev-parse", "HEAD"], text=True).strip(),
+              "runId": os.environ["GITHUB_RUN_ID"],
+              "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "gitRef": os.environ["GITHUB_REF"],
+              "runnerEnvironment": os.environ["RUNNER_ENVIRONMENT"],
+              "runnerOS": os.environ["RUNNER_OS"],
+              "runnerArch": os.environ["RUNNER_ARCH"],
+              "dotnetSdk": subprocess.check_output(
+                  ["dotnet", "--version"], text=True).strip(),
+              "pairsSha256": os.environ["PAIRS_SHA256"],
+          }
+          (evidence / "provenance.json").write_text(
+              json.dumps(provenance, sort_keys=True, indent=2) + "\n",
+              encoding="utf-8")
+          PY
+          (
+            cd "$EVIDENCE_DIR"
+            sha256sum layouts.json calibration.json provenance.json > SHA256SUMS
+            sha256sum --check SHA256SUMS
+          )
 
       - name: Archive authentic calibration only
         if: success()
