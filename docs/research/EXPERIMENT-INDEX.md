@@ -14,7 +14,7 @@ This table is the human-readable research index. Machine-readable experiment def
 | CORE011-SCAN-004 | Core 0.1.1 | #153 | One-read-ahead overlap | PLANNED | — |
 | CORE011-SCAN-005 | Core 0.1.1 | #153 | Pooled raw-content buffer clearing/hygiene | PLANNED | — |
 | CORE011-SCAN-006 | Core 0.1.1 | #153, #127 | Bounded cross-chunk hash parallelism | PLANNED | — |
-| CORE011-CSM-001 | Core 0.1.1 | #154 | CSM create/read/verify component/Amdahl baseline | PLANNED | — (benchmark definition: [CORE011-G1-BASELINE-PROTOCOL](../benchmarks/CORE011-G1-BASELINE-PROTOCOL.md)) |
+| CORE011-CSM-001 | Core 0.1.1 | #154 | CSM create/read/verify component/Amdahl baseline | RUNNING | [GC/concurrency pilot](results/CORE011-CSM-001-GC-20261011-001.md) (non-decision); [protocol](../benchmarks/CORE011-CSM-001-GC-PROTOCOL.md) |
 | CORE011-CSM-002 | Core 0.1.1 | #154 | Batched ManifestId logical-record hashing | PLANNED | — |
 | CORE011-CSM-003 | Core 0.1.1 | #154 | CBLK double-decode vs decode-once cache | PLANNED | — |
 | CORE011-CSM-004 | Core 0.1.1 | #154 | CBLK/encoder LOH allocation vs bounded pooling | PLANNED | — |

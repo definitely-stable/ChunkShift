@@ -57,7 +57,7 @@ Record separate process CPU time, RSS/peak working set, GC Gen0/1/2, source read
 
 ## 5. Tracking and next work
 
-- Benchmark/test **implementation is not a RunId**. `CORE011-CSM-001` and `CORE011-SCAN-001` remain `PLANNED` until recorded measurements.
+- Benchmark/test implementation alone is not a RunId. `CORE011-SCAN-001` has hosted source/copy evidence and remains `RUNNING`; `CORE011-CSM-001` now has its first 12-case, 24-round [GC/concurrency pilot](../research/results/CORE011-CSM-001-GC-20261011-001.md) and remains `RUNNING` without an optimization verdict. Both still need matched controlled large-workload evidence.
 - Next isolated tasks: a launch/oracle artifact carrying exact commit, environment and sample data; large-block/LOH concurrent CSM memory probes; a counted I/O wrapper for fragmented/FileStream paths; and the full scanner source-shape baseline under #153.
 - Preserve `RunId`, `EvidenceId`, raw samples and decision in [research registry](../research/README.md) when measurement occurs.
 - Concurrent Patching delivery remains independent.
