@@ -7,6 +7,8 @@ namespace ChunkShift.Benchmarks.Tests.PatchLab;
 
 public sealed class PatchTreeCalibrationTests
 {
+    private static readonly string[] RemovedPaths = ["original.bin"];
+
     [Fact]
     public async Task T0T1DiagnosticCountsFullTreeAndReconstructsEveryTouchedFile()
     {
@@ -41,7 +43,7 @@ public sealed class PatchTreeCalibrationTests
                 added = new[] { new { path = "renamed.bin",
                     size = moved.LongLength,
                     sha256 = target.Files.Single(x => x.Path == "renamed.bin").Sha256 } },
-                removed = new[] { "original.bin" },
+                removed = RemovedPaths,
                 identicalFiles = 1,
                 identicalBytes = "unchanged".Length,
             }));
