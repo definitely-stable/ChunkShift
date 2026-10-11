@@ -7,7 +7,7 @@ public sealed class Core011CsmBaselineBenchmarksTests
     [InlineData("blake3", true)]
     [InlineData("sha256", false)]
     [InlineData("sha256", true)]
-    public async Task AllPublicLanes_AgreeOnChunkCountAndVerifyExactFixture(
+    public async Task AllPublicLanesAgreeOnChunkCountAndVerifyExactFixture(
         string suite, bool includeBlockIndex)
     {
         // Smoke uses 1 MiB so CI does not run large end-to-end benchmarks.
@@ -29,7 +29,7 @@ public sealed class Core011CsmBaselineBenchmarksTests
     }
 
     [Fact]
-    public void UnsupportedSuite_IsRejectedBeforeMeasuring()
+    public void UnsupportedSuiteIsRejectedBeforeMeasuring()
     {
         var benchmark = new Core011CsmBaselineBenchmarks
         {
@@ -43,7 +43,7 @@ public sealed class Core011CsmBaselineBenchmarksTests
     [Theory]
     [InlineData(0)]
     [InlineData(385)]
-    public void InvalidDataSize_IsRejectedBeforeMeasuring(int sizeMiB)
+    public void InvalidDataSizeIsRejectedBeforeMeasuring(int sizeMiB)
     {
         var benchmark = new Core011CsmBaselineBenchmarks
         {
