@@ -1,0 +1,55 @@
+name: PATCH-DOTNET-001 D3-O oracle contract
+
+# Strict synthetic and frozen-membership verification; NEVER actual D3 patch decision.
+on:
+  push:
+    branches: [research/patch-dotnet-001-d3-oracle]
+    paths:
+      - .github/workflows/patch-dotnet-001-d3-oracle.yml
+      - benchmarks/scripts/patch_dotnet_001_d3_oracle.py
+      - benchmarks/scripts/test_patch_dotnet_001_d3_oracle.py
+      - docs/benchmarks/PATCH-DOTNET-001-D3-UPPER-BOUND-PROTOCOL.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  oracle-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: benchmarks/scripts
+    steps:
+      - name: Checkout immutable oracle implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Compile and exercise adversarial oracle tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile benchmarks/scripts/patch_dotnet_001_d3_oracle.py
+          python3 -m unittest discover -s benchmarks/scripts -p 'test_patch_dotnet_001_d3_oracle.py' -v
+      - name: Fetch actual pinned A1-v2 pairs evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: patch-dotnet-001-a1v2-calibration-inventory
+          repository: definitely-stable/ChunkShift
+          run-id: 38119011975
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/d3-oracle-a1v2
+      - name: Independently verify immutable 1,242-row source membership
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib
+          import os
+          from patch_dotnet_001_d3_oracle import load_locked_pairs
+          path = pathlib.Path(os.environ["RUNNER_TEMP"]) / "d3-oracle-a1v2/v2-pairs.json"
+          doc = load_locked_pairs(path)
+          rows = sum(len(p["changed"]) for p in doc["pairs"])
+          if rows != 1242:
+              raise ValueError(f"expected frozen 1242 changed rows, got {rows}")
+          print(f"PINNED_A1V2_PAIRS_SHA_VERIFIED changed={rows}")
+          PY
