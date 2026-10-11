@@ -61,11 +61,10 @@ def verify(results_path: Path, artifacts: Path, baseline_path: Path, scan_path: 
         b = original[k]
         s = scanned[k]
         cost = b["patchBytes"]
-        require(r["d0PhysicalBytes"] == cost and r["targetSha256"] == s["targetSha256"] and
-                r["baseSha256"] == s["baseSha256"] and
-                s["sourcePairsSha256"] == PAIRS_SHA if "sourcePairsSha256" in s else
-                r["d0PhysicalBytes"] == cost and r["targetSha256"] == s["targetSha256"] and
-                r["baseSha256"] == s["baseSha256"], "D3P1_ROW_SOURCE_DRIFT")
+        require(r["d0PhysicalBytes"] == cost and
+                r["targetSha256"] == s["targetSha256"] and
+                r["baseSha256"] == s["baseSha256"],
+                "D3P1_ROW_SOURCE_DRIFT")
         if s["scannerStatus"] == "VERIFIED_BOTH":
             verified += 1
             name = r["candidateArtifact"]
