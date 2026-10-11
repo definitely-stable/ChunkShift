@@ -155,11 +155,13 @@ jobs:
             --run-id "PATCH-TREE-001/CAL-$RUN_DATE-$GITHUB_RUN_ID"
           python3 - "$EVIDENCE_DIR/calibration.json" <<'PY'
           import json
+          import os
           import sys
           doc = json.load(open(sys.argv[1], encoding="utf-8"))
           assert doc["schema"] == "chunkshift.patch-tree-t0-t1-calibration.v1"
           assert doc["status"] == "CALIBRATION_ONLY_NOT_DECISION"
-          assert doc["pairsSha256"] == "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537bfb910fd22dd"
+          if doc["pairsSha256"] != os.environ["PAIRS_SHA256"]:
+              raise SystemExit("calibration output pairsSha256 does not match the locked SHA-256")
           assert len(doc["pairs"]) > 0
           for pair in doc["pairs"]:
               assert pair["family"] in ("dotnet-aspnetcore-win-x64", "dotnet-runtime-linux-arm64")
@@ -205,6 +207,25 @@ jobs:
             sha256sum original-pairs.json layouts.json calibration.json provenance.json > SHA256SUMS
             sha256sum --check SHA256SUMS
           )
+
+      # Preserve post-failure raw evidence for diagnosis only, even when a
+      # structural verifier rejects it. Never relabel this as accepted evidence.
+      - name: Mark failed calibration evidence as UNVERIFIED
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/patch-tree-evidence"
+          printf 'UNVERIFIED_NOT_DECISION\nGitHubRunId=%s\nGitRef=%s\nGitSha=%s\n' "$GITHUB_RUN_ID" "$GITHUB_REF" "$GITHUB_SHA" > "$RUNNER_TEMP/patch-tree-evidence/UNVERIFIED-NOT-DECISION.txt"
+
+      - name: Archive failed calibration diagnostics (never decision evidence)
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-001-calibration-UNVERIFIED-diagnostics
+          path: ${{ runner.temp }}/patch-tree-evidence/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Archive authentic calibration only
         if: success()
