@@ -86,7 +86,7 @@ public sealed class PatchTreeCalibrationTests
     public void FrozenEnvelopeRejectsChangedDigestRoleAndInvalidLayout()
     {
         var empty = new PatchTreeCalibration.Layout("chunkshift.patch-tree-layout.v1",
-            "NFC UTF-8 byte order", 0, 0, new string('a', 64), []);
+            "NFC UTF-8 byte order", 0, 0, PatchTreeCalibration.ComputeLayoutSha256([]), []);
         var p = new PatchTreeCalibration.Pair("dotnet-aspnetcore-win-x64", "old", "new",
             "calibration", empty, empty);
         var valid = new PatchTreeCalibration.Input("chunkshift.patch-tree-inventory.v1",
@@ -103,6 +103,12 @@ public sealed class PatchTreeCalibrationTests
             PatchTreeCalibration.Validate(valid with { Pairs = [p with { Base = empty with { FileCount = 1 } }] }));
         Assert.Throws<InvalidDataException>(() =>
             PatchTreeCalibration.Validate(valid with { PairCount = 2 }));
+        Assert.Throws<InvalidDataException>(() =>
+            PatchTreeCalibration.Validate(valid with { Pairs = [p with {
+                Base = empty with { LayoutSha256 = new string('a', 64) } }] }));
+        Assert.Throws<InvalidDataException>(() =>
+            PatchTreeCalibration.Validate(valid with { Pairs = [p with {
+                Target = empty with { TotalBytes = 1 } }] }));
     }
 
     [Fact]
@@ -146,7 +152,7 @@ public sealed class PatchTreeCalibrationTests
             offset += content.LongLength;
         }
         return new PatchTreeCalibration.Layout("chunkshift.patch-tree-layout.v1",
-            "NFC UTF-8 byte order", entries.Count, offset, new string('a', 64),
-            [.. entries]);
+            "NFC UTF-8 byte order", entries.Count, offset,
+            PatchTreeCalibration.ComputeLayoutSha256(entries), [.. entries]);
     }
 }
