@@ -37,11 +37,12 @@ jobs:
           import re
           import subprocess
 
-          match = re.fullmatch(r"/tree-calibration (20[0-9]{6})",
+          match = re.fullmatch(r"/tree-calibration (20[0-9]{6}) ([1-9][0-9]{5,18})",
                                os.environ["OPERATOR_COMMAND"])
           if match is None:
               raise SystemExit("Unexpected PATCH-TREE operator command")
           date = match.group(1)
+          pairs_run_id = match.group(2)
           dt.datetime.strptime(date, "%Y%m%d")
           repository = os.environ["GITHUB_REPOSITORY"]
           source = os.environ["GITHUB_SHA"]
@@ -77,11 +78,13 @@ jobs:
               ["gh", "api", "--method", "POST",
                "repos/" + repository + "/actions/workflows/" + workflow +
                "/dispatches", "-f", "ref=main",
-               "-f", "inputs[run-date]=" + date],
+               "-f", "inputs[run-date]=" + date,
+               "-f", "inputs[pairs-run-id]=" + pairs_run_id],
               check=True)
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as log:
               log.write("PATCH-TREE-001 calibration dispatch submitted\n"
                         "Source: " + source + "\n"
                         "Date: " + date + "\n"
+                        "Original pairs recovery run ID: " + pairs_run_id + "\n"
                         "Submission is not a size verdict.\n")
           PY
