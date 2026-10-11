@@ -1,0 +1,75 @@
+name: PATCH-TREE-001 original pairs operator
+
+# Owner-authorized one-time recovery of ORIGINAL frozen pairs metadata only.
+# It does not dispatch or run a candidate comparison or holdout evaluation.
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: patch-tree-001-pairs-reference-operator
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: >-
+      github.event.issue.number == 184 &&
+      github.event.issue.pull_request == null &&
+      github.event.comment.user.id == 271974079 &&
+      github.event.comment.body == '/tree-pairs-lock'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Refuse unexpected caller, history or main SHA drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          source = os.environ["GITHUB_SHA"]
+          if repo != "definitely-stable/ChunkShift":
+              raise SystemExit("Repository identity mismatch")
+
+          def api(path):
+              return json.loads(subprocess.check_output(
+                  ["gh", "api", "repos/" + repo + "/" + path], text=True))
+
+          def current_main():
+              return api("branches/main")["commit"]["sha"]
+
+          if current_main() != source:
+              raise SystemExit("Main drifted since source comment")
+
+          workflow = "patch-tree-001-pairs-reference.yml"
+          previous = api("actions/workflows/" + workflow +
+                         "/runs?event=workflow_dispatch&per_page=100")
+          if int(previous.get("total_count", 0)) >= 100:
+              raise SystemExit("History exceeds audited recovery-run enumeration")
+          if any(run.get("status") != "completed" or
+                 run.get("conclusion") == "success"
+                 for run in previous.get("workflow_runs", [])):
+              raise SystemExit("Recovery already successful or active")
+
+          if current_main() != source:
+              raise SystemExit("Main advanced before metadata dispatch")
+
+          subprocess.run(["gh", "api", "--method", "POST",
+                          "repos/" + repo + "/actions/workflows/" + workflow +
+                          "/dispatches", "-f", "ref=main"], check=True)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a",
+                    encoding="utf-8") as summary:
+              summary.write("Original frozen pairs metadata recovery dispatched.\n"
+                            "Source: " + source + "\n"
+                            "No patch measurement or held-out candidate run.\n")
+          PY
