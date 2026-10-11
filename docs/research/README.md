@@ -1,6 +1,8 @@
 # Research and experiment evidence
 
 Status: Active
+
+Core 0.1.x optimization sequencing: [CORE-0.1-RESEARCH-ROADMAP.md](CORE-0.1-RESEARCH-ROADMAP.md) (owner #152; no default/API change implied). The Patching research roadmap is [PATCHING-RND-ROADMAP.md](PATCHING-RND-ROADMAP.md).
 Last reviewed: 2026-09-28
 
 This directory is the stable index for ChunkShift engineering experiments.
