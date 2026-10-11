@@ -159,7 +159,7 @@ internal static class PatchDotnetD3Collector
     /// Byte-exact verifier that does not invoke the prototype Decoder or CLR
     /// metadata/PE scanner. Checks canonical payload is not changed elsewhere.
     /// </summary>
-    private static byte[] IndependentInverse(byte[] canonical, byte[] inverse)
+    internal static byte[] IndependentInverse(byte[] canonical, byte[] inverse)
     {
         if (inverse.Length < 44 ||
             inverse[0] != (byte)'C' || inverse[1] != (byte)'D' ||
