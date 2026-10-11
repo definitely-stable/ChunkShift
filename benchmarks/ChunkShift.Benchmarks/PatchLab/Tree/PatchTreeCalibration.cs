@@ -15,6 +15,7 @@ namespace ChunkShift.Benchmarks.PatchLab.Tree;
 internal static class PatchTreeCalibration
 {
     internal const string FrozenPairsSha256 = "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd";
+    private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private const string InventorySchema = "chunkshift.patch-tree-inventory.v1";
     internal const string ResultSchema = "chunkshift.patch-tree-t0-t1-calibration.v1";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
@@ -145,8 +146,8 @@ internal static class PatchTreeCalibration
         byte[] header = new byte[8];
         foreach (VerifiedTreeStream.TreeFile file in files)
         {
-            byte[] path = new UTF8Encoding(false, true).GetBytes(file.Path);
-            if (path.Length > uint.MaxValue || file.Length < 0 ||
+            byte[] path = StrictUtf8.GetBytes(file.Path);
+            if (file.Length < 0 ||
                 file.Sha256.Length != 64 || !file.Sha256.All(Uri.IsHexDigit))
                 throw new InvalidDataException("Invalid tree layout digest input.");
             BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(0, 4), (uint)path.Length);
