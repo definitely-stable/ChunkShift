@@ -8,6 +8,8 @@ on:
       - "benchmarks/scripts/test_patch_tree_001_inventory.py"
       - "benchmarks/scripts/verify_patch_tree_001_calibration.py"
       - "benchmarks/scripts/test_verify_patch_tree_001_calibration.py"
+      - "benchmarks/scripts/materialize_patch_corpus.py"
+      - "benchmarks/scripts/test_patch_tree_001_materialization.py"
       - "docs/benchmarks/PATCH-TREE-001-PHASE-A.md"
       - ".github/workflows/patch-tree-001-contracts.yml"
   workflow_dispatch:
@@ -35,6 +37,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m py_compile benchmarks/scripts/patch_tree_001_inventory.py benchmarks/scripts/test_patch_tree_001_inventory.py
-          python -m unittest benchmarks/scripts/test_patch_tree_001_inventory.py benchmarks/scripts/test_verify_patch_tree_001_calibration.py -v
+          python -m py_compile benchmarks/scripts/patch_tree_001_inventory.py benchmarks/scripts/test_patch_tree_001_inventory.py benchmarks/scripts/materialize_patch_corpus.py benchmarks/scripts/test_patch_tree_001_materialization.py
+          python -m unittest benchmarks/scripts/test_patch_tree_001_inventory.py benchmarks/scripts/test_verify_patch_tree_001_calibration.py benchmarks/scripts/test_patch_tree_001_materialization.py -v
           echo 'Phase A fixtures PASS; no real patch results.' >> "$GITHUB_STEP_SUMMARY"
