@@ -112,6 +112,16 @@ public sealed class PatchTreeCalibrationTests
     }
 
     [Fact]
+    public void LayoutDigestMatchesIndependentPythonLittleEndianReference()
+    {
+        // Python oracle: sha256(pack("<I",1) + b"a" + pack("<Q",3) + sha256(b"abc")).
+        var entry = new VerifiedTreeStream.TreeFile("a", 0, 3,
+            Convert.ToHexStringLower(SHA256.HashData("abc"u8)));
+        Assert.Equal("a068c37e5e11423cfdc82f3b12c53d722869ac746b369dce5902f891ec1a07ba",
+            PatchTreeCalibration.ComputeLayoutSha256([entry]));
+    }
+
+    [Fact]
     public void AccountRejectsNegativeAndOverflowingPhysicalBytes()
     {
         Assert.Equal(19, PatchTreeCalibration.SafeWholeUpdateTotal(2, 3, 5, 9));
