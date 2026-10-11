@@ -1,0 +1,69 @@
+name: PATCH-TREE-001 original pairs reference
+
+# One-time metadata recovery from the already frozen PATCH-PREFREEZE corpus.
+# This job DOES materialize the historical full corpus to reconstruct the
+# original checksum-pinned pairs.json, including holdout *source* bytes.
+# It performs NO CSP comparisons, candidate tuning, or holdout evaluation.
+# A DIFFERENT hosted calibration job later downloads only pairs.json.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: patch-tree-001-original-pairs-reference
+  cancel-in-progress: false
+
+jobs:
+  recover-original-pairs:
+    name: checksum-locked metadata recovery (not evaluation)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - name: Restrict to first hosted main dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          test "$RUNNER_OS" = "Linux"
+          test "$RUNNER_ARCH" = "X64"
+          test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$GITHUB_RUN_ATTEMPT" = "1"
+
+      - name: Checkout complete frozen source history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Cache original source archives
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-tree-001-pairs-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Recover exact original metadata without running any patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$RUNNER_TEMP/patch-original" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download --lock
+          mkdir -p "$RUNNER_TEMP/pairs-reference"
+          cp "$RUNNER_TEMP/patch-original/pairs.json" "$RUNNER_TEMP/pairs-reference/pairs.json"
+          (
+            cd "$RUNNER_TEMP/pairs-reference"
+            sha256sum pairs.json > SHA256SUMS
+            sha256sum --check SHA256SUMS
+          )
+          echo "Only the original locked metadata is archived; this is NOT an evaluation." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Archive immutable source-identity input
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-001-original-pairs
+          path: ${{ runner.temp }}/pairs-reference/
+          if-no-files-found: error
+          retention-days: 90
