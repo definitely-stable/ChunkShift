@@ -55,7 +55,7 @@ class WorkflowLockContractTests(unittest.TestCase):
         # Enforce no independent 60-70 character embedded checksum literals.
         self.assertNotRegex(document, r"(?<![0-9a-f])[0-9a-f]{60,70}(?![0-9a-f])")
         csharp = EVALUATOR.read_text(encoding="utf-8")
-        expected = re.search(r'FrozenPairsSha256\\s*=\\s*"([a-f0-9]+)"', csharp)
+        expected = re.search(r'FrozenPairsSha256\s*=\s*"([a-f0-9]+)"', csharp)
         self.assertIsNotNone(expected)
         self.assertEqual(locked, expected.group(1))
 
