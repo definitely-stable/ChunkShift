@@ -37,11 +37,11 @@ public sealed class ScannerAttributionHarnessTests
                 Assert.True(chunks > 0);
                 Assert.True(bytesCopied >= 0);
                 Assert.True(reads > 1);
-                Assert.Equal(callback == "yield-once" ? chunks : 0,
-                    sample.GetProperty("asyncCompletions").GetInt32());
+                Assert.Equal(callback == "yield-once" ? chunks : 0L,
+                    (long)sample.GetProperty("asyncCompletions").GetInt32());
                 Assert.Equal(1024 * 1024, sample.GetProperty("contentBytes").GetInt64());
 
-                if (byMode.TryGetValue(mode, out var previous))
+                if (mode != "file-sequential" && byMode.TryGetValue(mode, out var previous))
                 {
                     Assert.Equal(previous.Bytes, bytesCopied);
                     Assert.Equal(previous.Reads, reads);

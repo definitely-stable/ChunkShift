@@ -70,7 +70,7 @@ jobs:
               print("| Mode | Suite | Callback | Read calls | Bytes copied | Median wall ms | MAD ms |", file=f)
               print("|---|---|---|---:|---:|---:|---:|", file=f)
               for lane in result["lanes"]:
-                  print(f"| {lane['mode']} | {lane['hashSuite']} | {lane['callback']} | {lane['readCalls']} | {lane['bytesCopied']} | {lane['wallMedianMs']:.3f} | {lane['wallMadMs']:.3f} |", file=f)
+                  print(f"| {lane['mode']} | {lane['hashSuite']} | {lane['callback']} | {lane['readCallsMedian']:.0f} | {lane['bytesCopiedMedian']:.0f} | {lane['wallMedianMs']:.3f} | {lane['wallMadMs']:.3f} |", file=f)
           PY
       - name: Archive pilot data and independent evaluation
         if: always()

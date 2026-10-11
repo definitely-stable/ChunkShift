@@ -37,7 +37,7 @@ python3 benchmarks/scripts/evaluate_core011_scan_attribution.py \
   --input attribution.json --output summary.json
 ```
 
-Evaluator fails closed on missing/duplicated lane/round, incomplete bytes/EOF, invalid counters, inconsistent same-source-mode compaction counts across hash/callbacks, missing async suspension, and nonfinite/negative measures. It reports per-lane median wall and CPU, median copies/input ratio and MAD (with min/max), **not an adoption verdict**.
+Evaluator fails closed on missing/duplicated lane/round, incomplete bytes/EOF, invalid counters, inconsistent synthetic-memory compaction/read counts across hash/callbacks, missing async suspension, and nonfinite/negative measures. It reports per-lane median wall and CPU, median copies/input ratio and MAD (with min/max), **not an adoption verdict**.
 
 ## Limits / decision gates
 

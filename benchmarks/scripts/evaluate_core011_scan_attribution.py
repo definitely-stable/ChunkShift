@@ -72,10 +72,10 @@ def evaluate(data):
     if len({sample["chunkCount"] for sample in samples}) != 1:
         raise ValueError("different chunk totals across identical corpus/profile")
 
-    # Within each (source,round) the scanner's boundary and buffer compaction
-    # are independent of hash suite and callback kind. A mismatch is a bug
-    # or a change in input/Stream segmentation, not timing noise.
-    for mode in MODES:
+    # Synthetic memory source read segmentation is deterministic. FileStream may
+    # legally return variable short reads; keep its raw counters rather than
+    # treating input scheduling variance as a scanner correctness failure.
+    for mode in MODES[:2]:
         for rnd in range(1, rounds + 1):
             group = [seen[mode, suite, cb, rnd] for suite in SUITES for cb in CALLBACKS]
             for field in ("bytesCopied", "readCalls", "readBytes"):
@@ -100,9 +100,10 @@ def evaluate(data):
                     "wallMaxMs": max(wall),
                     "cpuMedianMs": statistics.median(
                         s["processCpuMilliseconds"] for s in lane),
-                    "readCalls": lane[0]["readCalls"],
-                    "bytesCopied": lane[0]["bytesCopied"],
-                    "copyBytesPerSourceByte": lane[0]["bytesCopied"] / total_bytes,
+                    "readCallsMedian": statistics.median(s["readCalls"] for s in lane),
+                    "bytesCopiedMedian": statistics.median(s["bytesCopied"] for s in lane),
+                    "copyBytesPerSourceByte": (statistics.median(
+                        s["bytesCopied"] for s in lane) / total_bytes),
                     "sourceGiBPerSecondAtMedian": (
                         total_bytes / 2**30 / (center / 1000) if center > 0 else None),
                 })
