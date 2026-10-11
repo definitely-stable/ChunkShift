@@ -216,9 +216,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/patch-tree-evidence"
-          printf 'UNVERIFIED_NOT_DECISION\\nGitHubRunId=%s\\nGitRef=%s\\nGitSha=%s\\n' \\
-            "$GITHUB_RUN_ID" "$GITHUB_REF" "$GITHUB_SHA" \\
-            > "$RUNNER_TEMP/patch-tree-evidence/UNVERIFIED-NOT-DECISION.txt"
+          printf 'UNVERIFIED_NOT_DECISION\nGitHubRunId=%s\nGitRef=%s\nGitSha=%s\n' "$GITHUB_RUN_ID" "$GITHUB_REF" "$GITHUB_SHA" > "$RUNNER_TEMP/patch-tree-evidence/UNVERIFIED-NOT-DECISION.txt"
 
       - name: Archive failed calibration diagnostics (never decision evidence)
         if: failure()
