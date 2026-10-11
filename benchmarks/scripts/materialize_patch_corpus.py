@@ -34,6 +34,12 @@ CORPUS = REPO / "docs" / "benchmarks" / "patch-corpus"
 # 2000-01-01T00:00:00Z: a fixed mtime keeps the source tar independent of
 # commit times and of the git version.
 SOURCE_MTIME = 946684800
+# PATCH-TREE-001: calibration is an allowlist, not an inferred role. The
+# original full pairs.json is checksum-pinned and supplied separately.
+TREE_CALIBRATION_FAMILIES = frozenset({
+    "dotnet-aspnetcore-win-x64",
+    "dotnet-runtime-linux-arm64",
+})
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -189,17 +195,54 @@ def main() -> int:
     parser.add_argument("--sources", type=Path)
     parser.add_argument("--download", action="store_true")
     parser.add_argument("--lock", action="store_true", help="require the lock in corpus-lock.json")
+    parser.add_argument("--calibration-only", action="store_true",
+                        help="PATCH-TREE: physically materialize only pinned .NET calibration sources")
+    parser.add_argument("--pairs-reference", type=Path,
+                        help="original full pairs.json, checksum-pinned; required for calibration-only")
     args = parser.parse_args()
+
+    if args.calibration_only != (args.pairs_reference is not None):
+        parser.error("--calibration-only requires --pairs-reference and vice versa")
+    if args.calibration_only and not args.lock:
+        parser.error("--calibration-only requires --lock")
+
+    lock_document = json.loads((CORPUS / "corpus-lock.json").read_text(encoding="utf-8"))
+    reference_bytes = None
+    frozen_pairs = None
+    if args.calibration_only:
+        # Validate provenance before opening or downloading ANY archive. Using a
+        # reconstructed calibration-only pairs.json changes the frozen experiment.
+        reference_bytes = args.pairs_reference.read_bytes()
+        if sha256_bytes(reference_bytes) != lock_document["pairsSha256"]:
+            raise SystemExit("original complete pairs.json SHA-256 mismatch")
+        frozen_pairs = json.loads(reference_bytes)
+        if frozen_pairs.get("schema") != "chunkshift.patch-pairs.v1" or not isinstance(
+                frozen_pairs.get("pairs"), list):
+            raise SystemExit("original complete pairs.json schema invalid")
 
     manifest = json.loads((CORPUS / "patch-corpus.json").read_text(encoding="utf-8"))
     checksums = load_checksums()
+    families = manifest["families"]
+    if args.calibration_only:
+        present = {f["id"] for f in families if f.get("split") == "calibration"}
+        if present != TREE_CALIBRATION_FAMILIES:
+            raise SystemExit("calibration family selection differs from frozen allowlist")
+        if not all(f.get("split") != "holdout" for f in families if f["id"] in present):
+            raise SystemExit("holdout family cannot be materialized")
+        families = [f for f in families if f["id"] in TREE_CALIBRATION_FAMILIES]
+
     sources = args.sources or args.root / "sources"
     tree_root = args.root / "tree"
-    if tree_root.exists():
+    if args.calibration_only:
+        # Refuse to touch an already populated tree (including holdout files),
+        # rather than removing it with the legacy full-corpus cleanup path.
+        if tree_root.exists() or tree_root.is_symlink():
+            raise SystemExit("calibration-only requires a fresh absent tree directory")
+    elif tree_root.exists():
         shutil.rmtree(tree_root)
 
     pairs = []
-    for family in manifest["families"]:
+    for family in families:
         versions = family["versions"]
         for version in versions:
             tree = tree_root / family["id"] / version
@@ -211,9 +254,21 @@ def main() -> int:
         adjacent = family.get("pairs") or list(zip(versions, versions[1:]))
         pairs.extend(pair_record(family["id"], base, target, args.root) for base, target in adjacent)
 
-    document = json.dumps({"schema": "chunkshift.patch-pairs.v1", "pairs": pairs}, indent=1, sort_keys=True) + "\n"
-    (args.root / "pairs.json").write_text(document, encoding="utf-8", newline="\n")
-    lock = sha256_bytes(document.encode("utf-8"))
+    if args.calibration_only:
+        expected = [pair for pair in frozen_pairs["pairs"]
+                    if pair.get("family") in TREE_CALIBRATION_FAMILIES]
+        if pairs != expected or not pairs:
+            raise SystemExit("calibration trees differ from frozen original pair records")
+        # Preserve every original holdout *metadata record* without opening any
+        # of its source files. Do not regenerate or rewrite this byte envelope.
+        document_bytes = reference_bytes
+    else:
+        document = json.dumps({"schema": "chunkshift.patch-pairs.v1", "pairs": pairs},
+                              indent=1, sort_keys=True) + "\n"
+        document_bytes = document.encode("utf-8")
+    args.root.mkdir(parents=True, exist_ok=True)
+    (args.root / "pairs.json").write_bytes(document_bytes)
+    lock = sha256_bytes(document_bytes)
     for pair in pairs:
         changed = sum(item["targetSize"] for item in pair["changed"])
         print(f"{pair['family']} {pair['base']}->{pair['target']}: {len(pair['changed'])} changed "
@@ -222,9 +277,9 @@ def main() -> int:
     print(f"pairsSha256={lock}")
 
     if args.lock:
-        expected = json.loads((CORPUS / "corpus-lock.json").read_text(encoding="utf-8"))["pairsSha256"]
-        if lock != expected:
-            print(f"corpus lock mismatch: expected {expected}", file=sys.stderr)
+        expected_lock = lock_document["pairsSha256"]
+        if lock != expected_lock:
+            print(f"corpus lock mismatch: expected {expected_lock}", file=sys.stderr)
             return 1
     return 0
 
