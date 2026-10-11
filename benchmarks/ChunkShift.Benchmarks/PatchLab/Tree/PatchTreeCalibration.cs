@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
@@ -109,10 +110,53 @@ internal static class PatchTreeCalibration
                 if (source.Schema != "chunkshift.patch-tree-layout.v1" ||
                     source.Order != "NFC UTF-8 byte order" ||
                     source.Files is null || source.FileCount != source.Files.Length ||
-                    source.TotalBytes < 0 || source.LayoutSha256.Length != 64)
+                    source.TotalBytes < 0 || source.LayoutSha256 is null ||
+                    source.LayoutSha256.Length != 64)
                     throw new InvalidDataException("Bad tree layout header.");
+                VerifyLayoutIdentity(source);
             }
         }
+    }
+
+    // Independent .NET reproduction of patch_tree_001_inventory.py:layout.
+    // Header-only checks are insufficient: a caller could otherwise relabel
+    // files, offsets, totalBytes or layoutSha256 without changing file bytes.
+    internal static void VerifyLayoutIdentity(Layout layout)
+    {
+        if (layout.FileCount != layout.Files.Length)
+            throw new InvalidDataException("Tree layout file count mismatch.");
+        long offset = 0;
+        foreach (VerifiedTreeStream.TreeFile file in layout.Files)
+        {
+            if (file.Offset != offset || file.Length < 0 ||
+                file.Length > long.MaxValue - offset)
+                throw new InvalidDataException("Tree layout offsets or lengths mismatch.");
+            offset += file.Length;
+        }
+        if (layout.TotalBytes != offset ||
+            !string.Equals(layout.LayoutSha256, ComputeLayoutSha256(layout.Files),
+                StringComparison.Ordinal))
+            throw new InvalidDataException("Tree layout digest or total byte count mismatch.");
+    }
+
+    internal static string ComputeLayoutSha256(IReadOnlyList<VerifiedTreeStream.TreeFile> files)
+    {
+        using IncrementalHash digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        byte[] header = new byte[8];
+        foreach (VerifiedTreeStream.TreeFile file in files)
+        {
+            byte[] path = new UTF8Encoding(false, true).GetBytes(file.Path);
+            if (path.Length > uint.MaxValue || file.Length < 0 ||
+                file.Sha256.Length != 64 || !file.Sha256.All(Uri.IsHexDigit))
+                throw new InvalidDataException("Invalid tree layout digest input.");
+            BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(0, 4), (uint)path.Length);
+            digest.AppendData(header.AsSpan(0, 4));
+            digest.AppendData(path);
+            BinaryPrimitives.WriteUInt64LittleEndian(header, (ulong)file.Length);
+            digest.AppendData(header);
+            digest.AppendData(Convert.FromHexString(file.Sha256));
+        }
+        return Convert.ToHexStringLower(digest.GetHashAndReset());
     }
 
     private static bool IsCalibrationFamily(string? family) =>
