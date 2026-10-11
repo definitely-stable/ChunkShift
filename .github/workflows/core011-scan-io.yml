@@ -1,0 +1,74 @@
+name: Core 0.1 scanner I/O pilot
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "benchmarks/ChunkShift.Benchmarks/ScannerIoBaselineHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks.Tests/ScannerIoBaselineHarnessTests.cs"
+      - ".github/workflows/core011-scan-io.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-io-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scanner-io-pilot:
+    name: counted scan I/O (linux-x64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Restore
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+      - name: Build
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+      - name: Scanner probe contract smoke
+        run: dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj -c Release --no-build --no-restore --filter FullyQualifiedName~ScannerIoBaselineHarnessTests
+      - name: Run one bounded hosted pilot
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
+            core011-scan --size-mib 16 --rounds 3 \
+            --output "$RUNNER_TEMP/core011-scan.json" \
+            --run-id "CORE011-SCAN-001/RUN-${{ github.run_id }}-${{ github.run_attempt }}-${GITHUB_SHA:0:8}-linux-x64"
+          python3 - "$RUNNER_TEMP/core011-scan.json" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as f:
+              result = json.load(f)
+          assert result["schema"] == "chunkshift.core011.scan-io-pilot.v1"
+          assert result["gitSha"] == __import__("os").environ["GITHUB_SHA"]
+          assert len(result["samples"]) == 18
+          size = result["corpus"]["contentBytes"]
+          assert all(s["readBytes"] == size and s["eofReads"] == 1 for s in result["samples"])
+          with open(__import__("os").environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              print("## CORE011-SCAN-001 — exploratory hosted pilot (not ADOPT)", file=summary)
+              print(f"RunId: \`{result['runId']}\`", file=summary)
+              print(f"Source SHA256: \`{result['corpus']['sourceSha256']}\`", file=summary)
+              print("| Mode | Suite | Samples | Mean read calls | Mean wall ms |", file=summary)
+              print("| --- | --- | ---: | ---: | ---: |", file=summary)
+              for mode in ("memory", "fragmented-memory", "file-sequential"):
+                  for suite in sorted({s["hashSuite"] for s in result["samples"]}):
+                      group = [s for s in result["samples"] if s["mode"] == mode and s["hashSuite"] == suite]
+                      print(f"| {mode} | {suite} | {len(group)} | {sum(s['readCalls'] for s in group)/len(group):.0f} | {sum(s['wallMilliseconds'] for s in group)/len(group):.2f} |", file=summary)
+          PY
+      - name: Retain raw pilot
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: core011-scan-io-${{ github.run_id }}
+          path: ${{ runner.temp }}/core011-scan.json
+          if-no-files-found: warn
+          retention-days: 90
