@@ -45,9 +45,14 @@ dotnet run --project benchmarks/ChunkShift.Benchmarks -c Release -- \
   --inventory "$RUN_DIR/layouts.json" --output "$RUN_DIR/t0-t1-calibration.json"
 \`\`\`
 
-A \`workflow_dispatch\` hosted Ubuntu x64 calibration lane performs the same source-lock steps with an exact main-branch and single-attempt barrier. Pull request CI executes **only synthetic fixture tests**, not the frozen calibration population or sealed holdout. Calibration artifacts now include `provenance.json` with HEAD, runner, GitHub run ID/attempt and SDK, plus portable relative-path `SHA256SUMS`. A successful synthetic contract is not evidence of size savings.
+### Two-stage GitHub-hosted calibration protocol
 
-**Open physical holdout-isolation blocker:** inventory and .NET CLI exclude evaluation pairs, but `materialize_patch_corpus.py --download --lock` still downloads/extracts/hashes *all* sources to regenerate the SHA-256-pinned original `pairs.json`. This cannot be called a physically sealed holdout. Complete isolation requires first retaining the original frozen full `pairs.json` as an independently checked metadata input and then materializing only calibration families. Do not relabel this initial calibration as sealed evaluation, or claim that the archived metadata independently replays stored CSP bytes.
+1. After a green PR merge, dispatch `patch-tree-001-pairs-reference.yml` explicitly on main. This is a one-time original-pairs METADATA recovery, not a candidate benchmark. It necessarily materializes all historical frozen sources (including holdout) solely to recreate the original SHA-256-pinned full `pairs.json`. It must match 8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537bfb910fd22dd. Only that unchanged metadata file and SHA256SUMS are archived.
+2. Save the successful recovery GitHub run ID. Then dispatch `patch-tree-001-t0-t1-calibration.yml` from main using `run-date` (YYYYMMDD) and `pairs-run-id` (the recovery run ID). The owner-gated issue #184 comment operator command is `/tree-calibration YYYYMMDD RUN_ID`.
+3. The calibration workflow authenticates the prior successful recovery run and checksum before any corpus downloads; it runs `materialize_patch_corpus.py --lock --calibration-only --pairs-reference PATH`. Only the two frozen .NET families are materialized. The unchanged original `pairs.json` is copied byte-for-byte. The calibration runner never fetches, extracts or opens holdout source trees.
+4. Archive `original-pairs.json`, `layouts.json`, `calibration.json`, `provenance.json` and portable relative-path `SHA256SUMS`. Provenance binds the metadata-recovery run ID, calibration HEAD, runner and SDK. GitHub PR CI runs synthetic isolation and contract tests only.
+
+**Boundary:** the separately dispatched reference-recovery job DOES access the frozen holdout source archives to regenerate the existing lock, but runs no CSP measurement, evaluation, candidate search, T2 or T3. Physical holdout isolation applies to the calibration runner only; neither workflow is a sealed holdout experiment. The new stage is still NOT_RUN until explicitly dispatched on main. CSP-independent byte replay, CPU/RSS and T1 locator overhead remain unproved.
 
 ## Release decision
 
