@@ -26,7 +26,7 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
   DOTNET_NOLOGO: "1"
   NUGET_XMLDOC_MODE: skip
-  PAIRS_SHA256: 8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537bfb910fd22dd
+  PAIRS_SHA256: 8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd
 
 jobs:
   calibration:
@@ -56,6 +56,8 @@ jobs:
           if not re.fullmatch(r"[0-9]{8}", value):
               raise SystemExit("run-date must be YYYYMMDD")
           datetime.datetime.strptime(value, "%Y%m%d")
+          if not re.fullmatch(r"[0-9a-f]{64}", os.environ["PAIRS_SHA256"]):
+              raise SystemExit("PAIRS_SHA256 must be a full lowercase SHA-256 hex digest")
           if not re.fullmatch(r"[1-9][0-9]{5,18}", os.environ["PAIRS_RUN_ID"]):
               raise SystemExit("pairs-run-id must be an existing numeric workflow run ID")
           PY
