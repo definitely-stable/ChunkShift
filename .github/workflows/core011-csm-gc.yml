@@ -1,0 +1,79 @@
+name: CORE011 CSM GC and concurrency pilot
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-gc.yml"
+      - "benchmarks/ChunkShift.Benchmarks/CsmGcConcurrencyHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks.Tests/CsmGcConcurrencyHarnessTests.cs"
+      - "benchmarks/scripts/core011_csm_gc_pilot.py"
+      - "benchmarks/scripts/test_core011_csm_gc_pilot.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-csm-gc-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bounded-pilot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Restore
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+      - name: Build
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+      - name: Unit tests and fail-closed evaluator contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj \
+            -c Release --no-build --no-restore \
+            --filter FullyQualifiedName~CsmGcConcurrencyHarnessTests
+          python3 -m unittest benchmarks/scripts/test_core011_csm_gc_pilot.py
+      - name: Run only the frozen bounded 8-MiB scenarios
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_gc_pilot.py \
+            --output-dir "$RUNNER_TEMP/core011-csm-gc" \
+            --size-mib 8 --rounds 2 --repetitions 2 \
+            --run-id "CORE011-CSM-001/GC-${{ github.run_id }}-${{ github.run_attempt }}-${GITHUB_SHA:0:8}-linux-x64"
+          python3 - "$RUNNER_TEMP/core011-csm-gc/summary.json" <<'PY'
+          import json
+          import os
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              report = json.load(handle)
+          assert report["sampleCount"] == 24
+          assert report["decision"] == "NO_VERDICT_EXPLORATORY"
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
+              print("## CORE011-CSM-001 exploratory GC topology: no verdict", file=out)
+              print(f"RunId: {report['runId']}", file=out)
+              print(f"Checkout SHA: {report['checkoutSha']}", file=out)
+              print("| Operation | Hash/BIDX | Workers | Median wall ms | Median allocated bytes | Gen2 count |", file=out)
+              print("|---|---|---:|---:|---:|---:|", file=out)
+              for lane in report["scenarios"]:
+                  print(f"| {lane['operation']} | {lane['suite']}/{lane['bidx']} | {lane['workers']} | {lane['wallMedianMs']:.3f} | {lane['allocationMedianBytes']:.0f} | {lane['gen2Total']} |", file=out)
+          PY
+      - name: Retain raw scenarios and evaluated summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-gc-${{ github.run_id }}
+          path: ${{ runner.temp }}/core011-csm-gc/
+          if-no-files-found: warn
+          retention-days: 90

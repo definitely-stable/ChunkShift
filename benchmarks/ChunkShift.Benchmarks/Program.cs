@@ -39,6 +39,11 @@ internal static class Program
             return BoundaryScanHarness.Run(args[1..]);
         }
 
+        if (string.Equals(mode, "core011-csm-gc", StringComparison.OrdinalIgnoreCase))
+        {
+            return CsmGcConcurrencyHarness.Run(args[1..]);
+        }
+
         if (string.Equals(mode, "core011-attribution", StringComparison.OrdinalIgnoreCase))
         {
             return ScannerAttributionHarness.Run(args[1..]);
@@ -111,6 +116,7 @@ internal static class Program
         Console.WriteLine("  amdahl [--target <bytes>]... [--rounds 3] [--seconds 2] [--warmup-seconds 2]");
         Console.WriteLine("  core011-scan --output <pilot.json> [--size-mib 16] [--rounds 3] [--run-id <id>]");
         Console.WriteLine("  core011-attribution --output <data.json> [--size-mib 16] [--warmups 4] [--rounds 5] [--run-id <id>]");
+        Console.WriteLine("  core011-csm-gc --operation <create|manifest-verify|enumerate|content-verify> --suite <blake3|sha256> --bidx <true|false> --workers <1|4|16> --repetitions 2 --rounds 2 --size-mib 8 --output <result.json>");
         Console.WriteLine("  prefreeze --plan <plan.json> --output <result.json> [--markdown <summary.md>] [--lane <name>] [--real <real-corpus.json>] [--no-synthetic]");
         Console.WriteLine("  prefreeze validate-real --real <real-corpus.json> [--plan <plan.json>] [--lock-output <corpus-lock.json>]");
         Console.WriteLine("  chunks --list <list.tsv>");

@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using BenchmarkDotNet.Attributes;
 using ChunkShift.Benchmarks.Lab;
 using ChunkShift.Primitives;
@@ -18,6 +19,14 @@ public sealed class Core011CsmBaselineBenchmarks
     private ManifestCreationOptions _options = null!;
     private long _expectedChunks;
     private ManifestInfo _expected = null!;
+    internal string CorpusSha256 =>
+        Convert.ToHexString(SHA256.HashData(_content)).ToLowerInvariant();
+
+    internal string ManifestSha256 =>
+        Convert.ToHexString(SHA256.HashData(_manifest)).ToLowerInvariant();
+
+    internal int ManifestBytes => _manifest.Length;
+
 
     // The large lane crosses a 4096-record CBLK boundary at the frozen profile's
     // measured mean (~80.69 KiB). Small CI tests override this parameter to 1.
