@@ -25,6 +25,13 @@ def verify_workflow_digest(document: str, frozen_digest: str) -> None:
         raise ValueError("workflow PAIRS_SHA256 must be 64 lowercase hex digits")
     if matches[0] != frozen_digest:
         raise ValueError("workflow PAIRS_SHA256 differs from frozen corpus-lock.json")
+    # A second truncated digest in the post-run JSON assertion previously
+    # caused a real nine-minute calibration to fail after SDK work completed.
+    candidates = re.findall(r"(?<![0-9a-f])[0-9a-f]{60,70}(?![0-9a-f])", document)
+    if candidates != [frozen_digest]:
+        raise ValueError("duplicated or malformed SHA-256 literal in calibration workflow")
+    if 'doc["pairsSha256"] != os.environ["PAIRS_SHA256"]' not in document:
+        raise ValueError("output validation must reuse the authoritative SHA-256")
     if 'echo "$PAIRS_SHA256  pairs.json" | sha256sum --check' not in document:
         raise ValueError("workflow must verify downloaded pairs.json against original lock")
     if 'if not re.fullmatch(r"[0-9a-f]{64}", os.environ["PAIRS_SHA256"]):' not in document:
@@ -32,6 +39,21 @@ def verify_workflow_digest(document: str, frozen_digest: str) -> None:
 
 
 class WorkflowLockContractTests(unittest.TestCase):
+    def test_no_second_literal_is_allowed_in_result_validation(self):
+        locked = json.loads(LOCK.read_text(encoding="utf-8"))["pairsSha256"]
+        original = WORKFLOW.read_text(encoding="utf-8")
+        duplicate = original + "\\n# legacy result SHA \\"" + locked[:-1] + "\\"\\n"
+        with self.assertRaisesRegex(ValueError, "duplicated or malformed"):
+            verify_workflow_digest(duplicate, locked)
+
+    def test_unverified_diagnostics_are_separate_from_accepted_artifacts(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("name: patch-tree-001-calibration-UNVERIFIED-diagnostics", workflow)
+        self.assertIn("name: patch-tree-001-t0-t1-calibration", workflow)
+        self.assertIn("UNVERIFIED-NOT-DECISION.txt", workflow)
+        self.assertIn("if: failure()", workflow)
+        self.assertIn("if: success()", workflow)
+
     def test_real_workflow_matches_frozen_corpus_lock(self):
         locked = json.loads(LOCK.read_text(encoding="utf-8"))["pairsSha256"]
         verify_workflow_digest(WORKFLOW.read_text(encoding="utf-8"), locked)
