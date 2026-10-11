@@ -42,6 +42,7 @@ internal static class PatchLabRunner
                 "apply-check" => PatchLabApplyCheck.Execute(args[1..]),
                 "enc005-g2" => PatchEnc005G2Runner.Execute(args[1..]),
                 "gap" => PatchGapRunner.Execute(args[1..]),
+                "dotnet-d3-scan" => PatchDotnetD3Collector.Execute(args[1..]),
                 _ => UnknownMode(args[0]),
             };
         }
