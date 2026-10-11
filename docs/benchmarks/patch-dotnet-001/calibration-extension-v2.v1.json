@@ -1,0 +1,104 @@
+{
+  "schema": "chunkshift.patch-dotnet-calibration-extension.v1",
+  "experimentId": "PATCH-DOTNET-001",
+  "parentA2": {
+    "planSha256": "0ee85c6307ea2c6612e52313485aa1bcf5725b457ae0c01413cf0d1a48e552c8",
+    "filesSha256": "0cdafee3f5ee6f288ed798bd1f7726a452dd51a919d891855e9436f6e151ad66",
+    "artifactId": 11660869109,
+    "artifactRun": 38028439773
+  },
+  "purpose": "new independent managed calibration; original evaluation membership and hashes remain immutable",
+  "eligibilityPolicy": "all payload files enter physical-byte denominator; D3 structural ILONLY both versions, matching machine, <=64MiB; identical evaluation file SHA always excluded",
+  "groups": [
+    {
+      "id": "ps-win-fdd",
+      "product": "powershell",
+      "role": "calibration",
+      "rid": "win-x64",
+      "deployment": "framework-dependent",
+      "format": "zip",
+      "archivePathRule": "as-is+payload-prefix",
+      "base": "7.5.3",
+      "target": "7.5.4",
+      "candidateAllowPrefixes": [
+        "payload/"
+      ],
+      "assets": [
+        {
+          "version": "7.5.3",
+          "name": "PowerShell-7.5.3-win-fxdependent.zip",
+          "url": "https://github.com/PowerShell/PowerShell/releases/download/v7.5.3/PowerShell-7.5.3-win-fxdependent.zip",
+          "digestAlgorithm": "sha256",
+          "digest": "9bad3c50cee2004d3d8b641013c17a69287200f30efb0b46c1a6a630df339845"
+        },
+        {
+          "version": "7.5.4",
+          "name": "PowerShell-7.5.4-win-fxdependent.zip",
+          "url": "https://github.com/PowerShell/PowerShell/releases/download/v7.5.4/PowerShell-7.5.4-win-fxdependent.zip",
+          "digestAlgorithm": "sha256",
+          "digest": "40e9cb0995a02da7bdea1344c3075ff278dc42302c8ecaf74bdaf1df7e55c1dd"
+        }
+      ]
+    },
+    {
+      "id": "ps-linux-fdd",
+      "product": "powershell",
+      "role": "calibration",
+      "rid": "linux-x64",
+      "deployment": "framework-dependent",
+      "format": "tar.gz",
+      "archivePathRule": "as-is+payload-prefix",
+      "base": "7.5.3",
+      "target": "7.5.4",
+      "candidateAllowPrefixes": [
+        "payload/"
+      ],
+      "assets": [
+        {
+          "version": "7.5.3",
+          "name": "powershell-7.5.3-linux-x64-fxdependent.tar.gz",
+          "url": "https://github.com/PowerShell/PowerShell/releases/download/v7.5.3/powershell-7.5.3-linux-x64-fxdependent.tar.gz",
+          "digestAlgorithm": "sha256",
+          "digest": "1acb62d4c922fcbd8fa2b844a7548850c9f61feb94c5ebaf7a30f838e15ac65b"
+        },
+        {
+          "version": "7.5.4",
+          "name": "powershell-7.5.4-linux-x64-fxdependent.tar.gz",
+          "url": "https://github.com/PowerShell/PowerShell/releases/download/v7.5.4/powershell-7.5.4-linux-x64-fxdependent.tar.gz",
+          "digestAlgorithm": "sha256",
+          "digest": "e2d860fee907f4d772116de5d0bcb36545f5f6af1d1373a955099c4d334306d6"
+        }
+      ]
+    },
+    {
+      "id": "ps-win-sc",
+      "product": "powershell",
+      "role": "calibration",
+      "rid": "win-x64",
+      "deployment": "self-contained",
+      "format": "zip",
+      "archivePathRule": "as-is+payload-prefix",
+      "base": "7.5.3",
+      "target": "7.5.4",
+      "candidateAllowPrefixes": [
+        "payload/"
+      ],
+      "assets": [
+        {
+          "version": "7.5.3",
+          "name": "PowerShell-7.5.3-win-x64.zip",
+          "url": "https://github.com/PowerShell/PowerShell/releases/download/v7.5.3/PowerShell-7.5.3-win-x64.zip",
+          "digestAlgorithm": "sha256",
+          "digest": "31588931dfcb752d1943f5e633a55337e2f12af0803d670db6d90c5937222818"
+        },
+        {
+          "version": "7.5.4",
+          "name": "PowerShell-7.5.4-win-x64.zip",
+          "url": "https://github.com/PowerShell/PowerShell/releases/download/v7.5.4/PowerShell-7.5.4-win-x64.zip",
+          "digestAlgorithm": "sha256",
+          "digest": "b40d192ae95ba6ccc4cc362ff4e1b18ca6fb5055bebbcd3920684e12701fa8f6"
+        }
+      ]
+    }
+  ]
+}

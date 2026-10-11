@@ -564,7 +564,9 @@
       "question": "Reversible .NET/CLR semantic normalization after generic executable evidence",
       "protocol": "docs/benchmarks/PATCH-DOTNET-001-A2-PROTOCOL.md",
       "evidence": "docs/research/results/PATCH-DOTNET-001-A2-CLASSIFICATION-20261010-001.md",
-      "prerequisiteEvidence": "docs/research/results/PATCH-DOTNET-001-A1-INVENTORY-20261010-001.md"
+      "prerequisiteEvidence": "docs/research/results/PATCH-DOTNET-001-A1-INVENTORY-20261010-001.md",
+      "calibrationEvidence": "docs/research/results/PATCH-DOTNET-001-A1V2-CALIBRATION-20261011-001.md",
+      "calibrationProtocol": "docs/benchmarks/PATCH-DOTNET-001-CALIBRATION-V2.md"
     },
     {
       "id": "PATCH-DICT-001",
