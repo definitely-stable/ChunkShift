@@ -179,7 +179,11 @@ internal static class PatchTreeCalibration
     internal static async Task<PairResult> RunPairAsync(string corpusRoot, Pair p, JsonElement original)
     {
         // Strict original pair checksum/ordering and the Python inventory gate are
-        // prerequisites. Opening each source independently rechecks SHA/length.
+        // prerequisites. Refuse direct test/lab callers with forged layout headers
+        // as well as validating the CLI envelope.
+        VerifyLayoutIdentity(p.Base);
+        VerifyLayoutIdentity(p.Target);
+        // Opening each source independently rechecks SHA/length.
         string oldRoot = Path.Combine(corpusRoot, "tree", p.Family, p.BaseVersion);
         string newRoot = Path.Combine(corpusRoot, "tree", p.Family, p.TargetVersion);
         string pairLabel = p.Family + ":" + p.BaseVersion + "->" + p.TargetVersion;
