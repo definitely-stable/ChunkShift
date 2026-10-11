@@ -12,7 +12,14 @@ import json
 import re
 from pathlib import Path
 
-PAIRS_SHA256 = "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537bfb910fd22dd"
+# Take the pinned source identity from the same frozen repository lock already
+# enforced by the materializer and workflow, not from a second hand-copied
+# literal. The third authentic run completed patch creation/apply, but a
+# 63-digit typo here prevented independent verification and acceptance.
+LOCK = Path(__file__).resolve().parents[2] / "docs/benchmarks/patch-corpus/corpus-lock.json"
+PAIRS_SHA256 = json.loads(LOCK.read_text(encoding="utf-8"))["pairsSha256"]
+if re.fullmatch(r"[0-9a-f]{64}", PAIRS_SHA256) is None:
+    raise ValueError("PATCH-TREE frozen pairs digest must be 64 lowercase hex digits")
 CALIBRATION = {"dotnet-aspnetcore-win-x64", "dotnet-runtime-linux-arm64"}
 SCHEMA = "chunkshift.patch-tree-t0-t1-calibration.v1"
 HEX64 = re.compile(r"[a-f0-9]{64}\Z")
