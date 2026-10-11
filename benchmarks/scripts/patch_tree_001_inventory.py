@@ -181,7 +181,7 @@ def verify_pair(pair: dict, base: dict, target: dict) -> None:
             "frozen pair classification differs from exact tree content")
 
 
-def inventory(root: Path, expected_pairs_sha: str) -> dict:
+def inventory(root: Path, expected_pairs_sha: str, calibration_only: bool = False) -> dict:
     pair_path = root / "pairs.json"
     require(pair_path.is_file() and sha256(pair_path.read_bytes()) == expected_pairs_sha,
             "frozen pairs.json SHA-256 mismatch")
@@ -194,6 +194,9 @@ def inventory(root: Path, expected_pairs_sha: str) -> dict:
     for pair in pairs["pairs"]:
         family, base, target = (label(pair[key]) for key in ("family", "base", "target"))
         require(family in roles and base != target, "unknown family or degenerate pair")
+        if calibration_only and roles[family] != "calibration":
+            # Do not open or hash even a single sealed holdout tree file.
+            continue
         for version in (base, target):
             key = family, version
             if key not in cache:
@@ -212,9 +215,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--calibration-only", action="store_true",
+                        help="Never open or hash holdout tree bytes")
     args = parser.parse_args()
     expected = json.loads(LOCK.read_text(encoding="utf-8"))["pairsSha256"]
-    document = inventory(args.root, expected)
+    document = inventory(args.root, expected, calibration_only=args.calibration_only)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(document, indent=2, sort_keys=True,
                                      ensure_ascii=False) + "\n", encoding="utf-8")

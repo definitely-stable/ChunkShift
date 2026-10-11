@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using ChunkShift.Benchmarks.Lab;
 using ChunkShift.Benchmarks.PatchLab.PatchGap;
+using ChunkShift.Benchmarks.PatchLab.Tree;
 
 namespace ChunkShift.Benchmarks.PatchLab;
 
@@ -28,7 +29,7 @@ internal static class PatchLabRunner
     {
         if (args.Length == 0)
         {
-            Console.Error.WriteLine("patch-lab needs a mode: run, memory, one, apply-check, enc005-g2 or gap.");
+            Console.Error.WriteLine("patch-lab needs a mode: run, memory, one, apply-check, enc005-g2, gap or tree-calibration.");
             return 2;
         }
 
@@ -42,6 +43,7 @@ internal static class PatchLabRunner
                 "apply-check" => PatchLabApplyCheck.Execute(args[1..]),
                 "enc005-g2" => PatchEnc005G2Runner.Execute(args[1..]),
                 "gap" => PatchGapRunner.Execute(args[1..]),
+                "tree-calibration" => PatchTreeCalibration.Execute(args[1..]),
                 _ => UnknownMode(args[0]),
             };
         }

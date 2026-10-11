@@ -17,6 +17,13 @@ internal sealed class VerifiedTreeStream : Stream
     private int _currentIndex = -1;
     private long _position;
     private bool _disposed;
+    private long _readCalls;
+    private long _bytesRead;
+    private long _seekCalls;
+
+    internal long ReadCalls => Interlocked.Read(ref _readCalls);
+    internal long BytesRead => Interlocked.Read(ref _bytesRead);
+    internal long SeekCalls => Interlocked.Read(ref _seekCalls);
 
     internal readonly record struct TreeFile(string Path, long Offset, long Length, string Sha256);
 
@@ -154,7 +161,7 @@ internal sealed class VerifiedTreeStream : Stream
     public override long Position
     {
         get { ThrowIfDisposed(); return _position; }
-        set { ThrowIfDisposed(); if (value < 0 || value > _length) throw new ArgumentOutOfRangeException(nameof(value)); _position = value; }
+        set { ThrowIfDisposed(); if (value < 0 || value > _length) throw new ArgumentOutOfRangeException(nameof(value)); _position = value; Interlocked.Increment(ref _seekCalls); }
     }
 
     public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
@@ -190,6 +197,8 @@ internal sealed class VerifiedTreeStream : Stream
             if (got <= 0) throw new EndOfStreamException("Tree source truncated after verification.");
             total += got;
             _position += got;
+            Interlocked.Increment(ref _readCalls);
+            Interlocked.Add(ref _bytesRead, got);
         }
 
         return total;
@@ -231,6 +240,7 @@ internal sealed class VerifiedTreeStream : Stream
         if (target < 0 || target > _length)
             throw new IOException("Tree seek outside virtual stream.");
         _position = target;
+        Interlocked.Increment(ref _seekCalls);
         return target;
     }
 
