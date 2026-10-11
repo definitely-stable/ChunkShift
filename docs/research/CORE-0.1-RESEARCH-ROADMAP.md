@@ -42,9 +42,9 @@ G0 is a correctness prerequisite, not a claim that Core performance is improved.
 
 ## 4. Execution slices (merge independently)
 
-Slice A (this PR): record this roadmap and add CORE011-FUZZ-001 deterministic scanner differential smoke. Compare canonical production ScanAsync with ChunkingReference on fixed, periodic, low-entropy and seeded bytes; verify exact chunks, byte reconstruction, both suites, short/fragmented reads and boundary-adjacent edits. No production source/API changes. The original seeded input and read schedule are explicitly reproducible in test source. #137 remains OPEN for failure/cancel/lifetime coverage expansion and heavy fuzz.
+Slice A (merged as PR #286, 2026-10-11): record this roadmap and add CORE011-FUZZ-001 deterministic scanner differential smoke. Compare canonical production ScanAsync with ChunkingReference on fixed, periodic, low-entropy and seeded bytes; verify exact chunks, byte reconstruction, both suites, short/fragmented reads and boundary-adjacent edits. No production source/API changes. The original seeded input and read schedule are explicitly reproducible in test source. #137 remains OPEN for failure/cancel/lifetime coverage expansion and heavy fuzz.
 
-Slice B: freeze the G1 baseline launch/workload definitions from #153/#154, reuse the current amdahl, scanner and CSM benchmark harnesses. Record source read count, copied bytes, CPU/wall, bytes hashed, allocations and p50/p95 before implementing a speculative optimization. No heavy runs in ordinary PR CI.
+Slice B (in progress; CORE011-CSM-001 memory-only baseline foundation): freeze the G1 baseline launch/workload definitions from #153/#154, reuse the current amdahl, scanner and CSM benchmark harnesses. Record source read count, copied bytes, CPU/wall, bytes hashed, allocations and p50/p95 before implementing a speculative optimization. No heavy runs in ordinary PR CI.
 
 Slice C: implement internal experiment-only ManifestId logical-record staging and BLAKE3 backend comparators under existing ExperimentIds. No release changes; compare one-shot/batched byte stream equivalence against 0.1.0 vectors and independent CSM decoder, then isolate end-to-end deltas before proposing adoption.
 
