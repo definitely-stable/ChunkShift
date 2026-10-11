@@ -51,6 +51,11 @@ def verify(doc: dict, original: dict) -> None:
         require(actual["oldTreeCsmBytes"] > 0 and actual["baseLayoutBytes"] > 0
                 and actual["targetTreeManifestBytes"] > 0,
                 "complete shared base/target metadata")
+        for k in ("oldTreePreflightSeconds", "targetTreePreflightSeconds",
+                  "oldTreeCsmCreateSeconds", "oldTreeCsmVerifySeconds"):
+            value = actual[k]
+            require(type(value) in (int, float) and 0 <= value < 1e9,
+                    "invalid pair stage duration: " + k)
         changed = {x["path"]: x for x in base["changed"]}
         added = {x["path"]: x for x in base["added"]}
         require(actual["changedCount"] == len(changed)
@@ -82,7 +87,8 @@ def verify(doc: dict, original: dict) -> None:
                       "t1BaseBytesRead", "t1BaseSeeks"):
                 amount(file[k], k)
             for k in ("t0CreateSeconds", "t1CreateSeconds", "t0ApplySeconds",
-                      "t1ApplySeconds"):
+                      "t1ApplySeconds", "targetCsmCreateSeconds",
+                      "t0BaseCsmCreateSeconds", "t0SCreateSeconds", "t0SApplySeconds"):
                 value = file[k]
                 require(type(value) in (int, float) and 0 <= value < 1e9,
                         "non-finite or invalid duration: " + k)
