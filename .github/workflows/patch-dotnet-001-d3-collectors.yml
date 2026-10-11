@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/patch-dotnet-001-d3-collectors.yml
       - benchmarks/scripts/patch_dotnet_001_d3_collect.py
+      - benchmarks/scripts/test_patch_dotnet_001_d3_collect.py
       - benchmarks/ChunkShift.Benchmarks/PatchLab/PatchDotnet/**
       - benchmarks/ChunkShift.Benchmarks/PatchLab/PatchDotnetD3Collector.cs
       - benchmarks/ChunkShift.Benchmarks/PatchLab/PatchLabRunner.cs
@@ -42,6 +43,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile benchmarks/scripts/patch_dotnet_001_d3_collect.py
+          python3 -m unittest discover -s benchmarks/scripts -p 'test_patch_dotnet_001_d3_collect.py' -v
           dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
           dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
           dotnet test benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-build --no-restore
