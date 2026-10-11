@@ -42,7 +42,7 @@ class WorkflowLockContractTests(unittest.TestCase):
     def test_no_second_literal_is_allowed_in_result_validation(self):
         locked = json.loads(LOCK.read_text(encoding="utf-8"))["pairsSha256"]
         original = WORKFLOW.read_text(encoding="utf-8")
-        duplicate = original + "\\n# legacy result SHA \\"" + locked[:-1] + "\\"\\n"
+        duplicate = original + "\n# legacy result SHA " + locked[:-1] + "\n"
         with self.assertRaisesRegex(ValueError, "duplicated or malformed"):
             verify_workflow_digest(duplicate, locked)
 
