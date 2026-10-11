@@ -39,6 +39,11 @@ internal static class Program
             return BoundaryScanHarness.Run(args[1..]);
         }
 
+        if (string.Equals(mode, "core011-attribution", StringComparison.OrdinalIgnoreCase))
+        {
+            return ScannerAttributionHarness.Run(args[1..]);
+        }
+
         if (string.Equals(mode, "core011-scan", StringComparison.OrdinalIgnoreCase))
         {
             return ScannerIoBaselineHarness.Run(args[1..]);
@@ -105,6 +110,7 @@ internal static class Program
         Console.WriteLine("  f08 --variant <name> --target <bytes> [--seconds 5] [--warmup-seconds 3] [--perf-ctl <fifo> --perf-ack <fifo>]");
         Console.WriteLine("  amdahl [--target <bytes>]... [--rounds 3] [--seconds 2] [--warmup-seconds 2]");
         Console.WriteLine("  core011-scan --output <pilot.json> [--size-mib 16] [--rounds 3] [--run-id <id>]");
+        Console.WriteLine("  core011-attribution --output <data.json> [--size-mib 16] [--warmups 4] [--rounds 5] [--run-id <id>]");
         Console.WriteLine("  prefreeze --plan <plan.json> --output <result.json> [--markdown <summary.md>] [--lane <name>] [--real <real-corpus.json>] [--no-synthetic]");
         Console.WriteLine("  prefreeze validate-real --real <real-corpus.json> [--plan <plan.json>] [--lock-output <corpus-lock.json>]");
         Console.WriteLine("  chunks --list <list.tsv>");

@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-10-08",
+  "updated": "2026-10-11",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -28,8 +28,10 @@
         152
       ],
       "area": "core-0.1.1",
-      "status": "PLANNED",
-      "question": ".NET 10 scanner/Amdahl baseline"
+      "status": "RUNNING",
+      "question": ".NET 10 scanner/Amdahl baseline",
+      "protocol": "docs/benchmarks/CORE011-SCAN-001-PILOT-PROTOCOL.md",
+      "evidence": "docs/research/results/CORE011-SCAN-001-PILOT-20261011-001.md"
     },
     {
       "id": "CORE011-SCAN-002",

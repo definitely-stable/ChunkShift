@@ -1,0 +1,84 @@
+name: Core 0.1 scanner attribution pilot
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "benchmarks/ChunkShift.Benchmarks/ScannerAttributionHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks.Tests/ScannerAttributionHarnessTests.cs"
+      - "benchmarks/scripts/evaluate_core011_scan_attribution.py"
+      - "benchmarks/scripts/test_evaluate_core011_scan_attribution.py"
+      - ".github/workflows/core011-scan-attribution.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-attribution-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  attribution:
+    name: copy and suspended callback attribution (linux-x64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Restore
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+      - name: Build
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+      - name: Attribution contract and evaluator tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj \
+            -c Release --no-build --no-restore \
+            --filter FullyQualifiedName~ScannerAttributionHarnessTests
+          python3 -m unittest benchmarks/scripts/test_evaluate_core011_scan_attribution.py
+      - name: Execute frozen hosted attribution pilot
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj -c Release --no-build -- \
+            core011-attribution --size-mib 16 --warmups 4 --rounds 5 \
+            --run-id "CORE011-SCAN-001/ATTR-${{ github.run_id }}-${{ github.run_attempt }}-${GITHUB_SHA:0:8}-linux-x64" \
+            --output "$RUNNER_TEMP/core011-attribution.json"
+          python3 benchmarks/scripts/evaluate_core011_scan_attribution.py \
+            --input "$RUNNER_TEMP/core011-attribution.json" \
+            --output "$RUNNER_TEMP/core011-attribution-summary.json"
+          python3 - "$RUNNER_TEMP/core011-attribution-summary.json" <<'PY'
+          import json
+          import sys
+
+          result = json.load(open(sys.argv[1], encoding="utf-8"))
+          assert result["sampleCount"] == 60
+          assert result["decision"] == "NO_VERDICT_EXPLORATORY"
+          with open(__import__("os").environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              print("## CORE011-SCAN-001 kernel attribution — no adoption verdict", file=f)
+              print(f"RunId: {result['runId']}", file=f)
+              print(f"Checkout SHA: {result['checkoutSha']}", file=f)
+              print(f"PR HEAD SHA: {result['pullRequestHeadSha']}", file=f)
+              print("| Mode | Suite | Callback | Read calls | Bytes copied | Median wall ms | MAD ms |", file=f)
+              print("|---|---|---|---:|---:|---:|---:|", file=f)
+              for lane in result["lanes"]:
+                  print(f"| {lane['mode']} | {lane['hashSuite']} | {lane['callback']} | {lane['readCallsMedian']:.0f} | {lane['bytesCopiedMedian']:.0f} | {lane['wallMedianMs']:.3f} | {lane['wallMadMs']:.3f} |", file=f)
+          PY
+      - name: Archive pilot data and independent evaluation
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-attribution-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/core011-attribution.json
+            ${{ runner.temp }}/core011-attribution-summary.json
+          if-no-files-found: warn
+          retention-days: 90

@@ -21,8 +21,8 @@ internal static class ScannerIoBaselineHarness
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
-    private static readonly int[] NormalReads = [int.MaxValue];
-    private static readonly int[] ShortReads = [1, 7, 31, 4095, 65535, 2, 257];
+    internal static readonly int[] NormalReads = [int.MaxValue];
+    internal static readonly int[] ShortReads = [1, 7, 31, 4095, 65535, 2, 257];
 
     internal sealed record Sample(
         string Mode,
@@ -289,7 +289,7 @@ internal static class ScannerIoBaselineHarness
         return Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER");
     }
 
-    private sealed class CountingReadStream(Stream inner, int[] schedule) : Stream
+    internal sealed class CountingReadStream(Stream inner, int[] schedule) : Stream
     {
         private int _nextRead;
 
