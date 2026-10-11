@@ -1,0 +1,197 @@
+name: PATCH-DOTNET-001 D3P1 physical calibration pilot
+
+# Laboratory-only physical H0 and scan evidence; NEVER evaluate sealed SDK/Desktop.
+on:
+  push:
+    branches: [research/patch-dotnet-001-d3-physical-pilot]
+    paths:
+      - .github/workflows/patch-dotnet-001-d3-physical-pilot.yml
+      - benchmarks/scripts/patch_dotnet_001_d3_pilot_verify.py
+      - benchmarks/ChunkShift.Benchmarks/PatchLab/PatchDotnetD3PhysicalPilot.cs
+      - docs/benchmarks/PATCH-DOTNET-001-D3-PHYSICAL-PILOT-PROTOCOL.md
+      - benchmarks/scripts/patch_dotnet_001_d3_collect.py
+      - benchmarks/scripts/test_patch_dotnet_001_d3_collect.py
+      - benchmarks/ChunkShift.Benchmarks/PatchLab/PatchDotnet/**
+      - benchmarks/ChunkShift.Benchmarks/PatchLab/PatchDotnetD3Collector.cs
+      - benchmarks/ChunkShift.Benchmarks/PatchLab/PatchLabRunner.cs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: patch-dotnet-d3-physical-pilot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  same-population:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 320
+    env:
+      PYTHONPATH: benchmarks/scripts
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - name: Checkout research source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore and compile research lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile benchmarks/scripts/patch_dotnet_001_d3_collect.py benchmarks/scripts/patch_dotnet_001_d3_pilot_verify.py
+          python3 -m unittest discover -s benchmarks/scripts -p 'test_patch_dotnet_001_d3_collect.py' -v
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+          dotnet test benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-build --no-restore
+
+      - name: Download sealed A2 membership (only for predeclared exclusion)
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: patch-dotnet-001-a2-classification
+          repository: definitely-stable/ChunkShift
+          run-id: 38028439773
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/a2-locked
+
+      - name: Validate pinned sources and A2 index
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/patch_dotnet_001_a1v2.py validate
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,hashlib
+          p=Path(os.environ["RUNNER_TEMP"])/"a2-locked/a2-files.jsonl"
+          observed=hashlib.sha256(p.read_bytes()).hexdigest()
+          expected="0cdafee3f5ee6f288ed798bd1f7726a452dd51a919d891855e9436f6e151ad66"
+          if observed!=expected:
+              raise RuntimeError("SEALED_A2_MEMBERSHIP_HASH_MISMATCH")
+          print("A2 evaluation digest confirmed; no holdout size results inspected")
+          PY
+
+      - name: Cache only pre-pinned raw upstream sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/powershell-original-sources
+          key: patch-dotnet-d3-original-powershell-${{ hashFiles('docs/benchmarks/patch-dotnet-001/calibration-extension-v2.v1.json') }}
+
+      - name: Download six SHA256-pinned PowerShell releases
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,json,hashlib
+          from urllib.request import Request,urlopen
+          from patch_dotnet_001_a1v2 import validate
+          p=Path("docs/benchmarks/patch-dotnet-001/calibration-extension-v2.v1.json")
+          doc=json.loads(p.read_text())
+          groups=validate(doc)
+          root=Path(os.environ["RUNNER_TEMP"])/"powershell-original-sources"
+          root.mkdir(parents=True,exist_ok=True)
+          assets={a["name"]:a for g in groups for a in g["assets"]}
+          for name,a in sorted(assets.items()):
+              path=root/name
+              def sha256(f):
+                  h=hashlib.sha256()
+                  with f.open("rb") as stream:
+                      for block in iter(lambda:stream.read(1048576),b""): h.update(block)
+                  return h.hexdigest()
+              if path.is_file() and not path.is_symlink() and sha256(path)==a["digest"]:
+                  print("verified cached original:",name,flush=True)
+                  continue
+              tmp=path.with_name(path.name+".partial")
+              tmp.unlink(missing_ok=True)
+              req=Request(a["url"],headers={"User-Agent":"ChunkShift-PATCH-DOTNET-001-D3-Lab"})
+              with urlopen(req,timeout=300) as stream,tmp.open("xb") as dest:
+                  length=0
+                  while (block:=stream.read(1048576)):
+                      length+=len(block)
+                      if length>1024**3: raise ValueError("SOURCE_FILE_SIZE_CAP")
+                      dest.write(block)
+              if sha256(tmp)!=a["digest"]: raise ValueError("UPSTREAM_SOURCE_DIGEST_MISMATCH:"+name)
+              os.replace(tmp,path)
+              print("verified official release:",name,length,flush=True)
+          PY
+
+      - name: Re-materialize frozen calibration and project H0 corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/patch_dotnet_001_a1v2.py materialize \
+            --sources "$RUNNER_TEMP/powershell-original-sources" \
+            --a2-index "$RUNNER_TEMP/a2-locked/a2-files.jsonl" \
+            --root "$RUNNER_TEMP/d3-calibration"
+          sha256sum "$RUNNER_TEMP/d3-calibration/v2-pairs.json"
+          python3 benchmarks/scripts/patch_dotnet_001_d3_collect.py prepare \
+            --root "$RUNNER_TEMP/d3-calibration"
+
+      - name: Download frozen physical H0 and strict D3 scanner evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: patch-dotnet-001-d3-calibration-d0-scanner-ceiling
+          repository: definitely-stable/ChunkShift
+          run-id: 38123052019
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/d3-frozen-input
+
+      - name: Verify frozen H0 and D3 upstream artifact digests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"d3-frozen-input"
+          expected={
+            "d0-physical.json":"f0e4ff2e47905f22772f1642b105d6732b955070393eded3bf43c5b39ac82cee",
+            "d3-scanner.json":"9c2e6beb1f1086e9cd95e37d512950e355334d78e41be11718c415bccdf95b84",
+          }
+          for name,value in expected.items():
+              actual=hashlib.sha256((root/name).read_bytes()).hexdigest()
+              if actual!=value: raise RuntimeError(f"FROZEN_D3_INPUT_SHA_DRIFT {name}")
+              print("verified upstream",name,actual)
+          PY
+
+      - name: Measure physical D3P1 envelopes and independently decoded CSP apply
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/patch-dotnet-d3pilot/patches
+          dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj \
+            --no-build -c Release -- patch-lab dotnet-d3-pilot \
+            --corpus "$RUNNER_TEMP/d3-calibration" \
+            --baseline "$RUNNER_TEMP/d3-frozen-input/d0-physical.json" \
+            --scanner "$RUNNER_TEMP/d3-frozen-input/d3-scanner.json" \
+            --output artifacts/patch-dotnet-d3pilot/d3-pilot.json \
+            --artifact-dir artifacts/patch-dotnet-d3pilot/patches
+
+      - name: Independently replay raw envelope framing and full-population cost
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/patch_dotnet_001_d3_pilot_verify.py \
+            --result artifacts/patch-dotnet-d3pilot/d3-pilot.json \
+            --artifact-dir artifacts/patch-dotnet-d3pilot/patches \
+            --baseline "$RUNNER_TEMP/d3-frozen-input/d0-physical.json" \
+            --scanner "$RUNNER_TEMP/d3-frozen-input/d3-scanner.json" \
+            | tee artifacts/patch-dotnet-d3pilot/independent-replay.json
+          find artifacts/patch-dotnet-d3pilot -type f ! -name SHA256SUMS -print0 \
+            | sort -z | xargs -0 sha256sum > artifacts/patch-dotnet-d3pilot/SHA256SUMS
+
+      - name: Archive every physical research D3P1 envelope and audited summary
+        if: success()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-dotnet-001-d3p1-physical-calibration
+          path: artifacts/patch-dotnet-d3pilot/
+          if-no-files-found: error
+          retention-days: 90

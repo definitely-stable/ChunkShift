@@ -570,7 +570,9 @@
       "oracleProtocol": "docs/benchmarks/PATCH-DOTNET-001-D3-UPPER-BOUND-PROTOCOL.md",
       "oracleContractEvidence": "docs/research/results/PATCH-DOTNET-001-D3-O-CONTRACT-20261011-001.md",
       "oracleCalibrationEvidence": "docs/research/results/PATCH-DOTNET-001-D3-O-CALIBRATION-20261011-001.md",
-      "oracleObservedStatus": "CALIBRATION_UPPER_BOUND_NONVETO_NO_D3_PATCH_GAIN_VERDICT"
+      "oracleObservedStatus": "CALIBRATION_UPPER_BOUND_NONVETO_NO_D3_PATCH_GAIN_VERDICT",
+      "d3p1PhysicalEvidence": "docs/research/results/PATCH-DOTNET-001-D3P1-PHYSICAL-20261011-001.md",
+      "d3p1LaneVerdict": "TYPE_REF_ONLY_D3P1_STOP_CALIBRATION_ZERO_SAVINGS"
     },
     {
       "id": "PATCH-DICT-001",
