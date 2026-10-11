@@ -86,8 +86,10 @@
         154
       ],
       "area": "core-0.1.1",
-      "status": "PLANNED",
-      "question": "CSM component/Amdahl baseline"
+      "status": "RUNNING",
+      "question": "CSM component/Amdahl baseline",
+      "protocol": "docs/benchmarks/CORE011-CSM-001-GC-PROTOCOL.md",
+      "evidence": "docs/research/results/CORE011-CSM-001-GC-20261011-001.md"
     },
     {
       "id": "CORE011-CSM-002",
