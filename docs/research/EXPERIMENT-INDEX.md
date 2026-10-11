@@ -8,7 +8,7 @@ This table is the human-readable research index. Machine-readable experiment def
 | ExperimentId | Area | Owner | Question | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | CORE011-HASH-001 | Core 0.1.1 | #127, #152 | Managed/native/current BLAKE3 backend matrix and package/runtime cost | PLANNED | — |
-| CORE011-SCAN-001 | Core 0.1.1 | #153, #152 | Refresh .NET 10 production scanner/Amdahl baseline | RUNNING | [pilot #1](results/CORE011-SCAN-001-PILOT-20261011-001.md) (non-decision); [protocol](../benchmarks/CORE011-SCAN-001-PILOT-PROTOCOL.md) |
+| CORE011-SCAN-001 | Core 0.1.1 | #153, #152 | Refresh .NET 10 production scanner/Amdahl baseline | RUNNING | [pilot #1](results/CORE011-SCAN-001-PILOT-20261011-001.md) + [copy/async attribution](results/CORE011-SCAN-001-ATTRIBUTION-20261011-001.md) (both non-decision); [protocol](../benchmarks/CORE011-SCAN-001-ATTRIBUTION-PROTOCOL.md) |
 | CORE011-SCAN-002 | Core 0.1.1 | #153, #137 | Exact same-profile SIMD/word-parallel FastCDC backend | PLANNED | — |
 | CORE011-SCAN-003 | Core 0.1.1 | #153 | Source read-size and bounded buffer topology | PLANNED | — |
 | CORE011-SCAN-004 | Core 0.1.1 | #153 | One-read-ahead overlap | PLANNED | — |
