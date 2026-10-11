@@ -48,7 +48,7 @@ internal static class CsmGcConcurrencyHarness
         if (checked(sizeMiB * workers) > 512)
         {
             throw new ArgumentOutOfRangeException(
-                nameof(workers), "Size MiB × workers must not exceed 512.");
+                nameof(args), "Size MiB × workers must not exceed 512.");
         }
         string operation = Get(options, "--operation", "manifest-verify");
         if (operation is not ("create" or "manifest-verify" or "enumerate" or "content-verify"))
