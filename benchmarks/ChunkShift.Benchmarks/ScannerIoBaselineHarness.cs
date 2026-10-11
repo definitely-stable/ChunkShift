@@ -145,7 +145,11 @@ internal static class ScannerIoBaselineHarness
                 absoluteOutput,
                 JsonSerializer.Serialize(
                     artifact,
-                    new JsonSerializerOptions { WriteIndented = true }));
+                    new JsonSerializerOptions
+                    {
+                        WriteIndented = true,
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    }));
 
             Console.WriteLine($"CORE011-SCAN-001 recorded {samples.Count} pilot samples in {absoluteOutput}");
             return 0;
