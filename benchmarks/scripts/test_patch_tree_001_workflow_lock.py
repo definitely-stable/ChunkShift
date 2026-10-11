@@ -17,6 +17,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 WORKFLOW = REPO / ".github/workflows/patch-tree-001-t0-t1-calibration.yml"
 LOCK = REPO / "docs/benchmarks/patch-corpus/corpus-lock.json"
+VERIFIER = REPO / "benchmarks/scripts/verify_patch_tree_001_calibration.py"
+EVALUATOR = REPO / "benchmarks/ChunkShift.Benchmarks/PatchLab/Tree/PatchTreeCalibration.cs"
+
 
 
 def verify_workflow_digest(document: str, frozen_digest: str) -> None:
@@ -44,6 +47,19 @@ def verify_workflow_digest(document: str, frozen_digest: str) -> None:
 
 
 class WorkflowLockContractTests(unittest.TestCase):
+    def test_independent_verifier_reads_frozen_corpus_lock(self):
+        locked = json.loads(LOCK.read_text(encoding="utf-8"))["pairsSha256"]
+        document = VERIFIER.read_text(encoding="utf-8")
+        self.assertIn('PAIRS_SHA256 = json.loads(LOCK.read_text(encoding="utf-8"))["pairsSha256"]', document)
+        self.assertIn('LOCK = Path(__file__).resolve().parents[2] / "docs/benchmarks/patch-corpus/corpus-lock.json"', document)
+        # Enforce no independent 60-70 character embedded checksum literals.
+        self.assertNotRegex(document, r"(?<![0-9a-f])[0-9a-f]{60,70}(?![0-9a-f])")
+        csharp = EVALUATOR.read_text(encoding="utf-8")
+        expected = re.search(r'FrozenPairsSha256\\s*=\\s*"([a-f0-9]+)"', csharp)
+        self.assertIsNotNone(expected)
+        self.assertEqual(locked, expected.group(1))
+
+
     def test_no_second_literal_is_allowed_in_result_validation(self):
         locked = json.loads(LOCK.read_text(encoding="utf-8"))["pairsSha256"]
         original = WORKFLOW.read_text(encoding="utf-8")
