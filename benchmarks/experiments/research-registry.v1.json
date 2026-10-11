@@ -566,7 +566,9 @@
       "evidence": "docs/research/results/PATCH-DOTNET-001-A2-CLASSIFICATION-20261010-001.md",
       "prerequisiteEvidence": "docs/research/results/PATCH-DOTNET-001-A1-INVENTORY-20261010-001.md",
       "calibrationEvidence": "docs/research/results/PATCH-DOTNET-001-A1V2-CALIBRATION-20261011-001.md",
-      "calibrationProtocol": "docs/benchmarks/PATCH-DOTNET-001-CALIBRATION-V2.md"
+      "calibrationProtocol": "docs/benchmarks/PATCH-DOTNET-001-CALIBRATION-V2.md",
+      "oracleProtocol": "docs/benchmarks/PATCH-DOTNET-001-D3-UPPER-BOUND-PROTOCOL.md",
+      "oracleContractEvidence": "docs/research/results/PATCH-DOTNET-001-D3-O-CONTRACT-20261011-001.md"
     },
     {
       "id": "PATCH-DICT-001",
