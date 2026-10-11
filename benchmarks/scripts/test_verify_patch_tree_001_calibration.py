@@ -33,7 +33,9 @@ class TreeCalibrationVerifierTests(unittest.TestCase):
                 "targetSha256": digest, "t0CreateSeconds": 0.1,
                 "t1CreateSeconds": 0.2, "t0ApplySeconds": 0.3,
                 "t1ApplySeconds": 0.4, "t1BaseReads": 1,
-                "t1BaseBytesRead": 128, "t1BaseSeeks": 2
+                "t1BaseBytesRead": 128, "t1BaseSeeks": 2,
+                "targetCsmCreateSeconds": 0.01, "t0BaseCsmCreateSeconds": 0.02,
+                "t0SCreateSeconds": 0.03, "t0SApplySeconds": 0.04
             }
         pair = {
             "family": identity["family"], "baseVersion": "v1", "targetVersion": "v2",
@@ -43,6 +45,8 @@ class TreeCalibrationVerifierTests(unittest.TestCase):
             "unchangedCount": 1, "t0PayloadBytes": 104, "t1PayloadBytes": 115,
             "t0WarmPhysicalBytes": 124, "t0SPhysicalBytes": 160,
             "t1WarmPhysicalBytes": 135, "t1ColdPhysicalBytes": 225,
+            "oldTreePreflightSeconds": 0.11, "targetTreePreflightSeconds": 0.12,
+            "oldTreeCsmCreateSeconds": 0.13, "oldTreeCsmVerifySeconds": 0.14,
             "files": [row("changed", "changed", 5, 100, 100, 80, "a" * 64, "e" * 64),
                       row("new", "added", 4, 4, 40, 35, "b" * 64, None)]
         }
@@ -82,6 +86,18 @@ class TreeCalibrationVerifierTests(unittest.TestCase):
         doc, pairs = self.fixture()
         doc["pairs"][0]["files"][0]["targetSha256"] = "0" * 64
         with self.assertRaisesRegex(ValueError, "target file identity"):
+            mod.verify(doc, pairs)
+
+    def test_reject_bad_csm_stage_duration(self):
+        doc, pairs = self.fixture()
+        doc["pairs"][0]["oldTreeCsmCreateSeconds"] = -1
+        with self.assertRaisesRegex(ValueError, "pair stage duration"):
+            mod.verify(doc, pairs)
+
+    def test_reject_bad_t0s_duration(self):
+        doc, pairs = self.fixture()
+        doc["pairs"][0]["files"][1]["t0SApplySeconds"] = float("inf")
+        with self.assertRaisesRegex(ValueError, "invalid duration"):
             mod.verify(doc, pairs)
 
     def test_reject_extra_pair(self):
