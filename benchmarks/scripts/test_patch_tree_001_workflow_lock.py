@@ -5,7 +5,12 @@ Prevents a malformed or stale inline workflow PAIRS_SHA256 from reaching the
 one-shot GitHub-hosted calibration gate. Does not download or evaluate corpus.
 """
 import json
+import os
 import re
+import subprocess
+import sys
+import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 
@@ -53,6 +58,48 @@ class WorkflowLockContractTests(unittest.TestCase):
         self.assertIn("UNVERIFIED-NOT-DECISION.txt", workflow)
         self.assertIn("if: failure()", workflow)
         self.assertIn("if: success()", workflow)
+
+    def test_real_post_run_json_verifier_executes_and_rejects_bad_sha(self):
+        # Replay the EXACT inline verifier from YAML using a synthetic
+        # result, so a second mismatched literal cannot waste a real run.
+        document = WORKFLOW.read_text(encoding="utf-8")
+        locked = json.loads(LOCK.read_text(encoding="utf-8"))["pairsSha256"]
+        match = re.search(
+            r"          python3 - \"\\$EVIDENCE_DIR/calibration\\.json\" <<'PY'\\n"
+            r"(?P<body>.*?)\\n          PY", document, re.DOTALL)
+        self.assertIsNotNone(match, "cannot extract real result-verification code")
+        verifier = textwrap.dedent(match.group("body"))
+        result = {
+            "schema": "chunkshift.patch-tree-t0-t1-calibration.v1",
+            "status": "CALIBRATION_ONLY_NOT_DECISION",
+            "pairsSha256": locked,
+            "pairs": [{
+                "family": "dotnet-runtime-linux-arm64",
+                "t1ColdPhysicalBytes": 18,
+                "t1WarmPhysicalBytes": 10,
+                "targetTreeManifestBytes": 3,
+                "t0WarmPhysicalBytes": 10,
+                "t0SPhysicalBytes": 10,
+                "changedCount": 1, "addedCount": 0,
+                "files": [{"path": "file.bin"}],
+            }],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            result_path = Path(directory) / "calibration.json"
+            env = dict(os.environ, PAIRS_SHA256=locked)
+
+            def replay():
+                result_path.write_text(json.dumps(result), encoding="utf-8")
+                return subprocess.run(
+                    [sys.executable, "-c", verifier, str(result_path)],
+                    env=env, capture_output=True, text=True, check=False)
+
+            good = replay()
+            self.assertEqual(0, good.returncode, good.stderr)
+            result["pairsSha256"] = "0" * 64
+            bad = replay()
+            self.assertNotEqual(0, bad.returncode)
+            self.assertIn("pairsSha256", bad.stderr)
 
     def test_real_workflow_matches_frozen_corpus_lock(self):
         locked = json.loads(LOCK.read_text(encoding="utf-8"))["pairsSha256"]
