@@ -64,11 +64,11 @@ class WorkflowLockContractTests(unittest.TestCase):
         # result, so a second mismatched literal cannot waste a real run.
         document = WORKFLOW.read_text(encoding="utf-8")
         locked = json.loads(LOCK.read_text(encoding="utf-8"))["pairsSha256"]
-        match = re.search(
-            r"          python3 - \"\\$EVIDENCE_DIR/calibration\\.json\" <<'PY'\\n"
-            r"(?P<body>.*?)\\n          PY", document, re.DOTALL)
-        self.assertIsNotNone(match, "cannot extract real result-verification code")
-        verifier = textwrap.dedent(match.group("body"))
+        marker = """          python3 - "$EVIDENCE_DIR/calibration.json" <<'PY'""" + "\n"
+        self.assertIn(marker, document)
+        start = document.index(marker) + len(marker)
+        end = document.index("\n          PY", start)
+        verifier = textwrap.dedent(document[start:end])
         result = {
             "schema": "chunkshift.patch-tree-t0-t1-calibration.v1",
             "status": "CALIBRATION_ONLY_NOT_DECISION",
