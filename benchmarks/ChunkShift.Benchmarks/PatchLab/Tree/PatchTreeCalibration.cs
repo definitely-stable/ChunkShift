@@ -222,7 +222,7 @@ internal static class PatchTreeCalibration
                 .Select(x => x.GetString()!).ToHashSet(StringComparer.Ordinal);
             if (!oldFiles.Keys.Except(newFiles.Keys).ToHashSet(StringComparer.Ordinal).SetEquals(removed) ||
                 !newFiles.Keys.Except(oldFiles.Keys).ToHashSet(StringComparer.Ordinal).SetEquals(added) ||
-                newFiles.Keys.Intersect(oldFiles.Keys)
+                !newFiles.Keys.Intersect(oldFiles.Keys)
                     .Where(path => newFiles[path].Sha256 != oldFiles[path].Sha256)
                     .ToHashSet(StringComparer.Ordinal).SetEquals(changed))
                 throw new InvalidDataException("Frozen changed/added/removed names do not match verified trees.");
