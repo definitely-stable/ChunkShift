@@ -35,13 +35,17 @@ internal static class PatchTreeCalibration
         string Path, string Kind, long TargetBytes, long T0Bytes, long T0SBytes, long T1Bytes,
         string? T0PatchSha256, string T1PatchSha256, string TargetSha256,
         double T0CreateSeconds, double T1CreateSeconds, double T0ApplySeconds,
-        double T1ApplySeconds, long T1BaseReads, long T1BaseBytesRead, long T1BaseSeeks);
+        double T1ApplySeconds, long T1BaseReads, long T1BaseBytesRead, long T1BaseSeeks,
+        double TargetCsmCreateSeconds, double T0BaseCsmCreateSeconds,
+        double T0SCreateSeconds, double T0SApplySeconds);
 
     internal sealed record PairResult(string Family, string BaseVersion, string TargetVersion,
         string OldTreeManifestId, long OldTreeCsmBytes, long BaseLayoutBytes,
         long TargetTreeManifestBytes, int ChangedCount, int AddedCount, int RemovedCount,
         int UnchangedCount, long T0PayloadBytes, long T1PayloadBytes,
         long T0WarmPhysicalBytes, long T0SPhysicalBytes, long T1WarmPhysicalBytes, long T1ColdPhysicalBytes,
+        double OldTreePreflightSeconds, double TargetTreePreflightSeconds,
+        double OldTreeCsmCreateSeconds, double OldTreeCsmVerifySeconds,
         Row[] Files);
 
     internal sealed record Result(string Schema, string Status, string PairsSha256,
@@ -179,8 +183,12 @@ internal static class PatchTreeCalibration
         string oldRoot = Path.Combine(corpusRoot, "tree", p.Family, p.BaseVersion);
         string newRoot = Path.Combine(corpusRoot, "tree", p.Family, p.TargetVersion);
         string pairLabel = p.Family + ":" + p.BaseVersion + "->" + p.TargetVersion;
+        Stopwatch phaseWatch = Stopwatch.StartNew();
         using var oldTree = VerifiedTreeStream.OpenVerified(oldRoot, p.Base.Files);
+        double oldPreflightSeconds = phaseWatch.Elapsed.TotalSeconds;
+        phaseWatch.Restart();
         using var newTree = VerifiedTreeStream.OpenVerified(newRoot, p.Target.Files);
+        double targetPreflightSeconds = phaseWatch.Elapsed.TotalSeconds;
         _ = newTree.Length; // forces new-tree full preflight, including unchanged files
 
         string temporary = Directory.CreateTempSubdirectory("patch-tree-cal-").FullName;
@@ -188,13 +196,18 @@ internal static class PatchTreeCalibration
         {
             string oldCsmPath = Path.Combine(temporary, "old-tree.csm");
             ManifestInfo oldInfo;
+            double csmCreateSeconds, csmVerifySeconds;
             await using (var csm = new FileStream(oldCsmPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
             {
+                phaseWatch.Restart();
                 oldInfo = await ChunkManifest.CreateAsync(oldTree, csm);
+                csmCreateSeconds = phaseWatch.Elapsed.TotalSeconds;
                 VerifiedTreeStream.RequireBaseRecordCount(oldInfo.ChunkCount);
                 oldTree.Position = 0;
                 csm.Position = 0;
+                phaseWatch.Restart();
                 ManifestVerificationResult verification = await ChunkManifest.VerifyAsync(oldTree, csm);
+                csmVerifySeconds = phaseWatch.Elapsed.TotalSeconds;
                 if (!verification.IsValid || verification.Manifest.ManifestId != oldInfo.ManifestId)
                     throw new InvalidDataException("Whole-old-tree CSM does not verify.");
             }
@@ -255,13 +268,16 @@ internal static class PatchTreeCalibration
                 string kind = changed.Contains(file.Path) ? "changed" : "added";
                 string target = Path.Combine(newRoot, file.Path.Replace('/', Path.DirectorySeparatorChar));
                 string targetCsm = Path.Combine(temporary, "target-" + rows.Count + ".csm");
+                Stopwatch csmWatch = Stopwatch.StartNew();
                 await using (var content = File.OpenRead(target))
                 await using (var output = File.Create(targetCsm))
                     _ = await ChunkManifest.CreateAsync(content, output);
+                double targetCsmSeconds = csmWatch.Elapsed.TotalSeconds;
 
                 string patchT0 = Path.Combine(temporary, "t0-" + rows.Count + ".csp");
                 string patchT1 = Path.Combine(temporary, "t1-" + rows.Count + ".csp");
-                double t0Create = 0, t0Apply = 0;
+                double t0Create = 0, t0Apply = 0, t0BaseCsmSeconds = 0;
+                double t0sCreate = 0, t0sApply = 0;
                 long sizeT0;
                 string? t0Sha = null;
                 if (kind == "changed")
@@ -269,9 +285,11 @@ internal static class PatchTreeCalibration
                     VerifiedTreeStream.TreeFile before = oldFiles[file.Path];
                     string oldFilePath = Path.Combine(oldRoot, before.Path.Replace('/', Path.DirectorySeparatorChar));
                     string oldFileCsm = Path.Combine(temporary, "old-file-" + rows.Count + ".csm");
+                    csmWatch.Restart();
                     await using (var content = File.OpenRead(oldFilePath))
                     await using (var output = File.Create(oldFileCsm))
                         _ = await ChunkManifest.CreateAsync(content, output);
+                    t0BaseCsmSeconds = csmWatch.Elapsed.TotalSeconds;
 
                     Stopwatch sw = Stopwatch.StartNew();
                     await using (var baseManifest = File.OpenRead(oldFileCsm))
@@ -312,18 +330,22 @@ internal static class PatchTreeCalibration
                 if (kind == "added")
                 {
                     string standalone = Path.Combine(temporary, "t0s-" + rows.Count + ".csp");
+                    csmWatch.Restart();
                     await using (var targetManifest = File.OpenRead(targetCsm))
                     await using (var targetContent = File.OpenRead(target))
                     await using (var selfContainedPatch = File.Create(standalone))
                         _ = await ChunkPatch.CreateAsync(targetManifest, targetContent, selfContainedPatch);
+                    t0sCreate = csmWatch.Elapsed.TotalSeconds;
                     sizeT0S = new FileInfo(standalone).Length;
                     string staged = Path.Combine(temporary, "t0s-result-" + rows.Count);
+                    csmWatch.Restart();
                     await using (var selfContainedPatch = File.OpenRead(standalone))
                     {
                         PatchApplyResult applied = await ChunkPatch.ApplyAsync(selfContainedPatch, staged);
                         if (!applied.IsApplied || !string.Equals(await DigestFile(staged), file.Sha256, StringComparison.OrdinalIgnoreCase))
                             throw new InvalidDataException("T0S exact reconstruction failure: " + pairLabel + "/" + file.Path);
                     }
+                    t0sApply = csmWatch.Elapsed.TotalSeconds;
                 }
 
                 oldTree.Position = 0;
@@ -366,7 +388,8 @@ internal static class PatchTreeCalibration
                     t0Apply, t1Apply,
                     oldTree.ReadCalls - baseReadsBefore,
                     oldTree.BytesRead - baseBytesBefore,
-                    oldTree.SeekCalls - baseSeeksBefore));
+                    oldTree.SeekCalls - baseSeeksBefore,
+                    targetCsmSeconds, t0BaseCsmSeconds, t0sCreate, t0sApply));
             }
 
             // Full path map includes unchanged files; absence of removed paths
@@ -400,6 +423,7 @@ internal static class PatchTreeCalibration
                 SafeWholeUpdateTotal(t0sBytes, targetTreeManifestBytes.Length),
                 SafeWholeUpdateTotal(t1Bytes, targetTreeManifestBytes.Length),
                 SafeWholeUpdateTotal(t1Bytes, targetTreeManifestBytes.Length, csmBytes, baseLayout.Length),
+                oldPreflightSeconds, targetPreflightSeconds, csmCreateSeconds, csmVerifySeconds,
                 [.. rows]);
         }
         finally
