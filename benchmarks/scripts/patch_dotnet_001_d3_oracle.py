@@ -159,8 +159,7 @@ def evaluate(doc: dict, pairs: dict) -> dict:
             # bases can legitimately produce different patch costs.
             identity = (source["baseSha256"], source["targetSha256"])
             ratio = upper / h0
-            if identity not in eligible_ratios:
-                eligible_ratios[identity] = ratio
+            eligible_ratios[identity] = min(eligible_ratios.get(identity, ratio), ratio)
         sum_d0 += h0
         sum_ideal += ideal
     demand(seen == set(expected), "ORACLE_MISSING_CHANGED_FILE")

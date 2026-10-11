@@ -131,8 +131,6 @@ class OracleTests(unittest.TestCase):
     def test_boundary_idealized_underestimates_real_cost(self):
         data, pairs = fake_inputs(1)
         r = oracle.evaluate(data, pairs)
-        self.assertEqual(52, r["d0PhysicalBytes"] - r["idealMinimumPhysicalBytes"] + 52
-                         if False else 52)
         self.assertEqual(948, r["upperBoundSavingBytes"])
         self.assertEqual(1000 - 52, r["upperBoundSavingBytes"])
 
