@@ -16,6 +16,11 @@ namespace ChunkShift.Benchmarks;
 internal static class ScannerIoBaselineHarness
 {
     private const string ExperimentId = "CORE011-SCAN-001";
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
     private static readonly int[] NormalReads = [int.MaxValue];
     private static readonly int[] ShortReads = [1, 7, 31, 4095, 65535, 2, 257];
 
@@ -145,11 +150,7 @@ internal static class ScannerIoBaselineHarness
                 absoluteOutput,
                 JsonSerializer.Serialize(
                     artifact,
-                    new JsonSerializerOptions
-                    {
-                        WriteIndented = true,
-                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    }));
+                    JsonOptions));
 
             Console.WriteLine($"CORE011-SCAN-001 recorded {samples.Count} pilot samples in {absoluteOutput}");
             return 0;
