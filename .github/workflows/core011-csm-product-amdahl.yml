@@ -1,0 +1,79 @@
+name: CORE011 CSM G1-F product Amdahl controls
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-product-amdahl.yml"
+      - "benchmarks/ChunkShift.Benchmarks/CsmProductAmdahlHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks/Program.cs"
+      - "benchmarks/scripts/core011_csm_product_amdahl.py"
+      - "benchmarks/scripts/test_core011_csm_product_amdahl.py"
+      - "docs/benchmarks/CORE011-CSM-001-PRODUCT-AMDAHL-PROTOCOL.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-csm-product-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  product:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact PR merge
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Build and fail-closed evaluator regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+          python3 -m unittest benchmarks/scripts/test_core011_csm_product_amdahl.py
+      - name: Real public Patching product calls
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_product_amdahl.py \
+            --output-dir "$RUNNER_TEMP/core011-csm-product" \
+            --run-id "CORE011-CSM-001/G1F-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:8}-linux-x64"
+          python3 - "$RUNNER_TEMP/core011-csm-product/summary.json" <<'PY'
+          import json
+          import os
+          import sys
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              result = json.load(stream)
+          assert result["caseCount"] == 8 and result["roundCount"] == 40
+          assert result["completedCalls"] == 160
+          assert result["verdict"] == "NO_VERDICT_EXPLORATORY"
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as output:
+              print("## CORE011-CSM-001 G1-F product gate", file=output)
+              print(f"RunId: {result['runId']}", file=output)
+              print("**NO_VERDICT**: Plan reader gross allocation ceiling is not CPU Amdahl.", file=output)
+              print("| MiB | API | KiB allocated/call | Batch p50 ms | Gen2 | Plan ceiling |", file=output)
+              print("|---:|---|---:|---:|---:|---:|", file=output)
+              for c in result["cases"]:
+                  fraction = c["hypotheticalPlanAllocationCeilingFraction"]
+                  cap = f"{fraction:.1%}" if fraction is not None else "n/a"
+                  print(f"| {c['sizeMiB']} | {c['operation']} | "
+                        f"{c['medianAllocatedBytesPerCall']/1024:.2f} | "
+                        f"{c['medianBatchWallMs']:.3f} | "
+                        f"{c['totalGen2']} | {cap} |", file=output)
+          PY
+      - name: Preserve 8 physical/CSM/CSP-evidenced product scenarios
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-product-${{ github.run_id }}
+          path: ${{ runner.temp }}/core011-csm-product/
+          retention-days: 90
+          if-no-files-found: warn
