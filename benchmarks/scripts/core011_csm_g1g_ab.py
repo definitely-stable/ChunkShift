@@ -238,7 +238,6 @@ def evaluate(directory: Path, run_id: str):
             else:
                 if (d.get("schema") != "chunkshift.core011.csm-multiblock-metadata.v1" or
                         c.get("operation") != "manifest-verify" or
-                        c.get("sizeMiB", size) != size and False or
                         c.get("workers") != workers or c.get("rounds") != ROUNDS or
                         c.get("repetitions") != VERIFY_REPS or
                         c.get("suite") != "blake3" or
