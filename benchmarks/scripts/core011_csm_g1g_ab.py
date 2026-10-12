@@ -102,11 +102,14 @@ def run_case(worktree: Path, out: Path, variant: str, kind: str, size: int, work
         "benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj",
         "-c", "Release", "--no-build", "--",
     ]
+    # Reuse existing frozen G1-F/G1-E harnesses with their required schema
+    # prefixes; the parent G1-G RunId remains the common aggregation identity.
+    child_run_id = run_id.replace("/G1G-", "/G1F-" if kind == "plan" else "/G1E-", 1)
     if kind == "plan":
         cmd = base + [
             "core011-csm-product", "--operation", "plan",
             "--size-mib", str(size), "--rounds", str(ROUNDS),
-            "--repetitions", str(PLAN_REPS), "--run-id", run_id,
+            "--repetitions", str(PLAN_REPS), "--run-id", child_run_id,
             "--output", str(out)
         ]
     else:
@@ -115,7 +118,7 @@ def run_case(worktree: Path, out: Path, variant: str, kind: str, size: int, work
             "--suite", "blake3", "--bidx", "true", "--size-mib", str(size),
             "--min-chunks", str(4097 if size == 384 else 1),
             "--workers", str(workers), "--rounds", str(ROUNDS),
-            "--repetitions", str(VERIFY_REPS), "--run-id", run_id,
+            "--repetitions", str(VERIFY_REPS), "--run-id", child_run_id,
             "--output", str(out)
         ]
     print(f"G1-G: {variant} {kind} {size}MiB workers={workers}", flush=True)
@@ -203,7 +206,9 @@ def evaluate(directory: Path, run_id: str):
                 else f"verify-{size}-w{workers}.json")
             raw = path.read_bytes()
             d = json.loads(raw)
-            if d.get("runId") != run_id or d.get("experimentId") != "CORE011-CSM-001" or (
+            child_run_id = run_id.replace(
+                "/G1G-", "/G1F-" if kind == "plan" else "/G1E-", 1)
+            if d.get("runId") != child_run_id or d.get("experimentId") != "CORE011-CSM-001" or (
                     d.get("verdict") != "NO_VERDICT_EXPLORATORY"):
                 raise ValueError("wrong run/corpus verdict")
             c = d.get("conditions", {})
