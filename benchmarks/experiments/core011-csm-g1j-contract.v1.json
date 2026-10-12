@@ -1,0 +1,94 @@
+{
+  "schema": "chunkshift.core011.csm-g1j-contract.v1",
+  "experimentId": "CORE011-CSM-001",
+  "ownerIssue": 154,
+  "protocol": "docs/benchmarks/CORE011-CSM-001-G1J-QUALIFICATION-PROTOCOL.md",
+  "stage": "preregistration",
+  "verdict": "NO_VERDICT_EXPLORATORY",
+  "decisionRunsAllowed": false,
+  "budgetsLocked": false,
+  "sourceBaselineSha256": "a62772638c715005cb8a1a6ca58222349755a7e21a341ff80655a825910cebf2",
+  "candidates": [
+    "eager",
+    "lazy",
+    "hybrid1",
+    "hybrid2",
+    "hybrid4"
+  ],
+  "poolCaps": {
+    "eager": null,
+    "lazy": null,
+    "hybrid1": 1,
+    "hybrid2": 2,
+    "hybrid4": 4
+  },
+  "smallCblkThresholdBytes": 81920,
+  "sourcePolicy": {
+    "temporaryDetachedWorktreesOnly": true,
+    "productionSourceChangesAllowed": false
+  },
+  "processIsolation": {
+    "dedicatedFixtureBuilder": true,
+    "freshConsumerPerCell": true,
+    "consumerMayCreateSourceBytes": false,
+    "recordOsPid": true,
+    "verifyExactCsmDigest": true
+  },
+  "workloadClasses": [
+    "short",
+    "threshold-below",
+    "threshold-at",
+    "threshold-above",
+    "multiblock-384m",
+    "larger-multiblock",
+    "real-versioned-small-edit",
+    "real-versioned-insert-delete",
+    "real-versioned-heavy-replacement",
+    "real-versioned-low-reuse",
+    "real-versioned-mostly-unchanged"
+  ],
+  "metrics": [
+    "allocatedBytesPerCall",
+    "gcPauseMilliseconds",
+    "gen2Collections",
+    "batchCpuMilliseconds",
+    "batchWallMilliseconds",
+    "throughputCallsPerSecond",
+    "peakWorkingSetBytes",
+    "postIdleWorkingSetBytes",
+    "privateBytes",
+    "postGcManagedHeapBytes",
+    "lastGcLohBytes",
+    "maxActiveReaders"
+  ],
+  "concurrency": [
+    1,
+    4,
+    16
+  ],
+  "experimentalCpuRunnersMinimum": 4,
+  "windowsRunnersMinimum": 2,
+  "budgetPolicy": {
+    "baselineCalibrationEvidenceId": null,
+    "freezeCommitSha": null,
+    "cpuRatioUpperBound": null,
+    "planWallRatioUpperBound": null,
+    "verifyWallRatioUpperBound": null,
+    "peakWorkingSetIncrementBytes": null,
+    "idleWorkingSetIncrementBytes": null,
+    "privateBytesIncrementBytes": null,
+    "retainedManagedHeapIncrementBytes": null,
+    "allocatedBytesPerCallMax": null,
+    "gcPauseRatioUpperBound": null,
+    "gen2IncrementMax": null,
+    "confidenceLevel": null,
+    "independentBlocksMinimum": null
+  },
+  "decisionGuard": {
+    "requireAllBudgets": true,
+    "requireRealVersionedCorpus": true,
+    "requireWindowsAndSupportedAot": true,
+    "requireUnchangedCsmCspSemantics": true,
+    "requireArchivedFailures": true
+  }
+}
