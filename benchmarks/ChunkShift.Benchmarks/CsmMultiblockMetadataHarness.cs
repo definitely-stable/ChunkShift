@@ -55,6 +55,12 @@ internal static class CsmMultiblockMetadataHarness
         string operation = Get(argsByName, "--operation", "enumerate");
         string suite = Get(argsByName, "--suite", "blake3");
         string bidxText = Get(argsByName, "--bidx", "true");
+        string traceText = Get(argsByName, "--trace-events", "false");
+        if (traceText is not ("true" or "false"))
+        {
+            throw new ArgumentException("--trace-events must be true or false.");
+        }
+        bool traceEvents = traceText == "true";
         if (operation is not ("manifest-verify" or "enumerate"))
         {
             throw new ArgumentException("Only public metadata reader/verify operations allowed.");
@@ -111,8 +117,10 @@ internal static class CsmMultiblockMetadataHarness
         long liveStart = GC.GetTotalMemory(forceFullCollection: false);
         var gcStart = GC.GetGCMemoryInfo();
         var samples = new List<RoundSample>(rounds);
+        if (traceEvents) CsmLohTraceEvents.Log.Phase(1, 0);
         for (int round = 1; round <= rounds; round++)
         {
+            if (traceEvents) CsmLohTraceEvents.Log.Phase(2, round);
             long heapBefore = GC.GetTotalMemory(forceFullCollection: false);
             int g0 = GC.CollectionCount(0);
             int g1 = GC.CollectionCount(1);
@@ -146,6 +154,7 @@ internal static class CsmMultiblockMetadataHarness
                 GC.CollectionCount(2) - g2,
                 gcInfo.GenerationInfo[3].SizeAfterBytes,
                 gcInfo.Index, ops, chunks, maxActive));
+            if (traceEvents) CsmLohTraceEvents.Log.Phase(3, round);
             Console.WriteLine(FormattableString.Invariant(
                 $"multi-CBLK op={operation} suite={suite} bidx={bidxText} workers={workers} round={round} chunks={chunks} wall-ms={elapsedMs:F3} alloc={processAlloc} gen2={samples[^1].Gen2Collections}"));
         }
@@ -164,6 +173,27 @@ internal static class CsmMultiblockMetadataHarness
             post.HeapSizeBytes,
             post.Index,
             process.WorkingSet64);
+
+        // Emit the known-positive LOH control only AFTER the retention
+        // snapshot. Otherwise the 4-MiB control may pollute last-GC LOH
+        // and mistakenly look like retained CSM reader memory.
+        // Trace-only positive control: 32 x 128-KiB LOH objects. Keep all
+        // references alive until the control-end marker; never conflate these
+        // allocations with the reader phase. The trace, not this source code,
+        // must independently observe the control window.
+        if (traceEvents)
+        {
+            CsmLohTraceEvents.Log.Phase(4, 0);
+            byte[][] control = new byte[32][];
+            for (int i = 0; i < control.Length; i++)
+            {
+                control[i] = new byte[128 * 1024];
+                control[i][0] = (byte)i;
+            }
+            GC.KeepAlive(control);
+            CsmLohTraceEvents.Log.Phase(5, 0);
+        }
+
 
         var artifact = new
         {
@@ -202,6 +232,10 @@ internal static class CsmMultiblockMetadataHarness
                 rounds,
                 repetitions,
                 minChunks,
+                traceEvents,
+                traceProvider = traceEvents ? "ChunkShift-Core011-CSM-Trace" : null,
+                controlArrays = traceEvents ? 32 : 0,
+                controlArrayBytes = traceEvents ? 128 * 1024 : 0,
                 fixtureAndContentHashOutsideTimedRegion = true,
                 memoryOnly = true,
                 workload = "public-CSM-metadata-only-no-original-content",
@@ -237,7 +271,7 @@ internal static class CsmMultiblockMetadataHarness
             if (i + 1 >= args.Length ||
                 args[i] is not ("--size-mib" or "--min-chunks" or "--workers" or
                 "--rounds" or "--repetitions" or "--operation" or "--suite" or
-                "--bidx" or "--run-id" or "--output") ||
+                "--bidx" or "--trace-events" or "--run-id" or "--output") ||
                 !parsed.TryAdd(args[i], args[i + 1]))
             {
                 throw new ArgumentException("Invalid or duplicate CSM multi-CBLK argument.");
