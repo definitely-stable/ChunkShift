@@ -1,0 +1,77 @@
+name: CORE011 CSM G1-J1 isolated fixture smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-g1j1-isolation.yml"
+      - "benchmarks/ChunkShift.Benchmarks/CsmG1jIsolatedHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks/Program.cs"
+      - "benchmarks/scripts/core011_csm_g1j1_isolation.py"
+      - "benchmarks/scripts/test_core011_csm_g1j1_isolation.py"
+      - "docs/benchmarks/CORE011-CSM-001-G1J1-ISOLATION-NOTES.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-g1j1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-builder-consumer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "true"
+    steps:
+      - name: Checkout pinned source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: Setup pinned .NET 10 SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Run G1-J preregistration and G1-J1 synthetic mutation tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v \
+            benchmarks/scripts/test_core011_csm_g1j_contract.py \
+            benchmarks/scripts/test_core011_csm_g1j1_isolation.py
+          python3 benchmarks/scripts/core011_csm_g1j_contract.py \
+            --contract benchmarks/experiments/core011-csm-g1j-contract.v1.json
+          if python3 benchmarks/scripts/core011_csm_g1j_contract.py \
+            --contract benchmarks/experiments/core011-csm-g1j-contract.v1.json \
+            --decision-ready; then
+            echo "G1-J1 must not permit decision runs" >&2
+            exit 1
+          fi
+      - name: Run physical 384 MiB CSM builder separately from five public Verify consumers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_g1j1_isolation.py \
+            --output-dir "$RUNNER_TEMP/core011-g1j1-data" \
+            --worktree-root "$RUNNER_TEMP/core011-g1j1-worktrees" \
+            --run-id "CORE011-CSM-001/G1J1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:8}-linux-x64" \
+            --size-mib 384 --workers 4
+          python3 - "$RUNNER_TEMP/core011-g1j1-data/summary.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          summary=json.loads(Path(sys.argv[1]).read_text())
+          assert summary["caseCount"] == 5 and summary["roundCount"] == 10
+          assert summary["verdict"] == "NO_VERDICT_EXPLORATORY"
+          print("G1-J1 source-free process isolation PASS; NO ADOPT")
+          PY
+      - name: Archive complete raw non-decision data, build identities and CSM
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g1j1-${{ github.run_id }}
+          path: ${{ runner.temp }}/core011-g1j1-data/
+          retention-days: 90
+          if-no-files-found: warn
