@@ -41,6 +41,7 @@ def synthetic_fixture(root):
             "assemblyPath":j.ASSEMBLY_PATH,
             "url":j.flat_urls(version)[0], "sidecarUrl":j.flat_urls(version)[1],
             "binaryFormat":"original-PE-DLL-from-official-nupkg",
+            "packageHashSource":"computed-from-downloaded-package;not-authenticated",
             "digestFreezeStatus":"observed-in-first-nondecision-run;not-independent-freeze",
             "license":"MIT","packageBytes":200000,
             "bytes":120000,"packageSha256":"b"*64,
@@ -152,7 +153,7 @@ class G1J2CUnitTests(unittest.TestCase):
                       lambda d:d["target"].update(version="5.0.0"),
                       "provenance or experiment decision guard")
 
-    def test_wrong_nuget_sidecar_digest_rejected(self):
+    def test_wrong_observed_package_digest_rejected(self):
         self.mutation("fixture/provenance.json",
                       lambda d:d["base"].update(packageSha512Base64="x"),
                       "provenance or experiment decision guard")
