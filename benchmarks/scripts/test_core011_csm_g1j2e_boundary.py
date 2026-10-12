@@ -44,7 +44,8 @@ class CblkParserTests(unittest.TestCase):
             e.parse_csm_cblk(buf,10,1)
         # Header size mismatch must fail before treating bytes as chunks.
         corrupt=bytearray(buf)
-        start=32+16
+        # Synthetic CORE has a zero-length payload; skip both section headers.
+        start=32+16+16
         struct.pack_into("<I",corrupt,start,4097)
         with self.assertRaisesRegex(ValueError,"invalid frozen CBLK"):
             e.parse_csm_cblk(bytes(corrupt),9,1)
