@@ -58,7 +58,7 @@ def flat_urls(version):
     if version not in VERSIONS.values():
         raise ValueError("non-predeclared NuGet package version")
     prefix = f"{FLAT}/{PACKAGE}/{version}/{PACKAGE}.{version}.nupkg"
-    return prefix, prefix + ".sha512"
+    return prefix, None  # NuGet FlatContainer does not guarantee a public .sha512 sidecar
 
 
 def get_bytes(url, maximum):
@@ -95,20 +95,18 @@ def extract_release(package_bytes):
 
 def download_version(version):
     url, digest_url = flat_urls(version)
-    # NuGet itself publishes this digest. We record it and verify against the
-    # package; do not mislabel it an independently pre-frozen hash or signature.
-    expected = validate_sha512_text(get_bytes(digest_url, 4096).decode("ascii"))
+    # Initial corpus-selection phase: record a self-computed SHA-512.
+    # DO NOT describe this as an official independently authenticated hash.
     raw = get_bytes(url, MAX_PACKAGE)
-    if sha512_b64(raw) != expected:
-        raise ValueError("NuGet package SHA-512 mismatches official FlatContainer sidecar")
+    expected = validate_sha512_text(sha512_b64(raw))
     assembly = extract_release(raw)
     return assembly, {
         "version": version, "packageId": "Microsoft.CodeAnalysis.CSharp",
-        "url": url, "sidecarUrl": digest_url,
+        "url": url, "sidecarUrl": None,
         "packageBytes": len(raw),
         "packageSha256": sha256(raw),
         "packageSha512Base64": expected,
-        "officialSidecarSha256": sha256((expected + "\n").encode()),
+        "packageHashSource": "computed-from-downloaded-package;not-authenticated",
         "sha256": sha256(assembly), "bytes": len(assembly),
         "assemblyPath": ASSEMBLY_PATH,
         "binaryFormat": "original-PE-DLL-from-official-nupkg",
@@ -181,7 +179,8 @@ def check(output, run_id, checkout):
             or record.get("packageId") != "Microsoft.CodeAnalysis.CSharp"
             or record.get("assemblyPath") != ASSEMBLY_PATH
             or record.get("url") != original_url
-            or record.get("sidecarUrl") != sidecar
+            or record.get("sidecarUrl") is not None
+            or record.get("packageHashSource") != "computed-from-downloaded-package;not-authenticated"
             or record.get("binaryFormat") != "original-PE-DLL-from-official-nupkg"
             or record.get("digestFreezeStatus") != "observed-in-first-nondecision-run;not-independent-freeze"
             or record.get("license") != "MIT"
