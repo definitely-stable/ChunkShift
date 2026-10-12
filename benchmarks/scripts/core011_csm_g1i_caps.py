@@ -25,6 +25,16 @@ ORIGINAL_SOURCE_SHA = "a62772638c715005cb8a1a6ca58222349755a7e21a341ff80655a8259
 CAP_ANCHOR = "maxArraysPerBucket: 4);"
 
 
+def ordered_variants(case_index: int, replicate: int):
+    if not 0 <= case_index < len(CASES) or replicate not in (0,1):
+        raise ValueError("invalid order index")
+    rotation=(case_index+replicate)%4
+    seq=list(VARIANTS[rotation:])+list(VARIANTS[:rotation])
+    if replicate==1:
+        seq.reverse()
+    return seq
+
+
 def source_variant(original: str, variant: str) -> str:
     if variant not in VARIANTS:
         raise ValueError("unknown G1-I strategy")
@@ -92,10 +102,7 @@ def run(repo: Path, output: Path, root: Path, run_id: str, replicate: int):
     # opposite rotations: no uncontrolled PRNG state or mutable fixture.
     order_by_case = {}
     for i,(kind,size,workers) in enumerate(CASES):
-        rotation=(i+replicate)%4
-        seq=list(VARIANTS[rotation:])+list(VARIANTS[:rotation])
-        if replicate==1:
-            seq.reverse()
+        seq=ordered_variants(i,replicate)
         label=f"{kind}-{size}-w{workers}"
         order_by_case[label]=seq
         for v in seq:
@@ -106,6 +113,10 @@ def run(repo: Path, output: Path, root: Path, run_id: str, replicate: int):
             h.real_case(builds[v],case_file,v,kind,size,workers,
                         run_id.replace("/G1I-","/G1H-",1))
 
+    (output/"order.json").write_text(json.dumps({
+        "schema":"chunkshift.core011.g1i-order.v1",
+        "runId":run_id,"replicate":replicate,"orderByCase":order_by_case,
+    },indent=2)+"\n")
     summary=evaluate(output,run_id,replicate)
     summary["perCaseExecutionOrder"]=order_by_case
     (output/"summary.json").write_text(json.dumps(summary,indent=2)+"\n")
@@ -121,6 +132,15 @@ def require_number(value, key):
 def evaluate(output: Path, run_id: str, replicate: int):
     if not run_id.startswith("CORE011-CSM-001/G1I-") or replicate not in (0,1):
         raise ValueError("invalid G1-I aggregate identity")
+    order=json.loads((output/"order.json").read_text())
+    expected_order={
+        f"{kind}-{size}-w{workers}":ordered_variants(i,replicate)
+        for i,(kind,size,workers) in enumerate(CASES)}
+    if (order.get("schema")!="chunkshift.core011.g1i-order.v1" or
+            order.get("runId")!=run_id or
+            order.get("replicate")!=replicate or
+            order.get("orderByCase")!=expected_order):
+        raise ValueError("unfrozen experimental ordering")
     rows=[]
     refs={}
     sources=set()
