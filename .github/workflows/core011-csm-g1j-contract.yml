@@ -1,0 +1,52 @@
+name: CORE011 CSM G1-J preregistration guard
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-g1j-contract.yml"
+      - "docs/benchmarks/CORE011-CSM-001-G1J-QUALIFICATION-PROTOCOL.md"
+      - "benchmarks/experiments/core011-csm-g1j-contract.v1.json"
+      - "benchmarks/scripts/core011_csm_g1j_contract.py"
+      - "benchmarks/scripts/test_core011_csm_g1j_contract.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR tree
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Enforce protocol-only change scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only origin/main...HEAD > "$RUNNER_TEMP/g1j-diff.txt"
+          cat "$RUNNER_TEMP/g1j-diff.txt"
+          if grep -Eq '^(src/|tests/|Directory\.Packages\.props$)' "$RUNNER_TEMP/g1j-diff.txt"; then
+            echo "G1-J preregistration PR cannot alter product/tests/dependencies" >&2
+            exit 1
+          fi
+      - name: Compile and execute fail-closed unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile benchmarks/scripts/core011_csm_g1j_contract.py
+          python3 -m unittest -v benchmarks/scripts/test_core011_csm_g1j_contract.py
+      - name: Verify preregistration passes but decision permission fails
+        shell: bash
+        run: |
+          set -euo pipefail
+          contract="benchmarks/experiments/core011-csm-g1j-contract.v1.json"
+          python3 benchmarks/scripts/core011_csm_g1j_contract.py --contract "$contract"
+          if python3 benchmarks/scripts/core011_csm_g1j_contract.py --contract "$contract" --decision-ready; then
+            echo "ERROR: decision runs unexpectedly allowed before budget freeze" >&2
+            exit 1
+          fi
+          echo "G1-J preregistration PASS; decision execution deliberately BLOCKED" >> "$GITHUB_STEP_SUMMARY"
