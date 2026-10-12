@@ -88,8 +88,8 @@
       "area": "core-0.1.1",
       "status": "RUNNING",
       "question": "CSM component/Amdahl baseline",
-      "protocol": "docs/benchmarks/CORE011-CSM-001-SUSTAINED-PROTOCOL.md",
-      "evidence": "docs/research/results/CORE011-CSM-001-G1E-20261012-001.md"
+      "protocol": "docs/benchmarks/CORE011-CSM-001-PRODUCT-AMDAHL-PROTOCOL.md",
+      "evidence": "docs/research/results/CORE011-CSM-001-G1F-20261012-001.md"
     },
     {
       "id": "CORE011-CSM-002",
