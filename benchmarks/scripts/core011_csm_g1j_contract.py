@@ -21,6 +21,8 @@ REQUIRED_METRICS = {
     "batchCpuMilliseconds", "batchWallMilliseconds", "throughputCallsPerSecond",
     "peakWorkingSetBytes", "postIdleWorkingSetBytes", "privateBytes",
     "postGcManagedHeapBytes", "lastGcLohBytes", "maxActiveReaders",
+    "firstEntryLatencyMilliseconds", "perCallLatencySamplesMilliseconds",
+    "poolRentCount", "poolReturnCount", "poolMissCount",
 }
 NUMERIC_BUDGETS = {
     "cpuRatioUpperBound", "planWallRatioUpperBound", "verifyWallRatioUpperBound",
