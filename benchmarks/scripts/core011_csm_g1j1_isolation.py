@@ -113,6 +113,11 @@ def evaluate(output, run_id, checkout, expected_size, workers):
         if (not isinstance(hex_value, str) or len(hex_value) != 64 or
                 any(ch not in "0123456789abcdef" for ch in hex_value)):
             raise ValueError("non-canonical logical/physical digest: " + name)
+    if expected_size == 384 and (
+            descriptor.get("manifestSha256") != g1i.h.g1g.MANIFEST_384_SHA or
+            descriptor.get("chunkCount") != 5052 or
+            descriptor.get("manifestBytes") != 182366):
+        raise ValueError("known G1-I 384-MiB physical CSM oracle drift")
     if (output / "fixture" / "source.bin").exists():
         raise ValueError("builder left original content for consumers")
 
