@@ -1,0 +1,81 @@
+name: CORE011 CSM G1-H hybrid buffer pilot
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-g1h-hybrid.yml"
+      - "benchmarks/scripts/core011_csm_g1h_hybrid.py"
+      - "benchmarks/scripts/test_core011_csm_g1h_hybrid.py"
+      - "benchmarks/ChunkShift.Benchmarks/CsmG1hPoolProbe.cs"
+      - "benchmarks/ChunkShift.Benchmarks/Program.cs"
+      - "docs/benchmarks/CORE011-CSM-001-G1H-HYBRID-PROTOCOL.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-g1h-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hybrid:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "true"
+    steps:
+      - name: Checkout immutable PR merge
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: Setup pinned .NET 10
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Independent source-safety and evaluator rejection tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest benchmarks/scripts/test_core011_csm_g1h_hybrid.py
+      - name: Compile all four real Core variants; run 36 processes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_g1h_hybrid.py \
+            --output-dir "$RUNNER_TEMP/core011-g1h-results" \
+            --worktree-root "$RUNNER_TEMP/core011-g1h-worktrees" \
+            --run-id "CORE011-CSM-001/G1H-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:8}-linux-x64"
+          python3 - "$RUNNER_TEMP/core011-g1h-results/summary.json" <<'PY'
+          import json
+          import os
+          import sys
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              data=json.load(stream)
+          assert data["matrixLanes"]==24 and data["repeatPlanLanes"]==12
+          assert data["totalCases"]==36 and data["totalRounds"]==180
+          assert data["verdict"]=="NO_VERDICT_EXPLORATORY"
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
+              print("## CORE011 G1-H source-isolated hybrid A/B/A",file=out)
+              print(f"RunId: {data['runId']}",file=out)
+              print("**NO ADOPT**: one counterbalanced hosted-run pilot, not proven CPU Amdahl.",file=out)
+              print(f"Direct .NET pool bucket: {data['poolBucketProbe']['rentedArrayLength']} bytes",file=out)
+              print("| Variant | API | MiB | Workers | KiB/call | Batch p50 ms | Gen2 | Retained managed bytes |",file=out)
+              print("|---|---|---:|---:|---:|---:|---:|---:|",file=out)
+              for x in data["lanes"]:
+                  print(f"| {x['variant']} | {x['kind']} | {x['sizeMiB']} | {x['workers']} | "
+                        f"{x['allocPerCallMedian']/1024:.2f} | "
+                        f"{x['batchWallMedianMs']:.3f} | {x['gen2Total']} | "
+                        f"{x['postGcManagedBytes']} |",file=out)
+          PY
+      - name: Archive all 180 rounds, source fingerprints and direct probe
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g1h-${{ github.run_id }}
+          path: ${{ runner.temp }}/core011-g1h-results/
+          if-no-files-found: warn
+          retention-days: 90
