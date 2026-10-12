@@ -203,7 +203,7 @@ public sealed class Core011CsmBaselineBenchmarks
             }
         }
 
-        if (count != _expectedChunks || offset != _content.LongLength ||
+        if (count != _expectedChunks || offset != _expected.ContentLength ||
             reader.VerificationResult is not { } verified)
         {
             throw new InvalidOperationException("CSM enumeration was incomplete.");
