@@ -40,6 +40,7 @@ def make(root):
         "chunkCount": 11, "cblkCount": 1,
         "builderCheckoutSha": CHECKOUT, "builderPid": 90001,
         "contentBytes": 1048576, "runId": RUN_ID,
+        "manifestId": "c" * 64, "fileDigest": "d" * 64,
         "verdict": "NO_VERDICT_EXPLORATORY",
     }
     (fixture / "fixture.json").write_text(json.dumps(descriptor))
@@ -132,6 +133,11 @@ class J1Tests(unittest.TestCase):
             (root/"fixture"/"source.bin").write_bytes(b"unsafe")
             with self.assertRaisesRegex(ValueError, "original content"):
                 m.evaluate(root, RUN_ID, CHECKOUT, 1, 1)
+
+    def test_nonhex_filedigest_rejected(self):
+        self.mutate("fixture/fixture.json",
+                    lambda d: d.update(fileDigest="ChunkShift.Primitives.Hash256"),
+                    "non-canonical logical/physical digest")
 
     def test_mutated_physical_csm_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
