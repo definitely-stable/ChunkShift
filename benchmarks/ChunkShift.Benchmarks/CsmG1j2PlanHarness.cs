@@ -62,7 +62,8 @@ internal static class CsmG1j2PlanHarness
     private static string RunId(Dictionary<string, string> options)
     {
         string id = Need(options, "--run-id");
-        if (!id.StartsWith("CORE011-CSM-001/G1J2-", StringComparison.Ordinal))
+        if (!id.StartsWith("CORE011-CSM-001/G1J2-", StringComparison.Ordinal) &&
+            !id.StartsWith("CORE011-CSM-001/G1J2B-", StringComparison.Ordinal))
             throw new ArgumentException("Wrong J2 RunId.");
         return id;
     }
