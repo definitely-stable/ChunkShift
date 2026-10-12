@@ -41,7 +41,7 @@ Pre-decision mandatory budgets, in their appropriate units, at least:
 - maximum per-call allocated bytes, GC pause time and Gen2 count (GC count alone is insufficient);
 - sample count, confidence interval method and failure policy for missing/nonfinite samples.
 
-No candidate passes because a subset of workloads improved. **Decision precedence:** wrong bytes/integrity/resource bound -> REJECT; good semantics but insufficient representative coverage, inconclusive CPU/noise, or non-frozen thresholds -> DEFER; ADOPT only if all registered mandatory budgets and supported platforms pass with robust evidence. Explicit baseline tie/noninferiority is acceptable only if the preregistered benefit objective also passes. Record all guardrail failures.
+No candidate passes because a subset of workloads improved. **Decision precedence:** wrong bytes/integrity/resource bound or a repeatable frozen-budget violation -> REJECT; good semantics but insufficient representative coverage, inconclusive CPU/noise, or non-frozen thresholds -> DEFER; ADOPT only if all registered mandatory budgets and supported platforms pass with robust evidence. Explicit baseline tie/noninferiority is acceptable only if the preregistered benefit objective also passes. Record all guardrail failures.
 
 ## G1-J1 — corpus provenance and true clean-process memory
 
