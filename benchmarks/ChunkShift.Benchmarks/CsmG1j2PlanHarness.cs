@@ -63,7 +63,8 @@ internal static class CsmG1j2PlanHarness
     {
         string id = Need(options, "--run-id");
         if (!id.StartsWith("CORE011-CSM-001/G1J2-", StringComparison.Ordinal) &&
-            !id.StartsWith("CORE011-CSM-001/G1J2B-", StringComparison.Ordinal))
+            !id.StartsWith("CORE011-CSM-001/G1J2B-", StringComparison.Ordinal) &&
+            !id.StartsWith("CORE011-CSM-001/G1J2C-", StringComparison.Ordinal))
             throw new ArgumentException("Wrong J2 RunId.");
         return id;
     }
@@ -114,7 +115,7 @@ internal static class CsmG1j2PlanHarness
         return (info, sourceSha, await ShaFileAsync(output));
     }
 
-    private static void ValidateManagedPeDll(string sourcePath)
+    private static void ValidateManagedPeDll(string sourcePath, string? expectedAssemblyName = null)
     {
         using var stream = File.OpenRead(sourcePath);
         using var pe = new PEReader(stream);
@@ -127,6 +128,11 @@ internal static class CsmG1j2PlanHarness
         if (!metadata.IsAssembly)
         {
             throw new InvalidDataException("J2 binary corpus lacks .NET assembly metadata.");
+        }
+        if (expectedAssemblyName is not null &&
+            metadata.GetString(metadata.GetAssemblyDefinition().Name) != expectedAssemblyName)
+        {
+            throw new InvalidDataException("Released managed PE DLL assembly identity mismatch.");
         }
         Guid mvid = metadata.GetGuid(metadata.GetModuleDefinition().Mvid);
         if (mvid == Guid.Empty)
@@ -160,9 +166,11 @@ internal static class CsmG1j2PlanHarness
                 && path == "docs/research/EXPERIMENT-INDEX.md";
             bool managedBinary = origin == "git-built-dotnet-binary"
                 && path == "src/ChunkShift/ChunkShift.csproj";
+            bool releasedRoslyn = origin == "nuget-released-managed-pe"
+                && path == "lib/net8.0/Microsoft.CodeAnalysis.CSharp.dll";
             if (GetString(provenance, "schema") != "chunkshift.core011.g1j2-provenance.v1" ||
                 GetString(provenance, "runId") != runId ||
-                (!versionedText && !managedBinary))
+                (!versionedText && !managedBinary && !releasedRoslyn))
                 throw new InvalidDataException("Unknown J2 source provenance.");
 
             JsonElement b = provenance.GetProperty("base");
@@ -173,10 +181,10 @@ internal static class CsmG1j2PlanHarness
                 expectedBaseSha == expectedTargetSha)
                 throw new InvalidDataException("Versioned source bytes must differ.");
 
-            if (managedBinary)
+            if (managedBinary || releasedRoslyn)
             {
-                ValidateManagedPeDll(baseInput);
-                ValidateManagedPeDll(targetInput);
+                ValidateManagedPeDll(baseInput, releasedRoslyn ? "Microsoft.CodeAnalysis.CSharp" : null);
+                ValidateManagedPeDll(targetInput, releasedRoslyn ? "Microsoft.CodeAnalysis.CSharp" : null);
             }
             var baseBuilt = await CreateAsync(baseInput, baseCsm, expectedBaseSha);
             var targetBuilt = await CreateAsync(targetInput, targetCsm, expectedTargetSha);
@@ -258,7 +266,7 @@ internal static class CsmG1j2PlanHarness
         if (GetString(fixture, "schema") != Schema ||
             GetString(fixture, "runId") != runId ||
             GetString(fixture, "verdict") != "NO_VERDICT_EXPLORATORY" ||
-            GetString(fixture, "origin") is not ("git-versioned-source" or "git-built-dotnet-binary") ||
+            GetString(fixture, "origin") is not ("git-versioned-source" or "git-built-dotnet-binary" or "nuget-released-managed-pe") ||
             fixture.GetProperty("consumerSourceAccessAllowed").GetBoolean() ||
             GetString(fixture, "builderCheckoutSha") != Checkout())
             throw new InvalidDataException("J2 fixture identity/decision gate failed.");
