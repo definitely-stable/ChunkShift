@@ -147,7 +147,7 @@ internal static class CsmG1jIsolatedHarness
                 HashSuite = suite,
                 HasBlockIndex = bidx,
                 ManifestId = created.ManifestId.ToString(),
-                FileDigest = created.FileDigest.ToString(),
+                FileDigest = created.FileDigest.ToHexLower(),
                 RunId = runId,
                 Verdict = "NO_VERDICT_EXPLORATORY",
             };
@@ -262,7 +262,7 @@ internal static class CsmG1jIsolatedHarness
                 result.Manifest.ChunkBlockCount != cblkCount ||
                 result.Manifest.ContentLength != contentBytes ||
                 result.Manifest.ManifestId.ToString() != Text(fixture, "manifestId") ||
-                result.Manifest.FileDigest.ToString() != Text(fixture, "fileDigest"))
+                result.Manifest.FileDigest.ToHexLower() != Text(fixture, "fileDigest"))
             {
                 throw new InvalidOperationException("Public manifest-only Verify oracle mismatch.");
             }
