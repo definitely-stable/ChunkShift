@@ -183,7 +183,7 @@ internal static class CsmGcConcurrencyHarness
         return 0;
     }
 
-    private static async Task<(long Operations, long Validated, int PeakActive)> BatchAsync(
+    internal static async Task<(long Operations, long Validated, int PeakActive)> BatchAsync(
         Core011CsmBaselineBenchmarks baseline, string operation, int workers, int repetitions)
     {
         // Task.Run plus a ready gate ensures that every independent worker has

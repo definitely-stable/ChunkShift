@@ -19,8 +19,10 @@ public sealed class Core011CsmBaselineBenchmarks
     private ManifestCreationOptions _options = null!;
     private long _expectedChunks;
     private ManifestInfo _expected = null!;
-    internal string CorpusSha256 =>
-        Convert.ToHexString(SHA256.HashData(_content)).ToLowerInvariant();
+    private string _contentSha256 = null!;
+    internal long ExpectedChunks => _expectedChunks;
+
+    internal string CorpusSha256 => _contentSha256;
 
     internal string ManifestSha256 =>
         Convert.ToHexString(SHA256.HashData(_manifest)).ToLowerInvariant();
@@ -63,6 +65,7 @@ public sealed class Core011CsmBaselineBenchmarks
         _content = new byte[checked(ContentMiB * 1024 * 1024)];
         var random = new DeterministicPrng(0xC485_5A11_2026UL);
         random.Fill(_content);
+        _contentSha256 = Convert.ToHexString(SHA256.HashData(_content)).ToLowerInvariant();
 
         using var source = new MemoryStream(_content, writable: false);
         using var destination = new MemoryStream();
@@ -86,9 +89,32 @@ public sealed class Core011CsmBaselineBenchmarks
         Validate(result);
     }
 
+    // The metadata-only multi-CBLK lab must not keep a 384-MiB source in LOH.
+    // The stored manifest and the reference identity remain fully verified.
+    internal WeakReference ReleaseContentForMetadataOnly()
+    {
+        if (_expected is null || _content.LongLength != _expected.ContentLength)
+        {
+            throw new InvalidOperationException("No retained content fixture to release.");
+        }
+
+        var weak = new WeakReference(_content);
+        _content = [];
+        return weak;
+    }
+
+    private void RequireContent()
+    {
+        if (_expected is null || _content.LongLength != _expected.ContentLength)
+        {
+            throw new InvalidOperationException("Content was released for a metadata-only workload.");
+        }
+    }
+
     [Benchmark]
     public async Task<long> ScanAsync()
     {
+        RequireContent();
         using var source = new MemoryStream(_content, writable: false);
         long count = 0;
         long offset = 0;
@@ -120,6 +146,7 @@ public sealed class Core011CsmBaselineBenchmarks
     [Benchmark]
     public async Task<long> CreateAsync()
     {
+        RequireContent();
         using var content = new MemoryStream(_content, writable: false);
         // Reusable consumer contract: destination is preallocated to the
         // known manifest length; includes normal instance allocation cost.
@@ -189,6 +216,7 @@ public sealed class Core011CsmBaselineBenchmarks
     [Benchmark]
     public async Task<long> VerifyContentAsync()
     {
+        RequireContent();
         using var content = new MemoryStream(_content, writable: false);
         using var manifest = new MemoryStream(_manifest, writable: false);
 
@@ -204,7 +232,7 @@ public sealed class Core011CsmBaselineBenchmarks
             result.Manifest.ChunkCount != _expectedChunks ||
             result.Manifest.ManifestId != _expected.ManifestId ||
             result.Manifest.FileDigest != _expected.FileDigest ||
-            result.Manifest.ContentLength != _content.LongLength)
+            result.Manifest.ContentLength != _expected.ContentLength)
         {
             throw new InvalidOperationException("Baseline CSM oracle mismatch.");
         }
