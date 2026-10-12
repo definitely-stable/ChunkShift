@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-10-11",
+  "updated": "2026-10-12",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -88,8 +88,8 @@
       "area": "core-0.1.1",
       "status": "RUNNING",
       "question": "CSM component/Amdahl baseline",
-      "protocol": "docs/benchmarks/CORE011-CSM-001-GC-PROTOCOL.md",
-      "evidence": "docs/research/results/CORE011-CSM-001-GC-20261011-001.md"
+      "protocol": "docs/benchmarks/CORE011-CSM-001-MULTIBLOCK-PROTOCOL.md",
+      "evidence": "docs/research/results/CORE011-CSM-001-MULTIBLOCK-20261012-001.md"
     },
     {
       "id": "CORE011-CSM-002",
