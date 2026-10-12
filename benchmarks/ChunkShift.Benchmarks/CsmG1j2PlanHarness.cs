@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -111,6 +113,27 @@ internal static class CsmG1j2PlanHarness
         return (info, sourceSha, await ShaFileAsync(output));
     }
 
+    private static void ValidateManagedPeDll(string sourcePath)
+    {
+        using var stream = File.OpenRead(sourcePath);
+        using var pe = new PEReader(stream);
+        if (!pe.HasMetadata || pe.PEHeaders.CorHeader is null ||
+            !pe.PEHeaders.IsDll || pe.PEHeaders.PEHeader is null)
+        {
+            throw new InvalidDataException("J2 binary corpus is not a valid managed PE DLL.");
+        }
+        MetadataReader metadata = pe.GetMetadataReader();
+        if (!metadata.IsAssembly)
+        {
+            throw new InvalidDataException("J2 binary corpus lacks .NET assembly metadata.");
+        }
+        Guid mvid = metadata.GetGuid(metadata.GetModuleDefinition().Mvid);
+        if (mvid == Guid.Empty)
+        {
+            throw new InvalidDataException("J2 .NET assembly lacks MVID.");
+        }
+    }
+
     private static async Task<int> BuildAsync(string[] args)
     {
         var options = Parse(args, "--fixture-dir", "--run-id");
@@ -130,10 +153,15 @@ internal static class CsmG1j2PlanHarness
             using JsonDocument document = JsonDocument.Parse(
                 await File.ReadAllTextAsync(provenancePath));
             JsonElement provenance = document.RootElement;
+            string origin = GetString(provenance, "origin");
+            string path = GetString(provenance, "sourcePath");
+            bool versionedText = origin == "git-versioned-source"
+                && path == "docs/research/EXPERIMENT-INDEX.md";
+            bool managedBinary = origin == "git-built-dotnet-binary"
+                && path == "src/ChunkShift/ChunkShift.csproj";
             if (GetString(provenance, "schema") != "chunkshift.core011.g1j2-provenance.v1" ||
                 GetString(provenance, "runId") != runId ||
-                GetString(provenance, "origin") != "git-versioned-source" ||
-                GetString(provenance, "sourcePath") != "docs/research/EXPERIMENT-INDEX.md")
+                (!versionedText && !managedBinary))
                 throw new InvalidDataException("Unknown J2 source provenance.");
 
             JsonElement b = provenance.GetProperty("base");
@@ -144,6 +172,11 @@ internal static class CsmG1j2PlanHarness
                 expectedBaseSha == expectedTargetSha)
                 throw new InvalidDataException("Versioned source bytes must differ.");
 
+            if (managedBinary)
+            {
+                ValidateManagedPeDll(baseInput);
+                ValidateManagedPeDll(targetInput);
+            }
             var baseBuilt = await CreateAsync(baseInput, baseCsm, expectedBaseSha);
             var targetBuilt = await CreateAsync(targetInput, targetCsm, expectedTargetSha);
             PatchPlan plan;
@@ -177,7 +210,7 @@ internal static class CsmG1j2PlanHarness
                 Schema,
                 RunId = runId,
                 Verdict = "NO_VERDICT_EXPLORATORY",
-                Origin = "git-versioned-source",
+                Origin = origin,
                 ProvenanceSha256 = await ShaFileAsync(provenancePath),
                 BuilderCheckoutSha = Checkout(),
                 BuilderPid = Environment.ProcessId,
@@ -224,7 +257,7 @@ internal static class CsmG1j2PlanHarness
         if (GetString(fixture, "schema") != Schema ||
             GetString(fixture, "runId") != runId ||
             GetString(fixture, "verdict") != "NO_VERDICT_EXPLORATORY" ||
-            GetString(fixture, "origin") != "git-versioned-source" ||
+            GetString(fixture, "origin") is not ("git-versioned-source" or "git-built-dotnet-binary") ||
             fixture.GetProperty("consumerSourceAccessAllowed").GetBoolean() ||
             GetString(fixture, "builderCheckoutSha") != Checkout())
             throw new InvalidDataException("J2 fixture identity/decision gate failed.");
