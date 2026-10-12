@@ -159,6 +159,24 @@ internal static class CsmMultiblockMetadataHarness
                 $"multi-CBLK op={operation} suite={suite} bidx={bidxText} workers={workers} round={round} chunks={chunks} wall-ms={elapsedMs:F3} alloc={processAlloc} gen2={samples[^1].Gen2Collections}"));
         }
 
+        // A *separately labeled* post-timing GC retention sample. Not a timed
+        // LOH allocation counter and not a per-round peak memory measurement.
+        CollectFull();
+        if (payload.IsAlive)
+        {
+            throw new InvalidOperationException("Payload retained after measurement.");
+        }
+        var post = GC.GetGCMemoryInfo();
+        var retention = new RetentionSample(
+            GC.GetTotalMemory(forceFullCollection: false),
+            post.GenerationInfo[3].SizeAfterBytes,
+            post.HeapSizeBytes,
+            post.Index,
+            process.WorkingSet64);
+
+        // Emit the known-positive LOH control only AFTER the retention
+        // snapshot. Otherwise the 4-MiB control may pollute last-GC LOH
+        // and mistakenly look like retained CSM reader memory.
         // Trace-only positive control: 32 x 128-KiB LOH objects. Keep all
         // references alive until the control-end marker; never conflate these
         // allocations with the reader phase. The trace, not this source code,
@@ -176,20 +194,6 @@ internal static class CsmMultiblockMetadataHarness
             CsmLohTraceEvents.Log.Phase(5, 0);
         }
 
-        // A *separately labeled* post-timing GC retention sample. Not a timed
-        // LOH allocation counter and not a per-round peak memory measurement.
-        CollectFull();
-        if (payload.IsAlive)
-        {
-            throw new InvalidOperationException("Payload retained after measurement.");
-        }
-        var post = GC.GetGCMemoryInfo();
-        var retention = new RetentionSample(
-            GC.GetTotalMemory(forceFullCollection: false),
-            post.GenerationInfo[3].SizeAfterBytes,
-            post.HeapSizeBytes,
-            post.Index,
-            process.WorkingSet64);
 
         var artifact = new
         {
