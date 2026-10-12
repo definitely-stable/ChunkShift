@@ -5,7 +5,9 @@ from pathlib import Path
 from unittest import mock
 import unittest
 import tempfile
+import sys
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import core011_csm_g1j2_plan as g
 
 
