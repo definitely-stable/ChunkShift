@@ -65,6 +65,42 @@ public sealed class CsmMultiblockMetadataHarnessTests
     }
 
     [Fact]
+    public async Task TraceModeSmokeDeclaresDisjointPositiveControl()
+    {
+        string output = Path.Combine(Path.GetTempPath(),
+            "core011-loh-smoke-" + Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            int exit = await CsmMultiblockMetadataHarness.RunAsync(
+                ["--size-mib", "1", "--min-chunks", "1",
+                 "--rounds", "1", "--repetitions", "1", "--workers", "1",
+                 "--trace-events", "true", "--output", output]);
+            Assert.Equal(0, exit);
+            using var document = JsonDocument.Parse(File.ReadAllText(output));
+            JsonElement conditions = document.RootElement.GetProperty("conditions");
+            Assert.True(conditions.GetProperty("traceEvents").GetBoolean());
+            Assert.Equal("ChunkShift-Core011-CSM-Trace",
+                conditions.GetProperty("traceProvider").GetString());
+            Assert.Equal(32, conditions.GetProperty("controlArrays").GetInt32());
+            Assert.Equal(131072, conditions.GetProperty("controlArrayBytes").GetInt32());
+            Assert.True(document.RootElement.GetProperty("fixture")
+                .GetProperty("payloadCollectedBeforeMeasurement").GetBoolean());
+        }
+        finally
+        {
+            File.Delete(output);
+        }
+    }
+
+    [Fact]
+    public async Task InvalidTraceModeRejectedBeforeFixture()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            CsmMultiblockMetadataHarness.RunAsync(
+                ["--trace-events", "yes", "--output", "not-created.json"]));
+    }
+
+    [Fact]
     public async Task MultiCblkGateFailsClosedForSmallFixture()
     {
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
