@@ -88,8 +88,8 @@
       "area": "core-0.1.1",
       "status": "RUNNING",
       "question": "CSM component/Amdahl baseline",
-      "protocol": "docs/benchmarks/CORE011-CSM-001-G1I-POOL-CAPACITY-PROTOCOL.md",
-      "evidence": "docs/research/results/CORE011-CSM-001-G1I-20261012-001.md"
+      "protocol": "docs/benchmarks/CORE011-CSM-001-G1J-QUALIFICATION-PROTOCOL.md",
+      "evidence": "docs/research/results/CORE011-CSM-001-G1J1-20261012-001.md"
     },
     {
       "id": "CORE011-CSM-002",
