@@ -1,0 +1,4 @@
+window_bytes,base_stride_bytes,target_stride_bytes,base_anchors,matching_base_anchors,base_covered_bytes_lower_bound,target_covered_bytes_lower_bound,matching_section
+4096,256,1,25782,2069,798464,798464,.text
+16384,256,1,25734,634,291328,291328,.text
+65536,256,1,25542,275,135680,135680,.text
