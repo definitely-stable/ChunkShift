@@ -317,6 +317,19 @@ def main():
                                       "--fixture-dir",fixture,"--run-id",a.run_id,
                                       "--output",a.output_dir/variant/"plan.json"),
                            wt,timeout=180)
+        except Exception as error:
+            # Even early NuGet transport failures must have a durable artifact,
+            # without archiving raw DLLs or masking the actual failed CI job.
+            a.output_dir.mkdir(parents=True,exist_ok=True)
+            (a.output_dir/"failure.json").write_text(json.dumps({
+                "schema":"chunkshift.core011.g1j2c-attempt-failure.v1",
+                "runId":a.run_id,"checkoutSha":checkout,
+                "errorType":type(error).__name__,
+                "message":str(error)[:400],
+                "attemptStatus":"FAIL",
+                "verdict":"NO_VERDICT_EXPLORATORY",
+            },indent=2)+"\n")
+            raise
         finally:
             if (a.output_dir/"fixture").is_dir():
                 for name in ("base.input","target.input"):
