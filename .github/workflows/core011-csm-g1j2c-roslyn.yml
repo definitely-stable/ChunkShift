@@ -1,0 +1,76 @@
+name: CORE011 CSM G1-J2C official Roslyn NuGet corpus
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-g1j2c-roslyn.yml"
+      - "benchmarks/ChunkShift.Benchmarks/CsmG1j2PlanHarness.cs"
+      - "benchmarks/scripts/core011_csm_g1j2c_roslyn.py"
+      - "benchmarks/scripts/test_core011_csm_g1j2c_roslyn.py"
+      - "docs/benchmarks/CORE011-CSM-001-G1J2C-ROSLYN-PROTOCOL.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-g1j2c-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nuget-roslyn-pair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - name: Checkout exact source and Git source history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: .NET 10 SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Validate prereg and NuGet negative gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v benchmarks/scripts/test_core011_csm_g1j2c_roslyn.py
+          python3 benchmarks/scripts/core011_csm_g1j_contract.py \
+            --contract benchmarks/experiments/core011-csm-g1j-contract.v1.json
+          if python3 benchmarks/scripts/core011_csm_g1j_contract.py \
+            --contract benchmarks/experiments/core011-csm-g1j-contract.v1.json \
+            --decision-ready; then
+            echo "J2C must forbid product decision runs" >&2
+            exit 1
+          fi
+      - name: Build five reader variants and qualify two actual NuGet Roslyn DLLs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_g1j2c_roslyn.py \
+            --output-dir "$RUNNER_TEMP/core011-g1j2c-data" \
+            --worktree-root "$RUNNER_TEMP/core011-g1j2c-worktrees" \
+            --run-id "CORE011-CSM-001/G1J2C-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:8}-linux-x64"
+          python3 - "$RUNNER_TEMP/core011-g1j2c-data/summary.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          x=json.loads(Path(sys.argv[1]).read_text())
+          assert x["caseCount"]==5 and x["roundCount"]==10
+          assert x["verdict"]=="NO_VERDICT_EXPLORATORY"
+          assert x["corpusQualification"] in ("MIXED_REUSE_PASS","NO_GO_NO_MIXED_REUSE")
+          assert x["largeCblkQualification"] in ("MULTICBLK_PASS","NO_GO_SINGLE_CBLK")
+          print("G1-J2C provenance/Plan PASS, mixed:",x["corpusQualification"],
+                "multi-CBLK:",x["largeCblkQualification"])
+          PY
+      - name: Archive complete corpus results, diagnostics and negative attempts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g1j2c-${{ github.run_id }}
+          path: ${{ runner.temp }}/core011-g1j2c-data/
+          retention-days: 90
+          if-no-files-found: warn
