@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 import subprocess
 import urllib.request
+import urllib.parse
 import zipfile
 
 import core011_csm_g1j1_isolation as j1
@@ -62,8 +63,10 @@ def flat_urls(version):
 
 def get_bytes(url, maximum):
     with urllib.request.urlopen(url, timeout=120) as response:
-        if response.status != 200 or response.geturl().split("?")[0] != url:
-            raise ValueError("NuGet canonical URL or HTTP status mismatch")
+        final = urllib.parse.urlparse(response.geturl())
+        if (response.status != 200 or final.scheme != "https" or
+            final.hostname not in ("api.nuget.org", "globalcdn.nuget.org")):
+            raise ValueError("NuGet HTTPS source/redirection or HTTP status mismatch")
         data = response.read(maximum + 1)
     if not 0 < len(data) <= maximum:
         raise ValueError("NuGet source exceeded frozen size bound")
