@@ -1,0 +1,70 @@
+name: CORE011 CSM G1-J2D immutable Roslyn byte forensic
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-g1j2d-forensic.yml"
+      - "benchmarks/experiments/core011-csm-g1j2d-frozen-corpus.v1.json"
+      - "benchmarks/scripts/core011_csm_g1j2d_forensic.py"
+      - "benchmarks/scripts/test_core011_csm_g1j2d_forensic.py"
+      - "docs/benchmarks/CORE011-CSM-001-G1J2D-FORENSIC-PROTOCOL.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-g1j2d-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  immutable-byte-forensic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: Assert prereg decision lock and run analytic negative tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v benchmarks/scripts/test_core011_csm_g1j2d_forensic.py
+          python3 benchmarks/scripts/core011_csm_g1j_contract.py \
+            --contract benchmarks/experiments/core011-csm-g1j-contract.v1.json
+          if python3 benchmarks/scripts/core011_csm_g1j_contract.py \
+            --contract benchmarks/experiments/core011-csm-g1j-contract.v1.json \
+            --decision-ready; then
+            echo "J2D must forbid product decision runs" >&2
+            exit 1
+          fi
+      - name: Redownload only exact digest-pinned Roslyn DLLs and compute unaligned windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_g1j2d_forensic.py \
+            --contract benchmarks/experiments/core011-csm-g1j2d-frozen-corpus.v1.json \
+            --output-dir "$RUNNER_TEMP/core011-g1j2d" \
+            --run-id "CORE011-CSM-001/G1J2D-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:8}-linux-x64"
+          python3 - "$RUNNER_TEMP/core011-g1j2d/forensic.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          result=json.loads(Path(sys.argv[1]).read_text())
+          assert result["verdict"]=="NO_VERDICT_EXPLORATORY"
+          assert len(result["unalignedExactWindows"])==3
+          assert [x["windowBytes"] for x in result["unalignedExactWindows"]]==[4096,16384,65536]
+          assert result["originalJ2cPlan"]["reusedChunks"]==0
+          print("J2D forensic complete. Original J2C zero-reuse oracle remains frozen.")
+          PY
+      - name: Retain source fingerprints and all forensic evidence, even failed attempts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g1j2d-${{ github.run_id }}
+          path: ${{ runner.temp }}/core011-g1j2d/
+          retention-days: 90
+          if-no-files-found: warn
