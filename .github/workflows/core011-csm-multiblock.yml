@@ -1,0 +1,84 @@
+name: CORE011 CSM multi-CBLK metadata confirmation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-multiblock.yml"
+      - "benchmarks/ChunkShift.Benchmarks/Core011CsmBaselineBenchmarks.cs"
+      - "benchmarks/ChunkShift.Benchmarks/CsmGcConcurrencyHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks/CsmMultiblockMetadataHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks.Tests/CsmMultiblockMetadataHarnessTests.cs"
+      - "benchmarks/scripts/core011_csm_multiblock.py"
+      - "benchmarks/scripts/test_core011_csm_multiblock.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-csm-multiblock-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  multicblk-metadata:
+    name: frozen 384-MiB two-CBLK metadata diagnostic
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Restore
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+      - name: Build Release
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+      - name: Isolated-metadata contract and fail-closed evaluator tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj \
+            -c Release --no-build --no-restore \
+            --filter FullyQualifiedName~CsmMultiblockMetadataHarnessTests
+          python3 -m unittest benchmarks/scripts/test_core011_csm_multiblock.py
+      - name: Frozen multi-CBLK hosted experiment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_multiblock.py \
+            --output-dir "$RUNNER_TEMP/core011-csm-multiblock" \
+            --size-mib 384 --min-chunks 4097 --rounds 2 --repetitions 4 \
+            --run-id "CORE011-CSM-001/MULTIBLOCK-${{ github.run_id }}-${{ github.run_attempt }}-${GITHUB_SHA:0:8}-linux-x64"
+          python3 - "$RUNNER_TEMP/core011-csm-multiblock/summary.json" <<'PY'
+          import json
+          import os
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as input_file:
+              result = json.load(input_file)
+          assert result["caseCount"] == 12 and result["sampleCount"] == 24
+          assert result["minChunks"] == 4097
+          assert result["verdict"] == "NO_VERDICT_EXPLORATORY"
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              print("## CORE011-CSM-001 384-MiB multi-CBLK (non-decision)", file=f)
+              print(f"RunId: {result['runId']}", file=f)
+              print(f"Actual checkout: {result['checkoutSha']}", file=f)
+              print(f"PR HEAD: {result['pullRequestHeadSha']}", file=f)
+              print("| Suite | BIDX | Workers | Operation | Chunks | CSM bytes | Median batch ms | Median alloc bytes | Gen2 |", file=f)
+              print("|---|---|---:|---|---:|---:|---:|---:|---:|", file=f)
+              for case in result["lanes"]:
+                  print(f"| {case['suite']} | {case['bidx']} | {case['workers']} | {case['operation']} | {case['chunks']} | {case['manifestBytes']} | {case['wallMedianMs']:.3f} | {case['allocationMedianBytes']:.0f} | {case['gen2DuringTimedRounds']} |", file=f)
+          PY
+      - name: Archive complete JSON source and evaluator
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-multiblock-${{ github.run_id }}
+          path: ${{ runner.temp }}/core011-csm-multiblock/
+          if-no-files-found: warn
+          retention-days: 90
