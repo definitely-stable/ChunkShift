@@ -155,7 +155,7 @@ def validate_manifest_only_fixture(obj: dict, root: Path) -> dict:
             "/" not in name and "\\" not in name,
             "unsafe fixture path")
     require(type(obj.get("manifestBytes")) is int and
-            0 < obj["manifestBytes"] <= 1_000_000_000 and
+            0 < obj["manifestBytes"] <= (1 << 63) - 1 and
             type(obj.get("chunkCount")) is int and obj["chunkCount"] >= 0 and
             type(obj.get("cblkCount")) is int and obj["cblkCount"] >= 0,
             "invalid bounded manifest metadata")
