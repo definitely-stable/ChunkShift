@@ -49,6 +49,14 @@ class CblkParserTests(unittest.TestCase):
         struct.pack_into("<I",corrupt,start,4097)
         with self.assertRaisesRegex(ValueError,"invalid frozen CBLK"):
             e.parse_csm_cblk(bytes(corrupt),9,1)
+        # A truncated/missing trailer is not an acceptable logical CSM.
+        with self.assertRaises(ValueError):
+            e.parse_csm_cblk(buf[:-64],9,1)
+        # Mutating the CBLK reserved field must never be interpreted as an ID.
+        reserved=bytearray(buf)
+        struct.pack_into("<I",reserved,start+4,1)
+        with self.assertRaisesRegex(ValueError,"invalid frozen CBLK"):
+            e.parse_csm_cblk(bytes(reserved),9,1)
 
     def test_independent_scanner_oracle_rows(self):
         import tempfile
