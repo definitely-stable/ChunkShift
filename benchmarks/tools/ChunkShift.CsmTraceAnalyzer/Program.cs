@@ -10,6 +10,7 @@ namespace ChunkShift.CsmTraceAnalyzer;
 // object count, exact LOH allocation volume, or an object-lifetime oracle.
 internal static class Program
 {
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private sealed record Phase(int Code, int Round, double Ms);
     private sealed record Tick(double Ms, string Kind, string Type, long Amount);
 
@@ -176,8 +177,7 @@ internal static class Program
         };
         string destination = Path.GetFullPath(output);
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-        File.WriteAllText(destination, JsonSerializer.Serialize(result,
-            new JsonSerializerOptions { WriteIndented = true }) + "\n");
+        File.WriteAllText(destination, JsonSerializer.Serialize(result, JsonOptions) + "\n");
         Console.WriteLine("CORE011-CSM-001 traced rounds: " + measured.Length +
             "; positive control LOH ticks: " + control.Length);
     }
