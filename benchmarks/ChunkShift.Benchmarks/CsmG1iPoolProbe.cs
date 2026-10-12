@@ -6,6 +6,11 @@ namespace ChunkShift.Benchmarks;
 /// <summary>G1-I direct .NET pooled-buffer bucket size probe; no timed use.</summary>
 internal static class CsmG1iPoolProbe
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
     private sealed record Bucket(
         int Cap,
         int ReturnedLength,
@@ -59,8 +64,7 @@ internal static class CsmG1iPoolProbe
             Caveat = "Measured on separate pool instances, not private reader pools; cap is per bucket.",
         };
 
-        File.WriteAllText(output, JsonSerializer.Serialize(
-            result, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }) + "\n");
+        File.WriteAllText(output, JsonSerializer.Serialize(result, JsonOptions) + "\n");
         return 0;
     }
 }
