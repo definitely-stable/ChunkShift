@@ -1,0 +1,78 @@
+name: CORE011 CSM G1-J2E real CSM boundary oracle
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-g1j2e-boundary.yml"
+      - "benchmarks/scripts/core011_csm_g1j2e_boundary.py"
+      - "benchmarks/scripts/test_core011_csm_g1j2e_boundary.py"
+      - "docs/benchmarks/CORE011-CSM-001-G1J2E-BOUNDARY-PROTOCOL.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-g1j2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  original-csm-chunk-boundaries:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - name: Checkout exact frozen Git revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: Setup pinned .NET 10
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Unit negative controls and J1 decision lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v benchmarks/scripts/test_core011_csm_g1j2e_boundary.py
+          python3 benchmarks/scripts/core011_csm_g1j_contract.py \
+            --contract benchmarks/experiments/core011-csm-g1j-contract.v1.json
+          if python3 benchmarks/scripts/core011_csm_g1j_contract.py \
+            --contract benchmarks/experiments/core011-csm-g1j-contract.v1.json \
+            --decision-ready; then
+            echo "Forbidden J1 decision path is unlocked" >&2
+            exit 1
+          fi
+      - name: Fresh immutable NuGet DLLs, independently cross-check actual CSM chunks and full-byte positions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_g1j2e_boundary.py \
+            --output-dir "$RUNNER_TEMP/core011-g1j2e-data" \
+            --run-id "CORE011-CSM-001/G1J2E-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:8}-linux-x64"
+          python3 - "$RUNNER_TEMP/core011-g1j2e-data/boundary.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          d=json.loads(Path(sys.argv[1]).read_text())
+          assert d["schema"]=="chunkshift.core011.g1j2e-boundary-forensic.v1"
+          assert d["verdict"]=="NO_VERDICT_EXPLORATORY"
+          assert d["originalPlan"]["reusedChunks"]==0
+          assert d["originalPlan"]["missingChunks"]==81
+          assert len(d["baseChunks"]["chunks"])==74
+          assert len(d["targetChunks"]["chunks"])==81
+          assert d["verifiedShiftedWindows"]["4096"]["matchedBaseAnchors"]==2069
+          for side in ("base","target"):
+              assert sum(d[side+"Chunks"]["countByClassification"].values())==len(d[side+"Chunks"]["chunks"])
+          print("J2E source-locked CSM/Scanner/Plan + byte-presence evidence PASS")
+          PY
+      - name: Archive physical manifests, original scanner outputs, analytical and failure evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g1j2e-${{ github.run_id }}
+          path: ${{ runner.temp }}/core011-g1j2e-data/
+          retention-days: 90
+          if-no-files-found: warn
