@@ -1,0 +1,73 @@
+name: CORE011 CSM G1-J2B real .NET binary pair selection
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-g1j2b-binary.yml"
+      - "benchmarks/ChunkShift.Benchmarks/CsmG1j2PlanHarness.cs"
+      - "benchmarks/scripts/core011_csm_g1j2b_binary.py"
+      - "benchmarks/scripts/test_core011_csm_g1j2b_binary.py"
+      - "docs/benchmarks/CORE011-CSM-001-G1J2B-BINARY-CORPUS.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-g1j2b-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-pe-versioned-plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - name: Checkout complete Git history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Pinned SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Contract and negative source tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v benchmarks/scripts/test_core011_csm_g1j2b_binary.py
+          python3 benchmarks/scripts/core011_csm_g1j_contract.py \
+            --contract benchmarks/experiments/core011-csm-g1j-contract.v1.json
+          if python3 benchmarks/scripts/core011_csm_g1j_contract.py \
+            --contract benchmarks/experiments/core011-csm-g1j-contract.v1.json \
+            --decision-ready; then
+            echo "J2B must not permit decision runs" >&2
+            exit 1
+          fi
+      - name: Build real Git .NET DLL versions and run five isolated Plan readers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_g1j2b_binary.py \
+            --output-dir "$RUNNER_TEMP/core011-g1j2b-data" \
+            --worktree-root "$RUNNER_TEMP/core011-g1j2b-worktrees" \
+            --run-id "CORE011-CSM-001/G1J2B-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:8}-linux-x64"
+          python3 - "$RUNNER_TEMP/core011-g1j2b-data/summary.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          data=json.loads(Path(sys.argv[1]).read_text())
+          assert data["caseCount"]==5 and data["roundCount"]==10
+          assert data["verdict"]=="NO_VERDICT_EXPLORATORY"
+          print("J2B PE provenance PASS; corpus:",data["corpusQualification"])
+          PY
+      - name: Retain provenance, physical manifests, all raw rounds and failures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g1j2b-${{ github.run_id }}
+          path: ${{ runner.temp }}/core011-g1j2b-data/
+          retention-days: 90
+          if-no-files-found: warn
