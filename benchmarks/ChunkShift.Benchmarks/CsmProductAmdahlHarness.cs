@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -324,7 +325,7 @@ internal static class CsmProductAmdahlHarness
 
     private static int Bounded(Dictionary<string, string> args, string name, int fallback, int min, int max)
     {
-        int value = args.TryGetValue(name, out string? raw) ? int.Parse(raw) : fallback;
+        int value = args.TryGetValue(name, out string? raw) ? int.Parse(raw, CultureInfo.InvariantCulture) : fallback;
         return value is >= 0 && value >= min && value <= max
             ? value : throw new ArgumentOutOfRangeException(name);
     }
