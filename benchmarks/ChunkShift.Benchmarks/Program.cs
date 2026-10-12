@@ -44,6 +44,11 @@ internal static class Program
             return CsmMultiblockMetadataHarness.Run(args[1..]);
         }
 
+        if (string.Equals(mode, "core011-g1h-bucket", StringComparison.OrdinalIgnoreCase))
+        {
+            return CsmG1hPoolProbe.Run(args[1..]);
+        }
+
         if (string.Equals(mode, "core011-csm-product", StringComparison.OrdinalIgnoreCase))
         {
             return CsmProductAmdahlHarness.Run(args[1..]);
@@ -126,6 +131,7 @@ internal static class Program
         Console.WriteLine("  amdahl [--target <bytes>]... [--rounds 3] [--seconds 2] [--warmup-seconds 2]");
         Console.WriteLine("  core011-scan --output <pilot.json> [--size-mib 16] [--rounds 3] [--run-id <id>]");
         Console.WriteLine("  core011-attribution --output <data.json> [--size-mib 16] [--warmups 4] [--rounds 5] [--run-id <id>]");
+        Console.WriteLine("  core011-g1h-bucket --output <pool-bucket.json>");
         Console.WriteLine("  core011-csm-product --operation <verify-pair|plan|create|apply> --size-mib <1|8> --rounds 5 --repetitions 4 --run-id <id> --output <json>");
         Console.WriteLine("  core011-csm-gc --operation <create|manifest-verify|enumerate|content-verify> --suite <blake3|sha256> --bidx <true|false> --workers <1|4|16> --repetitions 2 --rounds 2 --size-mib 8 --output <result.json>");
         Console.WriteLine("  core011-csm-multiblock --operation <manifest-verify|enumerate> --size-mib 384 --min-chunks 4097 --workers <1|4|16> --rounds 2 --repetitions 4 --suite <blake3|sha256> --bidx <true|false> --output <result.json>");
