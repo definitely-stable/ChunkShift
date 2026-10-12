@@ -1,0 +1,95 @@
+name: CORE011 CSM LOH EventPipe attribution
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-loh-trace.yml"
+      - "Directory.Packages.props"
+      - "benchmarks/ChunkShift.Benchmarks/CsmMultiblockMetadataHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks/CsmLohTraceEvents.cs"
+      - "benchmarks/tools/ChunkShift.CsmTraceAnalyzer/**"
+      - "benchmarks/scripts/core011_csm_loh_trace.py"
+      - "docs/benchmarks/CORE011-CSM-001-LOH-TRACE-PROTOCOL.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-csm-loh-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  loh-trace:
+    name: sampled LOH trace / positive control / physical multi-CBLK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout pinned revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Restore and build release lab + trace analyzer
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+          dotnet restore benchmarks/tools/ChunkShift.CsmTraceAnalyzer/ChunkShift.CsmTraceAnalyzer.csproj
+          dotnet build benchmarks/tools/ChunkShift.CsmTraceAnalyzer/ChunkShift.CsmTraceAnalyzer.csproj -c Release --no-restore
+      - name: Existing multi-CBLK tests
+        run: |
+          set -euo pipefail
+          dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj -c Release --no-build --no-restore --filter FullyQualifiedName~CsmMultiblockMetadataHarnessTests
+          python3 -m py_compile benchmarks/scripts/core011_csm_loh_trace.py
+      - name: Install pinned .NET 10 EventPipe trace collector
+        run: |
+          dotnet tool install dotnet-trace --tool-path "$RUNNER_TEMP/tools" --version 10.0.750501
+          "$RUNNER_TEMP/tools/dotnet-trace" --version
+      - name: Contract smoke with positive control (not CBLK evidence)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_loh_trace.py \
+            --output-dir "$RUNNER_TEMP/csm-loh/smoke" \
+            --trace-tool "$RUNNER_TEMP/tools/dotnet-trace" \
+            --size-mib 1 --workers 1 \
+            --run-id "CORE011-CSM-001/LOH-SMOKE-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:8}"
+      - name: Trace real physical multi-CBLK across 1 and 16 workers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_loh_trace.py \
+            --output-dir "$RUNNER_TEMP/csm-loh/full" \
+            --trace-tool "$RUNNER_TEMP/tools/dotnet-trace" \
+            --size-mib 384 --workers 1,16 \
+            --run-id "CORE011-CSM-001/LOH-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:8}-linux-x64"
+          python3 - "$RUNNER_TEMP/csm-loh/full/run-summary.json" <<'PY'
+          import json
+          import os
+          import sys
+          with open(sys.argv[1], encoding="utf-8") as f:
+              result = json.load(f)
+          assert [s["workerCount"] for s in result["lanes"]] == [1, 16]
+          assert all(s["chunks"] == 5052 and s["positiveControlLohTicks"] > 0 for s in result["lanes"])
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              print("## CORE011-CSM-001 G1-D: LOH EventPipe sampled diagnostic", file=f)
+              print(f"RunId: {result['runId']}", file=f)
+              print("**NO_VERDICT**; LOH allocation ticks are sampled, not exact object attribution.", file=f)
+              print("| Workers | Chunks | LOH ticks by metadata round | Control LOH ticks |", file=f)
+              print("|---:|---:|---|---:|", file=f)
+              for case in result["lanes"]:
+                  print(f"| {case['workerCount']} | {case['chunks']} | {case['roundLohTicks']} | {case['positiveControlLohTicks']} |", file=f)
+          PY
+      - name: Preserve raw traces and independent reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-loh-${{ github.run_id }}
+          path: ${{ runner.temp }}/csm-loh/
+          if-no-files-found: warn
+          retention-days: 90
