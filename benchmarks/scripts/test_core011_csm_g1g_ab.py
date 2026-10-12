@@ -39,7 +39,8 @@ def make_matrix(folder):
         for size in MOD.PLAN_SIZES:
             row = {
                 "schema": "chunkshift.core011.csm-g1f-product-amdahl.v1",
-                "experimentId": "CORE011-CSM-001", "runId": RUN,
+                "experimentId": "CORE011-CSM-001",
+                "runId": RUN.replace("/G1G-", "/G1F-", 1),
                 "verdict": "NO_VERDICT_EXPLORATORY",
                 "conditions": {
                     "operation": "plan", "sizeMiB": size,
@@ -66,7 +67,8 @@ def make_matrix(folder):
             count = 5052 if size == 384 else 11
             row = {
                 "schema": "chunkshift.core011.csm-multiblock-metadata.v1",
-                "experimentId": "CORE011-CSM-001", "runId": RUN,
+                "experimentId": "CORE011-CSM-001",
+                "runId": RUN.replace("/G1G-", "/G1E-", 1),
                 "verdict": "NO_VERDICT_EXPLORATORY",
                 "conditions": {
                     "operation": "manifest-verify", "suite": "blake3",
