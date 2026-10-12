@@ -39,6 +39,16 @@ internal static class Program
             return BoundaryScanHarness.Run(args[1..]);
         }
 
+        if (string.Equals(mode, "core011-g1j1-build", StringComparison.OrdinalIgnoreCase))
+        {
+            return CsmG1jIsolatedHarness.Build(args[1..]);
+        }
+
+        if (string.Equals(mode, "core011-g1j1-consume", StringComparison.OrdinalIgnoreCase))
+        {
+            return CsmG1jIsolatedHarness.Consume(args[1..]);
+        }
+
         if (string.Equals(mode, "core011-csm-multiblock", StringComparison.OrdinalIgnoreCase))
         {
             return CsmMultiblockMetadataHarness.Run(args[1..]);
@@ -136,6 +146,8 @@ internal static class Program
         Console.WriteLine("  amdahl [--target <bytes>]... [--rounds 3] [--seconds 2] [--warmup-seconds 2]");
         Console.WriteLine("  core011-scan --output <pilot.json> [--size-mib 16] [--rounds 3] [--run-id <id>]");
         Console.WriteLine("  core011-attribution --output <data.json> [--size-mib 16] [--warmups 4] [--rounds 5] [--run-id <id>]");
+        Console.WriteLine("  core011-g1j1-build --output-dir <fixture> --size-mib <1|8|384> --suite <blake3|sha256> --bidx <true|false> --run-id <id>");
+        Console.WriteLine("  core011-g1j1-consume --fixture-dir <fixture> --workers <1|4|16> --rounds 2 --repetitions 2 --run-id <id> --output <json>");
         Console.WriteLine("  core011-g1h-bucket --output <pool-bucket.json>");
         Console.WriteLine("  core011-g1i-buckets --output <pool-buckets.json>");
         Console.WriteLine("  core011-csm-product --operation <verify-pair|plan|create|apply> --size-mib <1|8> --rounds 5 --repetitions 4 --run-id <id> --output <json>");
