@@ -1,0 +1,76 @@
+name: CORE011 CSM G1-G isolated buffer A/B
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-g1g-ab.yml"
+      - "benchmarks/scripts/core011_csm_g1g_ab.py"
+      - "benchmarks/scripts/test_core011_csm_g1g_ab.py"
+      - "docs/benchmarks/CORE011-CSM-001-G1G-BUFFER-PROTOCOL.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-csm-g1g-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  buffer-ab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - name: Checkout the same immutable PR merge source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: Setup pinned .NET 10 SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Fail-closed Python source/identity tamper tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest benchmarks/scripts/test_core011_csm_g1g_ab.py
+      - name: Build three actual Core variants and measure public API
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_g1g_ab.py \
+            --output-dir "$RUNNER_TEMP/core011-csm-g1g-results" \
+            --worktree-root "$RUNNER_TEMP/core011-csm-g1g-worktrees" \
+            --run-id "CORE011-CSM-001/G1G-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:8}-linux-x64"
+          python3 - "$RUNNER_TEMP/core011-csm-g1g-results/summary.json" <<'PY'
+          import json
+          import os
+          import sys
+          with open(sys.argv[1], encoding="utf-8") as f:
+              d = json.load(f)
+          assert d["matrixSize"] == 18 and d["roundCount"] == 90
+          assert d["verdict"] == "NO_VERDICT_EXPLORATORY"
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
+              print("## CORE011-CSM-001 G1-G temporary source A/B", file=out)
+              print(f"RunId: {d['runId']}", file=out)
+              print("**NO VERDICT:** prototype sources were modified in uncommitted worktrees only.", file=out)
+              print("| Variant | Workload | MiB | Workers | KiB/call | Batch p50 ms | Gen2 |", file=out)
+              print("|---|---|---:|---:|---:|---:|---:|", file=out)
+              for c in d["lanes"]:
+                  print(f"| {c['variant']} | {c['kind']} | {c['sizeMiB']} | "
+                        f"{c['workers']} | {c['allocPerCallMedianBytes']/1024:.2f} | "
+                        f"{c['batchMedianMs']:.3f} | {c['gen2Total']} |", file=out)
+          PY
+      - name: Preserve raw 18 lanes, source hashes and evaluator
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g1g-${{ github.run_id }}
+          path: ${{ runner.temp }}/core011-csm-g1g-results/
+          if-no-files-found: warn
+          retention-days: 90
