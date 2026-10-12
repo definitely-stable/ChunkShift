@@ -35,9 +35,10 @@ of whole-batch medians, not a latency model or a per-operation distribution.
   markers: ready (1), round start (2), round end (3).
 - All Phase markers and allocation events live inside a single EventPipe
   trace; fixture creation is explicitly **excluded** by event time.
-  After the final measured round, emit positive-control start (4), allocate
-  32 independently live `byte[131072]` arrays, emit end (5).
-  The control is *never* counted as CSM reader traffic.
+  After the final measured round, first take the separate forced-GC
+  retention snapshot, **then** emit positive-control start (4), allocate
+  32 independently live `byte[131072]` arrays, and emit end (5).
+  The control is *never* counted as CSM reader traffic or retention.
 - Collect `gc-verbose` and the custom `ChunkShift-Core011-CSM-Trace`
   provider, with trace buffers sized appropriately, and archive raw .nettrace,
   exact scenario JSON and independent summary with SHA-256 provenance.
@@ -69,3 +70,8 @@ multi-CBLK pilot, so no pooled-buffer ADOPT/REJECT is permitted.
 
 No final optimization decision follows solely from this EventPipe trace;
 the ExperimentId remains `RUNNING`.
+
+The initial implementation run (workflow #38198074881) placed the
+positive control before post-GC retention and therefore cannot support any
+retention conclusion; its event samples remain trace-valid. All later
+runs must use the corrected control-after-retention order.
