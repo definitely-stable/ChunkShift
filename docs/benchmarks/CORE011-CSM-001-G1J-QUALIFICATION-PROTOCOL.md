@@ -49,7 +49,7 @@ Never create the 384 MiB source buffer in the measuring reader/Plan process mere
 
 Use two separate OS processes:
 1. **Fixture builder** creates/imports versioned input, computes source SHA256, creates genuine physical base/target CSM (and CSP when applicable), verifies exact bytes, completes and exits.
-2. **Isolated consumer**, fresh per *candidate x workload x block*, receives only immutable fixture paths and a signed-by-digest metadata descriptor. It never generates/reconstructs the original large content buffer. Check consumer process id, start state and absence of content-path reads for *manifest-only* verification. Treat disk/page cache as independent noise; record warm/cold state.
+2. **Isolated consumer**, fresh per *candidate x workload x block*, receives only immutable fixture paths and a digest-pinned metadata descriptor. It never generates/reconstructs the original large content buffer. Check consumer process id, start state and absence of content-path reads for *manifest-only* verification. Treat disk/page cache as independent noise; record warm/cold state.
 
 Use a content-addressed manifest mapping corpusId, kind, size, suite, profile, BIDX mode, pair relation, input/output SHA256, physical CSM SHA256, expected chunk/totals/ManifestId/FileDigest and generation commands/toolchain. Compute SHA256 of **actual bytes** before using a corpus. Treat licensing and redistribution permissions explicitly; do not commit proprietary binaries. Manifest-only Verify need not expose original source bytes to consumer; Plan receives base and target CSM only. No Plan CPU "savings" inferred from unrelated verify timings.
 
