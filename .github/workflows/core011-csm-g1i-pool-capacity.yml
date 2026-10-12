@@ -1,0 +1,85 @@
+name: CORE011 CSM G1-I pool capacity calibration
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-g1i-pool-capacity.yml"
+      - "benchmarks/scripts/core011_csm_g1i_caps.py"
+      - "benchmarks/scripts/test_core011_csm_g1i_caps.py"
+      - "benchmarks/ChunkShift.Benchmarks/CsmG1iPoolProbe.cs"
+      - "benchmarks/ChunkShift.Benchmarks/Program.cs"
+      - "docs/benchmarks/CORE011-CSM-001-G1I-POOL-CAPACITY-PROTOCOL.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-g1i-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pool-calibration:
+    strategy:
+      fail-fast: false
+      matrix:
+        replicate: [0, 1]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    name: independent hosted runner ${{ matrix.replicate }} (pool cap 1/2/4)
+    env:
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "true"
+    steps:
+      - name: Checkout exact PR merge source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: Setup pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Strict synthetic evaluator and source cap tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest benchmarks/scripts/test_core011_csm_g1i_caps.py
+      - name: Four real Core builds, 24 fresh API processes and direct pool capacity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_g1i_caps.py \
+            --replicate "${{ matrix.replicate }}" \
+            --output-dir "$RUNNER_TEMP/core011-g1i-results" \
+            --worktree-root "$RUNNER_TEMP/core011-g1i-worktrees" \
+            --run-id "CORE011-CSM-001/G1I-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-r${{ matrix.replicate }}-${GITHUB_SHA:0:8}-linux-x64"
+          python3 - "$RUNNER_TEMP/core011-g1i-results/summary.json" <<'PY'
+          import json
+          import os
+          import sys
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              summary=json.load(stream)
+          assert summary["caseCount"]==24 and summary["roundCount"]==120
+          assert summary["verdict"]=="NO_VERDICT_EXPLORATORY"
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
+              print("## CORE011 G1-I independent hosted pool capacity calibration",file=out)
+              print("RunId: "+summary["runId"],file=out)
+              print("**NO ADOPT:** allocation/retention feasibility, not proven end-to-end CPU Amdahl.",file=out)
+              print("| Case | Strategy | Saved allocated % | Gen2 | Post-GC heap B | Batch ms |",file=out)
+              print("|---|---|---:|---:|---:|---:|",file=out)
+              for label,variants in summary["matchedComparisons"].items():
+                  for v,d in variants.items():
+                      print(f"| {label} | {v} | {d['allocationSavingPercent']:.1f}% | "
+                            f"{d['gen2Total']} | {d['postGcManagedBytes']} | "
+                            f"{d['batchWallMedianMs']:.3f} |",file=out)
+          PY
+      - name: Preserve genuine raw scenarios, source SHA, frozen order, probe
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g1i-${{ github.run_id }}-r${{ matrix.replicate }}
+          path: ${{ runner.temp }}/core011-g1i-results/
+          retention-days: 90
+          if-no-files-found: warn
