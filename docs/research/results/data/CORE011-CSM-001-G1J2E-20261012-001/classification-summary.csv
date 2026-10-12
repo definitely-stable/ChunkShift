@@ -1,0 +1,3 @@
+side,canonical_chunks,at_cdc_boundary,whole_exact_unaligned,no_whole_exact_bytes,bytes_in_no_whole_chunks,chunks_with_positive_4k_window_coverage,chunks_with_interior_4k_anchor,4k_matched_coverage_bytes
+base,74,0,0,74,6604072,17,16,798464
+target,81,0,0,81,6697264,17,16,803072
