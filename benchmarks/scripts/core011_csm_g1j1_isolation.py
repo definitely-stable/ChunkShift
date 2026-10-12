@@ -108,6 +108,11 @@ def evaluate(output, run_id, checkout, expected_size, workers):
             descriptor.get("builderPid", 0) <= 0 or
             (expected_size == 384 and descriptor.get("cblkCount", 0) < 2)):
         raise ValueError("invalid source-free builder/CBLK oracle")
+    for name in ("manifestId", "fileDigest", "sourceSha256"):
+        hex_value = descriptor.get(name)
+        if (not isinstance(hex_value, str) or len(hex_value) != 64 or
+                any(ch not in "0123456789abcdef" for ch in hex_value)):
+            raise ValueError("non-canonical logical/physical digest: " + name)
     if (output / "fixture" / "source.bin").exists():
         raise ValueError("builder left original content for consumers")
 
