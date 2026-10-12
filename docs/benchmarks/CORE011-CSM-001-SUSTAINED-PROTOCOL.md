@@ -26,8 +26,8 @@ matched per-worker repetition counts?
   1 MiB (11 chunks) / 384 MiB (5,052 chunks) ×
   public manifest-verify / full enumeration × workers 1 / 4 / 16.
 - **Five measured rounds, 16 calls per worker per round**:
-  16/64/256 calls per batch. This yields **60 rounds** and 5,600
-  calls total across the matrix, 2,800 per fixture size.
+  16/64/256 calls per batch. This yields **60 rounds** and 6,720
+  calls total across the matrix, 3,360 per fixture size.
 - Same deterministic SplitMix64 seed `0xC4855A112026`,
   stable FastCDC 64 KiB profile, BLAKE3, BIDX true,
   MemoryStream-backed physical CSM.
