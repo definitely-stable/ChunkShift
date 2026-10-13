@@ -1,0 +1,3 @@
+lane,physical_csp_bytes,payload_bytes,physical_minus_payload_bytes,payload_entries,create_wall_seconds,create_user_cpu_seconds,apply_wall_seconds,exact_reconstruction
+BASE_AWARE_STABLE64K,78435,75617,2818,10,2.918465,4.97,1.018201,true
+SELF_CONTAINED_STABLE64K,247508,245826,1682,10,1.392958,1.74,0.977197,true
