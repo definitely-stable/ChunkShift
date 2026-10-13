@@ -161,7 +161,7 @@ def exact_reuse(a_bytes, b_bytes, a_chunks, b_chunks):
     return count, reused
 
 
-def evaluate_family(repo_by_profile, private, family, original):
+def evaluate_family(repo_by_profile, private, family, original, wire_analyzer=None):
     """Compute both same-host source-distinct physical lanes, fully reconstruct."""
     family_dir = private / family
     family_dir.mkdir()
@@ -246,6 +246,14 @@ def evaluate_family(repo_by_profile, private, family, original):
                         info["physicalPatchSha256"] ==
                         EXPECTED[family]["baselineCspSha"][mode],
                         "original frozen public CSP physical bytes/SHA drift")
+            if wire_analyzer is not None:
+                wire = wire_analyzer(patch.read_bytes(), (root / "target.csm").read_bytes(),
+                                     mode == "based")
+                require(wire["physicalBytes"] == info["physicalPatchBytes"] and
+                        wire["ledger"]["storedEncodedPayload"] == info["payloadBytes"] and
+                        wire["entryCounts"]["payloadEntries"] == info["payloadEntries"],
+                        "J2J independent wire ledger vs public PatchInfo mismatch")
+                info["wire"] = wire
             args = ["patch", "apply", patch, "-o", restored]
             if mode == "based":
                 args += ["--base-manifest", root / "base.csm",
@@ -289,13 +297,14 @@ def evaluate_family(repo_by_profile, private, family, original):
     return {"variants": measurements, "physicalComparison": delta}
 
 
-def run(repo, output, work_root, run_id):
+def run(repo, output, work_root, run_id, wire_analyzer=None,
+        schema=SCHEMA, run_prefix=PREFIX):
     checkout = subprocess.check_output(["git", "rev-parse", "HEAD"],
                                         cwd=repo, text=True).strip()
     require(os.environ.get("GITHUB_ACTIONS") == "true"
             and os.environ.get("GITHUB_SHA") == checkout and len(checkout) == 40,
             "J2I requires original GitHub-hosted exact commit")
-    require(run_id.startswith(PREFIX) and len(run_id) > len(PREFIX),
+    require(run_id.startswith(run_prefix) and len(run_id) > len(run_prefix),
             "J2I invalid run identity")
     require(not output.exists() and not work_root.exists(), "refuse reused output/worktrees")
     old, heldout, heldout_sha = check_zip_contracts()
@@ -313,9 +322,10 @@ def run(repo, output, work_root, run_id):
         families = {}
         for family in ("roslyn", "newtonsoft"):
             families[family] = evaluate_family(
-                {"stable64k": repo, "lab16k": labtree}, private, family, sources[family])
+                {"stable64k": repo, "lab16k": labtree}, private, family,
+                sources[family], wire_analyzer=wire_analyzer)
         report = {
-            "schema": SCHEMA, "runId": run_id, "checkoutSha": checkout,
+            "schema": schema, "runId": run_id, "checkoutSha": checkout,
             "originalRoslynContractSha256": sha(roslyn.CONTRACT.read_bytes()),
             "originalNewtonsoftContractSha256": heldout_sha,
             "sources": {family: {
