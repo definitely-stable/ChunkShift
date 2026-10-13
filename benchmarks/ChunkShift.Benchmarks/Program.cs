@@ -39,6 +39,11 @@ internal static class Program
             return BoundaryScanHarness.Run(args[1..]);
         }
 
+        if (string.Equals(mode, "core011-g2c2-gate", StringComparison.OrdinalIgnoreCase))
+        {
+            return CsmG2c2GateHarness.Run(args[1..]);
+        }
+
         if (string.Equals(mode, "core011-g2c2-consume", StringComparison.OrdinalIgnoreCase))
         {
             return CsmG2c1MultiblockHarness.RunGated(args[1..]);
