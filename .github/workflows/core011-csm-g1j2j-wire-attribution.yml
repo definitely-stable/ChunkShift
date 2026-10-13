@@ -1,0 +1,98 @@
+name: CORE011 CSM G1-J2J exact CSP wire-byte attribution
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-g1j2j-wire-attribution.yml"
+      - "benchmarks/scripts/core011_csm_g1j2j_wire_attribution.py"
+      - "benchmarks/scripts/test_core011_csm_g1j2j_wire_attribution.py"
+      - "benchmarks/scripts/core011_csm_g1j2j_run.py"
+      - "benchmarks/scripts/core011_csm_g1j2i_physical_ab.py"
+      - "docs/benchmarks/CORE011-CSM-001-G1J2J-WIRE-ATTRIBUTION-PROTOCOL.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-g1j2j-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frozen-original-csp-wire-accounting:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - name: Checkout exact GitHub-hosted revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: Setup pinned .NET 10
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Adversarial CSP wire parser tests and decision lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v benchmarks/scripts/test_core011_csm_g1j2j_wire_attribution.py
+          python3 -m unittest -v benchmarks/scripts/test_core011_csm_g1j2i_physical_ab.py
+          python3 benchmarks/scripts/core011_csm_g1j_contract.py \
+            --contract benchmarks/experiments/core011-csm-g1j-contract.v1.json
+          if python3 benchmarks/scripts/core011_csm_g1j_contract.py \
+            --contract benchmarks/experiments/core011-csm-g1j-contract.v1.json \
+            --decision-ready; then
+            echo "G1-J2J cannot issue a product decision" >&2
+            exit 1
+          fi
+      - name: Replay eight pinned physical CSPs, check CRC/PIDX/CSM and reconcile wire bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_g1j2j_run.py \
+            --output-dir "$RUNNER_TEMP/core011-g1j2j-data" \
+            --worktree-root "$RUNNER_TEMP/core011-g1j2j-worktrees" \
+            --run-id "CORE011-CSM-001/G1J2J-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:8}-linux-x64"
+          python3 - "$RUNNER_TEMP/core011-g1j2j-data" <<'PY'
+          import json,sys
+          from pathlib import Path
+          root=Path(sys.argv[1])
+          assert sorted(p.name for p in root.iterdir()) == ["summary.json"]
+          d=json.loads((root/"summary.json").read_text())
+          assert d["schema"]=="chunkshift.core011.g1j2j-wire-attribution.v1"
+          assert d["verdict"]=="NO_VERDICT_EXPLORATORY"
+          assert d["decisionRunsAllowed"] is False
+          assert d["budgetsLocked"] is False
+          assert d["semanticDecision"]=="NO_GAIN_ON_FROZEN_PAIRS"
+          assert set(d["wireComparison"])=={"roslyn","newtonsoft"}
+          for fam,modes in d["wireComparison"].items():
+              assert set(modes)=={"based","standalone"}
+              for mode,val in modes.items():
+                  assert val["independentWireDecompositionPass"] is True
+                  assert sum(val["wireComponentDeltaBytes"].values())==val["labMinusStablePhysicalBytes"]
+                  assert val["labMinusStablePhysicalBytes"]>0
+          for fam in d["families"].values():
+              for profile in fam["variants"].values():
+                  for mode,p in profile["physicalCsp"].items():
+                      assert p["exactOriginalTargetReconstructed"] is True
+                      assert p["wire"]["physicalBytes"]==p["physicalPatchBytes"]
+                      assert sum(p["wire"]["ledger"].values())==p["physicalPatchBytes"]
+                      assert p["wire"]["entryCounts"]["payloadEntries"]==p["payloadEntries"]
+                      assert p["wire"]["crc32cVerified"] is True
+                      assert p["wire"]["pidxOffsetsVerified"] is True
+          print("J2J exact eight CSP wire decompositions/negative size deltas validated; NO_VERDICT")
+          PY
+      - name: Archive only sanitized numeric ledger or failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g1j2j-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/core011-g1j2j-data/summary.json
+            ${{ runner.temp }}/core011-g1j2j-data/failure.json
+          if-no-files-found: warn
+          retention-days: 90
