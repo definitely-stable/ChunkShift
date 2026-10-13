@@ -39,6 +39,11 @@ internal static class Program
             return BoundaryScanHarness.Run(args[1..]);
         }
 
+        if (string.Equals(mode, "core011-g1j2f-profiles", StringComparison.OrdinalIgnoreCase))
+        {
+            return CsmG1j2fProfileHarness.Run(args[1..]);
+        }
+
         if (string.Equals(mode, "core011-g1j2-plan-build", StringComparison.OrdinalIgnoreCase))
         {
             return CsmG1j2PlanHarness.Build(args[1..]);
