@@ -1,0 +1,5 @@
+family,mode,stable_csp_bytes,lab16k_csp_bytes,lab_minus_stable_bytes,stable_payload_bytes,lab16k_payload_bytes,payload_delta_bytes,nonpayload_delta_bytes,stable_payload_entries,lab16k_payload_entries,lab_smaller,exact_apply
+roslyn,based,1260098,1463794,203696,1243268,1404724,161456,42240,81,308,false,true
+roslyn,standalone,2100946,2251601,150655,2092164,2219299,127135,23520,81,316,false,true
+newtonsoft,based,78435,82454,4019,75617,74616,-1001,5020,10,31,false,true
+newtonsoft,standalone,247508,258303,10795,245826,254001,8175,2620,10,36,false,true
