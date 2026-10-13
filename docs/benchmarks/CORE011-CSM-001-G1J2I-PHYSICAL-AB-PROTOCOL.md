@@ -1,0 +1,25 @@
+# CORE011-CSM-001 / G1-J2I — actual FastCDC16k physical CSP A/B, isolated lab build
+
+**Status PRE-REGISTERED / NO_VERDICT_EXPLORATORY**; refs #154 #221. Preregistered before any J2I physical-16KiB result. Prior original source-frozen corpus: Roslyn CSharp 4.13.0→4.14.0 (J2D/J2G); independent Newtonsoft.Json 13.0.2→13.0.3 (J2H0/J2H1). Use both complete pairs; no switching data after results. Earlier J2F/H1 tested exact bytes only, not a physical 16KiB CSP. Public stable64k CSP is already pinned.
+
+## One question and two hypotheses
+
+Does a **real, fully reconstructable** CSP built with FastCDC16k use fewer physical bytes than the original production stable64k CSP on either immutable version pair? The null is non-improvement: lab physical CSP could be larger despite 149568 and 65601 previously observed reusable target bytes. We must accept either sign and include both named source families and both with-base and standalone CSP. This is an **exploratory lab**, not a production speed decision or universal .NET comparison.
+
+## Temporary, source-isolated experimental identity
+
+1. Stable lane builds unchanged public CLI and Core at exact H1 ancestor / current PR synthetic checkout. It must have `fastcdc.gear.chunkshift.v1.64k`, exact 16/64/256KiB semantics and unchanged fingerprint. No released or normal repository source changes.
+2. Laboratory 16k is built ONLY inside a disposable detached Git worktree on a GitHub-hosted runner at **the same exact HEAD SHA**. Strictly and solely replace the single `Stable64K.Value` registration initialization in `src/ChunkShift/Chunking/ChunkScanConfiguration.cs` with:
+    `ProfileRegistration.Create(new ChunkingProfileId("lab.fastcdc.gear.chunkshift.v1.m4096.t16384.x65536"), new FastCdcProfile(4096,16384,65536))`.
+    Verify the single frozen anchor before changing, source patch SHA-256, unchanged HEAD and modified file only. This experimental build now defaults to an **honestly separate lab profile ID and fingerprint**; it does NOT lie by declaring stable64k in a 16k CSM. This lab registration is **not committed** and never shipped; lab manifests/patches are only created, applied, and verified in that isolated build.
+3. In both lanes use real public `chunkshift create --blake3 --bidx`, `verify <csm> <original content>`, `plan`, `patch create` and `patch apply` with original sources and full reconstructed SHA-256/CSM verification.
+4. Independently parse all physical CBLK tuples `(offset,length,ChunkId)` from both CSMs (using the existing independent J2E raw-physical parser), byte-verify each reused target ChunkId against an original base byte span, and cross-check public `Plan` exact counts/bytes. Reject original J2F/H1 oracle drift: Roslyn stable 74→81 / 0 reused, lab16k 315→316 / 8 reused / 149568 bytes; Newtonsoft stable 11→10 / 0, lab16k 36→36 / 5 /65601 bytes. The public baseline physical stable CSM digests and CSP file-length/SHA digests from J2G/H1 must match exactly. Lab CSM CORE ProfileId must equal the explicit lab string and ProfileFingerprint must differ from stable.
+5. For both profiles and original pairs: measure exact physical base and target CSM lengths/SHA, real with-base and self-contained CSP lengths/SHA, payload bytes, entries and the real physical delta versus matched stable baseline. Run both public apply paths and require exact original target SHA and target CSM full content verify. Do not substitute hypothetical CBLK costs for actual CSM or CSP. Include entire-library `/usr/bin/time` process wall, user/system CPU and max RSS as **descriptive single-host data** only; no statistically valid latency/CPU inference.
+6. Only source-free `summary.json` and sanitized `failure.json` can enter Actions artifacts; original packages, DLLs, raw TSVs, physical manifests, real CSPs and reconstructed DLLs must be deleted in `finally` before artifact upload. When cleanup fails, fail the job and still explicitly limit uploaded paths to the JSON whitelist. No self-hosted runners or merged production edits.
+
+## Interpretation and decision lock
+
+- The lab 16k identifier exists only in the ephemeral altered binary; **no public profile registration or release/API/wire/schema modification**. CSM v1 is still used with a distinct identity, but persistence of an experimental CSM is NOT support for deployed readers, cross-version compatibility or a production 16k feature.
+- A lower physical CSP is necessary but not sufficient for product adoption. Compare true patch file lengths **and** CSM overhead. Exact original target bytes must be reconstructed in all 8 apply combinations (2 families × 2 profiles × 2 CSP modes).
+- If smaller CSP does not materialize, record NO_GAIN honestly and do not tune further profiles on the same already-inspected corpus. If it does, the next gate requires independent product/version pairs not used to choose these semantics plus CPU/GC budgets and forward compatibility tests.
+- Frozen strict J1 `decisionRunsAllowed=false`, `budgetsLocked=false`. Final product `NO_VERDICT_EXPLORATORY` even if every correctness gate PASS.
