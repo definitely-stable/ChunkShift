@@ -107,8 +107,9 @@ public sealed class Core011CsmComponentBenchmarks
             throw new InvalidOperationException("G2-A component source is not a consistent physical CSM.");
         }
 
+        using var verifyStream = new MemoryStream(_manifest, writable: false);
         CsmReadResult verified = CsmReader.ReadAndVerifyAsync(
-            new MemoryStream(_manifest, writable: false)).GetAwaiter().GetResult();
+            verifyStream).GetAwaiter().GetResult();
         if (!verified.IsValid || verified.ComputedManifestId != _expectedManifestId ||
             verified.ChunkCount != checked((ulong)Entries) ||
             verified.HasBlockIndex != IncludeBlockIndex)
