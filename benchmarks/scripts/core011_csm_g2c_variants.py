@@ -77,7 +77,8 @@ def generate(root: Path, variant: str, output: Path) -> dict:
     root = root.resolve(strict=True)
     if git(root, "rev-parse", "--is-inside-work-tree") != "true":
         raise ValueError("Not a worktree")
-    if git(root, "symbolic-ref", "-q", "HEAD") != "":
+    if subprocess.run(["git", "symbolic-ref", "-q", "HEAD"], cwd=root,
+                      capture_output=True, check=False).returncode == 0:
         raise ValueError("Refuse non-detached worktree; never rewrite a branch")
     if git(root, "status", "--porcelain"):
         raise ValueError("Refuse non-clean worktree")
