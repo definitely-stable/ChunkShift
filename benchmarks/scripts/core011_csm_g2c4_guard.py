@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import math
+from collections import Counter, defaultdict
 from pathlib import Path
 
 MODES = ("tiered-pgo-on", "tiered-pgo-off", "tiered-off")
@@ -94,6 +95,20 @@ def validate(root: Path, lane: int) -> dict:
                     for q in ("manifestid", "csmreader", "hashsuite", "blake", "chunkmanifest"))]
             times = [e["tms"] for e in methods if e.get("event") == "MethodLoadVerbose"]
             in_observed = sum(any(start_by_id[i] <= t <= stop_by_id[i] for i in range(1, 33)) for t in times)
+            loads = [e for e in methods if e.get("event") == "MethodLoadVerbose"]
+            raw_tiers = Counter(str(e.get("optimizationTier", "")) for e in loads)
+            if not any(label.strip() for label in raw_tiers):
+                raise ValueError(f"CLR did not expose OptimizationTier payloads: {key}")
+            tiers_per_method = defaultdict(set)
+            for event in loads:
+                identity = (event.get("methodId", ""), event.get("namespace", ""), event.get("name", ""))
+                if event.get("optimizationTier"):
+                    tiers_per_method[identity].add(event["optimizationTier"])
+            multi_tier = [
+                {"methodId": identity[0], "symbol": identity[1] + "." + identity[2],
+                 "observedTiers": sorted(tiers)}
+                for identity, tiers in tiers_per_method.items() if len(tiers) > 1
+            ]
             results.append({
                 "mode": mode, "warmups": warm,
                 "observedCalls": 32, "warmupCalls": warm,
@@ -101,6 +116,9 @@ def validate(root: Path, lane: int) -> dict:
                 "jittingStartedCount": parsed["jittingStartedCount"],
                 "methodLoadVerboseCount": parsed["methodLoadVerboseCount"],
                 "methodLoadsWithinTimedCalls": in_observed,
+                "optimizationTierCounts": dict(sorted(raw_tiers.items())),
+                "multipleObservedTiersForSameMethod": multi_tier[:80],
+                "focusedMethodTierEvents": [e for e in focus if e.get("event") == "MethodLoadVerbose"][:150],
                 "focusedMethodEvents": focus[:200],
                 "medianEarly8WallMs": sorted(x["wallMilliseconds"] for x in calls if 1 <= x["callIndex"] <= 8)[3],
                 "medianLate16WallMs": sorted(x["wallMilliseconds"] for x in calls if 17 <= x["callIndex"] <= 32)[7],
