@@ -1,0 +1,84 @@
+name: CORE011 CSM G2-B batching screen
+
+on:
+  pull_request:
+    branches:
+      - main
+      - research/core011-csm-g2a-component-screen
+    paths:
+      - "benchmarks/ChunkShift.Benchmarks/Core011CsmBatchBenchmarks.cs"
+      - "benchmarks/ChunkShift.Benchmarks.Tests/Core011CsmBatchBenchmarksTests.cs"
+      - "docs/benchmarks/CORE011-CSM-002-G2B-STAGING-PROTOCOL.md"
+      - ".github/workflows/core011-csm-g2b-screen.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-csm-g2b-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  batching-screen:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'research/core011-csm-g2b-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Build and targeted tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+          dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj \
+            -c Release --no-build --no-restore \
+            --filter FullyQualifiedName~Core011CsmBatchBenchmarksTests
+
+      - name: Capture run identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/core011-csm-g2b
+          {
+            echo "ExperimentId=CORE011-CSM-002"
+            echo "Stage=G2-B-NONDECISION"
+            echo "RunId=CORE011-CSM-002/G2B-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$(git rev-parse HEAD)-linux-x64"
+            echo "GitSha=$(git rev-parse HEAD)"
+            echo "GitStatus=$(git status --porcelain)"
+            echo "RunnerOS=$RUNNER_OS"
+            echo "RunnerArch=$RUNNER_ARCH"
+            uname -a
+          } > artifacts/core011-csm-g2b/provenance.txt
+          dotnet --info > artifacts/core011-csm-g2b/dotnet-info.txt
+
+      - name: Run diagnostic staging microbenchmarks
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj \
+            -c Release --no-build -- micro --job short --memory \
+            --exporters GitHub FullJSON \
+            --artifacts artifacts/core011-csm-g2b/bdn \
+            --filter '*Core011CsmBatchBenchmarks*' --join \
+            | tee artifacts/core011-csm-g2b/console.log
+          find artifacts/core011-csm-g2b/bdn -type f -name '*-report-full.json' -print \
+            | tee artifacts/core011-csm-g2b/reports.txt
+          test -s artifacts/core011-csm-g2b/reports.txt
+
+      - name: Upload data and failure trace
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g2b-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/core011-csm-g2b/
+          retention-days: 30
+          if-no-files-found: warn
