@@ -1,0 +1,87 @@
+name: CORE011 CSM G1-J2H1 frozen independent managed holdout
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-g1j2h1-heldout.yml"
+      - "benchmarks/experiments/core011-csm-g1j2h1-frozen-corpus.v1.json"
+      - "benchmarks/ChunkShift.Benchmarks/CsmG1j2hProfileHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks/Program.cs"
+      - "benchmarks/scripts/core011_csm_g1j2h1_holdout_eval.py"
+      - "benchmarks/scripts/test_core011_csm_g1j2h1_holdout_eval.py"
+      - "docs/benchmarks/CORE011-CSM-001-G1J2H1-HOLDOUT-PATCH-PROTOCOL.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-g1j2h1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frozen-heldout-real-csp-and-profile-oracle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - name: Checkout exact frozen revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: Setup pinned .NET 10
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: H0 frozen corpus and negative controls; enforce J1 no-decision lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v benchmarks/scripts/test_core011_csm_g1j2h1_holdout_eval.py
+          python3 benchmarks/scripts/core011_csm_g1j_contract.py \
+            --contract benchmarks/experiments/core011-csm-g1j-contract.v1.json
+          if python3 benchmarks/scripts/core011_csm_g1j_contract.py \
+            --contract benchmarks/experiments/core011-csm-g1j-contract.v1.json \
+            --decision-ready; then
+            echo "J2H1 cannot make a product decision" >&2
+            exit 1
+          fi
+      - name: SHA-pinned independent Newtonsoft original CSP create apply and five real kernel profiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_g1j2h1_holdout_eval.py \
+            --output-dir "$RUNNER_TEMP/core011-g1j2h1-data" \
+            --run-id "CORE011-CSM-001/G1J2H1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:8}-linux-x64"
+          python3 - "$RUNNER_TEMP/core011-g1j2h1-data" <<'PY'
+          from pathlib import Path
+          import json,sys
+          root=Path(sys.argv[1])
+          assert sorted(x.name for x in root.iterdir())==["summary.json"]
+          d=json.loads((root/"summary.json").read_text())
+          assert d["schema"]=="chunkshift.core011.g1j2h1-frozen-holdout.v1"
+          assert d["noPublicProfileOrProductionChanges"] is True
+          assert d["decisionRunsAllowed"] is False
+          assert d["budgetsLocked"] is False
+          assert d["verdict"]=="NO_VERDICT_EXPLORATORY"
+          assert len(d["labProfiles"])==5 and len(d["physicalCsp"])==2
+          assert all(v["exactReconstruction"] for v in d["physicalCsp"].values())
+          target=d["originalBytes"]["target"]
+          for item in d["labProfiles"].values():
+              assert item["reusedBytes"]+item["missingBytes"]==target
+              assert item["reusedChunks"]+item["missingChunks"]==item["targetChunks"]
+          print("J2H1 independent original managed DLL: five Core lab lanes and both physical CSP/apply PASS; NO_VERDICT")
+          PY
+      - name: Source-free evidence only; archive failures without original binaries
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g1j2h1-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/core011-g1j2h1-data/summary.json
+            ${{ runner.temp }}/core011-g1j2h1-data/failure.json
+          if-no-files-found: warn
+          retention-days: 90
