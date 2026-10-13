@@ -39,6 +39,16 @@ internal static class Program
             return BoundaryScanHarness.Run(args[1..]);
         }
 
+        if (string.Equals(mode, "core011-g2c-build", StringComparison.OrdinalIgnoreCase))
+        {
+            return CsmG2cProductHarness.Build(args[1..]);
+        }
+
+        if (string.Equals(mode, "core011-g2c-measure", StringComparison.OrdinalIgnoreCase))
+        {
+            return CsmG2cProductHarness.Run(args[1..]);
+        }
+
         if (string.Equals(mode, "core011-g1j2h1-profiles", StringComparison.OrdinalIgnoreCase))
         {
             return CsmG1j2hProfileHarness.Run(args[1..]);
@@ -160,6 +170,8 @@ internal static class Program
     {
         Console.WriteLine("ChunkShift benchmark lab");
         Console.WriteLine("  micro [BenchmarkDotNet options]");
+        Console.WriteLine("  core011-g2c-build --dir <fixture> --size-mib <1|8> --suite <blake3|sha256> --bidx <true|false>");
+        Console.WriteLine("  core011-g2c-measure --dir <fixture> --operation <create|manifest-verify|enumerate> --variant <baseline|stage64|stage256> --output <json> --rounds <1..6> --repetitions <1..12>");
         Console.WriteLine("  lab --corpus <manifest.json> --experiments <experiments.json> --output <result.json> [--isolate | --only <id>]");
         Console.WriteLine("  compare --left <lab.json> --right <lab.json> [--allow-unversioned]");
         Console.WriteLine("  f08 --variant <name> --target <bytes> [--seconds 5] [--warmup-seconds 3] [--perf-ctl <fifo> --perf-ack <fifo>]");
