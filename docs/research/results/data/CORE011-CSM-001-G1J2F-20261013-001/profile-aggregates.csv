@@ -1,0 +1,6 @@
+lane,base_chunks,target_chunks,reused_chunks,reused_bytes,missing_chunks,missing_bytes,cblk_entry_envelope_base_bytes,cblk_entry_envelope_target_bytes,public_profile
+stable-fastcdc64k,74,81,0,0,81,6697264,2708,2960,true
+lab-fastcdc16k,315,316,8,149568,308,6547696,11384,11420,false
+lab-fastcdc256k,19,20,0,0,20,6697264,728,764,false
+lab-fixed16k,404,409,0,0,409,6697264,14588,14768,false
+lab-fixed64k,101,103,0,0,103,6697264,3680,3752,false
