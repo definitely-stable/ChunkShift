@@ -1,0 +1,169 @@
+name: CORE011 CSM G2-C3 BLAKE3 runtime attribution
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-g2c3-runtime.yml"
+      - "benchmarks/ChunkShift.Benchmarks/CsmG2c3TieringHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks/Program.cs"
+      - "benchmarks/scripts/core011_csm_g2c3_guard.py"
+      - "docs/benchmarks/CORE011-CSM-002-G2C3-RUNTIME-PROTOCOL.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-csm-g2c3-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  freeze-binary:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'research/core011-csm-g2c3-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Compile once and freeze exact binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+          dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj \
+            -c Release --no-restore --no-build \
+            --filter FullyQualifiedName~Core011CsmBatchBenchmarksTests
+          dotnet publish benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj \
+            -c Release -f net10.0 --no-restore \
+            -o "$PWD/artifacts/core011-g2c3/bin"
+          (
+            cd artifacts/core011-g2c3/bin
+            sha256sum ChunkShift.dll ChunkShift.Benchmarks.dll \
+              ChunkShift.Benchmarks.runtimeconfig.json ChunkShift.Benchmarks.deps.json > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+          git rev-parse HEAD > artifacts/core011-g2c3/bin/checkout.sha
+      - name: Upload immutable executable for both hosted runners
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g2c3-binary
+          path: artifacts/core011-g2c3/bin/
+          retention-days: 30
+          if-no-files-found: error
+
+  two-independent-hosted-runners:
+    needs: freeze-binary
+    if: needs.freeze-binary.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [0, 1]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Download exact one-build artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: core011-csm-g2c3-binary
+          path: artifacts/core011-g2c3/bin
+      - name: Verify source/binary and runner metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="$PWD/artifacts/core011-g2c3/bin"
+          (
+            cd "$bin"
+            test "$(cat checkout.sha)" = "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)"
+            sha256sum -c SHA256SUMS
+          )
+          mkdir -p artifacts/core011-g2c3/run
+          sha256sum "$bin/ChunkShift.dll" | awk '{print $1}' \
+            > artifacts/core011-g2c3/run/binary.sha256
+          {
+            echo "ExperimentId=CORE011-CSM-002"
+            echo "Stage=G2-C3-NONDECISION"
+            echo "RunnerLane=${{ matrix.lane }}"
+            echo "RunId=CORE011-CSM-002/G2C3-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$(git rev-parse HEAD)-lane${{ matrix.lane }}"
+            echo "CheckoutSha=$(git rev-parse HEAD)"
+            echo "RunnerOS=$RUNNER_OS"
+            echo "RunnerArch=$RUNNER_ARCH"
+            uname -a
+            grep '^model name' /proc/cpuinfo | head -1 || true
+            cat /sys/fs/cgroup/cpu.max || true
+          } > artifacts/core011-g2c3/run/provenance.txt
+          dotnet --info > artifacts/core011-g2c3/run/dotnet-info.txt
+      - name: One genuine immutable two-CBLK fixture per hosted runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="$PWD/artifacts/core011-g2c3/bin"
+          dest="$PWD/artifacts/core011-g2c3/run"
+          dotnet "$bin/ChunkShift.Benchmarks.dll" core011-g1j1-build \
+            --output-dir "$dest" --size-mib 384 --suite blake3 --bidx true \
+            --run-id "CORE011-CSM-001/G1J1-G2C3-$GITHUB_RUN_ID-${{ matrix.lane }}"
+          test ! -e "$dest/source.bin"
+          test -s "$dest/original.csm"
+          test -s "$dest/fixture.json"
+      - name: Run 12 independent cold/steady runtime-mode traces
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="$PWD/artifacts/core011-g2c3/bin"
+          dest="$PWD/artifacts/core011-g2c3/run"
+          mkdir -p "$dest/samples"
+          if [[ "${{ matrix.lane }}" == "0" ]]; then
+            modes=(tiered-pgo-on tiered-pgo-off tiered-off)
+            prewarms=(0 64)
+          else
+            modes=(tiered-off tiered-pgo-off tiered-pgo-on)
+            prewarms=(64 0)
+          fi
+          for mode in "${modes[@]}"; do
+            case "$mode" in
+              tiered-pgo-on) tiered=1; pgo=1 ;;
+              tiered-pgo-off) tiered=1; pgo=0 ;;
+              tiered-off) tiered=0; pgo=0 ;;
+              *) exit 1 ;;
+            esac
+            for operation in manifest-verify enumerate; do
+              for warmups in "${prewarms[@]}"; do
+                DOTNET_TieredCompilation="$tiered" DOTNET_TieredPGO="$pgo" \
+                  DOTNET_TC_QuickJit=1 DOTNET_TC_QuickJitForLoops=0 \
+                  DOTNET_ReadyToRun=1 \
+                  dotnet "$bin/ChunkShift.Benchmarks.dll" core011-g2c3-runtime \
+                    --fixture-dir "$dest" --operation "$operation" \
+                    --mode "$mode" --warmups "$warmups" \
+                    --output "$dest/samples/$mode-$operation-$warmups.json"
+              done
+            done
+          done
+      - name: Preserve no original source/CSM; guard all raw observations
+        shell: bash
+        run: |
+          set -euo pipefail
+          dest="$PWD/artifacts/core011-g2c3/run"
+          rm "$dest/original.csm"
+          test ! -e "$dest/source.bin"
+          python3 benchmarks/scripts/core011_csm_g2c3_guard.py \
+            --root "$dest" --lane ${{ matrix.lane }} --output "$dest/guard.json"
+          if find "$dest" -type f \( -name '*.csm' -o -name source.bin \) | grep -q .; then exit 1; fi
+      - name: Archive raw source-free observations or failure traces
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g2c3-lane-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            artifacts/core011-g2c3/run/*.txt
+            artifacts/core011-g2c3/run/*.sha256
+            artifacts/core011-g2c3/run/*.json
+            artifacts/core011-g2c3/run/samples/*.json
+          retention-days: 30
+          if-no-files-found: warn
