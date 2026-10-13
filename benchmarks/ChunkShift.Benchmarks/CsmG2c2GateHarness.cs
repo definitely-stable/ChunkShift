@@ -66,16 +66,12 @@ internal static class CsmG2c2GateHarness
             {
                 accumulator.Append(id, 1u);
             }
-            if (accumulator.ChunkCount != 5052UL || accumulator.ContentLength != 5052UL + (257UL * 258UL / 2) + 1UL)
+            long expectedLength = Enumerable.Range(1, 256).Sum(x => x + 1L)
+                + 258 + (5052 - 257);
+            if (accumulator.ChunkCount != 5052UL ||
+                accumulator.ContentLength != (ulong)expectedLength)
             {
-                // Lengths of first 256 records are 2..257; 257th is 258;
-                // remaining 4795 records have length 1.
-                long correct = Enumerable.Range(1, 256).Sum(x => x + 1L)
-                    + 258 + (5052 - 257);
-                if (accumulator.ContentLength != (ulong)correct)
-                {
-                    throw new InvalidOperationException("G2-C2 valid logical totals mismatch.");
-                }
+                throw new InvalidOperationException("G2-C2 logical totals mismatch.");
             }
             _ = accumulator.Complete();
             AssertLength(expectedBytes);
