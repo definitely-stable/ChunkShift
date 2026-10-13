@@ -1,0 +1,33 @@
+{
+  "schema": "chunkshift.core011.g1j2h1-frozen-corpus.v1",
+  "stage": "FROZEN_BEFORE_H1_OUTCOME",
+  "researchOwnerIssue": 154,
+  "independentProductFamily": "Newtonsoft.Json",
+  "productIndependenceScope": "distinct product and maintainer from Microsoft.CodeAnalysis.CSharp, not an independent random population",
+  "asset": "lib/net6.0/Newtonsoft.Json.dll",
+  "h0OriginalRunId": "CORE011-CSM-001/G1J2H0-38386615762-1-ddc77583-linux-x64",
+  "h0GitHubRun": 38386615762,
+  "h0ActionsArtifact": 11806581918,
+  "h0OriginalZipSha256": "902be58596334bbb30f912d7ba775c563d30c181ba289b4b326454de126d3dd4",
+  "h0PrefreezeJsonSha256": "0719711873aa9397d180974e811695681ff0ca0450fcd4966e6d6e08c05b6da8",
+  "h0OriginalCheckoutSha": "ddc775832992275fc63202dbf6d139ed4b246524",
+  "hashSource": "observed by H0 independently downloaded official NuGet, not a NuGet package signature",
+  "base": {
+    "nugetVersion": "13.0.2",
+    "packageBytes": 2441714,
+    "packageSha256": "112ca3b7f47bcbd743befcf949fb68ce4f9eff73ad9f7f1b39c2c61a1ebd3add",
+    "packageSha512": "d743ae673bac17fdbf53c05983dba2ffdb99d7e6af8cf5fe008d57aa30b6c6ca615d672c4140eec516e529eb6ad5acf29c20b5cc059c86f98c80865652acdde1",
+    "dllBytes": 711952,
+    "dllSha256": "4816c4276f575e4d85b80633a0df2eadf29496fe00bdc33cd7843e61373bde0e",
+    "dllSha512": "ae0eac0477e4b6375b5266297e6503c9206e6327ecb476d3f54022daef92c015b6f33bc9a5423533d869f200ac71793aba14f197bd358a0fdd3129e2c00bec10"
+  },
+  "target": {
+    "nugetVersion": "13.0.3",
+    "packageBytes": 2441966,
+    "packageSha256": "872fc189e638ab1056555b03aaa38f68bcb54286e221aa646eb1129babf63c77",
+    "packageSha512": "99b252bc77d1c5f5f7b51fd4ea7d5653e9961d7b3061cf9207f8643a9c7cc9965eebc84d6467f2989bb4723b1a244915cc232a78f894e8b748ca882a7c89fb92",
+    "dllBytes": 712464,
+    "dllSha256": "22c649f75fce5be7c7ccda8880473b634ef69ecf33f5d1ab8ad892caf47d5a07",
+    "dllSha512": "6a644bfd4544950ed2d39190393b716c8314f551488380ec8bd35b5062aa143342dfd145e92e3b6b81e80285cac108d201b6bbd160cb768dc002c49f4c603c0b"
+  }
+}
