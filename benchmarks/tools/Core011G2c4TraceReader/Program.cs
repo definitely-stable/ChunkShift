@@ -40,6 +40,8 @@ using (var source = new EventPipeEventSource(input))
             Name = Value(data, "MethodName"),
             MethodId = Value(data, "MethodID"),
             MethodFlags = Value(data, "MethodFlags"),
+            OptimizationTier = Value(data, "OptimizationTier"),
+            RejitId = Value(data, "ReJITID"),
             ModuleId = Value(data, "ModuleID"),
         });
     };
@@ -54,6 +56,8 @@ using (var source = new EventPipeEventSource(input))
             Name = Value(data, "MethodName"),
             MethodId = Value(data, "MethodID"),
             MethodFlags = Value(data, "MethodFlags"),
+            OptimizationTier = Value(data, "OptimizationTier"),
+            RejitId = Value(data, "ReJITID"),
             ModuleId = Value(data, "ModuleID"),
         });
     };
