@@ -1,0 +1,6 @@
+lane,base_chunks,target_chunks,reused_target_chunks,reused_target_bytes,missing_target_chunks,missing_target_bytes,registered_public
+stable-fastcdc64k,11,10,0,0,10,712464,true
+lab-fastcdc16k,36,36,5,65601,31,646863,false
+lab-fastcdc256k,4,4,0,0,4,712464,false
+lab-fixed16k,44,44,0,0,44,712464,false
+lab-fixed64k,11,11,0,0,11,712464,false
