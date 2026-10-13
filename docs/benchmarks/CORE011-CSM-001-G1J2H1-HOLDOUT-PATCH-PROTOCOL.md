@@ -2,6 +2,8 @@
 
 **Status: PRE-REGISTERED EXPLORATORY / NO_PRODUCT_VERDICT.** Owner #154; related #221. Frozen H0 source-selection protocol: [J2H0](CORE011-CSM-001-G1J2H0-HOLDOUT-FREEZE-PROTOCOL.md). H0 source-only [Actions #38386615762](https://github.com/definitely-stable/ChunkShift/actions/runs/38386615762) succeeded without chunking/patch comparisons. Original artifact #11806581918 ZIP SHA256 `902be58596334bbb30f912d7ba775c563d30c181ba289b4b326454de126d3dd4`, one CRC-valid prefreeze.json SHA256 `0719711873aa9397d180974e811695681ff0ca0450fcd4966e6d6e08c05b6da8`. This stage H1 pins observed H0 data **before any reuse or CSP study** via `benchmarks/experiments/core011-csm-g1j2h1-frozen-corpus.v1.json` and prohibits alternate versions/families/assets.
 
+H0 implementation/source-only protocol [PR #327](https://github.com/definitely-stable/ChunkShift/pull/327) passed all required GitHub-hosted CI and was merged into main as `98874af09f9cf4b630761d8d5340b587f8d399b3` **before** any H1 result collection. H1 source digests were frozen from the independently audited H0 ZIP while J2H1 remained a draft stacked PR.
+
 ## Immutable independent binary inputs
 
 Official NuGet `Newtonsoft.Json` 13.0.2 → 13.0.3, `lib/net6.0/Newtonsoft.Json.dll`. Base bytes **711952**, SHA256 `4816c4276f575e4d85b80633a0df2eadf29496fe00bdc33cd7843e61373bde0e`; target bytes **712464**, SHA256 `22c649f75fce5be7c7ccda8880473b634ef69ecf33f5d1ab8ad892caf47d5a07`. H1 checks full packages + DLL SHA256, SHA512 and lengths against the machine contract and its fixed H0 RunId/artifact proof; MUST fail closed for any drift and may not substitute corpus. H0 hashes were observed on an independently downloaded NuGet package; self-hashing is not independent publisher signature verification.
