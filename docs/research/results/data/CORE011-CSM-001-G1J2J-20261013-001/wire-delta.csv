@@ -1,0 +1,5 @@
+family,mode,stable_csp_bytes,lab16k_csp_bytes,total_delta_bytes,stored_payload_delta_bytes,embedded_target_csm_delta_bytes,payl_entry_headers_delta_bytes,dictionary_refs_delta_bytes,pidx_records_delta_bytes,all_other_delta_bytes,all_eight_exact_apply_pass
+roslyn,based,1260098,1463794,203696,161456,8480,9080,19232,5448,0,true
+roslyn,standalone,2100946,2251601,150655,127135,8480,9400,0,5640,0,true
+newtonsoft,based,78435,82454,4019,-1001,956,840,2720,504,0,true
+newtonsoft,standalone,247508,258303,10795,8175,956,1040,0,624,0,true
