@@ -1,0 +1,5 @@
+family,profile,base_csm_bytes,target_csm_bytes,base_chunks,target_chunks,exact_reused_target_chunks,exact_reused_target_bytes,profile_id
+roslyn,stable64k,3098,3350,74,81,0,0,fastcdc.gear.chunkshift.v1.64k
+roslyn,lab16k,11794,11830,315,316,8,149568,lab.fastcdc.gear.chunkshift.v1.m4096.t16384.x65536
+newtonsoft,stable64k,830,794,11,10,0,0,fastcdc.gear.chunkshift.v1.64k
+newtonsoft,lab16k,1750,1750,36,36,5,65601,lab.fastcdc.gear.chunkshift.v1.m4096.t16384.x65536
