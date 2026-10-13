@@ -86,10 +86,11 @@
         154
       ],
       "area": "core-0.1.1",
-      "status": "RUNNING",
+      "status": "DEFER",
       "question": "CSM component/Amdahl baseline",
       "protocol": "docs/benchmarks/CORE011-CSM-001-G1J-QUALIFICATION-PROTOCOL.md",
-      "evidence": "docs/research/results/CORE011-CSM-001-G1J2J-20261013-001.md"
+      "evidence": "docs/research/results/CORE011-CSM-001-CLOSEOUT-20261013-001.md",
+      "closeoutRationale": "Exploratory G1 product qualification blocked: decisionRunsAllowed=false, budgetsLocked=false; no production adoption. J2I/J2J strict physical-patch negative result on 2 selected managed DLL pairs only."
     },
     {
       "id": "CORE011-CSM-002",
@@ -97,8 +98,10 @@
         154
       ],
       "area": "core-0.1.1",
-      "status": "PLANNED",
-      "question": "ManifestId batching"
+      "status": "DEFER",
+      "question": "ManifestId batching",
+      "evidence": "docs/research/results/CORE011-CSM-001-CLOSEOUT-20261013-001.md",
+      "closeoutRationale": "Administrative release-scope defer; NOT EXECUTED, no ManifestId batching benchmark or candidate decision."
     },
     {
       "id": "CORE011-CSM-003",
@@ -106,8 +109,10 @@
         154
       ],
       "area": "core-0.1.1",
-      "status": "PLANNED",
-      "question": "CBLK decode-once trade-off"
+      "status": "DEFER",
+      "question": "CBLK decode-once trade-off",
+      "evidence": "docs/research/results/CORE011-CSM-001-CLOSEOUT-20261013-001.md",
+      "closeoutRationale": "Administrative release-scope defer; NOT EXECUTED, no decode-once comparison or candidate decision."
     },
     {
       "id": "CORE011-CSM-004",
@@ -115,8 +120,10 @@
         154
       ],
       "area": "core-0.1.1",
-      "status": "PLANNED",
-      "question": "CSM LOH/pooling trade-off"
+      "status": "DEFER",
+      "question": "CSM LOH/pooling trade-off",
+      "evidence": "docs/research/results/CORE011-CSM-001-CLOSEOUT-20261013-001.md",
+      "closeoutRationale": "Administrative release-scope defer; reader pooling feasibility under CSM-001 only, writer/encoder and product budget NOT QUALIFIED."
     },
     {
       "id": "CORE011-CSM-005",
@@ -124,8 +131,10 @@
         154
       ],
       "area": "core-0.1.1",
-      "status": "PLANNED",
-      "question": "reader batching"
+      "status": "DEFER",
+      "question": "reader batching",
+      "evidence": "docs/research/results/CORE011-CSM-001-CLOSEOUT-20261013-001.md",
+      "closeoutRationale": "Administrative release-scope defer; NOT EXECUTED, no reader batch-size candidate decision."
     },
     {
       "id": "CORE011-CSM-006",
@@ -133,8 +142,10 @@
         154
       ],
       "area": "core-0.1.1",
-      "status": "PLANNED",
-      "question": "CRC32C Amdahl/backend gate"
+      "status": "DEFER",
+      "question": "CRC32C Amdahl/backend gate",
+      "evidence": "docs/research/results/CORE011-CSM-001-CLOSEOUT-20261013-001.md",
+      "closeoutRationale": "Administrative release-scope defer; NOT EXECUTED, no CRC backend candidate decision."
     },
     {
       "id": "CORE011-FUZZ-001",
