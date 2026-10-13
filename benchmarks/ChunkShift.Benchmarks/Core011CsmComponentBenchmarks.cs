@@ -14,7 +14,7 @@ namespace ChunkShift.Benchmarks;
 /// Times for overlapping kernels MUST NOT be added as Amdahl percentages.
 /// </summary>
 [MemoryDiagnoser]
-public sealed class Core011CsmComponentBenchmarks
+public class Core011CsmComponentBenchmarks
 {
     private byte[] _manifest = [];
     private byte[] _blockRecord = [];
