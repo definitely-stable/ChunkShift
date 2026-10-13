@@ -1,0 +1,5 @@
+family,profile,payload_entries,dictionary_ref_ids,raw_stored_bytes,zstd_no_dictionary_entries,zstd_with_dictionary_entries,zstd_no_dictionary_bytes,zstd_with_dictionary_bytes,total_stored_payload_bytes
+roslyn,stable64k,81,250,0,17,64,387552,855716,1243268
+roslyn,lab16k,308,851,0,95,213,561575,843149,1404724
+newtonsoft,stable64k,10,34,0,0,10,0,75617,75617
+newtonsoft,lab16k,31,119,0,0,31,0,74616,74616
