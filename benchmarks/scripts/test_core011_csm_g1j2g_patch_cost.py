@@ -3,7 +3,9 @@
 import tempfile
 import unittest
 from pathlib import Path
+import sys
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import core011_csm_g1j2g_patch_cost as j
 
 
