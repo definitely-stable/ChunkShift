@@ -1,0 +1,151 @@
+name: CORE011 CSM G2-C1 multi-CBLK product A-B pilot
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-g2c1-multiblock.yml"
+      - "benchmarks/ChunkShift.Benchmarks/CsmG2c1MultiblockHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks/Program.cs"
+      - "benchmarks/scripts/core011_csm_g2c1_guard.py"
+      - "docs/benchmarks/CORE011-CSM-002-G2C1-MULTIBLOCK-PROTOCOL.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-csm-g2c1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  multiblock-source-free:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'research/core011-csm-g2c1-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout source-locked G2-C1 experiment
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Compile three real Core variants with pinned original source
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/core011-g2c1-worktrees"
+          mkdir -p "$root" artifacts/core011-g2c1
+          {
+            echo "ExperimentId=CORE011-CSM-002"
+            echo "Stage=G2-C1-NONDECISION"
+            echo "RunId=CORE011-CSM-002/G2C1-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$(git rev-parse HEAD)-linux-x64"
+            echo "ActualCheckoutSha=$(git rev-parse HEAD)"
+            echo "GitHubSha=$GITHUB_SHA"
+            echo "RunnerName=$RUNNER_NAME"
+            echo "RunnerOS=$RUNNER_OS"
+            echo "RunnerArch=$RUNNER_ARCH"
+            uname -a
+          } | tee artifacts/core011-g2c1/provenance.txt
+          test -z "$(git status --porcelain)"
+          for v in baseline stage64 stage256; do
+            git worktree add --detach "$root/$v" HEAD
+            python3 benchmarks/scripts/core011_csm_g2c_variants.py \
+              --root "$root/$v" --variant "$v" \
+              --receipt "artifacts/core011-g2c1/$v.receipt.json"
+            (
+              cd "$root/$v"
+              dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+              dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+              dotnet restore tests/ChunkShift.Tests/ChunkShift.Tests.csproj
+              for tfm in net8.0 net10.0; do
+                dotnet test tests/ChunkShift.Tests/ChunkShift.Tests.csproj \
+                  -c Release -f "$tfm" --no-restore \
+                  --filter 'FullyQualifiedName~ManifestIdAccumulatorTests|FullyQualifiedName~CsmReaderTests|FullyQualifiedName~CsmWriterTests'
+              done
+            )
+          done
+          dotnet --info > artifacts/core011-g2c1/dotnet-info.txt
+
+      - name: Build source-free physical CSM once using baseline process
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/core011-g2c1-worktrees"
+          dest="$PWD/artifacts/core011-g2c1"
+          for case in small-blake3-bidx multi-blake3-bidx multi-sha256-nobidx; do
+            case "$case" in
+              small-blake3-bidx) size=1; suite=blake3; bidx=true ;;
+              multi-blake3-bidx) size=384; suite=blake3; bidx=true ;;
+              multi-sha256-nobidx) size=384; suite=sha256; bidx=false ;;
+              *) exit 1 ;;
+            esac
+            dotnet run --project "$root/baseline/benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj" \
+              -c Release --no-build -- core011-g1j1-build \
+              --output-dir "$dest/$case" \
+              --size-mib "$size" --suite "$suite" --bidx "$bidx" \
+              --run-id "CORE011-CSM-001/G1J1-G2C1-$GITHUB_RUN_ID-$case"
+            test ! -e "$dest/$case/source.bin"
+            test -s "$dest/$case/original.csm"
+            test -s "$dest/$case/fixture.json"
+          done
+
+      - name: Measure full public metadata operations, second-CBLK corruption oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/core011-g2c1-worktrees"
+          dest="$PWD/artifacts/core011-g2c1"
+          for case in small-blake3-bidx multi-blake3-bidx multi-sha256-nobidx; do
+            kind=multi
+            if [[ "$case" == small-* ]]; then kind=small; fi
+            for operation in manifest-verify enumerate; do
+              mkdir -p "$dest/$case/samples"
+              if [[ "$case" == "multi-sha256-nobidx" ]]; then
+                order=(baseline stage256 stage64 baseline)
+              else
+                order=(baseline stage64 stage256 baseline)
+              fi
+              index=0
+              for variant in "${order[@]}"; do
+                index=$((index + 1))
+                label="$variant"
+                if [[ "$index" == 4 ]]; then label=baseline-repeat; fi
+                dotnet run --project "$root/$variant/benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj" \
+                  -c Release --no-build -- core011-g2c1-consume \
+                  --fixture-dir "$dest/$case" \
+                  --kind "$kind" --operation "$operation" --variant "$variant" \
+                  --rounds 3 --repetitions 4 \
+                  --output "$dest/$case/samples/$operation-$label.json"
+              done
+            done
+          done
+
+      - name: Strip physical CSM and validate strict source-free record
+        shell: bash
+        run: |
+          set -euo pipefail
+          find artifacts/core011-g2c1 -type f -name '*.csm' -delete
+          find artifacts/core011-g2c1 -type f -name 'source.bin' -delete
+          python3 benchmarks/scripts/core011_csm_g2c1_guard.py \
+            --root artifacts/core011-g2c1 \
+            --output artifacts/core011-g2c1/guard.json
+          if find artifacts/core011-g2c1 -type f \( -name '*.csm' -o -name 'source.bin' \) | grep -q .; then
+            echo "Forbidden original source/physical bytes remain" >&2
+            exit 1
+          fi
+
+      - name: Archive data without CSM/source bytes, even on failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g2c1-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            artifacts/core011-g2c1/*.txt
+            artifacts/core011-g2c1/*.json
+            artifacts/core011-g2c1/**/fixture.json
+            artifacts/core011-g2c1/**/samples/*.json
+          if-no-files-found: warn
+          retention-days: 30
