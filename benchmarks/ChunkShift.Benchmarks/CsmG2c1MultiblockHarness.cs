@@ -28,9 +28,11 @@ internal static class CsmG2c1MultiblockHarness
         long AllocatedBytes, double GcPauseMilliseconds, int Gen0, int Gen1, int Gen2,
         long WorkingSetBytes, long PeakWorkingSetBytes, long PrivateBytes);
 
-    internal static int Run(string[] args) => RunAsync(args).GetAwaiter().GetResult();
+    internal static int Run(string[] args) => RunAsync(args, gated: false).GetAwaiter().GetResult();
 
-    private static async Task<int> RunAsync(string[] args)
+    internal static int RunGated(string[] args) => RunAsync(args, gated: true).GetAwaiter().GetResult();
+
+    private static async Task<int> RunAsync(string[] args, bool gated)
     {
         Dictionary<string, string> o = Parse(args, "--fixture-dir", "--kind",
             "--operation", "--variant", "--rounds", "--repetitions", "--output");
@@ -42,9 +44,12 @@ internal static class CsmG2c1MultiblockHarness
         int repetitions = Number(o, "--repetitions", 1, 12);
         string output = Path.GetFullPath(Required(o, "--output"));
 
+        bool validVariant = gated
+            ? variant is "baseline" or "gate256-stage64" or "gate256-stage256"
+            : variant is "baseline" or "stage64" or "stage256";
         if (kind is not ("small" or "multi") ||
             operation is not ("manifest-verify" or "enumerate") ||
-            variant is not ("baseline" or "stage64" or "stage256"))
+            !validVariant)
         {
             throw new ArgumentException("Unsupported frozen G2-C1 case / operation / variant.");
         }
@@ -208,9 +213,9 @@ internal static class CsmG2c1MultiblockHarness
         GCMemoryInfo gcInfo = GC.GetGCMemoryInfo();
         var payload = new
         {
-            Schema = ResultSchema,
+            Schema = gated ? "chunkshift.core011-csm-g2c2-consumer.v1" : ResultSchema,
             ExperimentId = "CORE011-CSM-002",
-            Stage = "G2-C1-NONDECISION",
+            Stage = gated ? "G2-C2-NONDECISION" : "G2-C1-NONDECISION",
             Variant = variant,
             Kind = kind,
             Operation = operation,
@@ -243,7 +248,7 @@ internal static class CsmG2c1MultiblockHarness
         };
         Directory.CreateDirectory(Path.GetDirectoryName(output)!);
         await File.WriteAllTextAsync(output, JsonSerializer.Serialize(payload, JsonOptions) + "\n");
-        Console.WriteLine("G2-C1 " + kind + " " + variant + " " + operation
+        Console.WriteLine((gated ? "G2-C2 " : "G2-C1 ") + kind + " " + variant + " " + operation
             + " CBLK=" + blocks + " chunks=" + chunks
             + " visible-before-bad-block=" + exposed + " PASS");
         return 0;

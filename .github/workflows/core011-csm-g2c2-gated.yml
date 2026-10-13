@@ -1,0 +1,158 @@
+name: CORE011 CSM G2-C2 allocation-gated product pilot
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-g2c2-gated.yml"
+      - "benchmarks/ChunkShift.Benchmarks/CsmG2c1MultiblockHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks/CsmG2c2GateHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks/Program.cs"
+      - "benchmarks/scripts/core011_csm_g2c2*.py"
+      - "docs/benchmarks/CORE011-CSM-002-G2C2-GATED-PROTOCOL.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-csm-g2c2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gated-product-pilot:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'research/core011-csm-g2c2-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout exact frozen revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Build real Core variants and test exact lazy threshold
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/core011-g2c2-worktrees"
+          mkdir -p "$root" artifacts/core011-g2c2
+          {
+            echo "ExperimentId=CORE011-CSM-002"
+            echo "Stage=G2-C2-NONDECISION"
+            echo "RunId=CORE011-CSM-002/G2C2-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$(git rev-parse HEAD)-linux-x64"
+            echo "ActualCheckoutSha=$(git rev-parse HEAD)"
+            echo "GitHubSha=$GITHUB_SHA"
+            echo "RunnerName=$RUNNER_NAME"
+            echo "RunnerOS=$RUNNER_OS"
+            echo "RunnerArch=$RUNNER_ARCH"
+            uname -a
+          } | tee artifacts/core011-g2c2/provenance.txt
+          test -z "$(git status --porcelain)"
+          for variant in baseline gate256-stage64 gate256-stage256; do
+            git worktree add --detach "$root/$variant" HEAD
+            python3 benchmarks/scripts/core011_csm_g2c2_variants.py \
+              --root "$root/$variant" --variant "$variant" \
+              --receipt "artifacts/core011-g2c2/$variant.receipt.json"
+            (
+              cd "$root/$variant"
+              dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+              dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+              dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj \
+                -c Release --no-build -- core011-g2c2-gate "$variant"
+              dotnet restore tests/ChunkShift.Tests/ChunkShift.Tests.csproj
+              dotnet restore benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj
+              for tfm in net8.0 net10.0; do
+                dotnet test tests/ChunkShift.Tests/ChunkShift.Tests.csproj \
+                  -c Release -f "$tfm" --no-restore \
+                  --filter 'FullyQualifiedName~ManifestIdAccumulatorTests|FullyQualifiedName~CsmReaderTests|FullyQualifiedName~CsmWriterTests'
+              done
+              dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj \
+                -c Release --no-restore \
+                --filter FullyQualifiedName~Core011CsmBatchBenchmarksTests
+            )
+          done
+          dotnet --info > artifacts/core011-g2c2/dotnet-info.txt
+
+      - name: Build four immutable baseline CSM fixtures and delete source files
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/core011-g2c2-worktrees"
+          dest="$PWD/artifacts/core011-g2c2"
+          for name in small-blake3-bidx small-sha256-nobidx multi-blake3-bidx multi-sha256-nobidx; do
+            case "$name" in
+              small-blake3-bidx) mib=1; suite=blake3; bidx=true ;;
+              small-sha256-nobidx) mib=8; suite=sha256; bidx=false ;;
+              multi-blake3-bidx) mib=384; suite=blake3; bidx=true ;;
+              multi-sha256-nobidx) mib=384; suite=sha256; bidx=false ;;
+              *) exit 1 ;;
+            esac
+            dotnet run --project "$root/baseline/benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj" \
+              -c Release --no-build -- core011-g1j1-build \
+              --output-dir "$dest/$name" --size-mib "$mib" --suite "$suite" --bidx "$bidx" \
+              --run-id "CORE011-CSM-001/G1J1-G2C2-$GITHUB_RUN_ID-$name"
+            test ! -e "$dest/$name/source.bin"
+            test -s "$dest/$name/original.csm"
+            test -s "$dest/$name/fixture.json"
+          done
+
+      - name: Run 32 isolated public Verify-Reader processes including corruption oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/core011-g2c2-worktrees"
+          dest="$PWD/artifacts/core011-g2c2"
+          for name in small-blake3-bidx small-sha256-nobidx multi-blake3-bidx multi-sha256-nobidx; do
+            kind=multi
+            if [[ "$name" == small-* ]]; then kind=small; fi
+            for operation in manifest-verify enumerate; do
+              mkdir -p "$dest/$name/samples"
+              if [[ "$name" == *sha256* ]]; then
+                order=(baseline gate256-stage256 gate256-stage64 baseline)
+              else
+                order=(baseline gate256-stage64 gate256-stage256 baseline)
+              fi
+              index=0
+              for variant in "${order[@]}"; do
+                index=$((index+1))
+                label="$variant"
+                if [[ "$index" == 4 ]]; then label=baseline-repeat; fi
+                dotnet run --project "$root/$variant/benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj" \
+                  -c Release --no-build -- core011-g2c2-consume \
+                  --fixture-dir "$dest/$name" --kind "$kind" \
+                  --operation "$operation" --variant "$variant" \
+                  --rounds 3 --repetitions 4 \
+                  --output "$dest/$name/samples/$operation-$label.json"
+              done
+            done
+          done
+
+      - name: Remove raw CSM, verify preregistered identities, and fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          find artifacts/core011-g2c2 -type f -name '*.csm' -delete
+          find artifacts/core011-g2c2 -type f -name source.bin -delete
+          python3 benchmarks/scripts/core011_csm_g2c2_guard.py \
+            --root artifacts/core011-g2c2 \
+            --output artifacts/core011-g2c2/guard.json
+          if find artifacts/core011-g2c2 -type f \( -name '*.csm' -o -name 'source.bin' \) | grep -q .; then
+            echo "Forbidden raw content remains" >&2
+            exit 1
+          fi
+
+      - name: Save failure traces and original source-free run data
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g2c2-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            artifacts/core011-g2c2/*.txt
+            artifacts/core011-g2c2/*.json
+            artifacts/core011-g2c2/**/fixture.json
+            artifacts/core011-g2c2/**/samples/*.json
+          if-no-files-found: warn
+          retention-days: 30
