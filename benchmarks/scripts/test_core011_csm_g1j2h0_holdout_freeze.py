@@ -84,10 +84,10 @@ class J2H0Tests(unittest.TestCase):
         a = h.inspect_archive(archive())
         with self.assertRaisesRegex(ValueError, "unchanged"):
             h.validate_pair(a, a)
-        b = dict(a, dllSha256="0" * 64)
+        b = dict(a, dllSha256="0" * 64, packageSha256="1" * 64)
         self.assertTrue(h.validate_pair(a, b))
         with self.assertRaisesRegex(ValueError, "identical package"):
-            h.validate_pair(dict(a, dllSha256="a" * 64), b)
+            h.validate_pair(dict(a, dllSha256="a" * 64), dict(a, dllSha256="b" * 64))
 
 
 if __name__ == "__main__":
