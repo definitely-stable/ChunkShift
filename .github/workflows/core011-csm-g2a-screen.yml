@@ -1,0 +1,82 @@
+name: CORE011 CSM G2-A component screen
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "benchmarks/ChunkShift.Benchmarks/Core011CsmComponentBenchmarks.cs"
+      - "benchmarks/ChunkShift.Benchmarks.Tests/Core011CsmComponentBenchmarksTests.cs"
+      - "docs/benchmarks/CORE011-CSM-001-G2A-COMPONENT-PROTOCOL.md"
+      - ".github/workflows/core011-csm-g2a-screen.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-csm-g2a-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  component-screen:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'research/core011-csm-g2a-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Build and focused correctness tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+          dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj \
+            -c Release --no-build --no-restore \
+            --filter FullyQualifiedName~Core011CsmComponentBenchmarksTests
+
+      - name: Record actual provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/core011-csm-g2a
+          {
+            echo "ExperimentId=CORE011-CSM-001"
+            echo "Stage=G2-A-NONDECISION"
+            echo "RunId=CORE011-CSM-001/G2A-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$GITHUB_SHA-linux-x64"
+            echo "GitSha=$(git rev-parse HEAD)"
+            echo "GitStatus=$(git status --porcelain)"
+            echo "RunnerOS=$RUNNER_OS"
+            echo "RunnerArch=$RUNNER_ARCH"
+            echo "Machine=$(uname -a)"
+          } | tee artifacts/core011-csm-g2a/provenance.txt
+          dotnet --info > artifacts/core011-csm-g2a/dotnet-info.txt
+
+      - name: Run bounded non-decision BDN component screen
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj \
+            -c Release --no-build -- \
+            micro --job short --memory --exporters GitHub FullJSON \
+            --artifacts artifacts/core011-csm-g2a/bdn \
+            --filter '*Core011CsmComponentBenchmarks*' --join \
+            | tee artifacts/core011-csm-g2a/console.log
+          find artifacts/core011-csm-g2a/bdn -type f -name '*-report-full.json' -print \
+            | tee artifacts/core011-csm-g2a/reports.txt
+          test -s artifacts/core011-csm-g2a/reports.txt
+
+      - name: Upload raw, provenance and failures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g2a-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/core011-csm-g2a/
+          if-no-files-found: warn
+          retention-days: 30
