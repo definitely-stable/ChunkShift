@@ -87,7 +87,7 @@ public sealed class Core011CsmComponentBenchmarks
             for (int i = 0; i < Entries; i++)
             {
                 session.AppendAsync(_ids[i], _lengths[i], CancellationToken.None)
-                    .GetAwaiter().GetResult();
+                    .AsTask().GetAwaiter().GetResult();
             }
 
             _expectedManifestId = session.CompleteAsync(CancellationToken.None)
