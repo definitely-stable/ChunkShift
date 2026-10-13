@@ -1,0 +1,137 @@
+name: CORE011 CSM G2-C product A-B pilot
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "benchmarks/ChunkShift.Benchmarks/CsmG2cProductHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks/Program.cs"
+      - "benchmarks/scripts/core011_csm_g2c_*.py"
+      - "docs/benchmarks/CORE011-CSM-002-G2C-PILOT-PROTOCOL.md"
+      - ".github/workflows/core011-csm-g2c-product-ab.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-csm-g2c-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  product-ab-pilot:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'research/core011-csm-g2c-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    steps:
+      - name: Checkout comparison source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Build immutable detached worktree variants
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/core011-g2c
+          root="$RUNNER_TEMP/core011-g2c-worktrees"
+          mkdir -p "$root"
+          echo "GITHUB_SHA=$GITHUB_SHA" > artifacts/core011-g2c/checkout.txt
+          git rev-parse HEAD >> artifacts/core011-g2c/checkout.txt
+          git status --porcelain >> artifacts/core011-g2c/checkout.txt
+          for v in baseline stage64 stage256; do
+            git worktree add --detach "$root/$v" HEAD
+            python3 benchmarks/scripts/core011_csm_g2c_variants.py \
+              --root "$root/$v" --variant "$v" \
+              --receipt "artifacts/core011-g2c/$v.receipt.json"
+            (
+              cd "$root/$v"
+              dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+              dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+              # Full reader/writer/ManifestId-focused regression through the
+              # candidate's own compiled Core (net8 + net10).
+              dotnet restore tests/ChunkShift.Tests/ChunkShift.Tests.csproj
+              for tfm in net8.0 net10.0; do
+                dotnet test tests/ChunkShift.Tests/ChunkShift.Tests.csproj \
+                  -c Release --no-restore -f "$tfm" \
+                  --filter 'FullyQualifiedName~ManifestIdAccumulatorTests|FullyQualifiedName~CsmReaderTests|FullyQualifiedName~CsmWriterTests'
+              done
+            )
+          done
+          dotnet --info > artifacts/core011-g2c/dotnet-info.txt
+
+      - name: Immutable original CSM fixture builder (baseline process)
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/core011-g2c-worktrees"
+          dotnet run --project "$root/baseline/benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj" \
+            -c Release --no-build -- core011-g2c-build \
+            --dir "$PWD/artifacts/core011-g2c/case-1m-blake3-bidx" \
+            --size-mib 1 --suite blake3 --bidx true
+          dotnet run --project "$root/baseline/benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj" \
+            -c Release --no-build -- core011-g2c-build \
+            --dir "$PWD/artifacts/core011-g2c/case-8m-sha256-no-bidx" \
+            --size-mib 8 --suite sha256 --bidx false
+
+      - name: Separate-process A-B-C-A product-path measurements
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/core011-g2c-worktrees"
+          output="$PWD/artifacts/core011-g2c"
+          for case in case-1m-blake3-bidx case-8m-sha256-no-bidx; do
+            for operation in create manifest-verify enumerate; do
+              mkdir -p "$output/$case/samples"
+              # Baseline at both ends of a within-runner comparison. The
+              # variant order alternates across the two workload cases.
+              if [[ "$case" == case-1m-blake3-bidx ]]; then
+                order=(baseline stage64 stage256 baseline)
+              else
+                order=(baseline stage256 stage64 baseline)
+              fi
+              index=0
+              for variant in "${order[@]}"; do
+                index=$((index + 1))
+                filename="$output/$case/samples/$operation-$variant.json"
+                if [[ "$index" == "4" ]]; then filename="$output/$case/samples/$operation-baseline-repeat.json"; fi
+                dotnet run --project "$root/$variant/benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj" \
+                  -c Release --no-build -- core011-g2c-measure \
+                  --dir "$output/$case" --operation "$operation" \
+                  --variant "$variant" --output "$filename" \
+                  --rounds 2 --repetitions 3
+              done
+            done
+          done
+
+      - name: Validate result contract and strip original contents from artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_g2c_compare.py \
+            --root artifacts/core011-g2c \
+            --output artifacts/core011-g2c/guard.json
+          # Original corpus bytes MUST NOT be published as Actions artifacts:
+          find artifacts/core011-g2c -name source.bin -delete
+          # Manifest bytes are small but source-free SHA-verified receipts
+          # suffice for future provenance, avoiding unnecessary copying.
+          find artifacts/core011-g2c -name reference.csm -delete
+          if find artifacts/core011-g2c -name '*.bin' -o -name '*.csm' | grep -q .; then
+            echo "Unstripped fixture data" >&2; exit 1
+          fi
+
+      - name: Upload raw measurement and failure evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g2c-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            artifacts/core011-g2c/**/samples/*.json
+            artifacts/core011-g2c/**/fixture.json
+            artifacts/core011-g2c/*.json
+            artifacts/core011-g2c/*.txt
+          retention-days: 30
+          if-no-files-found: error
