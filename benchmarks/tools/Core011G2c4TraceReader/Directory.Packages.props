@@ -1,5 +1,0 @@
-<Project>
-  <ItemGroup>
-    <PackageVersion Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.2.8" />
-  </ItemGroup>
-</Project>
