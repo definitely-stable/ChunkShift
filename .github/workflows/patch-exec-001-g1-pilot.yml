@@ -30,6 +30,8 @@ jobs:
         with:
           python-version: '3.14'
       - name: Unit tests
+        env:
+          PYTHONPATH: benchmarks/scripts
         run: python -m unittest benchmarks/scripts/test_run_patch_exec_001_pilot.py benchmarks/scripts/test_compare_patch_batch_create.py
       - name: Build
         run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release
