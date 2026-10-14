@@ -210,8 +210,8 @@ internal static class PatchLabRun
                     applyCheck,
                     applyRepeats,
                     patchDirectory,
-                    cancellationToken,
-                    batchCreate).ConfigureAwait(false);
+                    batchCreate,
+                    cancellationToken).ConfigureAwait(false);
 
                 if (Interlocked.Decrement(ref remaining[item.PairIndex]) == 0)
                 {
@@ -245,8 +245,8 @@ internal static class PatchLabRun
         ChunkingCheck applyCheck,
         int applyRepeats,
         string? patchDirectory,
-        CancellationToken cancellationToken,
-        bool batchCreate)
+        bool batchCreate,
+        CancellationToken cancellationToken)
     {
         string baseContentPath = corpus.ContentPath(pair, pair.Base, file.Path);
         string targetContentPath = corpus.ContentPath(pair, pair.Target, file.Path);
