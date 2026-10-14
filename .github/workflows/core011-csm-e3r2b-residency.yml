@@ -1,0 +1,111 @@
+name: CORE011 CSM E3-R2B resident memory calibration
+
+on:
+  pull_request:
+    branches:
+      - research/core011-csm-004-e3r2a-baseline-evidence
+      - main
+    paths:
+      - ".github/workflows/core011-csm-e3r2b-residency.yml"
+      - "docs/benchmarks/CORE011-CSM-004-E3-R2B-RESIDENCY.md"
+      - "benchmarks/ChunkShift.Benchmarks/CsmE3R2bResidencyHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks/Program.cs"
+      - "benchmarks/experiments/core011-csm-e3r2b-residency.v1.json"
+      - "benchmarks/scripts/core011_csm_e3r2b.py"
+      - "benchmarks/scripts/test_core011_csm_e3r2b.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-e3r2b-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  private-resident-baseline:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ubuntu-24.04
+            platform: linux
+            python: python3
+          - image: windows-2025
+            platform: windows
+            python: python
+    name: E3-R2-B baseline ${{ matrix.platform }}
+    runs-on: ${{ matrix.image }}
+    timeout-minutes: 35
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - name: Checkout immutable PR tree
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install pinned project SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Deny source/public API changes outside E3-R2B lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only origin/research/core011-csm-004-e3r2a-baseline-evidence...HEAD > "$RUNNER_TEMP/e3r2b-scope.txt"
+          cat "$RUNNER_TEMP/e3r2b-scope.txt"
+          while IFS= read -r f; do
+            case "$f" in
+              .github/workflows/core011-csm-e3r2b-residency.yml|docs/benchmarks/CORE011-CSM-004-E3-R2B-RESIDENCY.md|benchmarks/ChunkShift.Benchmarks/CsmE3R2bResidencyHarness.cs|benchmarks/ChunkShift.Benchmarks/Program.cs|benchmarks/experiments/core011-csm-e3r2b-residency.v1.json|benchmarks/scripts/core011_csm_e3r2b.py|benchmarks/scripts/test_core011_csm_e3r2b.py) ;;
+              *) echo "E3-R2B invalid path: $f" >&2; exit 1 ;;
+            esac
+          done < "$RUNNER_TEMP/e3r2b-scope.txt"
+          test -z "$(git diff --name-only origin/research/core011-csm-004-e3r2a-baseline-evidence...HEAD -- src/ tests/ Directory.Packages.props)"
+      - name: Python strict protocol negative tests and R0 no-decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          ${{ matrix.python }} -m py_compile benchmarks/scripts/core011_csm_e3r2b.py benchmarks/scripts/test_core011_csm_e3r2b.py
+          ${{ matrix.python }} -m unittest -v benchmarks/scripts/test_core011_csm_e3r2b.py
+          ${{ matrix.python }} benchmarks/scripts/core011_csm_e3_guard.py
+          if ${{ matrix.python }} benchmarks/scripts/core011_csm_e3_guard.py --decision-ready; then
+            echo "ERROR: Original E3 decision gate unlocked" >&2
+            exit 1
+          fi
+      - name: External CSM builder and four fresh resident-memory consumers
+        shell: bash
+        run: |
+          set -euo pipefail
+          short=$(git rev-parse --short=8 HEAD)
+          rid="CORE011-CSM-004/RUN-$(date -u +%Y%m%d)-$GITHUB_RUN_ID-$short-${{ matrix.platform }}-x64"
+          ${{ matrix.python }} benchmarks/scripts/core011_csm_e3r2b.py \
+            --run-id "$rid" --platform ${{ matrix.platform }} \
+            --output-dir "$RUNNER_TEMP/core011-e3r2b"
+          ${{ matrix.python }} - "$RUNNER_TEMP/core011-e3r2b/summary.json" <<'PY'
+          import json,os,sys
+          with open(sys.argv[1],encoding="utf-8") as source:
+            s=json.load(source)
+          assert s["decisionRunsAllowed"] is False and s["productVerdict"]=="NOT_QUALIFIED"
+          assert s["builderCount"]==2 and s["consumerCount"]==4
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
+            print("## E3-R2B — original eager only; actual private resident memory",file=out)
+            print("RunId: "+s["runId"],file=out)
+            print("| Source MiB | Live readers | Resident at 0s MiB | Resident at 30s MiB | Resident at 300s MiB |",file=out)
+            print("|---:|---:|---:|---:|---:|",file=out)
+            for c in s["cells"]:
+              mb=lambda v: round(v/1048576,3)
+              values=c["privateResidentBytes"]
+              print("| "+str(c["sizeMiB"])+" | "+str(c["heldReaders"])+
+                    " | "+str(mb(values[1]))+" | "+str(mb(values[2]))+
+                    " | "+(str(mb(values[3])) if len(values)==6 else "n/a")+" |",file=out)
+            print("Cross-process baseline noise; no candidate measurement or product decision.",file=out)
+          PY
+      - name: Preserve original telemetry, fixtures and build/process logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-e3r2b-${{ matrix.platform }}
+          path: ${{ runner.temp }}/core011-e3r2b/
+          if-no-files-found: warn
+          retention-days: 90
