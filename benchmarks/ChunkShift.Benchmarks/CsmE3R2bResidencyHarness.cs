@@ -70,7 +70,7 @@ internal static class CsmE3R2bResidencyHarness
         if (OperatingSystem.IsLinux())
         {
             var map = new Dictionary<string, long>(StringComparer.Ordinal);
-            foreach (string line in File.ReadAllLines("/proc/self/smaps_rollup"))
+            foreach (string line in File.ReadAllLines("/proc/" + process.Id.ToString(CultureInfo.InvariantCulture) + "/smaps_rollup"))
             {
                 int colon = line.IndexOf(':');
                 if (colon < 1) continue;

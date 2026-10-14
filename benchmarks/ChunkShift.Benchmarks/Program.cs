@@ -94,6 +94,16 @@ internal static class Program
             return CsmG1j2PlanHarness.Consume(args[1..]);
         }
 
+        if (string.Equals(mode, "core011-e3r2b2b-target", StringComparison.OrdinalIgnoreCase))
+        {
+            return CsmE3R2b2bExternalObserverHarness.Target(args[1..]);
+        }
+
+        if (string.Equals(mode, "core011-e3r2b2b-observer", StringComparison.OrdinalIgnoreCase))
+        {
+            return CsmE3R2b2bExternalObserverHarness.Observe(args[1..]);
+        }
+
         if (string.Equals(mode, "core011-e3r2b2a-sampled", StringComparison.OrdinalIgnoreCase))
         {
             return CsmE3R2b2aSampledPeakHarness.Run(args[1..]);

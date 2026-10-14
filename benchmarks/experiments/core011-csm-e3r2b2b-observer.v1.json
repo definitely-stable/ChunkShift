@@ -1,0 +1,81 @@
+{
+  "schema": "chunkshift.core011.e3r2b2b-observer-control.v1",
+  "experimentId": "CORE011-CSM-004",
+  "ownerIssue": 154,
+  "stage": "R2-B2B-external-native-observer-calibration",
+  "parentEvidenceCommit": "1f70fc748e2705531d52bcc40ba6be71d309e135",
+  "baselineSourceSha256": "a62772638c715005cb8a1a6ca58222349755a7e21a341ff80655a825910cebf2",
+  "physicalCsmSha256": "342ff5e8175304be3f27873fdfeee051deaa0d3697d60e1dcdc3799e674eac2a",
+  "originalContentMiB": 384,
+  "chunkCount": 5052,
+  "cblkCount": 2,
+  "variant": "eager",
+  "decisionRunsAllowed": false,
+  "budgetsLocked": false,
+  "platforms": [
+    "ubuntu-24.04",
+    "windows-2025"
+  ],
+  "replicates": [
+    0,
+    1
+  ],
+  "heldReaders": [
+    0,
+    16
+  ],
+  "internalSampler": [
+    "off",
+    "on"
+  ],
+  "externalSamplerPeriodMs": 100,
+  "naturalIdleSeconds": 30,
+  "replicateOrder": {
+    "0": [
+      "off-0",
+      "on-0",
+      "on-16",
+      "off-16"
+    ],
+    "1": [
+      "on-0",
+      "off-0",
+      "off-16",
+      "on-16"
+    ]
+  },
+  "requiredMetrics": [
+    "externalSampledPrivateResidentPeakBytes",
+    "externalRssPeakBytes",
+    "externalSampleCount",
+    "internalSampleCount",
+    "internalOpenCheckpoints",
+    "managedHeapAfterIdleBytes",
+    "gen2Collections",
+    "gcPauseTotalMs"
+  ],
+  "requirements": {
+    "externalObserverDifferentPid": true,
+    "allTargetsFresh": true,
+    "sourceOnlyInExitedBuilder": true,
+    "sameNativeMetricSource": true,
+    "rawTraceRequired": true,
+    "sourceShaLocked": true,
+    "originalR0NoDecision": true
+  },
+  "forbidden": {
+    "adopt": true,
+    "holdout": true,
+    "sourceChanges": true,
+    "productionBudgetFreeze": true,
+    "claimCausalCost": true,
+    "peakUpperBound": true
+  },
+  "limitations": [
+    "External smaps_rollup/PSAPI polling still has nonzero target/host perturbation.",
+    "Four cells are sequential and in different processes on each independently allocated runner; order is counterbalanced, not randomized.",
+    "Only synthetic BLAKE3/BIDX 384MiB-source eager baseline; no Plan, real-versioned or candidate measurements.",
+    "Thirty-second idle contrasts observer cost, not Windows 300-second page-trimming behavior.",
+    "Sampled maxima are lower bounds on unknown instantaneous process high-water and cannot define product acceptance budgets."
+  ]
+}
