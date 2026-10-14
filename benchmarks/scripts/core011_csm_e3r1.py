@@ -60,10 +60,10 @@ def variant_source(original, variant):
         legacy_return = "G1hLargePool.Instance.Return(_blockBuffer, clearArray: true);"
         if result.count(legacy_return) != 2:
             raise ValueError("legacy bounded-pool return anchors changed")
-        pattern = r"(?m)^([ \\t]*)" + re.escape(legacy_return) + r"$"
+        pattern = r"(?m)^([ \t]*)" + re.escape(legacy_return) + r"$"
         def hardened(match):
             indent = match.group(1)
-            return (indent + "Array.Clear(_blockBuffer);\\n" +
+            return (indent + "Array.Clear(_blockBuffer);\n" +
                     indent + "G1hLargePool.Instance.Return(_blockBuffer, clearArray: false);")
         result, replaced = re.subn(pattern, hardened, result)
         if (replaced != 2 or
