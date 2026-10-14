@@ -142,5 +142,40 @@ class BoundaryEvidenceTests(unittest.TestCase):
             module.verify(doc, original, inv)
 
 
+    def test_hosted_execution_is_main_only_and_artifacts_fail_closed(self):
+        repository = Path(__file__).resolve().parents[2]
+        workflow = (repository / ".github/workflows/patch-tree-001-t1-boundary-diagnostic.yml").read_text(encoding="utf-8")
+        self.assertIn("  workflow_dispatch:", workflow)
+        self.assertNotIn("  pull_request:", workflow)
+        self.assertNotIn("  push:", workflow)
+        self.assertIn('test "$RUNNER_ENVIRONMENT" = "github-hosted"', workflow)
+        self.assertIn('test "$GITHUB_REF" = "refs/heads/main"', workflow)
+        self.assertIn('test "$GITHUB_RUN_ATTEMPT" = "1"', workflow)
+        self.assertIn('os.environ["SOURCE_SHA"] != os.environ["GITHUB_SHA"]', workflow)
+        self.assertIn("--calibration-only", workflow)
+        self.assertIn("patch-lab tree-boundary", workflow)
+        self.assertNotIn("patch-lab tree-calibration", workflow)
+        self.assertNotIn("patch-lab tree-evaluation", workflow)
+        self.assertIn("verify_patch_tree_001_boundary.py", workflow)
+        self.assertIn("if: success()", workflow)
+        self.assertIn("if: failure()", workflow)
+        self.assertIn("UNVERIFIED-NOT-DECISION.txt", workflow)
+        self.assertIn("name: patch-tree-001-t1-boundary-diagnostic", workflow)
+        locked = module.PAIRS_SHA
+        self.assertEqual(1, workflow.count("  PAIRS_SHA256: " + locked))
+        self.assertIn('echo "$PAIRS_SHA256  pairs.json" | sha256sum --check', workflow)
+
+    def test_issue_owner_dispatch_is_exact_and_nonautomatic(self):
+        repository = Path(__file__).resolve().parents[2]
+        operator = (repository / ".github/workflows/patch-tree-001-t1-boundary-operator.yml").read_text(encoding="utf-8")
+        self.assertIn("github.event.issue.number == 184", operator)
+        self.assertIn("github.event.comment.user.id == 271974079", operator)
+        self.assertIn("r\"/tree-boundary (20[0-9]{6}) ([1-9][0-9]{5,18})\"", operator)
+        self.assertIn("inputs[source-sha]", operator)
+        self.assertIn("source != main_head()", operator)
+        self.assertIn('run.get("conclusion") == "success"', operator)
+        self.assertIn("patch-tree-001-t1-boundary-diagnostic.yml", operator)
+
+
 if __name__ == "__main__":
     unittest.main()
