@@ -173,7 +173,7 @@ class BoundaryEvidenceTests(unittest.TestCase):
         self.assertIn("r\"/tree-boundary (20[0-9]{6}) ([1-9][0-9]{5,18})\"", operator)
         self.assertIn("inputs[source-sha]", operator)
         self.assertIn("source != main_head()", operator)
-        self.assertIn('run.get("conclusion") == "success"', operator)
+        self.assertIn('r.get("conclusion") == "success"', operator)
         self.assertIn("patch-tree-001-t1-boundary-diagnostic.yml", operator)
 
 
