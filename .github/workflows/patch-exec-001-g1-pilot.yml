@@ -16,7 +16,16 @@ permissions:
 
 jobs:
   pilot:
-    runs-on: ubuntu-24.04
+    name: synthetic-pilot-${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux-x64
+          - os: windows-2025
+            platform: windows-x64
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 75
     steps:
       - name: Checkout
@@ -40,7 +49,7 @@ jobs:
       - name: Archive fully verified pilot
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: patch-exec-001-g1-linux-x64
+          name: patch-exec-001-g1-${{ matrix.platform }}
           path: artifacts/patch-exec-g1/
           if-no-files-found: error
           retention-days: 14
