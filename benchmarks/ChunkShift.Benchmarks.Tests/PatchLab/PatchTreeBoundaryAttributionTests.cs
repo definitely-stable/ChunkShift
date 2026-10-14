@@ -7,6 +7,8 @@ namespace ChunkShift.Benchmarks.Tests.PatchLab;
 
 public sealed class PatchTreeBoundaryAttributionTests
 {
+    private static readonly string[] RemovedPaths = ["a.bin"];
+
     [Fact]
     public async Task CalibrationDiagnosticMeasuresLostBoundariesAndRenameReuseWithoutPatching()
     {
@@ -40,7 +42,7 @@ public sealed class PatchTreeBoundaryAttributionTests
                     baseSha256 = Sha(b), targetSize = changed.LongLength,
                     targetSha256 = Sha(changed) } },
                 added = new[] { new { path = "a-renamed.bin", size = a.LongLength, sha256 = Sha(a) } },
-                removed = new[] { "a.bin" }, identicalFiles = 0, identicalBytes = 0,
+                removed = RemovedPaths, identicalFiles = 0, identicalBytes = 0,
             }));
 
             PatchTreeBoundaryAttribution.VerifyPopulation(pair, frozen.RootElement);
@@ -73,7 +75,7 @@ public sealed class PatchTreeBoundaryAttributionTests
                     baseSha256 = new string('0', 64), targetSize = changed.LongLength,
                     targetSha256 = Sha(changed) } },
                 added = new[] { new { path = "a-renamed.bin", size = a.LongLength, sha256 = Sha(a) } },
-                removed = new[] { "a.bin" }, identicalFiles = 0, identicalBytes = 0,
+                removed = RemovedPaths, identicalFiles = 0, identicalBytes = 0,
             }));
             Assert.Throws<InvalidDataException>(() =>
                 PatchTreeBoundaryAttribution.VerifyPopulation(pair, tampered.RootElement));
