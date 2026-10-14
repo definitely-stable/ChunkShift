@@ -36,9 +36,9 @@ internal static class CsmE3R2BaselineHarness
         string root = Path.GetFullPath(opts["--fixture-dir"]);
         string output = Path.GetFullPath(opts["--output"]);
         string runId = opts["--run-id"];
-        int workers = int.Parse(opts["--workers"]);
-        int repeats = int.Parse(opts["--repetitions"]);
-        int idleSeconds = int.Parse(opts["--idle-seconds"]);
+        int workers = int.Parse(opts["--workers"], System.Globalization.CultureInfo.InvariantCulture);
+        int repeats = int.Parse(opts["--repetitions"], System.Globalization.CultureInfo.InvariantCulture);
+        int idleSeconds = int.Parse(opts["--idle-seconds"], System.Globalization.CultureInfo.InvariantCulture);
         if (workers is not (1 or 16) || repeats is not (8 or 64) ||
             idleSeconds is not (30 or 300) ||
             !runId.StartsWith("CORE011-CSM-004/RUN-", StringComparison.Ordinal))
