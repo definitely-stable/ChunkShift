@@ -276,6 +276,10 @@ def main():
         child(["dotnet","build",project,"-c","Release","--no-restore"],
               output/"build.log",timeout=600)
         prefix=["dotnet","run","--no-build","-c","Release","--project",project,"--"]
+        # dotnet run is a launcher: Popen.pid can be a parent CLI process.
+        # Directly execute built DLL to make the PID refer to the CLR target/observer.
+        consumer_prefix=["dotnet",ROOT/"benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll"]
+        require(consumer_prefix[1].is_file(),"Missing compiled native CLR benchmark DLL")
         fixture=output/"fixture"
         fixture.mkdir()
         builder_id=("CORE011-CSM-001/G1J1-E3R2B2B-"+a.platform+"-r"+
@@ -293,7 +297,7 @@ def main():
         pids={descriptor["builderPid"]}
         for cell in ORDER[a.replica]:
             folder=output/cell
-            pair=complete_pair(prefix,fixture,a.run_id,cell,folder)
+            pair=complete_pair(consumer_prefix,fixture,a.run_id,cell,folder)
             require(pair[0] not in pids and pair[1] not in pids and pair[0]!=pair[1],
                     "Reused producer/target/observer process PID")
             pids.update(pair)
