@@ -1,0 +1,96 @@
+name: CORE011 CSM E3-R1 reader correctness
+
+on:
+  pull_request:
+    branches:
+      - research/core011-csm-004-e3r0-reader-contract
+      - main
+    paths:
+      - ".github/workflows/core011-csm-e3r1-reader.yml"
+      - "docs/benchmarks/CORE011-CSM-004-E3-R1-PROTOTYPE.md"
+      - "benchmarks/experiments/core011-csm-e3r1-oracle.cs"
+      - "benchmarks/scripts/core011_csm_e3r1.py"
+      - "benchmarks/scripts/test_core011_csm_e3r1.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e3r1-correctness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - name: Checkout exact PR tree
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Setup pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Reject any E3-R1 product or unrelated change
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only origin/research/core011-csm-004-e3r0-reader-contract...HEAD > "$RUNNER_TEMP/e3r1-diff.txt"
+          cat "$RUNNER_TEMP/e3r1-diff.txt"
+          while IFS= read -r path; do
+            case "$path" in
+              .github/workflows/core011-csm-e3r1-reader.yml|docs/benchmarks/CORE011-CSM-004-E3-R1-PROTOTYPE.md|benchmarks/experiments/core011-csm-e3r1-oracle.cs|benchmarks/scripts/core011_csm_e3r1.py|benchmarks/scripts/test_core011_csm_e3r1.py) ;;
+              *) echo "E3-R1 unexpected path $path" >&2; exit 1 ;;
+            esac
+          done < "$RUNNER_TEMP/e3r1-diff.txt"
+      - name: Fail-closed Python source and TRX tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile benchmarks/scripts/core011_csm_e3r1.py benchmarks/scripts/test_core011_csm_e3r1.py
+          python3 -m unittest -v benchmarks/scripts/test_core011_csm_e3r1.py
+          python3 benchmarks/scripts/core011_csm_e3_guard.py
+          if python3 benchmarks/scripts/core011_csm_e3_guard.py --decision-ready; then
+            echo "ERROR: R0 decision gate unlocked" >&2; exit 1
+          fi
+      - name: Five real Core builds and independent CSM tests on .NET 8 and 10
+        shell: bash
+        run: |
+          set -euo pipefail
+          DATE=$(date -u +%Y%m%d)
+          SHORT=$(git rev-parse --short=8 HEAD)
+          python3 benchmarks/scripts/core011_csm_e3r1.py \
+            --correctness-only \
+            --run-id "CORE011-CSM-004/RUN-$DATE-$GITHUB_RUN_ID-$SHORT-linux-x64" \
+            --output-dir "$RUNNER_TEMP/e3r1-results" \
+            --worktree-root "$RUNNER_TEMP/e3r1-worktrees"
+          python3 - "$RUNNER_TEMP/e3r1-results/summary.json" <<'PY'
+          import json, os, sys
+          with open(sys.argv[1],encoding="utf-8") as inp:
+            data=json.load(inp)
+          assert data["decisionRunsAllowed"] is False
+          assert data["productVerdict"]=="NOT_QUALIFIED"
+          assert len(data["lanes"])==5
+          for lane in data["lanes"]:
+            assert sorted(lane["frameworks"])==["net10.0","net8.0"]
+            for counts in lane["frameworks"].values():
+              assert counts["failed"]==0 and counts["ownershipOracles"]>=19
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as summary:
+            print("## E3-R1 — real compiled CSM reader variants: correctness only",file=summary)
+            print("RunId: "+data["runId"],file=summary)
+            for lane in data["lanes"]:
+              print("- "+lane["variant"]+": "+", ".join(
+                fx+" "+str(v["passed"])+"/"+str(v["total"])+
+                " PASS, ownership "+str(v["ownershipOracles"])
+                for fx,v in lane["frameworks"].items()),file=summary)
+            print("No product adoption; E3-R0 remains preregistration.",file=summary)
+          PY
+      - name: Archive original per-variant logs, TRX and receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-e3r1-original
+          path: ${{ runner.temp }}/e3r1-results/
+          if-no-files-found: warn
+          retention-days: 90
