@@ -146,6 +146,40 @@ public sealed class PatchTreeBoundaryAttributionTests
     }
 
     [Fact]
+    public async Task EvidencePathsUseUtf8ByteOrderRatherThanUtf16Ordinal()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "patch-tree-utf8-" + Guid.NewGuid().ToString("N"));
+        string oldRoot = Path.Combine(root, "tree", "synthetic", "old");
+        string newRoot = Path.Combine(root, "tree", "synthetic", "new");
+        Directory.CreateDirectory(oldRoot);
+        Directory.CreateDirectory(newRoot);
+        string privateUse = "\uE000.bin";
+        string supplementary = "\U0001F600.bin";
+        try
+        {
+            Put(oldRoot, privateUse, [1]);
+            Put(oldRoot, supplementary, [2]);
+            Put(newRoot, privateUse, [1]);
+            Put(newRoot, supplementary, [2]);
+            var pair = new PatchTreeCalibration.Pair("synthetic", "old", "new",
+                "calibration", Layout(oldRoot), Layout(newRoot));
+            using JsonDocument frozen = JsonDocument.Parse(JsonSerializer.Serialize(new
+            {
+                changed = Array.Empty<object>(), added = Array.Empty<object>(),
+                removed = Array.Empty<string>(), identicalFiles = 2, identicalBytes = 2,
+            }));
+            var result = await PatchTreeBoundaryAttribution.RunPairAsync(root, pair, frozen.RootElement);
+            Assert.Equal(2, result.Files.Length);
+            Assert.Equal(privateUse, result.Files[0].Path);
+            Assert.Equal(supplementary, result.Files[1].Path);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void DiagnosticCliRequiresExplicitCorpusInventoryAndOutput()
     {
         Assert.Equal(2, ChunkShift.Benchmarks.PatchLab.PatchLabRunner.Run(["tree-boundary"]));
