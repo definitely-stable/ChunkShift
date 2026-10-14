@@ -1,0 +1,64 @@
+{
+  "schema": "chunkshift.core011.e3r2b-resident-calibration.v1",
+  "experimentId": "CORE011-CSM-004",
+  "stage": "R2-B1-cross-platform-residency",
+  "ownerIssue": 154,
+  "sourceReaderBlobSha1": "ff56ccddaa0efc9970fd0b019e20523d6c2933d6",
+  "sourceReaderSha256": "a62772638c715005cb8a1a6ca58222349755a7e21a341ff80655a825910cebf2",
+  "parentHead": "d20a7fa0a6591a697c268e46c23752df750b6306",
+  "productionCandidate": "eager",
+  "decisionRunsAllowed": false,
+  "budgetsLocked": false,
+  "hostedPlatforms": [
+    "ubuntu-24.04",
+    "windows-2025"
+  ],
+  "sizesMiB": [
+    1,
+    384
+  ],
+  "fixtureSuite": "blake3",
+  "fixtureBidx": true,
+  "heldReaders": [
+    0,
+    16
+  ],
+  "idleSecondsBySize": {
+    "1": 30,
+    "384": 300
+  },
+  "mandatoryMetrics": [
+    "privateResidentBytes",
+    "processRssBytes",
+    "managedHeapBytes",
+    "processPrivateDiagnosticBytes",
+    "uptimeMilliseconds",
+    "gen2Collections",
+    "totalGcPauseMs"
+  ],
+  "windowsMetricSource": "windows-psapi-ex2-private_working_set",
+  "linuxMetricSource": "linux-smaps_rollup-private_clean_plus_private_dirty",
+  "strictSemantics": {
+    "distinctBuilderConsumerPid": true,
+    "sourceFileAbsent": true,
+    "independentFreshProcessEachCell": true,
+    "holdExactly16PartiallyRead": true,
+    "sharedImmutableFixtureBytes": true,
+    "requiredOriginalReaderSha": true,
+    "actualNatural300SecondIdle": true
+  },
+  "forbidden": {
+    "adopt": true,
+    "decisionThresholds": true,
+    "candidates": true,
+    "claimSixteenParallelCPUs": true,
+    "interpretPrivateMemorySizeAsResident": true
+  },
+  "limitations": [
+    "This is a synthetic eager-only baseline residency study.",
+    "Independent control vs held-reader processes may have JIT/GC/runtime noise.",
+    "Real-versioned corpora, both hash suites and whole-product Plan are not measured.",
+    "Only one runner per OS; cross-OS and cross-process comparisons do not yield CPU thresholds.",
+    "Snapshot-only private working set and smaps rollup do not prove peak resident bounds."
+  ]
+}
