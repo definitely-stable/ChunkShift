@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using ChunkShift.Benchmarks.Lab;
 
 namespace ChunkShift.Benchmarks.PatchLab;
@@ -28,6 +29,7 @@ internal sealed record PatchLabRunResult(
     PatchLabFileResult[] Files,
     string? Execution = null,
     string ApplyCheck = "seq",
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     PatchLabBatchCreateMetrics? BatchCreate = null);
 
 /// <summary>Aggregate counters for the opt-in multi-file calibration run.</summary>
