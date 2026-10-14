@@ -276,10 +276,13 @@ def main():
         child(["dotnet","build",project,"-c","Release","--no-restore"],
               output/"build.log",timeout=600)
         prefix=["dotnet","run","--no-build","-c","Release","--project",project,"--"]
-        # dotnet run is a launcher: Popen.pid can be a parent CLI process.
-        # Directly execute built DLL to make the PID refer to the CLR target/observer.
-        consumer_prefix=["dotnet",ROOT/"benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll"]
-        require(consumer_prefix[1].is_file(),"Missing compiled native CLR benchmark DLL")
+        # Both dotnet run and dotnet <assembly.dll> may launch an additional CLR
+        # child on hosted images. Only the built apphost executable has the same
+        # OS PID as Environment.ProcessId used by our memory observer.
+        apphost=ROOT/"benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0"/(
+            "ChunkShift.Benchmarks.exe" if a.platform=="windows" else "ChunkShift.Benchmarks")
+        require(apphost.is_file(),"Missing compiled native CLR apphost executable")
+        consumer_prefix=[apphost]
         fixture=output/"fixture"
         fixture.mkdir()
         builder_id=("CORE011-CSM-001/G1J1-E3R2B2B-"+a.platform+"-r"+
