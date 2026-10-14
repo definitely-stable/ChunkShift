@@ -131,6 +131,7 @@ internal static class PatchTreeBoundaryAttribution
         treeCsm.Position = 0;
         ChunkInfo[] virtualChunks = await ReadVerifiedAsync(treeCsm);
         var allVirtualIds = virtualChunks.Select(c => c.Id).ToHashSet();
+        var virtualStarts = virtualChunks.ToDictionary(c => c.Offset);
 
         var old = p.Base.Files.ToDictionary(f => f.Path, StringComparer.Ordinal);
         var target = p.Target.Files.ToDictionary(f => f.Path, StringComparer.Ordinal);
@@ -150,13 +151,13 @@ internal static class PatchTreeBoundaryAttribution
             string kind = changed.Contains(entry.Path) ? "changed" :
                 target.ContainsKey(entry.Path) ? "unchanged" : "removed";
             rows.Add(Analyze(entry.Path, kind, entry.Offset, entry.Length,
-                standalone, targetChunks, virtualChunks, allVirtualIds));
+                standalone, targetChunks, virtualChunks, virtualStarts, allVirtualIds));
         }
         foreach (var entry in p.Target.Files.Where(f => added.Contains(f.Path)))
         {
             ChunkInfo[] targetChunks = await ScanFileAsync(newRoot, entry.Path);
             rows.Add(Analyze(entry.Path, "added", 0, 0, [], targetChunks,
-                virtualChunks, allVirtualIds));
+                virtualChunks, virtualStarts, allVirtualIds));
         }
         return new PairResult(p.Family, p.BaseVersion, p.TargetVersion,
             treeInfo.ManifestId.ToString(), virtualChunks.LongLength, oldTree.Length,
@@ -167,14 +168,14 @@ internal static class PatchTreeBoundaryAttribution
     // dictionary effectiveness is made from these logical ChunkId matches.
     internal static Row Analyze(string path, string kind, long fileOffset, long fileLength,
         IReadOnlyList<ChunkInfo> oldChunks, IReadOnlyList<ChunkInfo> targetChunks,
-        IReadOnlyList<ChunkInfo> virtualChunks, IReadOnlySet<ChunkId> virtualIds)
+        IReadOnlyList<ChunkInfo> virtualChunks,
+        IReadOnlyDictionary<long, ChunkInfo> virtualStarts, IReadOnlySet<ChunkId> virtualIds)
     {
         if (fileOffset < 0 || fileLength < 0 ||
             fileLength > long.MaxValue - fileOffset ||
             oldChunks.Sum(c => (long)c.Length) != fileLength)
             throw new InvalidDataException("Invalid old source chunk interval.");
 
-        var virtualStarts = virtualChunks.ToDictionary(c => c.Offset);
         var oldIds = oldChunks.Select(c => c.Id).ToHashSet();
         long preservedCount = 0, preservedBytes = 0, anyCount = 0, anyBytes = 0;
         foreach (ChunkInfo c in oldChunks)
@@ -198,10 +199,20 @@ internal static class PatchTreeBoundaryAttribution
         if (fileLength > 0)
         {
             long end = fileOffset + fileLength;
-            foreach (ChunkInfo c in virtualChunks)
+            // Binary search the first interval with end > fileOffset.
+            // Do not rescan the complete tree for each source file.
+            int lo = 0, hi = virtualChunks.Count;
+            while (lo < hi)
             {
+                int mid = lo + ((hi - lo) / 2);
+                ChunkInfo probe = virtualChunks[mid];
+                if (checked(probe.Offset + probe.Length) <= fileOffset) lo = mid + 1;
+                else hi = mid;
+            }
+            for (int i = lo; i < virtualChunks.Count; i++)
+            {
+                ChunkInfo c = virtualChunks[i];
                 long cEnd = checked(c.Offset + c.Length);
-                if (cEnd <= fileOffset) continue;
                 if (c.Offset >= end) break;
                 long overlap = Math.Min(end, cEnd) - Math.Max(fileOffset, c.Offset);
                 if (overlap <= 0) continue;
