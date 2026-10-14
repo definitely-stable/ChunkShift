@@ -1,0 +1,74 @@
+{
+  "schema": "chunkshift.core011.csm-e3r2-calibration.v1",
+  "experimentId": "CORE011-CSM-004",
+  "ownerIssue": 154,
+  "protocolParentSha": "58fe8b8c9e5eb90f17fecddd218b5bf366d0f106",
+  "mode": "baseline-only",
+  "variant": "eager",
+  "decisionRunsAllowed": false,
+  "budgetsLocked": false,
+  "builder": "CsmG1jIsolatedHarness.Build via external builder OS process",
+  "builderProvenance": "synthetic; g1j helper builderRunId is not a decision run",
+  "runnerPlatform": "ubuntu-24.04",
+  "replicates": [
+    0,
+    1
+  ],
+  "sizesMiB": [
+    1,
+    384
+  ],
+  "workers": [
+    1,
+    16
+  ],
+  "rounds": 8,
+  "repetitionsBySize": {
+    "1": 64,
+    "384": 8
+  },
+  "idleSecondsByCell": {
+    "1-1": 30,
+    "1-16": 30,
+    "384-1": 30,
+    "384-16": 300
+  },
+  "hashSuite": "blake3",
+  "bidx": true,
+  "requiredMetrics": [
+    "allocatedBytes",
+    "allocatedBytesPerOperation",
+    "gcPauseMs",
+    "gen2",
+    "wallMs",
+    "cpuMs",
+    "workingSetBytes",
+    "peakWorkingSetBytes",
+    "privateBytes",
+    "maxActiveReaders"
+  ],
+  "requiredNaturalIdlePhases": [
+    "idle-0-natural",
+    "idle-30-natural"
+  ],
+  "requiredLongIdlePhase": "idle-300-natural",
+  "mandatoryIsolation": {
+    "distinctBuilderAndConsumerPid": true,
+    "sourceFileAbsent": true,
+    "independentFreshConsumerPerCell": true,
+    "exactCsmSha256": true,
+    "checkoutShaPinned": true,
+    "readerUnmodified": true
+  },
+  "forbidden": {
+    "candidateMeasurements": true,
+    "decisionThresholds": true,
+    "productionChanges": true,
+    "conflationWithG1JDecision": true
+  },
+  "limitations": [
+    "Baseline-only synthetic calibration cannot set acceptance thresholds without independent review.",
+    "Linux Process.PrivateMemorySize64 may measure virtual allocation, not resident private pages.",
+    "No Windows/ARM64/NativeAOT/real-versioned holdout or Plan/Reader coverage in R2-A pilot."
+  ]
+}

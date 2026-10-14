@@ -94,6 +94,11 @@ internal static class Program
             return CsmG1j2PlanHarness.Consume(args[1..]);
         }
 
+        if (string.Equals(mode, "core011-e3r2-baseline", StringComparison.OrdinalIgnoreCase))
+        {
+            return CsmE3R2BaselineHarness.Run(args[1..]);
+        }
+
         if (string.Equals(mode, "core011-g1j1-build", StringComparison.OrdinalIgnoreCase))
         {
             return CsmG1jIsolatedHarness.Build(args[1..]);
