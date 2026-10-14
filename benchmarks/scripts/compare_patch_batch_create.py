@@ -16,7 +16,8 @@ FIELDS = ("targetSize", "targetChunks", "patchBytes", "patchSha256",
           "tcsmBytes", "uniqueMissingBytes", "payloadEntries",
           "rawEntries", "zstdEntries", "dictionaryEntries")
 HOST_FIELDS = ("osDescription", "osArchitecture", "processArchitecture",
-               "framework", "processorCount")
+               "frameworkDescription", "processorCount", "processorDescription",
+               "gitCommit")
 
 
 def require(ok, reason):
@@ -79,6 +80,14 @@ def load(path, expected):
 def compare(oracle_path, baseline_path, candidates):
     oracle, oracle_files = load(oracle_path, LEGACY)
     baseline, baseline_files = load(baseline_path, BATCH)
+    require(baseline["workers"] == 1 and baseline["execution"] == "h0",
+            "baseline must be H0 with exactly one outer worker")
+    require(isinstance(baseline["environment"].get("gitCommit"), str) and
+            re.fullmatch(r"[a-fA-F0-9]{40}", baseline["environment"]["gitCommit"]),
+            "baseline must carry a 40-hex checked-out Git commit")
+    for field in HOST_FIELDS:
+        require(oracle["environment"].get(field) == baseline["environment"].get(field),
+                f"{oracle_path}: H0 oracle host/build {field} differs from batch baseline")
     checks = [(baseline_path, baseline, baseline_files)]
     checks += [(path, *load(path, BATCH)) for path in candidates]
     for path, data, files in checks:

@@ -21,6 +21,7 @@ class BatchComparisonTests(unittest.TestCase):
             "zstdEntries": 0, "dictionaryEntries": 0,
         }
         self.env = {k: 1 for k in verifier.HOST_FIELDS}
+        self.env["gitCommit"] = "a" * 40
         self.oracle = self.write("oracle", {
             "schema": verifier.LEGACY, "files": [dict(self.row, applyMetrics={})],
             "applyRepeats": 1, "workers": 1, "execution": "h0",
@@ -84,6 +85,25 @@ class BatchComparisonTests(unittest.TestCase):
             # Restore original for the next mutation.
             data[key] = "e" * 64 if key == "corpusPairsSha256" else self.env
             self.write("candidate", data)
+
+    def test_reject_wrong_baseline_and_unbound_build(self):
+        data = json.loads(self.baseline.read_text())
+        data["execution"] = "h2-w2"
+        self.write("baseline", data)
+        with self.assertRaisesRegex(ValueError, "baseline must be H0"):
+            verifier.compare(self.oracle, self.baseline, [self.candidate])
+        data["execution"] = "h0"
+        data["environment"]["gitCommit"] = None
+        self.write("baseline", data)
+        with self.assertRaisesRegex(ValueError, "40-hex"):
+            verifier.compare(self.oracle, self.baseline, [self.candidate])
+
+    def test_reject_oracle_build_drift(self):
+        data = json.loads(self.oracle.read_text())
+        data["environment"]["gitCommit"] = "b" * 40
+        self.write("oracle", data)
+        with self.assertRaisesRegex(ValueError, "gitCommit"):
+            verifier.compare(self.oracle, self.baseline, [self.candidate])
 
     def test_reject_unverified_oracle(self):
         data = json.loads(self.oracle.read_text())
