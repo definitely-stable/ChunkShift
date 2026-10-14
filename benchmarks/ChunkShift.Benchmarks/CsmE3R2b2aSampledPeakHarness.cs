@@ -147,18 +147,27 @@ internal static class CsmE3R2b2aSampledPeakHarness
         using var proc = Process.GetCurrentProcess();
         Stopwatch clock = Stopwatch.StartNew();
         var trace = new List<TracePoint>();
+        object sampleLock = new();
         string phase = "pre-open";
         using var stop = new CancellationTokenSource();
+
+        void Record(string name)
+        {
+            lock (sampleLock)
+            {
+                trace.Add(ToTracePoint(CsmE3R2bResidencyHarness.Sample(proc, clock, name)));
+            }
+        }
 
         async Task Monitor()
         {
             // Same sampling overhead in 0-reader and 16-reader fresh processes.
             // Never force a GC during the natural interval.
-            trace.Add(ToTracePoint(CsmE3R2bResidencyHarness.Sample(proc, clock, phase)));
+            Record(phase);
             using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(sampleMs));
             while (await timer.WaitForNextTickAsync(stop.Token))
             {
-                trace.Add(ToTracePoint(CsmE3R2bResidencyHarness.Sample(proc, clock, phase)));
+                Record(phase);
             }
         }
 
@@ -185,6 +194,9 @@ internal static class CsmE3R2b2aSampledPeakHarness
                     batch[0].Index != 0 || batch[0].Length <= 0 ||
                     reader.IsCompleted || reader.VerificationResult is not null)
                     throw new InvalidDataException("Held ManifestReader was prematurely completed.");
+                // Explicit capture of each newly touched eager buffer; 100 ms polling
+                // alone can miss fast <100 ms memory peaks during reader creation.
+                Record("opening-checkpoint-" + (i + 1).ToString(CultureInfo.InvariantCulture));
             }
             phase = "held-natural-idle";
             heldStart = clock.ElapsedMilliseconds;
