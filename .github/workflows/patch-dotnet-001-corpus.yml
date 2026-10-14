@@ -1,0 +1,113 @@
+name: PATCH-DOTNET-001 A1 corpus inventory
+
+# Only GitHub-hosted research inventory: no patch creation or decision evidence.
+on:
+  push:
+    branches: [research/patch-dotnet-001-corpus-lock]
+    paths:
+      - .github/workflows/patch-dotnet-001-corpus.yml
+      - benchmarks/scripts/patch_dotnet_001_corpus.py
+      - benchmarks/scripts/test_patch_dotnet_001_corpus.py
+      - docs/benchmarks/patch-dotnet-001/corpus-plan.v1.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: patch-dotnet-001-corpus-a1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate predeclared corpus and adversarial tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/patch_dotnet_001_corpus.py validate
+          python3 -m unittest discover -s benchmarks/scripts -p 'test_patch_dotnet_001_corpus.py' -v
+
+      - name: Restore content-addressed source downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/patch-dotnet-a1-sources
+          key: patch-dotnet-a1-assets-${{ hashFiles('docs/benchmarks/patch-dotnet-001/corpus-plan.v1.json') }}
+
+      - name: Fetch only locked official release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+          from benchmarks.scripts.patch_dotnet_001_corpus import validate_plan
+
+          plan = json.loads(Path("docs/benchmarks/patch-dotnet-001/corpus-plan.v1.json").read_text())
+          groups = validate_plan(plan)
+          dest = Path(os.environ["RUNNER_TEMP"]) / "patch-dotnet-a1-sources"
+          dest.mkdir(parents=True, exist_ok=True)
+          unique = {a["name"]: a for g in groups for a in g["assets"]}
+          for name, asset in sorted(unique.items()):
+              path = dest / name
+              digest_kind = asset["digestAlgorithm"]
+              expected = asset["digest"]
+              def digest(p):
+                  h = hashlib.new(digest_kind)
+                  with p.open("rb") as f:
+                      for block in iter(lambda: f.read(1024 * 1024), b""):
+                          h.update(block)
+                  return h.hexdigest()
+              if path.is_file() and not path.is_symlink() and digest(path) == expected:
+                  print("verified cache", name, flush=True)
+                  continue
+              tmp = dest / (name + ".partial")
+              if tmp.exists():
+                  tmp.unlink()
+              request = Request(asset["url"], headers={"User-Agent": "ChunkShift-PATCH-DOTNET-001-A1/1"})
+              with urlopen(request, timeout=300) as response, tmp.open("xb") as target:
+                  total = 0
+                  while True:
+                      block = response.read(1024 * 1024)
+                      if not block:
+                          break
+                      total += len(block)
+                      if total > 2 * 1024**3:
+                          raise ValueError("source archive exceeds 2 GiB bound: " + name)
+                      target.write(block)
+              if digest(tmp) != expected:
+                  raise ValueError("pinned asset checksum mismatch: " + name)
+              os.replace(tmp, path)
+              print("downloaded and verified", name, total, flush=True)
+          PY
+
+      - name: Materialize and hash full corpus (no patch runs)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/patch_dotnet_001_corpus.py materialize \
+            --sources "$RUNNER_TEMP/patch-dotnet-a1-sources" \
+            --root "$RUNNER_TEMP/patch-dotnet-a1-inventory"
+          mkdir -p artifacts/patch-dotnet-a1
+          cp "$RUNNER_TEMP/patch-dotnet-a1-inventory/pairs.json" artifacts/patch-dotnet-a1/
+          cp "$RUNNER_TEMP/patch-dotnet-a1-inventory/files.jsonl" artifacts/patch-dotnet-a1/
+          cp "$RUNNER_TEMP/patch-dotnet-a1-inventory/audit.json" artifacts/patch-dotnet-a1/
+          sha256sum artifacts/patch-dotnet-a1/* > artifacts/patch-dotnet-a1/SHA256SUMS
+          cat artifacts/patch-dotnet-a1/audit.json
+
+      - name: Archive independent A1 inventory (not decision evidence)
+        if: success()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-dotnet-001-a1-source-inventory
+          path: artifacts/patch-dotnet-a1/
+          if-no-files-found: error
+          retention-days: 90

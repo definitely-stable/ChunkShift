@@ -1,0 +1,155 @@
+{
+  "schema": "chunkshift.patch-dotnet-corpus-plan.v1",
+  "experimentId": "PATCH-DOTNET-001",
+  "freezePolicy": "no-decision-runs-before-materialization-review",
+  "selectionRule": "whole-product-family-with-frozen-candidate-path-scopes-full-population-H0",
+  "sources": {
+    "dotnet": "https://builds.dotnet.microsoft.com/dotnet/release-metadata/10.0/releases.json",
+    "node": "https://nodejs.org/dist/"
+  },
+  "groups": [
+    {
+      "id": "aspnetcore-win-x64",
+      "role": "calibration",
+      "product": "aspnetcore-runtime",
+      "rid": "win-x64",
+      "format": "zip",
+      "pathRule": "replace-dotnet10-version-components",
+      "base": "10.0.10",
+      "target": "10.0.11",
+      "assets": [
+        {
+          "version": "10.0.10",
+          "name": "aspnetcore-runtime-10.0.10-win-x64.zip",
+          "url": "https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/10.0.10/aspnetcore-runtime-10.0.10-win-x64.zip",
+          "digestAlgorithm": "sha256",
+          "digest": "2b53b8ec2c2f7b2444dcecb0afcfc99181baf966442b902512f124097f81254d"
+        },
+        {
+          "version": "10.0.11",
+          "name": "aspnetcore-runtime-10.0.11-win-x64.zip",
+          "url": "https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/10.0.11/aspnetcore-runtime-10.0.11-win-x64.zip",
+          "digestAlgorithm": "sha256",
+          "digest": "9658cfa0b8fd6e2af3b1d8917318b86543f7f16fe32eccd78d41f9da52622a83"
+        }
+      ],
+      "candidateAllowPrefixes": [
+        "shared/Microsoft.AspNetCore.App/"
+      ]
+    },
+    {
+      "id": "runtime-linux-arm64",
+      "role": "calibration",
+      "product": "dotnet-runtime",
+      "rid": "linux-arm64",
+      "format": "tar.gz",
+      "pathRule": "replace-dotnet10-version-components",
+      "base": "10.0.10",
+      "target": "10.0.11",
+      "assets": [
+        {
+          "version": "10.0.10",
+          "name": "dotnet-runtime-10.0.10-linux-arm64.tar.gz",
+          "url": "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.10/dotnet-runtime-10.0.10-linux-arm64.tar.gz",
+          "digestAlgorithm": "sha256",
+          "digest": "30e9dccd4c68454c2ffc7507d4d26bab01fe0a5291eb635beedf65d8d2f7e8ea"
+        },
+        {
+          "version": "10.0.11",
+          "name": "dotnet-runtime-10.0.11-linux-arm64.tar.gz",
+          "url": "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.11/dotnet-runtime-10.0.11-linux-arm64.tar.gz",
+          "digestAlgorithm": "sha256",
+          "digest": "a7958c89c312b43fbe07e3fc99fc6646ee9f14d6e1eb7522c7de0c24c2a97729"
+        }
+      ],
+      "candidateAllowPrefixes": [
+        "shared/Microsoft.NETCore.App/"
+      ]
+    },
+    {
+      "id": "sdk-linux-x64",
+      "role": "evaluation",
+      "product": "dotnet-sdk",
+      "rid": "linux-x64",
+      "format": "tar.gz",
+      "pathRule": "replace-dotnet10-version-components",
+      "base": "10.0.111",
+      "target": "10.0.112",
+      "assets": [
+        {
+          "version": "10.0.111",
+          "name": "dotnet-sdk-10.0.111-linux-x64.tar.gz",
+          "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.111/dotnet-sdk-10.0.111-linux-x64.tar.gz",
+          "digestAlgorithm": "sha512",
+          "digest": "aae221be96a3b510d5b6fffefc69d8ad2fa595a1430299419316bb71c65f260a457ca9af24d044e1709b28a9118798caafec535ccfe58f7767c5acb735c00392"
+        },
+        {
+          "version": "10.0.112",
+          "name": "dotnet-sdk-10.0.112-linux-x64.tar.gz",
+          "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.112/dotnet-sdk-10.0.112-linux-x64.tar.gz",
+          "digestAlgorithm": "sha512",
+          "digest": "1ac949dfd3929855e3a102a5b12f843967a784ad2d911dfcfff6abdf81a2e78bccf25ddc055547de02b36133bf792aaf97fcba8db8aa6b52ac2e018b86935d05"
+        }
+      ],
+      "candidateAllowPrefixes": [
+        "sdk/"
+      ]
+    },
+    {
+      "id": "desktop-win-x64",
+      "role": "evaluation",
+      "product": "windowsdesktop-runtime",
+      "rid": "win-x64",
+      "format": "zip",
+      "pathRule": "replace-dotnet10-version-components",
+      "base": "10.0.11",
+      "target": "10.0.12",
+      "assets": [
+        {
+          "version": "10.0.11",
+          "name": "windowsdesktop-runtime-10.0.11-win-x64.zip",
+          "url": "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.11/windowsdesktop-runtime-10.0.11-win-x64.zip",
+          "digestAlgorithm": "sha512",
+          "digest": "1d32a9bf6c93f50dee5734048f825998b98266d0e28846dbee0310e2aad7e28fc2251e38ffad6a474a1e57381895130f2b3e1e1a4f875ac7f79271d91c6eb433"
+        },
+        {
+          "version": "10.0.12",
+          "name": "windowsdesktop-runtime-10.0.12-win-x64.zip",
+          "url": "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.12/windowsdesktop-runtime-10.0.12-win-x64.zip",
+          "digestAlgorithm": "sha512",
+          "digest": "8b79f679c348aa08a10ee4e1ca75be54b135ae951b7328400fea8499f9eb8450ccb18f9f708af6182b2bcd88fcca719aa282939e907b017422f519de8dd42534"
+        }
+      ],
+      "candidateAllowPrefixes": [
+        "shared/Microsoft.WindowsDesktop.App/"
+      ]
+    },
+    {
+      "id": "node-win-x64-control",
+      "role": "negative-control",
+      "product": "node",
+      "rid": "win-x64",
+      "format": "zip",
+      "pathRule": "strip-first",
+      "base": "24.20.0",
+      "target": "24.21.0",
+      "assets": [
+        {
+          "version": "24.20.0",
+          "name": "node-v24.20.0-win-x64.zip",
+          "url": "https://nodejs.org/dist/v24.20.0/node-v24.20.0-win-x64.zip",
+          "digestAlgorithm": "sha256",
+          "digest": "6cac9ffbca8f6a47091e4b5c772e0606049c3871cb67d900c0cedde630e545ba"
+        },
+        {
+          "version": "24.21.0",
+          "name": "node-v24.21.0-win-x64.zip",
+          "url": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
+          "digestAlgorithm": "sha256",
+          "digest": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541"
+        }
+      ],
+      "candidateAllowPrefixes": []
+    }
+  ]
+}
