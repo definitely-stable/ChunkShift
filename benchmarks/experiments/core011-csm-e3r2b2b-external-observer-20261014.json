@@ -1,0 +1,228 @@
+{
+  "schema": "chunkshift.core011.e3r2b2b-external-observer-evidence.v1",
+  "evidenceId": "CORE011-CSM-004/EVIDENCE-20261014-004",
+  "experimentId": "CORE011-CSM-004",
+  "runId": 38617726233,
+  "runUrl": "https://github.com/definitely-stable/ChunkShift/actions/runs/38617726233",
+  "originalCheckoutSha": "99a616a32d31ac212b8f5e17ad8430751737b4c5",
+  "physicalCsmSha256": "342ff5e8175304be3f27873fdfeee051deaa0d3697d60e1dcdc3799e674eac2a",
+  "readerOriginalSha256": "a62772638c715005cb8a1a6ca58222349755a7e21a341ff80655a825910cebf2",
+  "dataProvenance": "Downloaded exact original GitHub Actions ZIP files, independently SHA256/CRC32 tested and original per-cell observer raw JSON peaks recomputed from all source samples.",
+  "outcome": "EXTERNAL_OBSERVER_CALIBRATION_PASS",
+  "productVerdict": "NOT_QUALIFIED",
+  "decisionRunsAllowed": false,
+  "rows": [
+    {
+      "platform": "linux",
+      "replica": 0,
+      "artifactId": 11920478875,
+      "artifactZipSha256": "3e12d5d0e7e2abf1577f3c4ffa9576fe3838f89d83c615d5b718ce2fca02d57d",
+      "builderPid": 2975,
+      "records": [
+        {
+          "scenario": "off-0",
+          "targetPid": 2989,
+          "observerPid": 3001,
+          "externalPrivateResidentPeakBytes": 13926400,
+          "externalSampleCount": 311,
+          "internalSampleCount": 0,
+          "internalReaderOpenCheckpoints": 0,
+          "managedHeapAfterIdleBytes": 1062168,
+          "observerRawSha256": "e83bfd712593b18300cba2df8e7f5ac3212ab47a851924aa06760cdc71095812"
+        },
+        {
+          "scenario": "on-0",
+          "targetPid": 3025,
+          "observerPid": 3038,
+          "externalPrivateResidentPeakBytes": 32657408,
+          "externalSampleCount": 311,
+          "internalSampleCount": 308,
+          "internalReaderOpenCheckpoints": 0,
+          "managedHeapAfterIdleBytes": 12538744,
+          "observerRawSha256": "fca8436007997a51378a9da5370db722a8865660ef008a58dcad13914898f650"
+        },
+        {
+          "scenario": "on-16",
+          "targetPid": 3061,
+          "observerPid": 3073,
+          "externalPrivateResidentPeakBytes": 36278272,
+          "externalSampleCount": 314,
+          "internalSampleCount": 328,
+          "internalReaderOpenCheckpoints": 16,
+          "managedHeapAfterIdleBytes": 15989688,
+          "observerRawSha256": "731e2338d51032dabad4d9c84d62286a47354baf497a6a6e46344fb655499870"
+        },
+        {
+          "scenario": "off-16",
+          "targetPid": 3096,
+          "observerPid": 3108,
+          "externalPrivateResidentPeakBytes": 17760256,
+          "externalSampleCount": 313,
+          "internalSampleCount": 0,
+          "internalReaderOpenCheckpoints": 0,
+          "managedHeapAfterIdleBytes": 3840456,
+          "observerRawSha256": "d664c6994d6047f137d5c0b5b44617f3e00da114b5e5b19c54460f8fd8d7e94f"
+        }
+      ]
+    },
+    {
+      "platform": "linux",
+      "replica": 1,
+      "artifactId": 11919699531,
+      "artifactZipSha256": "c40ebbfbbe0a969b091c9cf6a576def481052e1451c96dbd66c18e95294955c7",
+      "builderPid": 2980,
+      "records": [
+        {
+          "scenario": "on-0",
+          "targetPid": 2994,
+          "observerPid": 3006,
+          "externalPrivateResidentPeakBytes": 32731136,
+          "externalSampleCount": 311,
+          "internalSampleCount": 308,
+          "internalReaderOpenCheckpoints": 0,
+          "managedHeapAfterIdleBytes": 12505384,
+          "observerRawSha256": "1bd3ddeee13770b4ca1ee6b2f4841095c320267c5ed87059af8fb6b22c1661c2"
+        },
+        {
+          "scenario": "off-0",
+          "targetPid": 3028,
+          "observerPid": 3040,
+          "externalPrivateResidentPeakBytes": 14041088,
+          "externalSampleCount": 311,
+          "internalSampleCount": 0,
+          "internalReaderOpenCheckpoints": 0,
+          "managedHeapAfterIdleBytes": 1071360,
+          "observerRawSha256": "64f3d66da3fd495d1b4236fcd34537fa67a4ab5f924ea0dd19d8e67ce1d5e6c5"
+        },
+        {
+          "scenario": "off-16",
+          "targetPid": 3065,
+          "observerPid": 3077,
+          "externalPrivateResidentPeakBytes": 17661952,
+          "externalSampleCount": 313,
+          "internalSampleCount": 0,
+          "internalReaderOpenCheckpoints": 0,
+          "managedHeapAfterIdleBytes": 3843408,
+          "observerRawSha256": "99a7831487759797ae27d67549b3249849c7d364db2518a6788978ca553be4ad"
+        },
+        {
+          "scenario": "on-16",
+          "targetPid": 3103,
+          "observerPid": 3115,
+          "externalPrivateResidentPeakBytes": 35880960,
+          "externalSampleCount": 314,
+          "internalSampleCount": 328,
+          "internalReaderOpenCheckpoints": 16,
+          "managedHeapAfterIdleBytes": 16045712,
+          "observerRawSha256": "9a5fe8d6be29e2a625b3626b73d7b6609bed726975684ecca344f2d71689b7dd"
+        }
+      ]
+    },
+    {
+      "platform": "windows",
+      "replica": 0,
+      "artifactId": 11919449733,
+      "artifactZipSha256": "9ffea1b909f5cbddbb602b07d74d23578cc14f1c49bb44d0cde22648d757b121",
+      "builderPid": 4688,
+      "records": [
+        {
+          "scenario": "off-0",
+          "targetPid": 5236,
+          "observerPid": 8828,
+          "externalPrivateResidentPeakBytes": 8204288,
+          "externalSampleCount": 311,
+          "internalSampleCount": 0,
+          "internalReaderOpenCheckpoints": 0,
+          "managedHeapAfterIdleBytes": 1693544,
+          "observerRawSha256": "5d9de54a3ce702a7048ddac5315d3c02e11fe3a34bda5254129af58267299b75"
+        },
+        {
+          "scenario": "on-0",
+          "targetPid": 3148,
+          "observerPid": 4252,
+          "externalPrivateResidentPeakBytes": 8933376,
+          "externalSampleCount": 311,
+          "internalSampleCount": 308,
+          "internalReaderOpenCheckpoints": 0,
+          "managedHeapAfterIdleBytes": 2899200,
+          "observerRawSha256": "885023e037db1f72e0970b15748554c939204595888e3c8081a8bddef6551e68"
+        },
+        {
+          "scenario": "on-16",
+          "targetPid": 8388,
+          "observerPid": 8688,
+          "externalPrivateResidentPeakBytes": 11464704,
+          "externalSampleCount": 314,
+          "internalSampleCount": 328,
+          "internalReaderOpenCheckpoints": 16,
+          "managedHeapAfterIdleBytes": 5748760,
+          "observerRawSha256": "68a13ba613b06befa7e55b2df7b18e300c58e2db36c290a2a01742f7fea82d7e"
+        },
+        {
+          "scenario": "off-16",
+          "targetPid": 8508,
+          "observerPid": 6032,
+          "externalPrivateResidentPeakBytes": 11800576,
+          "externalSampleCount": 313,
+          "internalSampleCount": 0,
+          "internalReaderOpenCheckpoints": 0,
+          "managedHeapAfterIdleBytes": 4460248,
+          "observerRawSha256": "7fe28784be81a5676d443aebb4d0bf7d65ca435593b3e02cfaf558ed1365a548"
+        }
+      ]
+    },
+    {
+      "platform": "windows",
+      "replica": 1,
+      "artifactId": 11919869451,
+      "artifactZipSha256": "534e871a1afb6d10066cb7735308a65aca7245e8061caffb9a1fea3230bf147b",
+      "builderPid": 4020,
+      "records": [
+        {
+          "scenario": "on-0",
+          "targetPid": 3500,
+          "observerPid": 8124,
+          "externalPrivateResidentPeakBytes": 8765440,
+          "externalSampleCount": 311,
+          "internalSampleCount": 308,
+          "internalReaderOpenCheckpoints": 0,
+          "managedHeapAfterIdleBytes": 2884264,
+          "observerRawSha256": "8d84e4f4b1f4f6b389261be4c4f217cd83d1e64690e5b312060a701bd10668f3"
+        },
+        {
+          "scenario": "off-0",
+          "targetPid": 1324,
+          "observerPid": 2776,
+          "externalPrivateResidentPeakBytes": 8343552,
+          "externalSampleCount": 311,
+          "internalSampleCount": 0,
+          "internalReaderOpenCheckpoints": 0,
+          "managedHeapAfterIdleBytes": 1693416,
+          "observerRawSha256": "e570653dd8c00893f932ade931e2379e8e94558cd8a3b77545362ec7cb5403e1"
+        },
+        {
+          "scenario": "off-16",
+          "targetPid": 8052,
+          "observerPid": 7572,
+          "externalPrivateResidentPeakBytes": 11862016,
+          "externalSampleCount": 313,
+          "internalSampleCount": 0,
+          "internalReaderOpenCheckpoints": 0,
+          "managedHeapAfterIdleBytes": 4463376,
+          "observerRawSha256": "2ccbcdaa53c5fd55c2091ee4bc214976ee16508a0ad95c83eac4f38811829aac"
+        },
+        {
+          "scenario": "on-16",
+          "targetPid": 6292,
+          "observerPid": 2772,
+          "externalPrivateResidentPeakBytes": 11591680,
+          "externalSampleCount": 314,
+          "internalSampleCount": 328,
+          "internalReaderOpenCheckpoints": 16,
+          "managedHeapAfterIdleBytes": 5691312,
+          "observerRawSha256": "5a22660a6813e0b420b861a1bf588f153f19261d9d743fafe3d5bf6c57613ba9"
+        }
+      ]
+    }
+  ]
+}
