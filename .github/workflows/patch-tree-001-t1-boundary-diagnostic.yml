@@ -80,6 +80,27 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: One-success-only source and run history proof
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/patch-tree-001-t1-boundary-diagnostic.yml/runs?event=workflow_dispatch&per_page=100" > "$RUNNER_TEMP/boundary-history.json"
+          python3 - "$RUNNER_TEMP/boundary-history.json" <<'PY'
+          import json, os, sys, subprocess
+          history = json.load(open(sys.argv[1], encoding="utf-8"))
+          if int(history.get("total_count", 0)) > 100:
+              raise SystemExit("history enumeration exceeds bound")
+          for run in history.get("workflow_runs", []):
+              if str(run.get("id")) != os.environ["GITHUB_RUN_ID"] and (
+                  run.get("status") != "completed" or run.get("conclusion") == "success"):
+                  raise SystemExit("prior active or successful diagnostic")
+          source = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          if source != os.environ["GITHUB_SHA"]:
+              raise SystemExit("unexpected checkout drift")
+          PY
+
       - name: Setup pinned .NET from global.json
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
@@ -153,27 +174,6 @@ jobs:
           dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
           dotnet test benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-build --no-restore \
             --filter 'FullyQualifiedName~PatchTree'
-
-      - name: One-success-only source and run history proof
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/patch-tree-001-t1-boundary-diagnostic.yml/runs?event=workflow_dispatch&per_page=100" > "$RUNNER_TEMP/boundary-history.json"
-          python3 - "$RUNNER_TEMP/boundary-history.json" <<'PY'
-          import json, os, sys, subprocess
-          history = json.load(open(sys.argv[1], encoding="utf-8"))
-          if int(history.get("total_count", 0)) > 100:
-              raise SystemExit("history enumeration exceeds bound")
-          for run in history.get("workflow_runs", []):
-              if str(run.get("id")) != os.environ["GITHUB_RUN_ID"] and (
-                  run.get("status") != "completed" or run.get("conclusion") == "success"):
-                  raise SystemExit("prior active or successful diagnostic")
-          source = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-          if source != os.environ["GITHUB_SHA"]:
-              raise SystemExit("unexpected checkout drift")
-          PY
 
       - name: Real calibration-only boundary attribution and independent verification
         shell: bash
