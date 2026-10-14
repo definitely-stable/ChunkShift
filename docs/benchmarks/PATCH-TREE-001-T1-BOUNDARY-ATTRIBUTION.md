@@ -128,3 +128,32 @@ source SHA, pair SHA, the virtual CSM ManifestId, raw result, run/artifact
 and independently recomputed accounting. Before this happens status
 is **NO_REAL_DIAGNOSTIC_RESULT**. Do not run any held-out sources, modify
 naive T1 settings, or release based on this observer.
+
+## Hosted evidence control added in PR #352
+
+- `.github/workflows/patch-tree-001-t1-boundary-operator.yml` accepts only a
+  new issue **#184** comment from GitHub account id `271974079` with the
+  exact command `/tree-boundary YYYYMMDD PAIRS_RUN_ID`. The prior successful
+  original-pairs recovery (for example run `38136336025`) is checked again.
+- `.github/workflows/patch-tree-001-t1-boundary-diagnostic.yml` is a
+  separately dispatched **main-only** GitHub-hosted Linux x64 job. It requires
+  the owner's exact main HEAD, first run attempt, authenticated original
+  pairs-recovery artifact, successful SHA-pinned calibration-only source
+  materialization, synthetic C# and Python contracts and one-success-only run
+  history. It never invokes the T0/T1 CSP byte producer or a sealed holdout.
+- The real job writes a JSON diagnostic, complete original pairs JSON,
+  original exact tree layouts, source/run/runner .NET provenance and
+  `SHA256SUMS`, retaining verified artifacts for 90 days; any failure is
+  segregated under `UNVERIFIED_NOT_DECISION` for 14 days.
+- `benchmarks/scripts/verify_patch_tree_001_boundary.py` independently
+  reconstructs exact frozen population, full path/length/hash inventory,
+  original layout SHA-256 and row-level boundary-overlap/ChunkId count
+  arithmetic. **It is a structural/accounting verifier, not an independent
+  FastCDC implementation**; it does not rederive the ChunkIds from raw source
+  bytes. The real .NET path creates and checks CSM through the production SDK.
+  Do not overclaim independent algorithmic replication or a physical CSP
+  causal attribution from its PASS.
+
+Only after the PR is reviewed and merged does an operator comment on #184
+become eligible to dispatch the diagnostic. Review its final-head CI first;
+no comment authorizes a public API, new release or a sealed holdout.
