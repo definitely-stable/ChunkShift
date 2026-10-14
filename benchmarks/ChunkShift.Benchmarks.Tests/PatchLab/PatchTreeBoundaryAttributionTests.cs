@@ -87,6 +87,65 @@ public sealed class PatchTreeBoundaryAttributionTests
     }
 
     [Fact]
+    public async Task PhysicalCsmCrossesSmallFileBoundaryAndNoWholeOldChunkSurvives()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "patch-tree-crossing-" + Guid.NewGuid().ToString("N"));
+        string oldRoot = Path.Combine(root, "tree", "synthetic", "old");
+        string newRoot = Path.Combine(root, "tree", "synthetic", "new");
+        Directory.CreateDirectory(oldRoot);
+        Directory.CreateDirectory(newRoot);
+        try
+        {
+            byte[] a = Enumerable.Repeat((byte)'A', 128).ToArray();
+            byte[] b = Enumerable.Repeat((byte)'B', 128).ToArray();
+            byte[] updatedA = (byte[])a.Clone();
+            updatedA[127] ^= 1;
+            Put(oldRoot, "a.bin", a);
+            Put(oldRoot, "b.bin", b);
+            Put(oldRoot, "empty.bin", []);
+            Put(newRoot, "a.bin", updatedA);
+            Put(newRoot, "b.bin", b);
+            Put(newRoot, "empty.bin", []);
+            var source = Layout(oldRoot);
+            var target = Layout(newRoot);
+            var pair = new PatchTreeCalibration.Pair("synthetic", "old", "new", "calibration", source, target);
+            using JsonDocument frozen = JsonDocument.Parse(JsonSerializer.Serialize(new
+            {
+                changed = new[] { new {
+                    path = "a.bin", baseSize = a.LongLength, baseSha256 = Sha(a),
+                    targetSize = updatedA.LongLength, targetSha256 = Sha(updatedA) } },
+                added = Array.Empty<string>(),
+                removed = Array.Empty<string>(),
+                identicalFiles = 2, identicalBytes = b.LongLength,
+            }));
+            var result = await PatchTreeBoundaryAttribution.RunPairAsync(root, pair, frozen.RootElement);
+            Assert.Equal(1, result.OldTreeChunks);
+            Assert.Equal(256, result.OldTreeBytes);
+            foreach (var row in result.Files.Where(x => x.Path != "empty.bin"))
+            {
+                Assert.Equal(1, row.StandaloneOld.Count);
+                Assert.Equal(0, row.OldPreservedSameOffset.Count);
+                Assert.Equal(0, row.OldAvailableAnywhereInVirtualTree.Count);
+                Assert.Equal(0, row.VirtualContainedWithinFile.Bytes);
+                Assert.Equal(1, row.VirtualCrossBoundaryOverlap.Count);
+                Assert.Equal(128, row.VirtualCrossBoundaryOverlap.Bytes);
+            }
+            var empty = Assert.Single(result.Files, x => x.Path == "empty.bin");
+            Assert.Equal(0, empty.StandaloneOld.Bytes);
+            Assert.Equal(0, empty.VirtualCrossBoundaryOverlap.Bytes);
+            Assert.Equal(0, empty.VirtualContainedWithinFile.Count);
+            var changed = Assert.Single(result.Files, x => x.Path == "a.bin");
+            Assert.Equal(128, changed.TargetChunks.Bytes);
+            Assert.Equal(0, changed.TargetExactInVirtualTree.Bytes);
+            Assert.Equal(0, changed.TargetExactInSamePathOld.Bytes);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void DiagnosticCliRequiresExplicitCorpusInventoryAndOutput()
     {
         Assert.Equal(2, ChunkShift.Benchmarks.PatchLab.PatchLabRunner.Run(["tree-boundary"]));
