@@ -1,0 +1,110 @@
+{
+  "schema": "chunkshift.core011.e3r2b2a-peak-evidence.v1",
+  "experimentId": "CORE011-CSM-004",
+  "evidenceId": "CORE011-CSM-004/EVIDENCE-20261014-003",
+  "originalHostedRun": 38601339456,
+  "originalCheckoutSha": "5ebf5bf62476c79ecc546c69b5d8bd7d2b062a47",
+  "originalCsmSha256": "342ff5e8175304be3f27873fdfeee051deaa0d3697d60e1dcdc3799e674eac2a",
+  "source": "Downloaded original GitHub Actions artifacts, SHA256 and ZIP CRC verified; exact unrounded byte values from original JSON.",
+  "metricSemantics": "sampled maximum, not certified instantaneous upper bound; control and held16 in distinct processes",
+  "decisionRunsAllowed": false,
+  "productVerdict": "NOT_QUALIFIED",
+  "rows": [
+    {
+      "platform": "linux",
+      "replica": 0,
+      "artifactId": 11913164444,
+      "archiveSha256": "16be6fb8126cb5c6916a620a80ae196b65db15a0e9be04667637ffd4d67b9d6c",
+      "cpuModel": "AMD EPYC 7763 64-Core Processor",
+      "builderPid": 2974,
+      "control": {
+        "pid": 3004,
+        "sampledPrivateResidentPeakBytes": 32296960,
+        "sampleCount": 320,
+        "naturalIdleElapsedMs": 30000,
+        "jsonSha256": "bb8d6e19897072d88d69d3b8bc019dda76453efcdb01a8ee5838cab07a184cb2"
+      },
+      "held16": {
+        "pid": 3044,
+        "sampledPrivateResidentPeakBytes": 35917824,
+        "sampleCount": 339,
+        "openingCheckpointCount": 16,
+        "naturalIdleElapsedMs": 30000,
+        "jsonSha256": "bf8c7cab5304db0c0cfb3872e4c1569d61023baafc0fbf2a4f1346cfc5ff635e"
+      },
+      "differenceBetweenIndependentProcessMaximaBytes": 3620864
+    },
+    {
+      "platform": "linux",
+      "replica": 1,
+      "artifactId": 11913209458,
+      "archiveSha256": "da915a264f944ae2d3fb7bfa1942af433d57c5f2045af4cf2e8f5baf51c57c46",
+      "cpuModel": "AMD EPYC 7763 64-Core Processor",
+      "builderPid": 2964,
+      "control": {
+        "pid": 2994,
+        "sampledPrivateResidentPeakBytes": 32165888,
+        "sampleCount": 320,
+        "naturalIdleElapsedMs": 30001,
+        "jsonSha256": "95bfe2a1c1522002e761b63ee30a4705069557ff3ad2134362af8187696b4590"
+      },
+      "held16": {
+        "pid": 3037,
+        "sampledPrivateResidentPeakBytes": 35966976,
+        "sampleCount": 339,
+        "openingCheckpointCount": 16,
+        "naturalIdleElapsedMs": 30001,
+        "jsonSha256": "3b2146783948d83b37d105614020895fb8c0cbcee4c4e5f57a6e703b26fd104c"
+      },
+      "differenceBetweenIndependentProcessMaximaBytes": 3801088
+    },
+    {
+      "platform": "windows",
+      "replica": 0,
+      "artifactId": 11912854735,
+      "archiveSha256": "dfa6fb83ec12ebe3bda2e708f1792aecdc31dc770c259695b8f048771ab9ae52",
+      "cpuModel": "AMD64 Family 25 Model 1 Stepping 1, AuthenticAMD",
+      "builderPid": 7756,
+      "control": {
+        "pid": 6196,
+        "sampledPrivateResidentPeakBytes": 8720384,
+        "sampleCount": 321,
+        "naturalIdleElapsedMs": 30001,
+        "jsonSha256": "d1ed4f85904d77ce9fb2149230e734646fbf45ea2fa272306e79eb808911439e"
+      },
+      "held16": {
+        "pid": 6188,
+        "sampledPrivateResidentPeakBytes": 11595776,
+        "sampleCount": 339,
+        "openingCheckpointCount": 16,
+        "naturalIdleElapsedMs": 30001,
+        "jsonSha256": "6e8a3478f3aa13ed77b57d859a42d18c9f101bdab79ef5fa15a6ee831b481058"
+      },
+      "differenceBetweenIndependentProcessMaximaBytes": 2875392
+    },
+    {
+      "platform": "windows",
+      "replica": 1,
+      "artifactId": 11913349552,
+      "archiveSha256": "d97180ab3ef6b8d0214d110dc92b3b600a5c7edbbdc63560e704ef6206392aa5",
+      "cpuModel": "Intel64 Family 6 Model 207 Stepping 2, GenuineIntel",
+      "builderPid": 8772,
+      "control": {
+        "pid": 6084,
+        "sampledPrivateResidentPeakBytes": 8536064,
+        "sampleCount": 320,
+        "naturalIdleElapsedMs": 30002,
+        "jsonSha256": "331e03ac0da35622ed0832267c1651b06240660e1613cf9857b4511f3544bca5"
+      },
+      "held16": {
+        "pid": 7308,
+        "sampledPrivateResidentPeakBytes": 11583488,
+        "sampleCount": 337,
+        "openingCheckpointCount": 16,
+        "naturalIdleElapsedMs": 30000,
+        "jsonSha256": "5a3e757a07f434af6f6b2bc1681ed39e870b23f20a00af5b4755b59fb628ccd3"
+      },
+      "differenceBetweenIndependentProcessMaximaBytes": 3047424
+    }
+  ]
+}
