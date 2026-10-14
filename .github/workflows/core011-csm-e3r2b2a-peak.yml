@@ -1,0 +1,115 @@
+name: CORE011 CSM E3-R2B2A sampled resident high-water
+
+on:
+  pull_request:
+    branches:
+      - research/core011-csm-004-e3r2b-evidence
+      - main
+    paths:
+      - ".github/workflows/core011-csm-e3r2b2a-peak.yml"
+      - "docs/benchmarks/CORE011-CSM-004-E3-R2B2A-PEAK.md"
+      - "benchmarks/ChunkShift.Benchmarks/CsmE3R2bResidencyHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks/CsmE3R2b2aSampledPeakHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks/Program.cs"
+      - "benchmarks/experiments/core011-csm-e3r2b2a-peak.v1.json"
+      - "benchmarks/scripts/core011_csm_e3r2b2a.py"
+      - "benchmarks/scripts/test_core011_csm_e3r2b2a.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sampled-private-peak:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ubuntu-24.04
+            platform: linux
+            python: python3
+            replica: 0
+          - image: ubuntu-24.04
+            platform: linux
+            python: python3
+            replica: 1
+          - image: windows-2025
+            platform: windows
+            python: python
+            replica: 0
+          - image: windows-2025
+            platform: windows
+            python: python
+            replica: 1
+    name: E3-R2B2A ${{ matrix.platform }} independently hosted r${{ matrix.replica }}
+    runs-on: ${{ matrix.image }}
+    timeout-minutes: 25
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - name: Checkout pinned PR merge tree
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Setup pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Reject all product or unrelated modifications
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only origin/research/core011-csm-004-e3r2b-evidence...HEAD > "$RUNNER_TEMP/e3r2b2a-scope.txt"
+          cat "$RUNNER_TEMP/e3r2b2a-scope.txt"
+          while IFS= read -r file; do
+            case "$file" in
+              .github/workflows/core011-csm-e3r2b2a-peak.yml|docs/benchmarks/CORE011-CSM-004-E3-R2B2A-PEAK.md|benchmarks/ChunkShift.Benchmarks/CsmE3R2bResidencyHarness.cs|benchmarks/ChunkShift.Benchmarks/CsmE3R2b2aSampledPeakHarness.cs|benchmarks/ChunkShift.Benchmarks/Program.cs|benchmarks/experiments/core011-csm-e3r2b2a-peak.v1.json|benchmarks/scripts/core011_csm_e3r2b2a.py|benchmarks/scripts/test_core011_csm_e3r2b2a.py) ;;
+              *) echo "E3 R2B2A unexpected path: $file" >&2; exit 1 ;;
+            esac
+          done < "$RUNNER_TEMP/e3r2b2a-scope.txt"
+          test -z "$(git diff --name-only origin/research/core011-csm-004-e3r2b-evidence...HEAD -- src/ tests/ Directory.Packages.props)"
+      - name: Verify fail-closed source/metrics/decision protocol on actual OS
+        shell: bash
+        run: |
+          set -euo pipefail
+          ${{ matrix.python }} -m py_compile benchmarks/scripts/core011_csm_e3r2b2a.py benchmarks/scripts/test_core011_csm_e3r2b2a.py
+          ${{ matrix.python }} -m unittest -v benchmarks/scripts/test_core011_csm_e3r2b2a.py
+          ${{ matrix.python }} benchmarks/scripts/core011_csm_e3_guard.py
+          if ${{ matrix.python }} benchmarks/scripts/core011_csm_e3_guard.py --decision-ready; then
+            echo "ERROR: E3 decision gate unexpectedly unlocked" >&2
+            exit 1
+          fi
+      - name: Build genuine source-free CSM and independently sample control / 16 held readers
+        shell: bash
+        run: |
+          set -euo pipefail
+          short=$(git rev-parse --short=8 HEAD)
+          rid="CORE011-CSM-004/RUN-$(date -u +%Y%m%d)-$GITHUB_RUN_ID-$short-${{ matrix.platform }}-r${{ matrix.replica }}-x64"
+          ${{ matrix.python }} benchmarks/scripts/core011_csm_e3r2b2a.py \
+            --run-id "$rid" --platform ${{ matrix.platform }} --replicate ${{ matrix.replica }} \
+            --output-dir "$RUNNER_TEMP/e3r2b2a"
+          ${{ matrix.python }} - "$RUNNER_TEMP/e3r2b2a/summary.json" <<'PY'
+          import json,os,sys
+          with open(sys.argv[1],encoding="utf-8") as f:
+            j=json.load(f)
+          assert j["decisionRunsAllowed"] is False and j["productVerdict"]=="NOT_QUALIFIED"
+          assert j["consumerCount"]==2 and len(j["results"])==2
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as f:
+            print("## E3-R2B2A — sampled private resident high-water, eager-only",file=f)
+            print("RunId: "+j["runId"],file=f)
+            for x in j["results"]:
+              print("- held="+str(x["heldReaders"])+", sampled private resident high-water MiB "+
+                str(round(x["sampledPrivateResidentPeakBytes"]/1048576,3))+
+                ", native samples "+str(x["samples"])+
+                ", CPU "+x["cpuModel"],file=f)
+            print("No candidate measurements and no decision budgets.",file=f)
+          PY
+      - name: Retain original per-sample JSON and CSM provenance
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-e3r2b2a-${{ matrix.platform }}-r${{ matrix.replica }}
+          path: ${{ runner.temp }}/e3r2b2a/
+          if-no-files-found: warn
+          retention-days: 90
