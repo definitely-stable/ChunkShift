@@ -27,7 +27,20 @@ internal sealed record PatchLabRunResult(
     double ElapsedSeconds,
     PatchLabFileResult[] Files,
     string? Execution = null,
-    string ApplyCheck = "seq");
+    string ApplyCheck = "seq",
+    PatchLabBatchCreateMetrics? BatchCreate = null);
+
+/// <summary>Aggregate counters for the opt-in multi-file calibration run.</summary>
+/// <remarks>
+/// The workload includes manifest hashing, planning, patch creation and patch
+/// readback; PeakWorkingSet is a process-lifetime high-water, not a per-run
+/// or per-file memory bound. These numbers are never per-file attribution.
+/// </remarks>
+internal sealed record PatchLabBatchCreateMetrics(
+    string Workload,
+    double ProcessCpuSeconds,
+    long ProcessAllocatedBytes,
+    long ProcessPeakWorkingSetBytes);
 
 /// <summary>One changed file of one lane, in corpus order.</summary>
 /// <remarks>
