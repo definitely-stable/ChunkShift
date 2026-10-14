@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using ChunkShift.Primitives;
 
@@ -161,7 +162,8 @@ internal static class PatchTreeBoundaryAttribution
         }
         return new PairResult(p.Family, p.BaseVersion, p.TargetVersion,
             treeInfo.ManifestId.ToString(), virtualChunks.LongLength, oldTree.Length,
-            [.. rows.OrderBy(r => r.Path, StringComparer.Ordinal)]);
+            [.. rows.OrderBy(r => Encoding.UTF8.GetBytes(r.Path),
+                Comparer<byte[]>.Create((a, b) => a.AsSpan().SequenceCompareTo(b)))]);
     }
 
     // A deliberately simple exact oracle. No claim about encoded bytes or
