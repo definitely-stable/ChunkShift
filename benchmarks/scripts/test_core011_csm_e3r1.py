@@ -23,7 +23,9 @@ class E3R1GuardTests(unittest.TestCase):
         for cap in (1, 2, 4):
             text = candidates["hybrid" + str(cap)]
             self.assertEqual(1, text.count("maxArraysPerBucket: " + str(cap) + ");"))
-            self.assertEqual(2, text.count("clearArray: true"))
+            self.assertEqual(2, text.count("Array.Clear(_blockBuffer);"))
+            self.assertEqual(2, text.count("clearArray: false"))
+            self.assertNotIn("clearArray: true", text)
 
     def test_reader_source_drift_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "frozen CsmReader"):

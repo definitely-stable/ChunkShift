@@ -5,6 +5,10 @@ using ChunkShift.Manifest;
 
 namespace ChunkShift.Tests.Manifest;
 
+[CollectionDefinition("E3R1 pooled-array lifecycle", DisableParallelization = true)]
+public sealed class CsmE3R1IsolatedCollection { }
+
+[Collection("E3R1 pooled-array lifecycle")]
 public sealed class CsmE3R1ReaderOwnershipTests
 {
     private const int SmallLimit = 81920;

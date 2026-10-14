@@ -54,10 +54,24 @@ def variant_source(original, variant):
         raise ValueError("duplicate baseline/candidate source")
     if variant.startswith("hybrid"):
         cap = int(variant[-1])
-        if (result.count("maxArraysPerBucket: " + str(cap) + ");") != 1 or
-                result.count("clearArray: true") != 2 or
-                result.count("G1hLargePool.Instance.Rent(recordLength)") != 1):
-            raise ValueError("bounded pool/clear/rent source invariant")
+        # .NET ArrayPool.Return(clearArray=True) only promises clearing when
+        # the pool retains the array. The strict E3 ownership contract also
+        # requires clearing arrays which are discarded by a full pool.
+        legacy_return = "G1hLargePool.Instance.Return(_blockBuffer, clearArray: true);"
+        if result.count(legacy_return) != 2:
+            raise ValueError("legacy bounded-pool return anchors changed")
+        pattern = r"(?m)^([ \\t]*)" + re.escape(legacy_return) + r"$"
+        def hardened(match):
+            indent = match.group(1)
+            return (indent + "Array.Clear(_blockBuffer);\\n" +
+                    indent + "G1hLargePool.Instance.Return(_blockBuffer, clearArray: false);")
+        result, replaced = re.subn(pattern, hardened, result)
+        if (replaced != 2 or
+                result.count("Array.Clear(_blockBuffer);") != 2 or
+                result.count("clearArray: false") != 2 or
+                result.count("G1hLargePool.Instance.Rent(recordLength)") != 1 or
+                result.count("maxArraysPerBucket: " + str(cap) + ");") != 1):
+            raise ValueError("explicit full-capacity clearing source invariant")
     if variant == "lazy" and result.count("new byte[recordLength]") != 1:
         raise ValueError("lazy allocation seam changed")
     return result

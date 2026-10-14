@@ -16,7 +16,7 @@ Unmodified reader source Git blob `ff56ccddaa0efc9970fd0b019e20523d6c2933d6`, SH
 | hybrid2 | same cap 2 |
 | hybrid4 | same cap 4 |
 
-Each array-pool cap limits only returned buckets, never concurrent outstanding arrays or RSS. This stage may establish semantic equivalence and basic clear-on-return behavior, not stable throughput, pool contention or idle retention.
+Each array-pool cap limits only returned buckets, never concurrent outstanding arrays or RSS. R1 hardens the old G1-H source transformation by inserting **Array.Clear(_blockBuffer) before every private-pool Return** and using Return(clearArray:false): the original clearArray:true argument does not guarantee clearing a returned array that a full pool discards. This is a *new source-hashed R1 variant* rather than byte-identical G1-I; any extra clearing CPU cost needs separate future assessment. The lifecycle oracle uses a non-parallel xUnit collection to avoid unrelated consumers renting the array between Return and inspection. This stage may establish semantic equivalence and actual full-capacity clearing, not stable throughput, pool contention or idle retention.
 
 ## Implementation boundary
 
