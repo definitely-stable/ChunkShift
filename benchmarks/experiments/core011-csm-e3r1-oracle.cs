@@ -6,7 +6,7 @@ using ChunkShift.Manifest;
 namespace ChunkShift.Tests.Manifest;
 
 [CollectionDefinition("E3R1 pooled-array lifecycle", DisableParallelization = true)]
-public sealed class CsmE3R1IsolatedCollection { }
+public sealed class CsmE3R1IsolationGroup { }
 
 [Collection("E3R1 pooled-array lifecycle")]
 public sealed class CsmE3R1ReaderOwnershipTests
