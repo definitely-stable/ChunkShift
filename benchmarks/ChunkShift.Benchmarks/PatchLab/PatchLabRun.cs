@@ -19,6 +19,10 @@ internal static class PatchLabRun
 {
     internal const string Schema = "chunkshift.patch-lab.v1";
 
+    // A separate research envelope prevents PATCH-ENC-004 evaluators from
+    // accidentally treating batch-wide process counters as per-file samples.
+    internal const string BatchCreateSchema = "chunkshift.patch-batch-create.v1";
+
     private const string RunUsage =
         "patch-lab run requires --corpus, --lane and --output.";
 
@@ -54,6 +58,13 @@ internal static class PatchLabRun
         string? executionName = PatchLabArguments.Value(args, "--execution");
         CspCreateExecution? execution = executionName is null ? null : PatchLabExecution.Parse(executionName);
         PatchLabTraceOptions? trace = PatchLabTraceOptions.Parse(args, runId, executionName);
+        bool batchCreate = args.Contains("--batch-create", StringComparer.Ordinal);
+
+        if (batchCreate && (execution is null || apply || trace is not null))
+        {
+            throw new PatchLabUsageException(
+                "--batch-create requires --execution and --no-apply and forbids candidate traces.");
+        }
 
         if (string.Equals(laneName, PatchEnc005H6OSelector.Lane, StringComparison.Ordinal) &&
             !string.Equals(executionName, "h2-w2", StringComparison.Ordinal))
@@ -64,11 +75,22 @@ internal static class PatchLabRun
 
         // PATCH-ENC-004 attributes process CPU and allocations to one create,
         // so its runs create one file at a time.
-        if (execution is not null && workers != 1)
+        // Do not let a failed calibration be confused with an old successful
+        // JSON at the same path. This guard is exclusive to the new lane.
+        if (batchCreate && File.Exists(outputPath))
         {
-            throw new PatchLabUsageException("--execution requires --workers 1.");
+            throw new PatchLabUsageException("--batch-create requires a fresh --output path.");
         }
 
+        if (execution is not null && workers != 1 && !batchCreate)
+        {
+            throw new PatchLabUsageException("--execution requires --workers 1 outside --batch-create.");
+        }
+
+        using Process process = Process.GetCurrentProcess();
+        process.Refresh();
+        TimeSpan cpuBefore = batchCreate ? process.TotalProcessorTime : TimeSpan.Zero;
+        long allocatedBefore = batchCreate ? GC.GetTotalAllocatedBytes(precise: true) : 0;
         DateTimeOffset startedUtc = DateTimeOffset.UtcNow;
         var clock = Stopwatch.StartNew();
         PatchLabFileResult[] files = RunFiles(
@@ -82,11 +104,23 @@ internal static class PatchLabRun
             applyNoCheck,
             applyCheck,
             applyRepeats,
-            patchDirectory);
+            patchDirectory,
+            batchCreate);
         clock.Stop();
 
+        PatchLabBatchCreateMetrics? batchMetrics = null;
+        if (batchCreate)
+        {
+            process.Refresh();
+            batchMetrics = new PatchLabBatchCreateMetrics(
+                "manifest-digest-plan-create-readback-sha256",
+                (process.TotalProcessorTime - cpuBefore).TotalSeconds,
+                GC.GetTotalAllocatedBytes(precise: true) - allocatedBefore,
+                process.PeakWorkingSet64);
+        }
+
         PatchLabRunner.WriteJson(outputPath, new PatchLabRunResult(
-            Schema,
+            batchCreate ? BatchCreateSchema : Schema,
             runId,
             laneName,
             PatchLabLane.Describe(policy),
@@ -99,7 +133,8 @@ internal static class PatchLabRun
             clock.Elapsed.TotalSeconds,
             files,
             executionName,
-            applyCheckName));
+            applyCheckName,
+            batchMetrics));
 
         return 0;
     }
@@ -119,7 +154,8 @@ internal static class PatchLabRun
         bool applyNoCheck,
         ChunkingCheck applyCheck,
         int applyRepeats,
-        string? patchDirectory)
+        string? patchDirectory,
+        bool batchCreate)
     {
         var items = new List<WorkItem>();
 
@@ -174,6 +210,7 @@ internal static class PatchLabRun
                     applyCheck,
                     applyRepeats,
                     patchDirectory,
+                    batchCreate,
                     cancellationToken).ConfigureAwait(false);
 
                 if (Interlocked.Decrement(ref remaining[item.PairIndex]) == 0)
@@ -208,6 +245,7 @@ internal static class PatchLabRun
         ChunkingCheck applyCheck,
         int applyRepeats,
         string? patchDirectory,
+        bool batchCreate,
         CancellationToken cancellationToken)
     {
         string baseContentPath = corpus.ContentPath(pair, pair.Base, file.Path);
@@ -277,6 +315,22 @@ internal static class PatchLabRun
                             policy,
                             cancellationToken)
                         .ConfigureAwait(false);
+                    createSeconds = clock.Elapsed.TotalSeconds;
+                }
+                else if (batchCreate)
+                {
+                    // Process CPU and GC are shared across concurrent creates:
+                    // do not emit falsely attributed per-file counters.
+                    var clock = Stopwatch.StartNew();
+                    patchInfo = await CspPatchBuilder.CreateAsync(
+                        baseManifest,
+                        baseContent,
+                        targetManifest,
+                        targetContent,
+                        destination,
+                        policy,
+                        effectiveExecution,
+                        cancellationToken).ConfigureAwait(false);
                     createSeconds = clock.Elapsed.TotalSeconds;
                 }
                 else
