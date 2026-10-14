@@ -6,7 +6,6 @@ on:
     paths:
       - ".github/workflows/core011-csm-e3-reader.yml"
       - "docs/benchmarks/CORE011-CSM-004-E3-READER-PROTOCOL.md"
-      - "docs/research/EXPERIMENT-INDEX.md"
       - "benchmarks/experiments/core011-csm-e3-reader-contract.v1.json"
       - "benchmarks/scripts/core011_csm_e3_guard.py"
       - "benchmarks/scripts/test_core011_csm_e3_guard.py"
