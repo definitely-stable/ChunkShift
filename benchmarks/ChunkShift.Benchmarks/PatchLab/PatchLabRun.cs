@@ -75,6 +75,13 @@ internal static class PatchLabRun
 
         // PATCH-ENC-004 attributes process CPU and allocations to one create,
         // so its runs create one file at a time.
+        // Do not let a failed calibration be confused with an old successful
+        // JSON at the same path. This guard is exclusive to the new lane.
+        if (batchCreate && File.Exists(outputPath))
+        {
+            throw new PatchLabUsageException("--batch-create requires a fresh --output path.");
+        }
+
         if (execution is not null && workers != 1 && !batchCreate)
         {
             throw new PatchLabUsageException("--execution requires --workers 1 outside --batch-create.");

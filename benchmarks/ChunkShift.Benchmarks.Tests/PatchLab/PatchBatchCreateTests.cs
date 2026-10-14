@@ -72,6 +72,30 @@ public class PatchBatchCreateTests
             "--no-apply", "--trace-dir", Path.Combine(scope.Path, "trace")));
     }
 
+    [Fact]
+    public void BatchFailureNeverPublishesASuccessDocumentAndCannotOverwritePreviousEvidence()
+    {
+        using var scope = new PatchLabRunTests.TempDirectory();
+        PatchLabRunTests.WriteCorpus(scope.Path);
+        string output = Path.Combine(scope.Path, "failed.json");
+
+        // The stored target digest is the oracle: tampering it must fail even
+        // when two independent create workers are available.
+        string pairsPath = Path.Combine(scope.Path, "pairs.json");
+        JsonNode doc = JsonNode.Parse(File.ReadAllText(pairsPath))!;
+        doc["pairs"]![0]!["changed"]![0]!["targetSha256"] = new string('0', 64);
+        File.WriteAllText(pairsPath, doc.ToJsonString(Json));
+
+        Assert.Equal(1, TryRun(scope.Path, "failed",
+            "--execution", "h2-w2", "--workers", "2", "--no-apply", "--batch-create"));
+        Assert.False(File.Exists(output));
+
+        File.WriteAllText(output, "prior evidence must not be overwritten");
+        Assert.Equal(2, TryRun(scope.Path, "failed",
+            "--execution", "h2-w2", "--workers", "2", "--no-apply", "--batch-create"));
+        Assert.Equal("prior evidence must not be overwritten", File.ReadAllText(output));
+    }
+
     private static int TryRun(string root, string name, params string[] arguments) =>
         PatchLabRunner.Run(
         [
