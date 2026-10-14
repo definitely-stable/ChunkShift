@@ -157,10 +157,12 @@ public sealed class PatchTreeBoundaryAttributionTests
         string supplementary = "\U0001F600.bin";
         try
         {
-            Put(oldRoot, privateUse, [1]);
-            Put(oldRoot, supplementary, [2]);
-            Put(newRoot, privateUse, [1]);
-            Put(newRoot, supplementary, [2]);
+            byte[] first = [1];
+            byte[] second = [2];
+            Put(oldRoot, privateUse, first);
+            Put(oldRoot, supplementary, second);
+            Put(newRoot, privateUse, first);
+            Put(newRoot, supplementary, second);
             var pair = new PatchTreeCalibration.Pair("synthetic", "old", "new",
                 "calibration", Layout(oldRoot), Layout(newRoot));
             using JsonDocument frozen = JsonDocument.Parse(JsonSerializer.Serialize(new
