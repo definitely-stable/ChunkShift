@@ -174,7 +174,9 @@ internal static class CsmE3R2b2bExternalObserverHarness
             }
             phase = "held-natural-idle";
             long began = clock.ElapsedMilliseconds;
-            await Task.Delay(TimeSpan.FromSeconds(30));
+            // Delay scheduling resolution can return near 29,999 ms; add a fixed
+            // 300-ms guard margin while keeping the hard >=30,000-ms evidence check.
+            await Task.Delay(TimeSpan.FromMilliseconds(30300));
             long ended = clock.ElapsedMilliseconds;
             if (ended - began < 30000 || readers.Count != hold)
                 throw new InvalidDataException("Natural idle or reader hold invalid.");
