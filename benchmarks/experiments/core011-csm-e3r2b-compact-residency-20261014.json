@@ -1,0 +1,257 @@
+{
+  "schema": "chunkshift.core011.e3r2b-original-compact.v1",
+  "experimentId": "CORE011-CSM-004",
+  "evidenceId": "CORE011-CSM-004/EVIDENCE-20261014-002",
+  "originalActionsRun": 38578155654,
+  "actualPRMergeCheckout": "fed3c4b2ee75657cf03d21b16477074b4ae9a15c",
+  "originalZIPs": {
+    "linux": {
+      "artifactId": 11903205068,
+      "sizeBytes": 187169,
+      "sha256": "16a109d5e80aeb50eaa662413649d06c6cb3154428472ae170e34caf5339fb91"
+    },
+    "windows": {
+      "artifactId": 11902915560,
+      "sizeBytes": 187031,
+      "sha256": "cdf9688aa721fe24ab898ec977093a1b70faef6e98e35e0d97c3535e81caadef"
+    }
+  },
+  "provenance": "Exact native resident, RSS, managed and platform-conditional private-committed bytes copied from independent SHA256/CRC-verified original GitHub artifact ZIP files; rounded only when displayed in reports.",
+  "rawSourceAuthority": "Original zipped JSON+CSM artifacts on GitHub Actions; compact dataset holds natural-idle snapshots only.",
+  "productVerdict": "NOT_QUALIFIED",
+  "decisionRunsAllowed": false,
+  "rows": [
+    {
+      "platform": "linux",
+      "contentSourceMiB": 1,
+      "heldReaders": 0,
+      "consumerPid": 2780,
+      "fixtureSha256": "472b7fcdb8c8c5dd28db9d0e54938824deb862f1153a9bc1de410a30a02c89bb",
+      "naturalIdle": [
+        {
+          "seconds": 0,
+          "privateResidentBytes": 12857344,
+          "rssBytes": 53248000,
+          "privateCommittedBytes": null,
+          "managedHeapBytes": 946232,
+          "uptimeMilliseconds": 37
+        },
+        {
+          "seconds": 30,
+          "privateResidentBytes": 13094912,
+          "rssBytes": 53551104,
+          "privateCommittedBytes": null,
+          "managedHeapBytes": 1016840,
+          "uptimeMilliseconds": 30039
+        }
+      ]
+    },
+    {
+      "platform": "linux",
+      "contentSourceMiB": 1,
+      "heldReaders": 16,
+      "consumerPid": 2826,
+      "fixtureSha256": "472b7fcdb8c8c5dd28db9d0e54938824deb862f1153a9bc1de410a30a02c89bb",
+      "naturalIdle": [
+        {
+          "seconds": 0,
+          "privateResidentBytes": 13361152,
+          "rssBytes": 53739520,
+          "privateCommittedBytes": null,
+          "managedHeapBytes": 3707128,
+          "uptimeMilliseconds": 37
+        },
+        {
+          "seconds": 30,
+          "privateResidentBytes": 13598720,
+          "rssBytes": 54042624,
+          "privateCommittedBytes": null,
+          "managedHeapBytes": 3785960,
+          "uptimeMilliseconds": 30039
+        }
+      ]
+    },
+    {
+      "platform": "linux",
+      "contentSourceMiB": 384,
+      "heldReaders": 0,
+      "consumerPid": 2902,
+      "fixtureSha256": "342ff5e8175304be3f27873fdfeee051deaa0d3697d60e1dcdc3799e674eac2a",
+      "naturalIdle": [
+        {
+          "seconds": 0,
+          "privateResidentBytes": 14573568,
+          "rssBytes": 55328768,
+          "privateCommittedBytes": null,
+          "managedHeapBytes": 1128624,
+          "uptimeMilliseconds": 67
+        },
+        {
+          "seconds": 30,
+          "privateResidentBytes": 14790656,
+          "rssBytes": 55611392,
+          "privateCommittedBytes": null,
+          "managedHeapBytes": 1199232,
+          "uptimeMilliseconds": 30069
+        },
+        {
+          "seconds": 300,
+          "privateResidentBytes": 14962688,
+          "rssBytes": 55988224,
+          "privateCommittedBytes": null,
+          "managedHeapBytes": 1261632,
+          "uptimeMilliseconds": 300072
+        }
+      ]
+    },
+    {
+      "platform": "linux",
+      "contentSourceMiB": 384,
+      "heldReaders": 16,
+      "consumerPid": 3049,
+      "fixtureSha256": "342ff5e8175304be3f27873fdfeee051deaa0d3697d60e1dcdc3799e674eac2a",
+      "naturalIdle": [
+        {
+          "seconds": 0,
+          "privateResidentBytes": 17301504,
+          "rssBytes": 58269696,
+          "privateCommittedBytes": null,
+          "managedHeapBytes": 3890512,
+          "uptimeMilliseconds": 93
+        },
+        {
+          "seconds": 30,
+          "privateResidentBytes": 17526784,
+          "rssBytes": 58560512,
+          "privateCommittedBytes": null,
+          "managedHeapBytes": 3969344,
+          "uptimeMilliseconds": 30096
+        },
+        {
+          "seconds": 300,
+          "privateResidentBytes": 17711104,
+          "rssBytes": 58929152,
+          "privateCommittedBytes": null,
+          "managedHeapBytes": 4031760,
+          "uptimeMilliseconds": 300098
+        }
+      ]
+    },
+    {
+      "platform": "windows",
+      "contentSourceMiB": 1,
+      "heldReaders": 0,
+      "consumerPid": 5224,
+      "fixtureSha256": "472b7fcdb8c8c5dd28db9d0e54938824deb862f1153a9bc1de410a30a02c89bb",
+      "naturalIdle": [
+        {
+          "seconds": 0,
+          "privateResidentBytes": 6213632,
+          "rssBytes": 32595968,
+          "privateCommittedBytes": 10063872,
+          "managedHeapBytes": 1489176,
+          "uptimeMilliseconds": 54
+        },
+        {
+          "seconds": 30,
+          "privateResidentBytes": 6340608,
+          "rssBytes": 32903168,
+          "privateCommittedBytes": 10096640,
+          "managedHeapBytes": 1513848,
+          "uptimeMilliseconds": 30056
+        }
+      ]
+    },
+    {
+      "platform": "windows",
+      "contentSourceMiB": 1,
+      "heldReaders": 16,
+      "consumerPid": 7016,
+      "fixtureSha256": "472b7fcdb8c8c5dd28db9d0e54938824deb862f1153a9bc1de410a30a02c89bb",
+      "naturalIdle": [
+        {
+          "seconds": 0,
+          "privateResidentBytes": 6774784,
+          "rssBytes": 33165312,
+          "privateCommittedBytes": 12926976,
+          "managedHeapBytes": 4262504,
+          "uptimeMilliseconds": 55
+        },
+        {
+          "seconds": 30,
+          "privateResidentBytes": 6864896,
+          "rssBytes": 33439744,
+          "privateCommittedBytes": 12939264,
+          "managedHeapBytes": 4288256,
+          "uptimeMilliseconds": 30057
+        }
+      ]
+    },
+    {
+      "platform": "windows",
+      "contentSourceMiB": 384,
+      "heldReaders": 0,
+      "consumerPid": 6496,
+      "fixtureSha256": "342ff5e8175304be3f27873fdfeee051deaa0d3697d60e1dcdc3799e674eac2a",
+      "naturalIdle": [
+        {
+          "seconds": 0,
+          "privateResidentBytes": 7696384,
+          "rssBytes": 34398208,
+          "privateCommittedBytes": 11005952,
+          "managedHeapBytes": 1671016,
+          "uptimeMilliseconds": 105
+        },
+        {
+          "seconds": 30,
+          "privateResidentBytes": 7852032,
+          "rssBytes": 34738176,
+          "privateCommittedBytes": 11030528,
+          "managedHeapBytes": 1695688,
+          "uptimeMilliseconds": 30110
+        },
+        {
+          "seconds": 300,
+          "privateResidentBytes": 2838528,
+          "rssBytes": 17862656,
+          "privateCommittedBytes": 11067392,
+          "managedHeapBytes": 1709592,
+          "uptimeMilliseconds": 300112
+        }
+      ]
+    },
+    {
+      "platform": "windows",
+      "contentSourceMiB": 384,
+      "heldReaders": 16,
+      "consumerPid": 10140,
+      "fixtureSha256": "342ff5e8175304be3f27873fdfeee051deaa0d3697d60e1dcdc3799e674eac2a",
+      "naturalIdle": [
+        {
+          "seconds": 0,
+          "privateResidentBytes": 10551296,
+          "rssBytes": 37253120,
+          "privateCommittedBytes": 13725696,
+          "managedHeapBytes": 4442232,
+          "uptimeMilliseconds": 173
+        },
+        {
+          "seconds": 30,
+          "privateResidentBytes": 10608640,
+          "rssBytes": 37498880,
+          "privateCommittedBytes": 13787136,
+          "managedHeapBytes": 4467976,
+          "uptimeMilliseconds": 30177
+        },
+        {
+          "seconds": 300,
+          "privateResidentBytes": 2883584,
+          "rssBytes": 18206720,
+          "privateCommittedBytes": 13766656,
+          "managedHeapBytes": 4484424,
+          "uptimeMilliseconds": 300179
+        }
+      ]
+    }
+  ]
+}
