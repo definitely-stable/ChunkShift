@@ -1,0 +1,69 @@
+{
+  "schema": "chunkshift.core011.e3r2b2a-peak-protocol.v1",
+  "experimentId": "CORE011-CSM-004",
+  "ownerIssue": 154,
+  "stage": "R2-B2A-sampled-private-resident-calibration",
+  "parentEvidenceCommit": "2de3f8d30498a4dca85615d98d3072abaa62c838",
+  "sourceBaselineSha256": "a62772638c715005cb8a1a6ca58222349755a7e21a341ff80655a825910cebf2",
+  "sourceReaderGitBlobSha1": "ff56ccddaa0efc9970fd0b019e20523d6c2933d6",
+  "variant": "eager",
+  "decisionRunsAllowed": false,
+  "budgetsLocked": false,
+  "platforms": [
+    "ubuntu-24.04",
+    "windows-2025"
+  ],
+  "independentRunnerReplicates": [
+    0,
+    1
+  ],
+  "sourceMiB": 384,
+  "physicalManifestSha256": "342ff5e8175304be3f27873fdfeee051deaa0d3697d60e1dcdc3799e674eac2a",
+  "chunkCount": 5052,
+  "cblkCount": 2,
+  "sourceContentArchived": false,
+  "sourceBuilder": "G1-J1 external source-free CSM fixture builder",
+  "readerCases": [
+    0,
+    16
+  ],
+  "naturalIdleSeconds": 30,
+  "samplingPeriodMilliseconds": 100,
+  "perOpenedReaderCheckpoint": true,
+  "minTraceSamples": 240,
+  "minNaturalIdleMilliseconds": 30000,
+  "metrics": [
+    "privateResidentBytes",
+    "processRssBytes",
+    "privateCommitBytes",
+    "managedHeapBytes",
+    "gen2Collections",
+    "totalGcPauseMs",
+    "elapsedMs",
+    "cpuModel",
+    "runtime",
+    "sampledPrivateResidentHighWaterBytes"
+  ],
+  "provenance": {
+    "sameCheckout": true,
+    "differentBuilderConsumerPids": true,
+    "twoIndependentConsumersPerHost": true,
+    "matchedPhysicalCsm": true,
+    "failClosedMissingNativeCounters": true,
+    "perNativeHostCpuModel": true
+  },
+  "guard": {
+    "productionCodeChangesAllowed": false,
+    "adoptAllowed": false,
+    "finalDecisionRunsAllowed": false,
+    "realVersionedHoldoutUsed": false,
+    "numericDecisionBudgetsAllowed": false
+  },
+  "limitations": [
+    "Two hosted runners per OS; each control and 16-reader case lives in a different process.",
+    "Observed maximum of 100-ms sampler and per-reader explicit checkpoints is still a sampled lower bound, never a certified instantaneous high-water.",
+    "The 30-second natural idle does not reproduce Windows 300-second working-set trimming; E3-R2B1 covers that case.",
+    "The CSM is synthetic BLAKE3/BIDX 384MiB-derived; Plan, SHA256, AOT, real-versioned unsealed calibration not yet measured.",
+    "No prospective numeric noninferiority/adoption thresholds may be chosen based solely on these runs."
+  ]
+}

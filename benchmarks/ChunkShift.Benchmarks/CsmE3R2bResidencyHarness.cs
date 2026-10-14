@@ -44,7 +44,7 @@ internal static class CsmE3R2bResidencyHarness
         ref ProcessMemoryCountersEx2 counters,
         uint length);
 
-    private sealed record ResidentSample(
+    internal sealed record ResidentSample(
         string Phase, string ResidentMetricSource,
         long PrivateResidentBytes, long ProcessRssBytes, long? ProcessPssBytes,
         long? PrivateCleanBytes, long? PrivateDirtyBytes, long? PrivateCommitBytes,
@@ -55,7 +55,7 @@ internal static class CsmE3R2bResidencyHarness
     internal static int Run(string[] args) =>
         RunAsync(args).GetAwaiter().GetResult();
 
-    private static ResidentSample Sample(
+    internal static ResidentSample Sample(
         Process process, Stopwatch timer, string phase)
     {
         process.Refresh();
