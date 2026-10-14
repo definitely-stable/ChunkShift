@@ -1,0 +1,190 @@
+name: CORE011 CSM G2-C4 EventPipe tier attribution
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-g2c4-eventpipe.yml"
+      - "benchmarks/ChunkShift.Benchmarks/CsmG2c4Target.cs"
+      - "benchmarks/ChunkShift.Benchmarks/Program.cs"
+      - "benchmarks/tools/Core011G2c4TraceReader/**"
+      - "benchmarks/scripts/core011_csm_g2c4_guard.py"
+      - "docs/benchmarks/CORE011-CSM-002-G2C4-EVENTPIPE-PROTOCOL.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core011-csm-g2c4-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  freeze-core:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'research/core011-csm-g2c4-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Compile and freeze exact real Core benchmark assembly
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+          dotnet publish benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj \
+            -c Release -f net10.0 --no-restore \
+            -o "$PWD/artifacts/core011-g2c4/bin"
+          (
+            cd artifacts/core011-g2c4/bin
+            sha256sum ChunkShift.dll ChunkShift.Benchmarks.dll \
+              ChunkShift.Benchmarks.runtimeconfig.json ChunkShift.Benchmarks.deps.json > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+          git rev-parse HEAD > artifacts/core011-g2c4/bin/checkout.sha
+      - name: Upload pristine target binaries
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g2c4-binary
+          path: artifacts/core011-g2c4/bin/
+          retention-days: 30
+          if-no-files-found: error
+
+  trace-two-independent-hosts:
+    needs: freeze-core
+    if: needs.freeze-core.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [0, 1]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: core011-csm-g2c4-binary
+          path: artifacts/core011-g2c4/bin
+
+      - name: Audit one shared Core and set up pinned trace tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="$PWD/artifacts/core011-g2c4/bin"
+          (
+            cd "$bin"
+            test "$(cat checkout.sha)" = "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)"
+            sha256sum -c SHA256SUMS
+          )
+          dotnet tool install dotnet-trace --version 10.0.750501 \
+            --tool-path "$RUNNER_TEMP/core011-g2c4-tools"
+          "$RUNNER_TEMP/core011-g2c4-tools/dotnet-trace" --version
+          dotnet restore benchmarks/tools/Core011G2c4TraceReader/Core011G2c4TraceReader.csproj
+          dotnet build benchmarks/tools/Core011G2c4TraceReader/Core011G2c4TraceReader.csproj \
+            -c Release --no-restore
+          mkdir -p artifacts/core011-g2c4/run/{samples,parsed,traces}
+          sha256sum "$bin/ChunkShift.dll" | awk '{print $1}' \
+            > artifacts/core011-g2c4/run/binary.sha256
+          {
+            echo "ExperimentId=CORE011-CSM-002"
+            echo "Stage=G2-C4-NONDECISION"
+            echo "Lane=${{ matrix.lane }}"
+            echo "Checkout=$(git rev-parse HEAD)"
+            echo "RunId=CORE011-CSM-002/G2C4-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$(git rev-parse HEAD)-lane${{ matrix.lane }}"
+            echo "TraceToolVersion=$("$RUNNER_TEMP/core011-g2c4-tools/dotnet-trace" --version)"
+            echo "TraceEventNuGet=3.2.8"
+            echo "OS=$(uname -a)"
+            echo "CPU=$(grep '^model name' /proc/cpuinfo | head -1 || true)"
+          } > artifacts/core011-g2c4/run/provenance.txt
+          dotnet --info > artifacts/core011-g2c4/run/dotnet-info.txt
+
+      - name: Build writer-produced SHA-pinned 5052-chunk CSM; source deleted
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="$PWD/artifacts/core011-g2c4/bin"
+          dest="$PWD/artifacts/core011-g2c4/run"
+          dotnet "$bin/ChunkShift.Benchmarks.dll" core011-g1j1-build \
+            --output-dir "$dest" --size-mib 384 --suite blake3 --bidx true \
+            --run-id "CORE011-CSM-001/G1J1-G2C4-$GITHUB_RUN_ID-${{ matrix.lane }}"
+          test ! -e "$dest/source.bin"
+          test -s "$dest/original.csm"
+          test -s "$dest/fixture.json"
+
+      - name: Collect six startup JIT traces with exactly matched call markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="$PWD/artifacts/core011-g2c4/bin"
+          dest="$PWD/artifacts/core011-g2c4/run"
+          reader="$PWD/benchmarks/tools/Core011G2c4TraceReader/bin/Release/net10.0/Core011G2c4TraceReader.dll"
+          tracer="$RUNNER_TEMP/core011-g2c4-tools/dotnet-trace"
+          if [[ "${{ matrix.lane }}" == "0" ]]; then
+            modes=(tiered-pgo-on tiered-pgo-off tiered-off)
+            warms=(0 64)
+          else
+            modes=(tiered-off tiered-pgo-off tiered-pgo-on)
+            warms=(64 0)
+          fi
+          for mode in "${modes[@]}"; do
+            case "$mode" in
+              tiered-pgo-on) tiered=1; pgo=1 ;;
+              tiered-pgo-off) tiered=1; pgo=0 ;;
+              tiered-off) tiered=0; pgo=0 ;;
+              *) exit 1 ;;
+            esac
+            for warmup in "${warms[@]}"; do
+              key="$mode-$warmup"
+              DOTNET_TieredCompilation="$tiered" DOTNET_TieredPGO="$pgo" \
+              DOTNET_TC_QuickJit=1 DOTNET_TC_QuickJitForLoops=0 DOTNET_ReadyToRun=1 \
+                "$tracer" collect \
+                --format NetTrace \
+                --buffersize 128 \
+                --providers "Microsoft-Windows-DotNETRuntime:0x1000000018:5,ChunkShift-G2C4:0xffffffffffffffff:5" \
+                -o "$dest/traces/$key.nettrace" -- \
+                dotnet "$bin/ChunkShift.Benchmarks.dll" core011-g2c4-target \
+                  --fixture-dir "$dest" --mode "$mode" --warmups "$warmup" \
+                  --output "$dest/samples/$key.json"
+              test -s "$dest/samples/$key.json"
+              test -s "$dest/traces/$key.nettrace"
+              # If trace expands beyond 32MiB, invalidate rather than truncate.
+              size=$(stat -c%s "$dest/traces/$key.nettrace")
+              if (( size > 33554432 )); then echo "Trace exceeds 32MiB" >&2; exit 1; fi
+              dotnet "$reader" --trace "$dest/traces/$key.nettrace" \
+                --output "$dest/parsed/$key.json"
+            done
+          done
+
+      - name: Strip physical CSM then validate complete event/call correlation
+        shell: bash
+        run: |
+          set -euo pipefail
+          dest="$PWD/artifacts/core011-g2c4/run"
+          rm "$dest/original.csm"
+          test ! -e "$dest/source.bin"
+          python3 benchmarks/scripts/core011_csm_g2c4_guard.py \
+            --root "$dest" --lane ${{ matrix.lane }} --output "$dest/guard.json"
+          if find "$dest" -type f \( -name '*.csm' -o -name source.bin \) | grep -q .; then
+            echo "Original source/physical CSM cannot enter trace evidence" >&2; exit 1
+          fi
+
+      - name: Archive original nettrace, raw events, CI environment and failures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-csm-g2c4-lane-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            artifacts/core011-g2c4/run/*.txt
+            artifacts/core011-g2c4/run/*.sha256
+            artifacts/core011-g2c4/run/*.json
+            artifacts/core011-g2c4/run/samples/*.json
+            artifacts/core011-g2c4/run/parsed/*.json
+            artifacts/core011-g2c4/run/traces/*.nettrace
+          retention-days: 30
+          if-no-files-found: warn

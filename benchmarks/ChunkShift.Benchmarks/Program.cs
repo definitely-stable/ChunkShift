@@ -39,6 +39,11 @@ internal static class Program
             return BoundaryScanHarness.Run(args[1..]);
         }
 
+        if (string.Equals(mode, "core011-g2c4-target", StringComparison.OrdinalIgnoreCase))
+        {
+            return CsmG2c4Target.Run(args[1..]);
+        }
+
         if (string.Equals(mode, "core011-g2c3-runtime", StringComparison.OrdinalIgnoreCase))
         {
             return CsmG2c3TieringHarness.Run(args[1..]);
