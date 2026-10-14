@@ -1,0 +1,550 @@
+{
+  "schema": "chunkshift.core011.e3r2a-compact-calibration.v1",
+  "evidenceId": "CORE011-CSM-004/EVIDENCE-20261014-001",
+  "originalGitHubRun": 38519788135,
+  "actualCheckoutSha": "57b9654b336ab1be44b0cb5658c57dc852a0ae5e",
+  "originalArtifactZipSha256": {
+    "r0": "6ca9fb8d35026422aaa60aa1978467680df0f202dcdb3e3650225d63a19149ab",
+    "r1": "c04b736952189751625e9d5b1a78870dd02ef782ac5816ee08c56cad2ea2a12f"
+  },
+  "annotation": "Measured rounds extracted from independently downloaded CRC-verified original ZIP artifacts. Floating columns rounded to 3 decimal places for compact durable display; original raw per-round JSON in SHA-pinned ZIP is authoritative. Natural-idle RSS bytes are exact.",
+  "recordStatus": "CALIBRATION_ONLY_NO_PRODUCT_VERDICT",
+  "rows": [
+    {
+      "replicate": 0,
+      "sizeMiB": 1,
+      "workers": 1,
+      "rounds": 8,
+      "allocatedBytesPerOperationRounded3": [
+        170193.375,
+        169924.25,
+        169955,
+        169955,
+        169955,
+        169955,
+        169955,
+        169955
+      ],
+      "cpuMsRounded3": [
+        10.179,
+        2.87,
+        2.971,
+        2.978,
+        3.176,
+        4.543,
+        4.242,
+        2.937
+      ],
+      "wallMsRounded3": [
+        7.112,
+        2.74,
+        2.806,
+        2.833,
+        3.023,
+        4.311,
+        4.078,
+        2.734
+      ],
+      "gen2Collections": [
+        3,
+        2,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "gcPauseMsRounded3": [
+        1.052,
+        0.437,
+        0.563,
+        0.569,
+        0.574,
+        0.936,
+        0.928,
+        0.549
+      ],
+      "naturalIdleRssBytes": [
+        {
+          "phase": "idle0",
+          "workingSetBytes": 53923840
+        },
+        {
+          "phase": "idle30",
+          "workingSetBytes": 54112256
+        }
+      ]
+    },
+    {
+      "replicate": 0,
+      "sizeMiB": 1,
+      "workers": 16,
+      "rounds": 8,
+      "allocatedBytesPerOperationRounded3": [
+        169938.234,
+        169930.609,
+        169922.141,
+        169922.141,
+        169922.141,
+        169904.844,
+        169916.375,
+        169933.672
+      ],
+      "cpuMsRounded3": [
+        84.238,
+        81.735,
+        79.211,
+        78.735,
+        78.338,
+        87.13,
+        116.517,
+        93.213
+      ],
+      "wallMsRounded3": [
+        38.478,
+        36.751,
+        33.994,
+        34.029,
+        33.98,
+        36.674,
+        43.281,
+        36.526
+      ],
+      "gen2Collections": [
+        46,
+        46,
+        47,
+        46,
+        46,
+        47,
+        46,
+        47
+      ],
+      "gcPauseMsRounded3": [
+        16.996,
+        17.095,
+        16.815,
+        17.066,
+        17.15,
+        17.815,
+        18.344,
+        16.519
+      ],
+      "naturalIdleRssBytes": [
+        {
+          "phase": "idle0",
+          "workingSetBytes": 54906880
+        },
+        {
+          "phase": "idle30",
+          "workingSetBytes": 57618432
+        }
+      ]
+    },
+    {
+      "replicate": 0,
+      "sizeMiB": 384,
+      "workers": 1,
+      "rounds": 8,
+      "allocatedBytesPerOperationRounded3": [
+        171073,
+        169910,
+        170156,
+        169910,
+        169910,
+        170156,
+        169910,
+        170156
+      ],
+      "cpuMsRounded3": [
+        29.705,
+        25.736,
+        28.039,
+        25.43,
+        25.393,
+        26.139,
+        25.413,
+        25.943
+      ],
+      "wallMsRounded3": [
+        29.159,
+        25.659,
+        26.19,
+        25.37,
+        25.336,
+        25.997,
+        25.335,
+        25.852
+      ],
+      "gen2Collections": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1
+      ],
+      "gcPauseMsRounded3": [
+        0,
+        0,
+        0.613,
+        0,
+        0,
+        0.506,
+        0,
+        0.431
+      ],
+      "naturalIdleRssBytes": [
+        {
+          "phase": "idle0",
+          "workingSetBytes": 56000512
+        },
+        {
+          "phase": "idle30",
+          "workingSetBytes": 56143872
+        }
+      ]
+    },
+    {
+      "replicate": 0,
+      "sizeMiB": 384,
+      "workers": 16,
+      "rounds": 8,
+      "allocatedBytesPerOperationRounded3": [
+        170198.125,
+        170022.375,
+        169970,
+        169970,
+        169970.25,
+        169970,
+        169954.625,
+        169970
+      ],
+      "cpuMsRounded3": [
+        712.315,
+        543.241,
+        535.235,
+        536.996,
+        255.921,
+        179.342,
+        176.086,
+        176.954
+      ],
+      "wallMsRounded3": [
+        184.37,
+        141.207,
+        147.86,
+        139.822,
+        72.122,
+        47.096,
+        45.734,
+        46.984
+      ],
+      "gen2Collections": [
+        5,
+        6,
+        6,
+        6,
+        6,
+        6,
+        5,
+        6
+      ],
+      "gcPauseMsRounded3": [
+        3.097,
+        3.559,
+        4.059,
+        4.157,
+        3.62,
+        2.696,
+        2.048,
+        2.975
+      ],
+      "naturalIdleRssBytes": [
+        {
+          "phase": "idle0",
+          "workingSetBytes": 60559360
+        },
+        {
+          "phase": "idle30",
+          "workingSetBytes": 62328832
+        },
+        {
+          "phase": "idle300",
+          "workingSetBytes": 62435328
+        }
+      ]
+    },
+    {
+      "replicate": 1,
+      "sizeMiB": 1,
+      "workers": 1,
+      "rounds": 8,
+      "allocatedBytesPerOperationRounded3": [
+        170122.125,
+        169924.25,
+        169955,
+        169955,
+        169955,
+        169955,
+        169955,
+        169955
+      ],
+      "cpuMsRounded3": [
+        18.879,
+        11.359,
+        11.593,
+        11.605,
+        11.527,
+        11.651,
+        11.599,
+        11.837
+      ],
+      "wallMsRounded3": [
+        15.774,
+        11.186,
+        11.361,
+        11.371,
+        11.296,
+        11.42,
+        11.349,
+        11.614
+      ],
+      "gen2Collections": [
+        3,
+        2,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "gcPauseMsRounded3": [
+        1.202,
+        0.562,
+        0.724,
+        0.715,
+        0.708,
+        0.723,
+        0.738,
+        0.758
+      ],
+      "naturalIdleRssBytes": [
+        {
+          "phase": "idle0",
+          "workingSetBytes": 53854208
+        },
+        {
+          "phase": "idle30",
+          "workingSetBytes": 54042624
+        }
+      ]
+    },
+    {
+      "replicate": 1,
+      "sizeMiB": 1,
+      "workers": 16,
+      "rounds": 8,
+      "allocatedBytesPerOperationRounded3": [
+        169964.258,
+        169926.766,
+        169925.984,
+        169927.906,
+        169935.594,
+        169935.594,
+        169931.75,
+        169929.828
+      ],
+      "cpuMsRounded3": [
+        225.44,
+        217.566,
+        188.938,
+        129.563,
+        110.574,
+        111.598,
+        108.225,
+        110.851
+      ],
+      "wallMsRounded3": [
+        78.162,
+        78.846,
+        70.592,
+        47.846,
+        44.326,
+        42.108,
+        41.594,
+        42.402
+      ],
+      "gen2Collections": [
+        46,
+        47,
+        46,
+        46,
+        47,
+        46,
+        47,
+        46
+      ],
+      "gcPauseMsRounded3": [
+        23.619,
+        24.768,
+        23.053,
+        20.38,
+        19.351,
+        18.301,
+        18.764,
+        18.481
+      ],
+      "naturalIdleRssBytes": [
+        {
+          "phase": "idle0",
+          "workingSetBytes": 58191872
+        },
+        {
+          "phase": "idle30",
+          "workingSetBytes": 60612608
+        }
+      ]
+    },
+    {
+      "replicate": 1,
+      "sizeMiB": 384,
+      "workers": 1,
+      "rounds": 8,
+      "allocatedBytesPerOperationRounded3": [
+        171247,
+        169910,
+        170156,
+        169910,
+        169910,
+        170156,
+        169914,
+        170156
+      ],
+      "cpuMsRounded3": [
+        200.579,
+        196.028,
+        197.854,
+        66.661,
+        28.642,
+        21.449,
+        18.766,
+        18.672
+      ],
+      "wallMsRounded3": [
+        199.74,
+        195.797,
+        195.473,
+        37.9,
+        14.413,
+        10.908,
+        9.122,
+        9.329
+      ],
+      "gen2Collections": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1
+      ],
+      "gcPauseMsRounded3": [
+        0,
+        0,
+        0.946,
+        0,
+        0,
+        0.744,
+        0,
+        0.629
+      ],
+      "naturalIdleRssBytes": [
+        {
+          "phase": "idle0",
+          "workingSetBytes": 57614336
+        },
+        {
+          "phase": "idle30",
+          "workingSetBytes": 58613760
+        }
+      ]
+    },
+    {
+      "replicate": 1,
+      "sizeMiB": 384,
+      "workers": 16,
+      "rounds": 8,
+      "allocatedBytesPerOperationRounded3": [
+        170150,
+        170022.375,
+        169970,
+        169970,
+        169970,
+        169970,
+        169954.625,
+        169970
+      ],
+      "cpuMsRounded3": [
+        2354.403,
+        414.323,
+        434.186,
+        220.58,
+        162.488,
+        145.739,
+        146.873,
+        144.847
+      ],
+      "wallMsRounded3": [
+        602.856,
+        114.628,
+        115.299,
+        60.035,
+        45.854,
+        41.336,
+        38.929,
+        38.634
+      ],
+      "gen2Collections": [
+        5,
+        6,
+        6,
+        6,
+        6,
+        6,
+        5,
+        6
+      ],
+      "gcPauseMsRounded3": [
+        4.129,
+        4.737,
+        4.907,
+        5.221,
+        3.669,
+        4.071,
+        2.774,
+        3.155
+      ],
+      "naturalIdleRssBytes": [
+        {
+          "phase": "idle0",
+          "workingSetBytes": 61407232
+        },
+        {
+          "phase": "idle30",
+          "workingSetBytes": 62607360
+        },
+        {
+          "phase": "idle300",
+          "workingSetBytes": 62705664
+        }
+      ]
+    }
+  ]
+}
