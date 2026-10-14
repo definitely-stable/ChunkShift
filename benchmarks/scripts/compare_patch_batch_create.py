@@ -10,7 +10,7 @@ from pathlib import Path
 BATCH = "chunkshift.patch-batch-create.v1"
 LEGACY = "chunkshift.patch-lab.v1"
 RESULT = "chunkshift.patch-batch-create-comparison.v1"
-DIGEST = re.compile(r"[a-fA-F0-9]{64}\\Z")
+DIGEST = re.compile(r"[a-fA-F0-9]{64}\Z")
 KEY = ("family", "base", "target", "path")
 FIELDS = ("targetSize", "targetChunks", "patchBytes", "patchSha256",
           "tcsmBytes", "uniqueMissingBytes", "payloadEntries",
