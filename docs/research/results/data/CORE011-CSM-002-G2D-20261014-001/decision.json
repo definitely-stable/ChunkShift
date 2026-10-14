@@ -1,0 +1,88 @@
+{
+  "schema": "chunkshift.research.decision-closeout.v1",
+  "experimentId": "CORE011-CSM-002",
+  "decisionId": "CORE011-CSM-002/DECISION-20261014-001",
+  "date": "2026-10-14",
+  "scope": "G2 ManifestId staging E1 research wave only",
+  "parentIssue": 154,
+  "baselineMain": "e0791f54c09346c61af9ba189ba73fef01b854bd",
+  "baselineSource": "src/ChunkShift/Manifest/ManifestIdAccumulator.cs",
+  "baselineSourceGitBlob": "894c61b68bfba111467f061e8a0caf81bc8eea81",
+  "result": "DEFER",
+  "productionAdopted": false,
+  "algorithmicallyRejected": false,
+  "correctness": "PASS for the separately declared and executed G2-B/C0/C1/C2 gates; no claim of exhaustive error semantics",
+  "performance": "NO_PRODUCT_VERDICT",
+  "jitAttribution": "MethodLoadVerbose tiers observed; no causal proof for original timing discontinuity",
+  "historicalCore011001ReleaseDisposition": "DEFER_UNCHANGED",
+  "reasonCodes": [
+    "NO_LOCKED_PRODUCT_BUDGET",
+    "NO_INDEPENDENT_REPRESENTATIVE_HOLDOUT",
+    "INCONSISTENT_CROSS_RUNNER_SPEEDUP",
+    "SHORT_CALL_ALLOCATION_RISK",
+    "WRITER_CONCURRENCY_IDLE_RSS_NOT_QUALIFIED"
+  ],
+  "evidence": [
+    {
+      "slice": "G2-A",
+      "id": "CORE011-CSM-001/EVIDENCE-20261013-007",
+      "path": "docs/research/results/CORE011-CSM-001-G2A-20261013-001.md",
+      "pr": 335,
+      "run": 38407602999
+    },
+    {
+      "slice": "G2-B",
+      "id": "CORE011-CSM-002/EVIDENCE-20261013-001",
+      "path": "docs/research/results/CORE011-CSM-002-G2B-20261013-001.md",
+      "pr": 336,
+      "run": 38412413547
+    },
+    {
+      "slice": "G2-C0",
+      "id": "CORE011-CSM-002/EVIDENCE-20261013-002",
+      "path": "docs/research/results/CORE011-CSM-002-G2C-20261013-001.md",
+      "pr": 337,
+      "run": 38416979636
+    },
+    {
+      "slice": "G2-C1",
+      "id": "CORE011-CSM-002/EVIDENCE-20261013-003",
+      "path": "docs/research/results/CORE011-CSM-002-G2C1-20261013-001.md",
+      "pr": 338,
+      "run": 38422964745
+    },
+    {
+      "slice": "G2-C2",
+      "id": "CORE011-CSM-002/EVIDENCE-20261013-004",
+      "path": "docs/research/results/CORE011-CSM-002-G2C2-20261013-001.md",
+      "pr": 339,
+      "run": 38426969487
+    },
+    {
+      "slice": "G2-C3",
+      "id": "CORE011-CSM-002/EVIDENCE-20261013-005",
+      "path": "docs/research/results/CORE011-CSM-002-G2C3-20261013-001.md",
+      "pr": 340,
+      "run": 38434784147
+    },
+    {
+      "slice": "G2-C4",
+      "id": "CORE011-CSM-002/EVIDENCE-20261014-001",
+      "path": "docs/research/results/CORE011-CSM-002-G2C4-20261014-001.md",
+      "pr": 341,
+      "run": 38456268027
+    }
+  ],
+  "decisionRunsAllowed": false,
+  "budgetsLocked": false,
+  "nextWithoutReopen": "No further ManifestId staging runs; review independent CORE011-CSM-004 reader LOH evidence and baseline budgets",
+  "reopenRequires": [
+    "new experiment and product owner",
+    "sealed representative versioned physical multi-CBLK holdout",
+    "locked calibrated CPU wall alloc Gen2 idle RSS budgets",
+    "full Create Verify ManifestReader semantic and corruption gates",
+    "concurrency 1/4/16 and independent stratified runner environments",
+    "preregistered single candidate and no posthoc tuning"
+  ],
+  "issue154Closed": false
+}
