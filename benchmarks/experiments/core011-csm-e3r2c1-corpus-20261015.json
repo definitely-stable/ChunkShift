@@ -1,0 +1,264 @@
+{
+  "schema": "chunkshift.core011.e3r2c1-corpus-verified-evidence.v1",
+  "evidenceId": "CORE011-CSM-004/EVIDENCE-20261015-006",
+  "experimentId": "CORE011-CSM-004",
+  "ownerIssue": 154,
+  "originalRunId": 38688877051,
+  "originalRunUrl": "https://github.com/definitely-stable/ChunkShift/actions/runs/38688877051",
+  "originalActionsSyntheticMergeCheckout": "5313b65db73dcd4041734c267046ca78c4cf5129",
+  "actualPrImplementationHead": "8934ac2c2971d632993c76f32d26631d8d796fff",
+  "originalProductionReaderSha256": "a62772638c715005cb8a1a6ca58222349755a7e21a341ff80655a825910cebf2",
+  "evidenceMethod": "Independent SHA256 of original GitHub Actions ZIPs matched workflow upload digest, original ZIP CRC verified, each physical base/target CSM and target/observer JSON separately SHA256 recomputed, native max and phase sample count recomputed from every original trace, 18 unique process PIDs per host and source file absence checked.",
+  "cases": [
+    {
+      "key": "roslyn-releases",
+      "sourceClass": "official-released-managed-pe-pair",
+      "expected": "zero-reuse-single-block",
+      "targetChunks": 81,
+      "reusedChunks": 0,
+      "targetCblkCount": 1,
+      "baseSourceSha256": "7da8fb18fa6e19a166b35d87b731ecbb040c3ad2cc7894b19953384aee0f5fe4",
+      "targetSourceSha256": "9acdb971334046d22a07fad02648e2725ef5a1b9d0fbe4fe82f1ada57fa70c9e",
+      "baseCsmSha256": "da64f7ac2bed330730db249bd9b40614474da9b3d9bad648f5d93b18f58fd009",
+      "targetCsmSha256": "83ab6375f6c50db29c89cbe48f3f5845dedd6f99e0f79fea471ec1bd152968ed"
+    },
+    {
+      "key": "newtonsoft-releases",
+      "sourceClass": "official-released-managed-pe-pair",
+      "expected": "zero-reuse-single-block",
+      "targetChunks": 10,
+      "reusedChunks": 0,
+      "targetCblkCount": 1,
+      "baseSourceSha256": "4816c4276f575e4d85b80633a0df2eadf29496fe00bdc33cd7843e61373bde0e",
+      "targetSourceSha256": "22c649f75fce5be7c7ccda8880473b634ef69ecf33f5d1ab8ad892caf47d5a07",
+      "baseCsmSha256": "c3dfe51942d58bb97198ea71c619e2c094f60685161df517281deeee790659ad",
+      "targetCsmSha256": "87fb52ab2e2717ce42a3fa7c49ba72947ede5869a2d68e595a6a9845f1d8d95e"
+    },
+    {
+      "key": "roslyn-identical",
+      "sourceClass": "original-released-dll-self-control",
+      "expected": "full-reuse-single-block",
+      "targetChunks": 74,
+      "reusedChunks": 74,
+      "targetCblkCount": 1,
+      "baseSourceSha256": "7da8fb18fa6e19a166b35d87b731ecbb040c3ad2cc7894b19953384aee0f5fe4",
+      "targetSourceSha256": "7da8fb18fa6e19a166b35d87b731ecbb040c3ad2cc7894b19953384aee0f5fe4",
+      "baseCsmSha256": "da64f7ac2bed330730db249bd9b40614474da9b3d9bad648f5d93b18f58fd009",
+      "targetCsmSha256": "da64f7ac2bed330730db249bd9b40614474da9b3d9bad648f5d93b18f58fd009"
+    },
+    {
+      "key": "roslyn-tail-insert",
+      "sourceClass": "source-derived-binary-edit-not-a-released-dll",
+      "expected": "mixed-reuse-single-block",
+      "targetChunks": 74,
+      "reusedChunks": 73,
+      "targetCblkCount": 1,
+      "baseSourceSha256": "7da8fb18fa6e19a166b35d87b731ecbb040c3ad2cc7894b19953384aee0f5fe4",
+      "targetSourceSha256": "23bb52a0b9e1a99be0c5fdaa7fe77d24c11c88ac8238fe11a1c0457860b072bd",
+      "baseCsmSha256": "da64f7ac2bed330730db249bd9b40614474da9b3d9bad648f5d93b18f58fd009",
+      "targetCsmSha256": "839db4dfee5df6703eff7d21ea5b2907e3d3a2a708269641469628394def0dd9"
+    },
+    {
+      "key": "roslyn-tail-delete",
+      "sourceClass": "source-derived-binary-edit-not-a-released-dll",
+      "expected": "mixed-reuse-single-block",
+      "targetChunks": 74,
+      "reusedChunks": 73,
+      "targetCblkCount": 1,
+      "baseSourceSha256": "7da8fb18fa6e19a166b35d87b731ecbb040c3ad2cc7894b19953384aee0f5fe4",
+      "targetSourceSha256": "2d154b412b3f2ced6fbf2cffcfc9e08c8176f640947afdb0fbc81533b795f3c2",
+      "baseCsmSha256": "da64f7ac2bed330730db249bd9b40614474da9b3d9bad648f5d93b18f58fd009",
+      "targetCsmSha256": "b1a8c85ae583cab7d4ce4b9fa372438af57e4939a2833e57adbba899db56d0ee"
+    },
+    {
+      "key": "roslyn-composite64",
+      "sourceClass": "real-dll-concatenation-stress-not-a-single-real-file",
+      "expected": "mixed-reuse-multiblock",
+      "targetChunks": 4743,
+      "reusedChunks": 4661,
+      "targetCblkCount": 2,
+      "baseSourceSha256": "5b782414fe93fac6ea5d5de936e65b3c7f8df56cf31e8c94d1f6704bdbd267f0",
+      "targetSourceSha256": "91fea4407ad145e91e76eb3334adde66edf87c38a984d578fd6361f528b1ea87",
+      "baseCsmSha256": "a346823520bfc1b932dc7cdc6b9ace19719fb021d03b44809c9df237f3f3c1ba",
+      "targetCsmSha256": "6326cdc7574883a313b693c68ca0876c4c0901671bce4d96c252ed6203319189"
+    }
+  ],
+  "hosts": [
+    {
+      "platform": "linux",
+      "originalArtifactId": 11951390744,
+      "originalZipSha256": "5d42d83ca02c7d4bd823aad1c72552ffb7720e0c4ed967ec1d35fddb6db8f08e",
+      "sampledPrivateResidentBytes": [
+        19259392,
+        19087360,
+        18579456,
+        18984960,
+        19144704,
+        21614592
+      ],
+      "nativeActiveSamples": [
+        42,
+        42,
+        41,
+        42,
+        42,
+        42
+      ],
+      "activePlanCalls": [
+        39487,
+        70408,
+        45393,
+        43922,
+        43589,
+        2494
+      ],
+      "activeCpuMilliseconds": [
+        4802.992,
+        4679.022,
+        4651.656,
+        4656.523,
+        4674.683,
+        4623.353
+      ],
+      "originalArtifactUrl": "https://github.com/definitely-stable/ChunkShift/actions/runs/38688877051/artifacts/11951390744",
+      "cases": [
+        {
+          "key": "roslyn-releases",
+          "externalSampledPrivateResidentMaximumBytes": 19259392,
+          "activeNativeSampleCount": 42,
+          "publicPlanCallCount": 39487,
+          "activeCpuMilliseconds": 4802.992
+        },
+        {
+          "key": "newtonsoft-releases",
+          "externalSampledPrivateResidentMaximumBytes": 19087360,
+          "activeNativeSampleCount": 42,
+          "publicPlanCallCount": 70408,
+          "activeCpuMilliseconds": 4679.022
+        },
+        {
+          "key": "roslyn-identical",
+          "externalSampledPrivateResidentMaximumBytes": 18579456,
+          "activeNativeSampleCount": 41,
+          "publicPlanCallCount": 45393,
+          "activeCpuMilliseconds": 4651.656
+        },
+        {
+          "key": "roslyn-tail-insert",
+          "externalSampledPrivateResidentMaximumBytes": 18984960,
+          "activeNativeSampleCount": 42,
+          "publicPlanCallCount": 43922,
+          "activeCpuMilliseconds": 4656.523
+        },
+        {
+          "key": "roslyn-tail-delete",
+          "externalSampledPrivateResidentMaximumBytes": 19144704,
+          "activeNativeSampleCount": 42,
+          "publicPlanCallCount": 43589,
+          "activeCpuMilliseconds": 4674.683
+        },
+        {
+          "key": "roslyn-composite64",
+          "externalSampledPrivateResidentMaximumBytes": 21614592,
+          "activeNativeSampleCount": 42,
+          "publicPlanCallCount": 2494,
+          "activeCpuMilliseconds": 4623.353
+        }
+      ]
+    },
+    {
+      "platform": "windows",
+      "originalArtifactId": 11951136842,
+      "originalZipSha256": "6d7e3113b2076aa45b5ac5dfcd11f348fe11c64d106f58341f30dffb1a4e96da",
+      "sampledPrivateResidentBytes": [
+        14745600,
+        14442496,
+        14225408,
+        14999552,
+        14606336,
+        18296832
+      ],
+      "nativeActiveSamples": [
+        41,
+        41,
+        41,
+        42,
+        42,
+        42
+      ],
+      "activePlanCalls": [
+        31569,
+        66723,
+        44514,
+        43161,
+        43011,
+        2295
+      ],
+      "activeCpuMilliseconds": [
+        4437.5,
+        4703.12,
+        4765.62,
+        4718.75,
+        4765.62,
+        4671.88
+      ],
+      "originalArtifactUrl": "https://github.com/definitely-stable/ChunkShift/actions/runs/38688877051/artifacts/11951136842",
+      "cases": [
+        {
+          "key": "roslyn-releases",
+          "externalSampledPrivateResidentMaximumBytes": 14745600,
+          "activeNativeSampleCount": 41,
+          "publicPlanCallCount": 31569,
+          "activeCpuMilliseconds": 4437.5
+        },
+        {
+          "key": "newtonsoft-releases",
+          "externalSampledPrivateResidentMaximumBytes": 14442496,
+          "activeNativeSampleCount": 41,
+          "publicPlanCallCount": 66723,
+          "activeCpuMilliseconds": 4703.12
+        },
+        {
+          "key": "roslyn-identical",
+          "externalSampledPrivateResidentMaximumBytes": 14225408,
+          "activeNativeSampleCount": 41,
+          "publicPlanCallCount": 44514,
+          "activeCpuMilliseconds": 4765.62
+        },
+        {
+          "key": "roslyn-tail-insert",
+          "externalSampledPrivateResidentMaximumBytes": 14999552,
+          "activeNativeSampleCount": 42,
+          "publicPlanCallCount": 43161,
+          "activeCpuMilliseconds": 4718.75
+        },
+        {
+          "key": "roslyn-tail-delete",
+          "externalSampledPrivateResidentMaximumBytes": 14606336,
+          "activeNativeSampleCount": 42,
+          "publicPlanCallCount": 43011,
+          "activeCpuMilliseconds": 4765.62
+        },
+        {
+          "key": "roslyn-composite64",
+          "externalSampledPrivateResidentMaximumBytes": 18296832,
+          "activeNativeSampleCount": 42,
+          "publicPlanCallCount": 2295,
+          "activeCpuMilliseconds": 4671.88
+        }
+      ]
+    }
+  ],
+  "conclusion": "UNSEALED_REAL_DERIVED_CORPUS_TECHNICAL_CALIBRATION_PASS",
+  "productVerdict": "NOT_QUALIFIED_NO_ADOPT",
+  "decisionRunsAllowed": false,
+  "budgetsLocked": false,
+  "scientificLimits": [
+    "Two distinct official versioned DLL release pairs remained zero reuse and single-CBLK; source SHA pinned to historical NuGet downloads, no cryptographic publisher signatures.",
+    "A byte-identical same-version DLL is not a version update; tail edits and 64-DLL concatenation are derived controls, not genuine released binary modifications.",
+    "Multiblock proof covers deliberately composite files only, not naturally versioned individual large DLLs.",
+    "Only one resource runner per OS, no candidate comparison or registered release noninferiority budget.",
+    "Private resident high-water sampled at 100ms is not a physical instantaneous peak upper bound; external observation is not nonintrusive.",
+    "Existing E3-R0 forbids decision runs; historical Core 0.1.1 E3 DEFER and no ADOPT unchanged."
+  ]
+}
