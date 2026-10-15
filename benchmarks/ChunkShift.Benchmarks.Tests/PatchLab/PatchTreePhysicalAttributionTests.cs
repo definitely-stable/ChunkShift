@@ -1,4 +1,5 @@
 using ChunkShift.Benchmarks.PatchLab.Tree;
+using ChunkShift.Patching;
 
 namespace ChunkShift.Benchmarks.Tests.PatchLab;
 
