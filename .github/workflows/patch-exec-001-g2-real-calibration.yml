@@ -3,6 +3,15 @@ name: PATCH-EXEC-001 G2-A real calibration
 # Explicit main-only dispatch. Calibration .NET families only, never holdout.
 on:
   workflow_dispatch:
+    inputs:
+      run-date:
+        description: 'UTC run date YYYYMMDD'
+        required: true
+        type: string
+      source-sha:
+        description: 'Expected full SHA-1 commit at main for this experiment'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -18,6 +27,8 @@ env:
   NUGET_XMLDOC_MODE: skip
   SOURCE_REFERENCE_RUN: "38136336025"
   PAIRS_SHA256: "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd"
+  PINNED_RUN_DATE: "${{ inputs['run-date'] }}"
+  PINNED_SOURCE_SHA: "${{ inputs['source-sha'] }}"
 
 jobs:
   real-calibration:
@@ -39,6 +50,16 @@ jobs:
           test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
           test "$GITHUB_REF" = "refs/heads/main"
           test "$GITHUB_RUN_ATTEMPT" = "1"
+          test "$GITHUB_SHA" = "$PINNED_SOURCE_SHA"
+          python3 - <<'PY'
+          import datetime, os, re
+          date = os.environ["PINNED_RUN_DATE"]
+          if not re.fullmatch(r"20[0-9]{6}", date):
+              raise SystemExit("invalid run-date syntax")
+          datetime.datetime.strptime(date, "%Y%m%d")
+          if not re.fullmatch(r"[0-9a-f]{40}", os.environ["PINNED_SOURCE_SHA"]):
+              raise SystemExit("source commit must be lowercase 40-hex")
+          PY
           test "$SOURCE_REFERENCE_RUN" = "38136336025"
           test "$(printf %s "$PAIRS_SHA256" | wc -c)" = "64"
 
