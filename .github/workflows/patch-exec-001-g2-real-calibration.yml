@@ -1,0 +1,155 @@
+name: PATCH-EXEC-001 G2-A real calibration
+
+# Explicit main-only dispatch. Calibration .NET families only, never holdout.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: patch-exec-001-g2a-main
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+  SOURCE_REFERENCE_RUN: "38136336025"
+  PAIRS_SHA256: "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd"
+
+jobs:
+  real-calibration:
+    name: g2a-linux-x64-${{ matrix.modality }}
+    strategy:
+      fail-fast: false
+      matrix:
+        modality: [warm-csm, cold-csm]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - name: Enforce hosted main and first attempt before checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          test "$RUNNER_OS" = "Linux"
+          test "$RUNNER_ARCH" = "X64"
+          test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$GITHUB_RUN_ATTEMPT" = "1"
+          test "$SOURCE_REFERENCE_RUN" = "38136336025"
+          test "$(printf %s "$PAIRS_SHA256" | wc -c)" = "64"
+
+      - name: Checkout frozen experiment source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify checkout provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Setup pinned SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Verify original full-pairs recovery and locked digest
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_REFERENCE_RUN" > "$RUNNER_TEMP/reference-run.json"
+          python3 - "$RUNNER_TEMP/reference-run.json" <<'PY'
+          import json, os, sys
+          d = json.load(open(sys.argv[1], encoding="utf-8"))
+          if (d.get("id") != 38136336025 or
+              d.get("repository", {}).get("full_name") != os.environ["GITHUB_REPOSITORY"] or
+              d.get("path", "").split("@")[0] != ".github/workflows/patch-tree-001-pairs-reference.yml" or
+              d.get("event") != "workflow_dispatch" or d.get("head_branch") != "main" or
+              d.get("run_attempt") != 1 or d.get("status") != "completed" or
+              d.get("conclusion") != "success"):
+              raise SystemExit("original frozen pairs provenance rejected")
+          PY
+          mkdir -p "$RUNNER_TEMP/g2-pairs-reference"
+          gh run download "$SOURCE_REFERENCE_RUN" \
+            -R "$GITHUB_REPOSITORY" -n patch-tree-001-original-pairs \
+            -D "$RUNNER_TEMP/g2-pairs-reference"
+          (
+            cd "$RUNNER_TEMP/g2-pairs-reference"
+            sha256sum --check SHA256SUMS
+            echo "$PAIRS_SHA256  pairs.json" | sha256sum --check -
+          )
+
+      - name: Cache authenticated .NET calibration sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-exec-001-g2a-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize .NET calibration assets only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$RUNNER_TEMP/g2-original" \
+            --sources "$HOME/patch-corpus/sources" --download --lock \
+            --calibration-only --pairs-reference "$RUNNER_TEMP/g2-pairs-reference/pairs.json"
+
+      - name: Select checksum-verified real update set
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/prepare_patch_exec_001_g2.py \
+            --original "$RUNNER_TEMP/g2-original" \
+            --reference "$RUNNER_TEMP/g2-pairs-reference/pairs.json" \
+            --subset "$RUNNER_TEMP/g2-subset" --role train
+
+      - name: Build actual benchmark and Patching SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+          python3 benchmarks/scripts/test_prepare_patch_exec_001_g2.py
+
+      - name: Five full rounds and independent exact CSP oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/run_patch_exec_001_g2.py \
+            --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj \
+            --subset "$RUNNER_TEMP/g2-subset" \
+            --output "artifacts/patch-exec-001-g2a/${{ matrix.modality }}" \
+            --modality "${{ matrix.modality }}"
+
+      - name: Pin raw outputs only after success
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="artifacts/patch-exec-001-g2a/${{ matrix.modality }}"
+          cp "$RUNNER_TEMP/g2-subset/selection.json" "$out/selection.json"
+          cp "$RUNNER_TEMP/g2-subset/pairs.json" "$out/pairs.json"
+          (
+            cd "$out"
+            find . -name '*.json' -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum --check SHA256SUMS
+          )
+
+      - name: Archive verified real research evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-exec-001-g2a-linux-x64-${{ matrix.modality }}
+          path: artifacts/patch-exec-001-g2a/${{ matrix.modality }}/
+          if-no-files-found: error
+          retention-days: 90
