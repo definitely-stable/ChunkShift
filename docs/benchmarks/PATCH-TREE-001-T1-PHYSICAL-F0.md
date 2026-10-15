@@ -36,7 +36,7 @@ L = preamble 32 + trailer 64
 
 Require both equations to hold *exactly*. `stored_entry_length` is counted as **actual** raw or zstd frame bytes; compression ratio is not derived without the referenced target chunk length. The `TCSM`, `BASE`, `FOOT`, `PIDX`, and any optional metadata are separate from stored PAYL. This is a physical wire accounting tool, not an attribution of encoder decisions.
 
-**Bounds:** input CSP must be seekable, start at offset zero, be at most 1 GiB, and contain at most 65,536 payload entries. These are F0 laboratory safety limits and are not shipping limits. Never truncate an exceeding file or sample its entries. Invalid integrity, section coverage, bounds, enum values or entry/physical counters stop without a usable result.
+**Bounds:** input CSP must be seekable, start at offset zero, be at most 1 GiB, and contain at most 65,536 payload entries and 65,536 physical sections. These are F0 laboratory safety limits and are not shipping limits. Never truncate an exceeding file or sample its entries. Invalid integrity, section coverage, bounds, enum values or entry/physical counters stop without a usable result.
 
 **Explicitly absent from F0:** source tree, original SDK build, calibration-vs-holdout lock, target-side source hashes, dictionary *source file/offset* (a ChunkId alone does not identify an occurrence), candidate ranking/untaken trials, matched T0/T1 causal inference, full update-set accounting and sealed holdout. F0 requires **no production changes** and neither claims nor permits a new physical evaluation.
 
