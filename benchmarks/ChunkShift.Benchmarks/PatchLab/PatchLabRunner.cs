@@ -29,7 +29,7 @@ internal static class PatchLabRunner
     {
         if (args.Length == 0)
         {
-            Console.Error.WriteLine("patch-lab needs a mode: run, memory, one, apply-check, enc005-g2, gap or tree-calibration or tree-boundary.");
+            Console.Error.WriteLine("patch-lab needs a mode: run, memory, one, apply-check, enc005-g2, gap or tree-calibration, tree-boundary or tree-physical-f0.");
             return 2;
         }
 
@@ -45,6 +45,7 @@ internal static class PatchLabRunner
                 "gap" => PatchGapRunner.Execute(args[1..]),
                 "tree-calibration" => PatchTreeCalibration.Execute(args[1..]),
                 "tree-boundary" => PatchTreeBoundaryAttribution.Execute(args[1..]),
+                "tree-physical-f0" => PatchTreePhysicalAttribution.Execute(args[1..]),
                 _ => UnknownMode(args[0]),
             };
         }
