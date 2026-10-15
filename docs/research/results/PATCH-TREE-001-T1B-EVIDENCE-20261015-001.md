@@ -73,11 +73,32 @@ Physical extra bytes = 83593822 - 14758982 = 68834840 B
 
 The overlap metric counts *partial intersections* of virtual chunk intervals with old-file intervals and is not the complement of exact-preserved bytes. The preserved-offset measure and available-anywhere measure equal each other on this corpus but are not mathematically identical in general.
 
+## Additional independent matched-original physical join (post hoc)
+
+After the boundary archive was audited, the original accepted **T0/T1 physical** calibration artifact was also independently downloaded and reopened: [run #38142160679, artifact #11703153269](https://github.com/definitely-stable/ChunkShift/actions/runs/38142160679/artifacts/11703153269). Original ZIP SHA-256 is `e5707a7334ebc909486945edaf3eed8832a121b715ba5e9cd1354e2447865812`; internal `calibration.json` SHA-256 is `d0de7fb182cc15bd590b1335c92705d464764fab0cdfc021ad9f31928e2d5b5c`. Its ZIP CRC and original internal SHA256SUMS pass. The two independent runs use **byte-identical** `original-pairs.json` and `layouts.json`, and their four old-tree CSM ManifestIds match exactly. Both original files contain complete real calibration populations, not just hand-entered totals.
+
+An independent read-only join on `(family,baseVersion,targetVersion,path,kind)` covers all **1,051 changed/added file rows**. In every pair, the sum of per-file physical T1–T0 byte changes equals the difference between the original recorded T1/T0 payload totals; the shared target-tree metadata cancels from the warm comparison. Each boundary row independently supplies `targetExactInSamePathOld` and `targetExactInVirtualTree` byte availability; this is **not** actual selected physical reuse.
+
+| Matched original category | Rows | T0 physical B | T1 physical B | T1 − T0 B |
+| --- | ---: | ---: | ---: | ---: |
+| Changed, **identical** T0/T1 exact availability | 981 | 11,514,584 | 73,518,267 | **+62,003,683** |
+| Changed, **lower** T1 exact availability | 68 | 345,690 | 9,085,396 | **+8,739,706** |
+| Newly added files | 2 | 2,713,272 | 804,723 | **−1,908,549** |
+| **Total** | **1,051** | **14,573,546** | **83,408,386** | **+68,834,840** |
+
+**High-value falsification:** the **981 changed paths with no exact-availability loss** alone produce **62,003,683 / 68,834,840 = 90.08%** of the *net* physical T1 regression. Thus lost exact chunk availability cannot be the sole explanation for the physical T1 failure. The observed 68 loss cases contribute +8.74 MB, while added files offset −1.91 MB.
+
+This is a **post-hoc matched descriptive decomposition**, not a randomized or causally isolated encoding experiment. When available exact chunks are equal, dictionaries may still be different, chosen base chunk occurrences and candidate ordering can change, and the zstd frame can cost more. In particular, `same exact availability` does not imply `same physical CSP`. The next study should attribute this much larger unchanged-exact-availability group first.
+
+### Source audit boundaries
+
+The prior physical run used `main@913e81ed00b877db4f8d77b3c5dbe9455793f3eb` / .NET SDK `10.0.401`, whereas the boundary diagnostic used `main@e55fb069f383c5589a66769e8675ce8e3b71df21` / SDK `10.0.402`. Both read the identical locked source tree and ordinary SDK semantics, but they were **not** executed on the same commit/runtime image; the join therefore supports observational source-matched decomposition, not a causal A/B timing or backend verdict. Physical CSP totals come only from the original earlier run; the new run did not recompute them. Keep both original artifact digests and separate GitHub RunIds in every citation.
+
 ## Next implementation gate — T1 physical component attribution
 
 **Do not rewrite the candidate algorithm yet.** Prepare a separately frozen, **calibration-only**, H0/T0/T1 same-source physical reconciliation, keyed by original unchanged file identities and exact frozen policy:
 
-- For every changed/added file: actual PAYL/PIDX/target CSM and base metadata contributions, each physical frame's compressed byte length, selected dictionary identity and source occurrence, candidate ordering, unmatched target chunks, bytes read/seeked from the virtual base.
+- Prioritize the 981 **equal-exact-availability** files responsible for +62.00 MB of regression; avoid further boundary-only retuning until physical codec effects have been reconciled.\n- For every changed/added file: actual PAYL/PIDX/target CSM and base metadata contributions, each physical frame's compressed byte length, selected dictionary identity and source occurrence, candidate ordering, unmatched target chunks, bytes read/seeked from the virtual base.
 - Verify `sum(per-file physical components) + shared metadata == exact original T0/T1 totals`; no unaccounted bytes or synthetic reconstruction of physical cost.
 - Distinguish **(i)** exact old-target chunk availability, **(ii)** actual chosen reuse/dictionary, **(iii)** zstd frame effectiveness and **(iv)** additional cross-file references; avoid asserting that an available chunk was actually selected.
 - Add the smallest fixed deterministic instrumentation/replay necessary; no hot-loop/product change, no candidate retuning, no new CSP encoding.
