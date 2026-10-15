@@ -106,15 +106,19 @@ internal static class CsmE3R2c1CorpusHarness
             {
                 string input = Path.Combine(dir, name + ".input");
                 string output = Path.Combine(dir, name + ".csm");
-                await using var src = File.OpenRead(input);
-                await using var dest = new FileStream(output, FileMode.CreateNew, FileAccess.Write,
-                    FileShare.None, 64 * 1024, useAsync: true);
-                ManifestInfo info = await ChunkManifest.CreateAsync(src, dest,
-                    new ManifestCreationOptions
-                    {
-                        HashSuite = HashSuiteIds.Blake3256V1, IncludeBlockIndex = true,
-                    });
-                await dest.FlushAsync();
+                ManifestInfo info;
+                await using (var src = File.OpenRead(input))
+                await using (var dest = new FileStream(output, FileMode.CreateNew, FileAccess.Write,
+                    FileShare.None, 64 * 1024, useAsync: true))
+                {
+                    info = await ChunkManifest.CreateAsync(src, dest,
+                        new ManifestCreationOptions
+                        {
+                            HashSuite = HashSuiteIds.Blake3256V1, IncludeBlockIndex = true,
+                        });
+                    await dest.FlushAsync();
+                }
+                // Close the FileShare.None writer before a separate verifier reopens CSM.
                 await using var check = File.OpenRead(output);
                 ManifestVerificationResult result = await ChunkManifest.VerifyManifestAsync(check);
                 if (!result.IsValid || result.Manifest.ManifestId != info.ManifestId ||
