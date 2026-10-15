@@ -380,7 +380,7 @@ def validate_observation(out,fixture,run,checkout,platform,identity,pids):
         at=sample["uptimeMilliseconds"]
         mx=max(mx,sample["privateResidentBytes"])
         rss=max(rss,sample["processRssBytes"])
-        if sample.get("stage")=="active-plan":active+=1
+        if sample.get("phase")=="active-plan":active+=1
     require(active==o["activePlanSampleCount"] and active>=25 and
             mx==o["observedPrivateResidentMaximumBytes"] and
             rss==o["observedRssMaximumBytes"],
