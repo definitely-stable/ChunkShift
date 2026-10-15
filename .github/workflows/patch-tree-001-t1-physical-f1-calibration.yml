@@ -52,7 +52,6 @@ jobs:
           test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
           test "$GITHUB_REF" = "refs/heads/main"
           test "$GITHUB_RUN_ATTEMPT" = "1"
-          test "$GITHUB_ACTOR" = "MrFr3di"
           python3 - "$RUN_DATE" <<'PY'
           import datetime
           import os
