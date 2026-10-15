@@ -14,6 +14,7 @@ internal static class PatchTreePhysicalAttribution
     internal const string Schema = "chunkshift.patch-tree-t1-physical-f0.v1";
     internal const string Status = "LAB_ONLY_PHYSICAL_MECHANICS_NOT_DECISION";
     private const int MaximumEntries = 65_536;
+    private const int MaximumSections = 65_536;
     private const long MaximumPatchBytes = 1L << 30;
 
     internal sealed record Section(string Kind, long Offset, long PayloadBytes, long PhysicalBytes);
@@ -79,6 +80,8 @@ internal static class PatchTreePhysicalAttribution
 
         while (position < end)
         {
+            if (sections.Count >= MaximumSections)
+                throw new InvalidDataException("Too many CSP sections for F0 inspection.");
             if (end - position < header.Length)
                 throw new InvalidDataException("Incomplete CSP section header.");
             source.Position = position;
