@@ -427,7 +427,9 @@
       "evidence": "docs/research/results/PATCH-TREE-001-T1B-EVIDENCE-20261015-001.md",
       "calibrationEvidence": "benchmarks/experiments/patch-tree-001-t1-boundary-20261015.json",
       "calibrationRunId": "PATCH-TREE-001/T1-BOUNDARY-20261015-38736641373",
-      "calibrationVerdict": "T1 boundary loss observed; naive T1 5.6639x physical CSP cost. Original matched cohort: 90.08% of net physical byte regression from changed files with identical exact-match availability. PHYSICAL_CAUSALITY_NOT_PROVEN / NO_ADOPT; T2/T3 and publication gates open."
+      "calibrationVerdict": "T1 boundary loss observed; naive T1 5.6639x physical CSP cost. Original matched cohort: 90.08% of net physical byte regression from changed files with identical exact-match availability. PHYSICAL_CAUSALITY_NOT_PROVEN / NO_ADOPT; T2/T3 and publication gates open.",
+      "physicalF0Protocol": "docs/benchmarks/PATCH-TREE-001-T1-PHYSICAL-F0.md",
+      "physicalF0Disposition": "FOUNDATION_ONLY_NOT_REAL_CORPUS_EVIDENCE"
     },
     {
       "id": "REPO-DELTA-001",
