@@ -8,10 +8,15 @@ on:
       - "benchmarks/scripts/test_patch_tree_001_inventory.py"
       - "benchmarks/scripts/verify_patch_tree_001_calibration.py"
       - "benchmarks/scripts/test_verify_patch_tree_001_calibration.py"
+      - "benchmarks/scripts/verify_patch_tree_001_boundary.py"
+      - "benchmarks/scripts/test_verify_patch_tree_001_boundary.py"
       - "benchmarks/scripts/materialize_patch_corpus.py"
       - "benchmarks/scripts/test_patch_tree_001_materialization.py"
       - "benchmarks/scripts/test_patch_tree_001_workflow_lock.py"
       - ".github/workflows/patch-tree-001-t0-t1-calibration.yml"
+      - ".github/workflows/patch-tree-001-t1-boundary-diagnostic.yml"
+      - ".github/workflows/patch-tree-001-t1-boundary-operator.yml"
+      - "docs/benchmarks/PATCH-TREE-001-T1-BOUNDARY-ATTRIBUTION.md"
       - "docs/benchmarks/PATCH-TREE-001-PHASE-A.md"
       - ".github/workflows/patch-tree-001-contracts.yml"
   workflow_dispatch:
@@ -39,6 +44,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m py_compile benchmarks/scripts/patch_tree_001_inventory.py benchmarks/scripts/test_patch_tree_001_inventory.py benchmarks/scripts/materialize_patch_corpus.py benchmarks/scripts/test_patch_tree_001_materialization.py
-          python -m unittest benchmarks/scripts/test_patch_tree_001_inventory.py benchmarks/scripts/test_verify_patch_tree_001_calibration.py benchmarks/scripts/test_patch_tree_001_materialization.py benchmarks/scripts/test_patch_tree_001_workflow_lock.py -v
+          python -m py_compile benchmarks/scripts/patch_tree_001_inventory.py benchmarks/scripts/test_patch_tree_001_inventory.py benchmarks/scripts/materialize_patch_corpus.py benchmarks/scripts/test_patch_tree_001_materialization.py benchmarks/scripts/verify_patch_tree_001_boundary.py benchmarks/scripts/test_verify_patch_tree_001_boundary.py
+          python -m unittest benchmarks/scripts/test_patch_tree_001_inventory.py benchmarks/scripts/test_verify_patch_tree_001_calibration.py benchmarks/scripts/test_verify_patch_tree_001_boundary.py benchmarks/scripts/test_patch_tree_001_materialization.py benchmarks/scripts/test_patch_tree_001_workflow_lock.py -v
           echo 'Phase A fixtures PASS; no real patch results.' >> "$GITHUB_STEP_SUMMARY"
