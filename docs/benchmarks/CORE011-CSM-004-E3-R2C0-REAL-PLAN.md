@@ -1,0 +1,19 @@
+# CORE011-CSM-004 — E3-R2-C0 real published DLL Plan baseline
+
+Owner issue #154; parent #152. Stacked on E3-R2-B2B external observer implementation #353 / archived evidence #355. **LAB EAGER ONLY, NOT A PRODUCT DECISION.**
+
+The prior B2B experiment proved that 100-ms in-process Linux native-memory sampling could increase zero-reader sampled peak by approximately 17.8 MiB. R2-C0 deliberately runs the target with **no in-process native residency sampling** and uses the separate B2B cross-platform target-PID external observer. Resident peak remains a *sampled lower bound*, not a certified instantaneous maximum or production threshold.
+
+## Fixed real-source baseline
+
+Official NuGet package identity: Microsoft.CodeAnalysis.CSharp (NuGet FlatContainer) versions 4.13.0 and 4.14.0; exact `lib/net8.0/Microsoft.CodeAnalysis.CSharp.dll` managed PE, no generated/altered content. Reuse the earlier G1-J2C package downloader, PE validator and public G1-J2 Plan fixture builder rather than independently inventing a content transformation.
+
+A separate short-lived Python builder orchestration process obtains each HTTPS NuGet package, checks NuGet archive ZIP CRC, PE header and assembly name, saves only short-lived base.input/target.input. It invokes G1-J2C's public CSM builder in a distinct CLR process, which calls ChunkManifest.CreateAsync for both and ChunkPatch.PlanAsync to establish the base/target oracle. Both source DLL files are deleted in the builder finally path **before the builder process exits**. The benchmark consumer and independent memory observer start only after source file absence is verified. Neither original DLL nor the source NuGet package is archived.
+
+NuGet SHA512 and SHA256 metadata are **calculated from retrieved original package bytes**. There is no independently frozen trusted package digest in this experimental contract; the packages' official HTTPS provenance is not cryptographic proof of release authorship. This study can qualify observed performance for that sourced pair but **cannot claim independently authenticated/frozen corpus provenance**. No sealed holdout is touched.
+
+Each target process reads only original physical `base.csm`, `target.csm` and immutable pair/provenance metadata, checks physical bytes SHA256, builder checkout and distinct PID. Four warm public ChunkPatch.PlanAsync calls; after observer gives the 'go' marker, **64 measured** public PlanAsync operations with semantic conservation/manifest/unique-missing checks on every call. Target measures CPU, wall, process allocated bytes, Gen2 and GC pause during the 64 calls and holds an additional 30 seconds natural idle without forced GC. External observer samples native target-PID resident pages every 100ms, independently recomputes the high-water from a complete raw trace; target writes NO native memory trace. All raw CSM and provenance files, consumer process logs, observer JSON trace, pair/oracle, NuGet package source digests are archived. Every source file is absent at consumer start; two version CSM SHA identities must differ.
+
+Two hosted CI jobs, Ubuntu 24.04 and Windows Server 2025, same checked-out source and net10 Release, eager only. CPU/JIT results on different OS/hardware are **not directly comparable**; even 64 calls per one real DLL version pair give insufficient statistical power to freeze CPU thresholds. This is a *one-host-per-OS* exploratory **real-versioned product-path pilot**, not a representative unsealed multi-class corpus. No SHA256 manifest suite, Plan crossover classes or AOT measured here. Do not use as R3 sealed decision.
+
+**Exit:** physical real DLL CSM built and content disposed before consumer, independent external observer native residency, public Plan oracle passes for each call, strict original source SHA/R0 decision gate; original artifacts independently evaluated. **NO_ADOPT/PRODUCT_NOT_QUALIFIED** regardless of whether baseline CI succeeds.

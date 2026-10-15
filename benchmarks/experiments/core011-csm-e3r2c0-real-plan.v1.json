@@ -1,0 +1,64 @@
+{
+  "schema": "chunkshift.core011.e3r2c0-real-versioned-plan.v1",
+  "experimentId": "CORE011-CSM-004",
+  "ownerIssue": 154,
+  "stage": "R2-C0-real-versioned-DLL-Plan-baseline",
+  "parentEvidenceCommit": "7719bfe69da722f8cb0e8f750fa99527ba1463af",
+  "originalReaderSha256": "a62772638c715005cb8a1a6ca58222349755a7e21a341ff80655a825910cebf2",
+  "baselineVariant": "eager",
+  "candidateRunsAllowed": false,
+  "decisionRunsAllowed": false,
+  "budgetsLocked": false,
+  "corpus": {
+    "origin": "nuget-released-managed-pe",
+    "package": "microsoft.codeanalysis.csharp",
+    "baseVersion": "4.13.0",
+    "targetVersion": "4.14.0",
+    "assemblyPath": "lib/net8.0/Microsoft.CodeAnalysis.CSharp.dll",
+    "packageHashesIndependentlyPreFrozen": false,
+    "packageDigestsSource": "self-calculated during download, not independent external authenticity",
+    "materializeInSeparateExitedProcess": true,
+    "removeSourceBeforeConsumer": true,
+    "originalSourceInArchives": false
+  },
+  "workload": {
+    "publicOperation": "ChunkPatch.PlanAsync",
+    "iterations": 64,
+    "warmupCalls": 4,
+    "sourceOnlyCsm": true,
+    "naturalIdleMillisecondsMin": 30000,
+    "externalSampleMilliseconds": 100,
+    "internalNativeSampler": false
+  },
+  "hostedPlatforms": [
+    "ubuntu-24.04",
+    "windows-2025"
+  ],
+  "runnerReplicasPerPlatform": 1,
+  "requiredMetrics": [
+    "externalPrivateResidentSampledPeakBytes",
+    "externalSampleCount",
+    "planBatchWallMilliseconds",
+    "planBatchCpuMilliseconds",
+    "planAllocatedBytes",
+    "planGen2Collections",
+    "planGcPauseMilliseconds",
+    "managedHeapAfterIdleBytes",
+    "publicPlanConservation",
+    "originalCsmSha256"
+  ],
+  "requirements": {
+    "externalIndependentNativeObserver": true,
+    "distinctSourceBuilderAndConsumerPids": true,
+    "independentPhysicalCsmHashVerification": true,
+    "unchangedProductionCode": true,
+    "existingR0DecisionGateClosed": true
+  },
+  "limitations": [
+    "Official NuGet package source versions are fixed, but their package SHA-512 is self-calculated at download, not independently frozen; source authenticity is conditional.",
+    "This is a real managed PE version pair, but one release pair is not a representative production corpus.",
+    "External sampling remains intrusive and sampled high-water is not an instantaneous upper bound.",
+    "No candidate comparisons or noninferiority thresholds; CPU/JIT runs are exploratory and unpaired.",
+    "No sealed holdout, AOT, net8 or alternative hash suites; final R3 is forbidden."
+  ]
+}
