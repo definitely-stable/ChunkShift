@@ -44,3 +44,18 @@ The wall timer includes CSM resolution/manifest digest, planning, create, CSP re
 **G2-A real fixed-lane experimental mechanics: PASS. Production/adaptive executor: NO ADOPT.** No task cache or adaptive scheduling code was measured; per-create isolated peak RSS, cancellation, straggler accounting, CPU quota/affinity and storage read amplification were not established. Do not claim a 25% improvement over the *best fixed safe baseline*. Keep #225 open and freeze #251 unchanged.
 
 Reserved `10.0.11 → 10.0.12` G2-B unsealed validation remains untouched. Do **not** run it as another tuning matrix: before consuming it, a separate G2-B protocol must freeze a nontrivial deterministic adaptive policy learned only from G2-A, a best-safe-fixed comparator, memory/CPU/cancellation guards, stopping criteria and fail-closed provenance. If a policy cannot plausibly outperform the best fixed safe baseline, defer G2-B rather than spend the reserved validation evidence.
+
+
+### Independent replay and permanent tables
+
+The source artifact ZIP files remain available in [GitHub Actions run #38677655592](https://github.com/definitely-stable/ChunkShift/actions/runs/38677655592) until their retention expires. The historical SHA-256s above are exact byte-locks. Given these **unchanged original ZIPs**, reproduce the 960-patch audit with:
+
+```bash
+python3 benchmarks/scripts/verify_patch_exec_001_g2a_closeout.py \
+  --warm patch-exec-001-g2a-warm-csm.zip \
+  --cold patch-exec-001-g2a-cold-csm.zip \
+  --samples docs/research/results/data/PATCH-EXEC-001-G2A-20261015-001/samples.tsv \
+  --identities docs/research/results/data/PATCH-EXEC-001-G2A-20261015-001/patch-identities.tsv
+```
+
+The permanent TSVs preserve process-wide resource measurements and the H0 patch identities, **not original CSP bytes or the 35-member raw run JSON archives**. Expiration of Actions artifacts prevents further replay from raw archives unless the exact ZIPs were independently preserved. It does not invalidate the pinned permanent tabular evidence.
