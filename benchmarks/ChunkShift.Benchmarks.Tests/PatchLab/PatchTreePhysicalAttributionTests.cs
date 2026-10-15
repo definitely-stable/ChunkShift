@@ -90,6 +90,44 @@ public sealed class PatchTreePhysicalAttributionTests
             ["tree-physical-f0", "--patch", "/tmp/absent"]));
     }
 
+    [Fact]
+    public async Task CliWritesSourceFreeExactLedgerAndRejectsInvalidSource()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "patch-tree-f0-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            byte[] data = new byte[96 * 1024];
+            new Random(443).NextBytes(data);
+            using var manifest = await ManifestForAsync(data);
+            using var patch = new MemoryStream();
+            await ChunkPatch.CreateAsync(manifest,
+                new MemoryStream(data, writable: false), patch);
+            string input = Path.Combine(root, "sample.csp");
+            string output = Path.Combine(root, "sample.json");
+            File.WriteAllBytes(input, patch.ToArray());
+            Assert.Equal(0, ChunkShift.Benchmarks.PatchLab.PatchLabRunner.Run(
+                ["tree-physical-f0", "--patch", input, "--output", output]));
+            using var record = System.Text.Json.JsonDocument.Parse(File.ReadAllText(output));
+            Assert.Equal(PatchTreePhysicalAttribution.Schema,
+                record.RootElement.GetProperty("schema").GetString());
+            Assert.Equal(PatchTreePhysicalAttribution.Status,
+                record.RootElement.GetProperty("status").GetString());
+            Assert.Equal(new FileInfo(input).Length,
+                record.RootElement.GetProperty("reconciledPhysicalBytes").GetInt64());
+
+            File.Delete(output);
+            File.WriteAllBytes(input, patch.ToArray()[..^1]);
+            Assert.Equal(1, ChunkShift.Benchmarks.PatchLab.PatchLabRunner.Run(
+                ["tree-physical-f0", "--patch", input, "--output", output]));
+            Assert.False(File.Exists(output));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static async Task<MemoryStream> ManifestForAsync(byte[] bytes)
     {
         var output = new MemoryStream();
