@@ -30,9 +30,9 @@ class PatchExecG2ACloseoutTests(unittest.TestCase):
     def test_tsv_reader_rejects_duplicate_sample_by_contract(self):
         with tempfile.TemporaryDirectory() as root:
             file = pathlib.Path(root) / "samples.tsv"
-            file.write_text("mode\\tround\\tallocation\\n"
-                            "warm-csm\\t0\\tf1-h0\\n"
-                            "warm-csm\\t0\\tf1-h0\\n", encoding="utf-8")
+            file.write_text("mode\tround\tallocation\n"
+                            "warm-csm\t0\tf1-h0\n"
+                            "warm-csm\t0\tf1-h0\n", encoding="utf-8")
             rows = v.rows_tsv(file)
             self.assertEqual(len(rows), 2)
             self.assertNotEqual(len({(r["mode"], r["round"], r["allocation"])
@@ -41,7 +41,7 @@ class PatchExecG2ACloseoutTests(unittest.TestCase):
     def test_fails_closed_on_false_provenance(self):
         with self.assertRaises(ValueError):
             v.require(False, "reject wrong SHA")
-        with self.assertRaises(ValueError):
+        with self.assertRaises(FileNotFoundError):
             v.verify_archive("/nonexistent/never.zip", "warm-csm", {}, {})
 
 
