@@ -1,0 +1,79 @@
+{
+  "schema": "chunkshift.core011.e3r2c1-corpus.v1",
+  "stage": "R2-C1-mixed-reuse-multiblock-unsealed-calibration",
+  "experimentId": "CORE011-CSM-004",
+  "ownerIssue": 154,
+  "parentEvidenceCommit": "9153914ac73f46d3413334f1ff5cba9c77929bd6",
+  "originalReaderSha256": "a62772638c715005cb8a1a6ca58222349755a7e21a341ff80655a825910cebf2",
+  "sourceContracts": [
+    "benchmarks/experiments/core011-csm-g1j2d-frozen-corpus.v1.json",
+    "benchmarks/experiments/core011-csm-g1j2h1-frozen-corpus.v1.json"
+  ],
+  "sourceAuthenticity": "previously SHA256-frozen official NuGet bytes, not cryptographic publisher signatures",
+  "profile": "fastcdc.gear.chunkshift.v1.64k",
+  "suite": "blake3-256",
+  "includeBlockIndex": true,
+  "cases": [
+    {
+      "key": "roslyn-releases",
+      "sourceClass": "official-released-managed-pe-pair",
+      "recipe": "roslyn-4.13.0-to-4.14.0",
+      "expected": "zero-reuse-single-block"
+    },
+    {
+      "key": "newtonsoft-releases",
+      "sourceClass": "official-released-managed-pe-pair",
+      "recipe": "newtonsoft-13.0.2-to-13.0.3",
+      "expected": "zero-reuse-single-block"
+    },
+    {
+      "key": "roslyn-identical",
+      "sourceClass": "original-released-dll-self-control",
+      "recipe": "roslyn-4.13.0-to-same-4.13.0",
+      "expected": "full-reuse-single-block"
+    },
+    {
+      "key": "roslyn-tail-insert",
+      "sourceClass": "source-derived-binary-edit-not-a-released-dll",
+      "recipe": "roslyn-4.13.0-insert-4096bytes-from-4.14.0-at-base-len-minus-131072",
+      "expected": "mixed-reuse-single-block"
+    },
+    {
+      "key": "roslyn-tail-delete",
+      "sourceClass": "source-derived-binary-edit-not-a-released-dll",
+      "recipe": "roslyn-4.13.0-delete-last-8192bytes",
+      "expected": "mixed-reuse-single-block"
+    },
+    {
+      "key": "roslyn-composite64",
+      "sourceClass": "real-dll-concatenation-stress-not-a-single-real-file",
+      "recipe": "base-64x-roslyn-4.13.0-target-63x-roslyn-4.13.0-plus-1x-roslyn-4.14.0",
+      "expected": "mixed-reuse-multiblock"
+    }
+  ],
+  "activePlanMinimumMs": 4000,
+  "externalObserverIntervalMs": 100,
+  "minExternalActiveSamples": 25,
+  "minExternalAllSamples": 320,
+  "naturalIdleMinimumMs": 30000,
+  "platforms": [
+    "ubuntu-24.04",
+    "windows-2025"
+  ],
+  "replicatesPerOs": 1,
+  "variant": "eager",
+  "sourceOnlyInExitedBuilder": true,
+  "consumerOriginalSourceForbidden": true,
+  "candidateRunsAllowed": false,
+  "decisionRunsAllowed": false,
+  "budgetsLocked": false,
+  "productionSourceChangesAllowed": false,
+  "limitations": [
+    "Only two authentic original release pairs; both previously showed zero stable64k reuse.",
+    "Identical DLL control is not a version change; derived insertion/deletion and concatenation are NOT original released DLLs.",
+    "64x concatenation is a stress artifact not a natural production DLL; it covers multiblock mechanics, not corpus representativeness.",
+    "Each OS only has one hosted resource calibration; CPU/GC/JIT between hosts cannot be used for noninferiority.",
+    "External 100ms private-resident peak is sampled and can miss instantaneous spikes; observer overhead remains nonzero.",
+    "No lazy/hybrid candidates, AOT, alternative hash suites, adoption threshold or sealed R3 decision."
+  ]
+}
