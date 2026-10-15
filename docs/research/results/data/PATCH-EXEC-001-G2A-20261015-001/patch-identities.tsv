@@ -1,0 +1,17 @@
+family	base	target	path	patch_sha256
+dotnet-aspnetcore-win-x64	10.0.10	10.0.11	shared/Microsoft.AspNetCore.App/{version}/Microsoft.AspNetCore.Components.dll	617a831a411e2f38739592ebd6d2934c1f3b3acb6144ac557ce5576b7ad8dc6a
+dotnet-aspnetcore-win-x64	10.0.10	10.0.11	shared/Microsoft.AspNetCore.App/{version}/Microsoft.AspNetCore.Mvc.ApiExplorer.dll	ee0a37073d6c5dba0dab846f00dc17b50f1403540d04a61ef01e19f5ec138493
+dotnet-aspnetcore-win-x64	10.0.10	10.0.11	shared/Microsoft.AspNetCore.App/{version}/Microsoft.AspNetCore.Mvc.Razor.dll	8b8b751c98d464992abc10d88841c2e990845655b2374e487c8b88dbbc7f82a0
+dotnet-aspnetcore-win-x64	10.0.10	10.0.11	shared/Microsoft.AspNetCore.App/{version}/Microsoft.Extensions.FileProviders.Physical.dll	09ba48263a4e3400fbc6b483413fa7b6c3fc06ec0db0e4e1a7be4ba4e498f094
+dotnet-aspnetcore-win-x64	10.0.10	10.0.11	shared/Microsoft.NETCore.App/{version}/Microsoft.CSharp.dll	c07abd6fa561c2efa51b5954e3a144f809e05b28fcdda9a6af9a3150330742b3
+dotnet-aspnetcore-win-x64	10.0.10	10.0.11	shared/Microsoft.NETCore.App/{version}/System.Linq.AsyncEnumerable.dll	aa48c1d9ae7c7f7e8bdf5d25652f6e8dc10558d0fb3c83d6dd9ae28554a7b9f0
+dotnet-aspnetcore-win-x64	10.0.10	10.0.11	shared/Microsoft.NETCore.App/{version}/System.Text.Json.dll	4d59926b29011e03b2f1ad8960fefab3c11f2d25ce11bdf1f277fca348458d1d
+dotnet-aspnetcore-win-x64	10.0.10	10.0.11	shared/Microsoft.NETCore.App/{version}/msquic.dll	d0a25a74b1352eef536050206471a346a0aae63d08f085987f9c17cac8b80d9d
+dotnet-runtime-linux-arm64	10.0.10	10.0.11	shared/Microsoft.NETCore.App/{version}/System.Data.Common.dll	f681ed2873958a8a13a9e54350dbb2d5cd008a4daeecf7340a8b95de5d5b24a4
+dotnet-runtime-linux-arm64	10.0.10	10.0.11	shared/Microsoft.NETCore.App/{version}/System.Formats.Asn1.dll	ce725e7ec746a586625d64859046a0165d3ade1ab8d9aef7af31d502fe4e9639
+dotnet-runtime-linux-arm64	10.0.10	10.0.11	shared/Microsoft.NETCore.App/{version}/System.IO.Pipelines.dll	68b9f37b1979282e0cb0df9319416a16e2c1a352bb02472f249ca2604bb43a7a
+dotnet-runtime-linux-arm64	10.0.10	10.0.11	shared/Microsoft.NETCore.App/{version}/System.Net.WebSockets.Client.dll	9a918850fe1fc7e1d4026d149174738ec7240f0be02163728c9b652b837441d3
+dotnet-runtime-linux-arm64	10.0.10	10.0.11	shared/Microsoft.NETCore.App/{version}/System.Security.Cryptography.dll	284a75ff0abcabae72c2a0a3995b9372202bec2e180212021b6a0a0c627692fa
+dotnet-runtime-linux-arm64	10.0.10	10.0.11	shared/Microsoft.NETCore.App/{version}/System.Text.Encoding.CodePages.dll	9b5a5fffd39c5aa9ec6c73b052609b5307d8b8db50947b35b6b0c4bd50ffb9c5
+dotnet-runtime-linux-arm64	10.0.10	10.0.11	shared/Microsoft.NETCore.App/{version}/System.Transactions.Local.dll	bb5902ccb334dadac8f51e69bc943a5a89070194f65bd31bc437ea7e409af003
+dotnet-runtime-linux-arm64	10.0.10	10.0.11	shared/Microsoft.NETCore.App/{version}/libclrgc.so	b8c9eb12830aa2fd1f989baa5816e04d603c0e3b947e48a8fc9ce14488d5037d
