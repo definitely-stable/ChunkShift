@@ -1,0 +1,97 @@
+{
+  "schema": "chunkshift.core011.e3r2c0-evidence.v1",
+  "experimentId": "CORE011-CSM-004",
+  "evidenceId": "CORE011-CSM-004/EVIDENCE-20261015-005",
+  "originalHostedRunId": 38678447873,
+  "actualPrMergeCheckout": "b6486cf03040a5120413a4702ad92bf7d3666bdf",
+  "originalReaderSha256": "a62772638c715005cb8a1a6ca58222349755a7e21a341ff80655a825910cebf2",
+  "corpusSource": "NuGet FlatContainer managed DLL package; hashes self-observed at download and not independently pre-frozen",
+  "sourceDumpsArchived": false,
+  "physical": {
+    "base": {
+      "nugetVersion": "4.13.0",
+      "nugetPackageBytes": 17105292,
+      "packageSha256": "8f33bbff68fbacfaaee17b66e25861d888da8b0f9a524891fb2627f9af2683f3",
+      "sourceDllSha256": "7da8fb18fa6e19a166b35d87b731ecbb040c3ad2cc7894b19953384aee0f5fe4",
+      "sourceDllBytes": 6604072,
+      "originalCsmSha256": "da64f7ac2bed330730db249bd9b40614474da9b3d9bad648f5d93b18f58fd009",
+      "originalCsmBytes": 3098,
+      "chunks": 74,
+      "cblk": 1
+    },
+    "target": {
+      "nugetVersion": "4.14.0",
+      "nugetPackageBytes": 17342224,
+      "packageSha256": "e4cce3dd791860b9300d6875eebd4d11749b5f0c166103e23a6912325828d496",
+      "sourceDllSha256": "9acdb971334046d22a07fad02648e2725ef5a1b9d0fbe4fe82f1ada57fa70c9e",
+      "sourceDllBytes": 6697264,
+      "originalCsmSha256": "83ab6375f6c50db29c89cbe48f3f5845dedd6f99e0f79fea471ec1bd152968ed",
+      "originalCsmBytes": 3350,
+      "chunks": 81,
+      "cblk": 1
+    }
+  },
+  "expectedPlan": {
+    "reusedChunks": 0,
+    "reusedBytes": 0,
+    "missingChunks": 81,
+    "missingBytes": 6697264,
+    "uniqueMissingChunks": 81,
+    "uniqueMissingBytes": 6697264
+  },
+  "rows": [
+    {
+      "platform": "linux",
+      "originalArtifactId": 11946961682,
+      "originalZipBytes": 16436,
+      "originalZipSha256": "a4b697459bc718cc7ca2f3908528a24cceb3452f5cab2869ab4b03268fc7ff7e",
+      "builderPid": 2974,
+      "consumerPid": 2987,
+      "observerPid": 3000,
+      "planCalls": 64,
+      "cpuMs": 106.03,
+      "wallMs": 104.6078,
+      "allocatedBytes": 26236792,
+      "gen2Collections": 6,
+      "gcPauseMilliseconds": 2.572,
+      "managedHeapAfterIdleBytes": 987384,
+      "sampledPrivateResidentPeakBytes": 13320192,
+      "sampledRssPeakBytes": 57262080,
+      "externalNativeSampleCount": 307,
+      "naturalIdleMilliseconds": 30300,
+      "originalTargetJsonSha256": "360cd958982021ff06bbad9706848fe207bee4da64255b5f235d4b148111391a",
+      "originalObserverJsonSha256": "4a09084c827a2b1a5cc953d20b3c0d08cd708c278791f7b3a1a7285012f23de9"
+    },
+    {
+      "platform": "windows",
+      "originalArtifactId": 11947781603,
+      "originalZipBytes": 15700,
+      "originalZipSha256": "bc85135c32013723a78b5dd42a0238f8eb3a05b2a7e3dfd6ab02e05d7a2a3196",
+      "builderPid": 5528,
+      "consumerPid": 5080,
+      "observerPid": 6088,
+      "planCalls": 64,
+      "cpuMs": 31.25,
+      "wallMs": 28.489,
+      "allocatedBytes": 26239280,
+      "gen2Collections": 6,
+      "gcPauseMilliseconds": 2.672,
+      "managedHeapAfterIdleBytes": 1206656,
+      "sampledPrivateResidentPeakBytes": 8351744,
+      "sampledRssPeakBytes": 36519936,
+      "externalNativeSampleCount": 306,
+      "naturalIdleMilliseconds": 30301,
+      "originalTargetJsonSha256": "f9438b099e1c789e1a634de890597808476a83180ce109d614c1bd2f66d08930",
+      "originalObserverJsonSha256": "a54facbc67543a4dc8c645e42e5f06d2a18f5d291e24af28f512b4538b40ac00"
+    }
+  ],
+  "productVerdict": "NOT_QUALIFIED",
+  "decisionRunsAllowed": false,
+  "limitations": [
+    "Only one published DLL pair and one GitHub-hosted runner per OS; no representative corpus classes.",
+    "Both original manifests are single-CBLK; zero whole-chunk reuse, cannot qualify multi-block or partial reuse.",
+    "Plan batch lasted 29ms Windows / 105ms Linux, 100ms external observer can miss transient active-operation private-resident peak.",
+    "Raw NuGet download hashes match both hosts but are not independently authenticated or preregistered before download.",
+    "No lazy/hybrid candidate, R3 holdout or numerical CPU/memory adoption budget; historical DEFER unchanged."
+  ]
+}
