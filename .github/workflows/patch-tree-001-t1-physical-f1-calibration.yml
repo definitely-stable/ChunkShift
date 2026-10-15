@@ -153,7 +153,7 @@ jobs:
           set -euo pipefail
           echo "CORPUS_ROOT=$RUNNER_TEMP/patch-corpus" >> "$GITHUB_ENV"
           echo "EVIDENCE_DIR=$RUNNER_TEMP/patch-tree-f1-evidence" >> "$GITHUB_ENV"
-          mkdir -p "$RUNNER_TEMP/patch-tree-evidence"
+          mkdir -p "$RUNNER_TEMP/patch-tree-f1-evidence"
           python3 benchmarks/scripts/materialize_patch_corpus.py \
             --root "$RUNNER_TEMP/patch-corpus" \
             --sources "$HOME/patch-corpus/sources" \
@@ -161,10 +161,10 @@ jobs:
             --pairs-reference "$RUNNER_TEMP/pairs-reference/pairs.json"
           echo "$PAIRS_SHA256  $RUNNER_TEMP/patch-corpus/pairs.json" | sha256sum --check
           cp "$RUNNER_TEMP/patch-corpus/pairs.json" \
-            "$RUNNER_TEMP/patch-tree-evidence/original-pairs.json"
+            "$RUNNER_TEMP/patch-tree-f1-evidence/original-pairs.json"
           python3 benchmarks/scripts/patch_tree_001_inventory.py \
             --root "$RUNNER_TEMP/patch-corpus" \
-            --output "$RUNNER_TEMP/patch-tree-evidence/layouts.json" \
+            --output "$RUNNER_TEMP/patch-tree-f1-evidence/layouts.json" \
             --calibration-only
 
       - name: Build Release production SDK and calibration evaluator
@@ -235,15 +235,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/patch-tree-evidence"
-          printf 'UNVERIFIED_NOT_DECISION\nGitHubRunId=%s\nGitRef=%s\nGitSha=%s\n' "$GITHUB_RUN_ID" "$GITHUB_REF" "$GITHUB_SHA" > "$RUNNER_TEMP/patch-tree-evidence/UNVERIFIED-NOT-DECISION.txt"
+          mkdir -p "$RUNNER_TEMP/patch-tree-f1-evidence"
+          printf 'UNVERIFIED_NOT_DECISION\nGitHubRunId=%s\nGitRef=%s\nGitSha=%s\n' "$GITHUB_RUN_ID" "$GITHUB_REF" "$GITHUB_SHA" > "$RUNNER_TEMP/patch-tree-f1-evidence/UNVERIFIED-NOT-DECISION.txt"
 
       - name: Archive failed physical F1 trace (never decision evidence)
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: patch-tree-001-physical-f1-UNVERIFIED-diagnostics
-          path: ${{ runner.temp }}/patch-tree-evidence/
+          path: ${{ runner.temp }}/patch-tree-f1-evidence/
           if-no-files-found: warn
           retention-days: 14
 
@@ -252,6 +252,6 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: patch-tree-001-t1-physical-f1-calibration
-          path: ${{ runner.temp }}/patch-tree-evidence/
+          path: ${{ runner.temp }}/patch-tree-f1-evidence/
           if-no-files-found: error
           retention-days: 90
