@@ -1,0 +1,55 @@
+name: PATCH-EXEC-001 G1 pilot
+
+# Exploratory synthetic calibration only; no release/adoption decisions.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'benchmarks/scripts/run_patch_exec_001_pilot.py'
+      - 'benchmarks/scripts/test_run_patch_exec_001_pilot.py'
+      - 'docs/benchmarks/PATCH-EXEC-001-G1-PILOT.md'
+      - '.github/workflows/patch-exec-001-g1-pilot.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pilot:
+    name: synthetic-pilot-${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux-x64
+          - os: windows-2025
+            platform: windows-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 75
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - name: Unit tests
+        env:
+          PYTHONPATH: benchmarks/scripts
+        run: python -m unittest benchmarks/scripts/test_run_patch_exec_001_pilot.py benchmarks/scripts/test_compare_patch_batch_create.py
+      - name: Build
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release
+      - name: Pilot and exact patch validation
+        run: python benchmarks/scripts/run_patch_exec_001_pilot.py --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj --corpus '${{ runner.temp }}/patch-exec-g1-corpus' --output artifacts/patch-exec-g1 --files 12 --bytes 393216 --rounds 2
+      - name: Archive fully verified pilot
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-exec-001-g1-${{ matrix.platform }}
+          path: artifacts/patch-exec-g1/
+          if-no-files-found: error
+          retention-days: 14
