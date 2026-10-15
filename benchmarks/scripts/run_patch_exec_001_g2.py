@@ -66,7 +66,11 @@ def execute(args):
         for name, execution, outer in round_order(round_index):
             if args.modality == "cold-csm":
                 # CSM cache only; do not claim cleared OS page cache or disk.
-                shutil.rmtree(root / "work", ignore_errors=True)
+                work_dir = root / "work"
+                if work_dir.exists():
+                    shutil.rmtree(work_dir)
+                if work_dir.exists():
+                    raise ValueError("cold-csm manifest cache could not be removed")
             path = output / f"r{round_index}-{name}.json"
             run_command(runner_command(project, root, path, execution, outer, True, run_id))
             paths[name] = path
