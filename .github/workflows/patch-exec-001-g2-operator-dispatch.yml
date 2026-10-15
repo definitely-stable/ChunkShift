@@ -1,0 +1,84 @@
+name: PATCH-EXEC-001 G2-A operator dispatch
+
+# Exact-source, authorized issue-comment bridge; no implicit scheduling.
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: patch-exec-001-g2a-operator
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: >-
+      github.event.issue.number == 225 &&
+      github.event.issue.pull_request == null &&
+      github.event.comment.user.id == 271974079 &&
+      startsWith(github.event.comment.body, '/exec-g2a ')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OPERATOR_COMMAND: ${{ github.event.comment.body }}
+    steps:
+      - name: Authorize exact G2-A command and immutable source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import datetime as dt
+          import json
+          import os
+          import re
+          import subprocess
+
+          command = os.environ["OPERATOR_COMMAND"]
+          match = re.fullmatch(r"/exec-g2a (20[0-9]{6}) ([0-9a-f]{40})", command)
+          if match is None:
+              raise SystemExit("unexpected G2-A operator command")
+          run_date, commit = match.groups()
+          dt.datetime.strptime(run_date, "%Y%m%d")
+          repository = os.environ["GITHUB_REPOSITORY"]
+          if repository != "definitely-stable/ChunkShift":
+              raise SystemExit("unexpected repository")
+
+          def api(path):
+              return json.loads(subprocess.check_output(
+                  ["gh", "api", "repos/" + repository + "/" + path], text=True))
+
+          def main_head():
+              return api("branches/main")["commit"]["sha"]
+
+          if commit != os.environ["GITHUB_SHA"] or commit != main_head():
+              raise SystemExit("comment target, triggering SHA and main HEAD differ")
+          workflow = "patch-exec-001-g2-real-calibration.yml"
+          previous = api("actions/workflows/" + workflow +
+                         "/runs?event=workflow_dispatch&per_page=100")
+          if int(previous.get("total_count", 0)) > 100:
+              raise SystemExit("run history exceeds audited enumeration")
+          if any(run.get("status") != "completed" or
+                 run.get("conclusion") == "success"
+                 for run in previous.get("workflow_runs", [])):
+              raise SystemExit("G2-A already active or has an accepted completed workflow")
+
+          if commit != main_head():
+              raise SystemExit("main advanced before dispatch")
+          subprocess.run(
+              ["gh", "api", "--method", "POST",
+               "repos/" + repository + "/actions/workflows/" + workflow +
+               "/dispatches", "-f", "ref=main",
+               "-f", "inputs[run-date]=" + run_date,
+               "-f", "inputs[source-sha]=" + commit],
+              check=True)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as output:
+              output.write("PATCH-EXEC-001 G2-A authorized dispatch submitted\n"
+                           "Source: " + commit + "\n"
+                           "UTC date: " + run_date + "\n"
+                           "Original pairs reference: 38136336025\n"
+                           "This is not a performance/adoption verdict.\n")
+          PY
