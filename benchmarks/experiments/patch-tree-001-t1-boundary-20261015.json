@@ -135,14 +135,6 @@
       "changedFilesWithT1LessReuse": 10
     }
   ],
-  "oldPhysicalCalibration": {
-    "runId": 38142160679,
-    "t0WarmBytes": 14758982,
-    "t0SBytes": 13143287,
-    "t1WarmBytes": 83593822,
-    "t1ColdBytes": 83966486,
-    "disposition": "ACCEPTED_CALIBRATION_ONLY_NOT_HOLDOUT"
-  },
   "interpretation": {
     "preservedSameOffsetShare": 0.7548730284145599,
     "oldCrossBoundaryByteShare": 0.18314710001357132,
@@ -158,5 +150,65 @@
     "Source materialization is preregistered calibration only, not a sealed holdout.",
     "Byte counts are occurrence-based, not independently selected transmitted payload savings.",
     "No CSP, CSM, SDK, public API or default changes; no ADOPT."
-  ]
+  ],
+  "originalPhysicalCalibration": {
+    "runId": 38142160679,
+    "t0WarmBytes": 14758982,
+    "t0SBytes": 13143287,
+    "t1WarmBytes": 83593822,
+    "t1ColdBytes": 83966486,
+    "disposition": "ACCEPTED_CALIBRATION_ONLY_NOT_HOLDOUT",
+    "originalArtifactId": 11703153269,
+    "originalArtifactUrl": "https://github.com/definitely-stable/ChunkShift/actions/runs/38142160679/artifacts/11703153269",
+    "originalZipSha256": "e5707a7334ebc909486945edaf3eed8832a121b715ba5e9cd1354e2447865812",
+    "physicalCalibrationJsonSha256": "d0de7fb182cc15bd590b1335c92705d464764fab0cdfc021ad9f31928e2d5b5c",
+    "identicalFrozenPairsAndLayoutsBytesAcrossRuns": true,
+    "rowJoinKeys": [
+      "family",
+      "baseVersion",
+      "targetVersion",
+      "path",
+      "kind"
+    ],
+    "pairManifestIdsEqualAcrossRuns": true,
+    "allPerFilePhysicalDeltaBytesReconcile": true
+  },
+  "matchedPhysicalAttribution": {
+    "description": "Post-hoc source-locked observational join of prior original physical T0/T1 calibration and new original boundary diagnostic, not an isolated codec mechanism/causal experiment.",
+    "populations": [
+      {
+        "kind": "changed_exact_equal",
+        "files": 981,
+        "targetBytes": 293057043,
+        "t0ExactBytes": 105340649,
+        "t1ExactBytes": 105340649,
+        "t0PhysicalBytes": 11514584,
+        "t1PhysicalBytes": 73518267,
+        "t1MinusT0PhysicalBytes": 62003683
+      },
+      {
+        "kind": "changed_exact_loss",
+        "files": 68,
+        "targetBytes": 100066792,
+        "t0ExactBytes": 82065822,
+        "t1ExactBytes": 75429329,
+        "t0PhysicalBytes": 345690,
+        "t1PhysicalBytes": 9085396,
+        "t1MinusT0PhysicalBytes": 8739706
+      },
+      {
+        "kind": "added",
+        "files": 2,
+        "targetBytes": 2713272,
+        "t0ExactBytes": 0,
+        "t1ExactBytes": 682844,
+        "t0PhysicalBytes": 2713272,
+        "t1PhysicalBytes": 804723,
+        "t1MinusT0PhysicalBytes": -1908549
+      }
+    ],
+    "totalPhysicalDeltaBytes": 68834840,
+    "changedEqualExactContributionShareOfNetPhysicalDelta": 0.9007601819078827,
+    "interpretation": "The 981 changed files whose exact chunk availability is identical account for +62,003,683 physical bytes, or 90.08% of the net T1-vs-T0 regression. Equal exact availability is not equal actual reference selection or compressed PAYL effectiveness; isolate physical frame/dictionary selection next."
+  }
 }
