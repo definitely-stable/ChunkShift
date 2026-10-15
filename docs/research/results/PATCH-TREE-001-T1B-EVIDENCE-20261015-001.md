@@ -98,7 +98,8 @@ The prior physical run used `main@913e81ed00b877db4f8d77b3c5dbe9455793f3eb` / .N
 
 **Do not rewrite the candidate algorithm yet.** Prepare a separately frozen, **calibration-only**, H0/T0/T1 same-source physical reconciliation, keyed by original unchanged file identities and exact frozen policy:
 
-- Prioritize the 981 **equal-exact-availability** files responsible for +62.00 MB of regression; avoid further boundary-only retuning until physical codec effects have been reconciled.\n- For every changed/added file: actual PAYL/PIDX/target CSM and base metadata contributions, each physical frame's compressed byte length, selected dictionary identity and source occurrence, candidate ordering, unmatched target chunks, bytes read/seeked from the virtual base.
+- Prioritize the 981 **equal-exact-availability** files responsible for +62.00 MB of regression; avoid further boundary-only retuning until physical codec effects have been reconciled.
+- For every changed/added file: actual PAYL/PIDX/target CSM and base metadata contributions, each physical frame's compressed byte length, selected dictionary identity and source occurrence, candidate ordering, unmatched target chunks, bytes read/seeked from the virtual base.
 - Verify `sum(per-file physical components) + shared metadata == exact original T0/T1 totals`; no unaccounted bytes or synthetic reconstruction of physical cost.
 - Distinguish **(i)** exact old-target chunk availability, **(ii)** actual chosen reuse/dictionary, **(iii)** zstd frame effectiveness and **(iv)** additional cross-file references; avoid asserting that an available chunk was actually selected.
 - Add the smallest fixed deterministic instrumentation/replay necessary; no hot-loop/product change, no candidate retuning, no new CSP encoding.
