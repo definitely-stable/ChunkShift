@@ -77,7 +77,7 @@ def choose_pairs(document, role):
             if len(eligible) < quota:
                 raise ValueError(f"{family}: insufficient untouched bin {lower}:{upper}")
             selected.extend(eligible[:quota])
-        if len({r["path"] for r in selected}) != 8:
+        if len({r["path"] for r in selected}) != sum(quota for _, _, quota in BINS):
             raise ValueError(f"{family}: duplicate selected paths")
         chosen.append({
             "family": family, "base": pair["base"], "target": pair["target"],
