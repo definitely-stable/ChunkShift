@@ -56,6 +56,10 @@ internal static class PatchTreeCalibration
         string? root = PatchLabArguments.Value(args, "--corpus");
         string? inventory = PatchLabArguments.Value(args, "--inventory");
         string? output = PatchLabArguments.Value(args, "--output");
+        string? f1Directory = PatchLabArguments.Value(args, "--f1-dir");
+        string? f1Output = PatchLabArguments.Value(args, "--f1-output");
+        if ((f1Directory is null) != (f1Output is null))
+            throw new PatchLabUsageException("--f1-dir and --f1-output must be supplied together.");
         if (root is null || inventory is null || output is null)
             throw new PatchLabUsageException("patch-lab tree-calibration requires --corpus, --inventory and --output; calibration only.");
 
@@ -85,11 +89,17 @@ internal static class PatchTreeCalibration
                 original.GetProperty("base").GetString() != current.BaseVersion ||
                 original.GetProperty("target").GetString() != current.TargetVersion)
                 throw new InvalidDataException("Inventory/calibration pairs alignment mismatch.");
-            pairResults.Add(RunPairAsync(root, current, original).GetAwaiter().GetResult());
+            pairResults.Add(RunPairAsync(root, current, original, f1Directory).GetAwaiter().GetResult());
         }
 
         if (pairResults.Count == 0)
             throw new InvalidDataException("Calibration population is empty.");
+        if (f1Directory is not null)
+        {
+            PatchTreeF1Evidence.Summary evidence = PatchTreeF1Evidence.VerifyAndSummarize(
+                f1Directory, [.. pairResults], PatchLabArguments.Value(args, "--run-id"));
+            PatchLabRunner.WriteJson(f1Output!, evidence);
+        }
         PatchLabRunner.WriteJson(output, new Result(ResultSchema,
             "CALIBRATION_ONLY_NOT_DECISION", FrozenPairsSha256,
             PatchLabArguments.Value(args, "--run-id"),
@@ -176,7 +186,8 @@ internal static class PatchTreeCalibration
                        checked((baseCsmBytes ?? 0) + (baseLayoutBytes ?? 0)));
     }
 
-    internal static async Task<PairResult> RunPairAsync(string corpusRoot, Pair p, JsonElement original)
+    internal static async Task<PairResult> RunPairAsync(
+        string corpusRoot, Pair p, JsonElement original, string? f1Directory = null)
     {
         // Strict original pair checksum/ordering and the Python inventory gate are
         // prerequisites. Refuse direct test/lab callers with forged layout headers
@@ -317,6 +328,17 @@ internal static class PatchTreeCalibration
                             throw new InvalidDataException("T0 exact reconstruction failure: " + pairLabel + "/" + file.Path);
                     }
                     t0Apply = sw.Elapsed.TotalSeconds;
+                    if (f1Directory is not null)
+                    {
+                        await using var oldFileForTrace = File.OpenRead(oldFilePath);
+                        // Observe the actual public CSP, independently re-encoding
+                        // with a traced H0 path and requiring byte-identical SHA.
+                        await PatchTreeF1Evidence.CaptureAsync(
+                            f1Directory, p.Family, p.BaseVersion, p.TargetVersion,
+                            file.Path, "T0", patchT0, oldFileCsm,
+                            oldFileForTrace, targetCsm, target,
+                            Path.Combine(temporary, "f1-t0-" + rows.Count + ".csp"));
+                    }
                 }
                 else
                 {
@@ -394,6 +416,17 @@ internal static class PatchTreeCalibration
                     oldTree.BytesRead - baseBytesBefore,
                     oldTree.SeekCalls - baseSeeksBefore,
                     targetCsmSeconds, t0BaseCsmSeconds, t0sCreate, t0sApply));
+                // Record T1 create+apply reads above, before this separate untimed
+                // forensic pass touches the same verified old-tree source.
+                if (f1Directory is not null)
+                {
+                    await PatchTreeF1Evidence.CaptureAsync(
+                        f1Directory, p.Family, p.BaseVersion, p.TargetVersion,
+                        file.Path, "T1", patchT1, oldCsmPath, oldTree,
+                        targetCsm, target,
+                        Path.Combine(temporary, "f1-t1-" + rows.Count + ".csp"),
+                        p.Base.Files);
+                }
             }
 
             // Full path map includes unchanged files; absence of removed paths
