@@ -122,6 +122,7 @@ jobs:
           dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
           dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
           python3 benchmarks/scripts/test_prepare_patch_exec_001_g2.py
+          python3 benchmarks/scripts/test_run_patch_exec_001_g2.py
 
       - name: Five full rounds and independent exact CSP oracle
         shell: bash
