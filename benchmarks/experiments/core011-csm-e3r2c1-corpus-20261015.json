@@ -8,7 +8,7 @@
   "originalActionsSyntheticMergeCheckout": "5313b65db73dcd4041734c267046ca78c4cf5129",
   "actualPrImplementationHead": "8934ac2c2971d632993c76f32d26631d8d796fff",
   "originalProductionReaderSha256": "a62772638c715005cb8a1a6ca58222349755a7e21a341ff80655a825910cebf2",
-  "evidenceMethod": "Independent SHA256 of original GitHub Actions ZIPs matched workflow upload digest, original ZIP CRC verified, each physical base/target CSM and target/observer JSON separately SHA256 recomputed, native max and phase sample count recomputed from every original trace, 18 unique process PIDs per host and source file absence checked.",
+  "evidenceMethod": "Independent SHA256 of original GitHub Actions ZIPs matched workflow upload digest, original ZIP CRC verified, each physical base/target CSM and target/observer JSON separately SHA256 recomputed, native max and phase sample count recomputed from every original trace, 18 unique process PIDs per host and source file absence checked. Original per-case target and observer JSON SHA256 and 348 full native samples per OS case archived in the machine-readable evidence ledger.",
   "cases": [
     {
       "key": "roslyn-releases",
@@ -127,42 +127,60 @@
           "externalSampledPrivateResidentMaximumBytes": 19259392,
           "activeNativeSampleCount": 42,
           "publicPlanCallCount": 39487,
-          "activeCpuMilliseconds": 4802.992
+          "activeCpuMilliseconds": 4802.992,
+          "originalTargetJsonSha256": "d5433881bb9e0d8afb56e570b9f96dc97e9b76916d3299f493a5e1bb9b9a7ab1",
+          "originalObserverJsonSha256": "2571c1918c2281d3b662a441edf00c1f732d4c807649f833d5531c184615c130",
+          "externalTotalNativeSamples": 348
         },
         {
           "key": "newtonsoft-releases",
           "externalSampledPrivateResidentMaximumBytes": 19087360,
           "activeNativeSampleCount": 42,
           "publicPlanCallCount": 70408,
-          "activeCpuMilliseconds": 4679.022
+          "activeCpuMilliseconds": 4679.022,
+          "originalTargetJsonSha256": "67e4cf9558ff6f6fec6ebd659115c8dfd0db44c760f3629ed5ec2defc4581306",
+          "originalObserverJsonSha256": "8aacc82ce708344219a9ef47d873a9f2097cc625a8a74af68ff614828930c60f",
+          "externalTotalNativeSamples": 348
         },
         {
           "key": "roslyn-identical",
           "externalSampledPrivateResidentMaximumBytes": 18579456,
           "activeNativeSampleCount": 41,
           "publicPlanCallCount": 45393,
-          "activeCpuMilliseconds": 4651.656
+          "activeCpuMilliseconds": 4651.656,
+          "originalTargetJsonSha256": "55980de32a5028707981895bbcc2d9b1fec3fa0444f132b26a80657dc596755b",
+          "originalObserverJsonSha256": "50d5ab22bb615b52b1ebeb1267beb5cc822a039d1a503b6d867efcae4a77eed5",
+          "externalTotalNativeSamples": 348
         },
         {
           "key": "roslyn-tail-insert",
           "externalSampledPrivateResidentMaximumBytes": 18984960,
           "activeNativeSampleCount": 42,
           "publicPlanCallCount": 43922,
-          "activeCpuMilliseconds": 4656.523
+          "activeCpuMilliseconds": 4656.523,
+          "originalTargetJsonSha256": "4d7856a3dbbb68faec4ee74ca38f87ff740d99605651d9558006c6ef46831373",
+          "originalObserverJsonSha256": "4ccd1b0772f82065eb19c784616655f1fc443f3405a9b2b72277290038c79e6b",
+          "externalTotalNativeSamples": 348
         },
         {
           "key": "roslyn-tail-delete",
           "externalSampledPrivateResidentMaximumBytes": 19144704,
           "activeNativeSampleCount": 42,
           "publicPlanCallCount": 43589,
-          "activeCpuMilliseconds": 4674.683
+          "activeCpuMilliseconds": 4674.683,
+          "originalTargetJsonSha256": "158e9aeb45c045555c63ad33a765a0898a1307e8f123b49195ee9d44c9ea976c",
+          "originalObserverJsonSha256": "2b5eedd899c4706c0f2db3efc8221e92126642bffddc6ab5e511e0a50dfed8a6",
+          "externalTotalNativeSamples": 348
         },
         {
           "key": "roslyn-composite64",
           "externalSampledPrivateResidentMaximumBytes": 21614592,
           "activeNativeSampleCount": 42,
           "publicPlanCallCount": 2494,
-          "activeCpuMilliseconds": 4623.353
+          "activeCpuMilliseconds": 4623.353,
+          "originalTargetJsonSha256": "f043ab9b9dbbc1239efd8c4e0c7a164de8a53078178782ddb17d044219bc78cf",
+          "originalObserverJsonSha256": "09ee9256ecbae8e1d61abc29847632af05a7648ffb2f40cafe25fb4f72c64e04",
+          "externalTotalNativeSamples": 348
         }
       ]
     },
@@ -209,42 +227,60 @@
           "externalSampledPrivateResidentMaximumBytes": 14745600,
           "activeNativeSampleCount": 41,
           "publicPlanCallCount": 31569,
-          "activeCpuMilliseconds": 4437.5
+          "activeCpuMilliseconds": 4437.5,
+          "originalTargetJsonSha256": "70fa18579aae1ec654faac8bae4952fa248e5eff8084d44880f549579c6dc2ad",
+          "originalObserverJsonSha256": "519d9d20cbe20f3a7b8e30625c6d9afb6d4aa8acd1df4303bc3a4e075e206b66",
+          "externalTotalNativeSamples": 348
         },
         {
           "key": "newtonsoft-releases",
           "externalSampledPrivateResidentMaximumBytes": 14442496,
           "activeNativeSampleCount": 41,
           "publicPlanCallCount": 66723,
-          "activeCpuMilliseconds": 4703.12
+          "activeCpuMilliseconds": 4703.12,
+          "originalTargetJsonSha256": "a948bd41fbd4296049dfe93eea91994f334c43c8d327048a78dded473f0dfe8b",
+          "originalObserverJsonSha256": "463e691d8b30dfae8f2a542dfc22dfc67a933647344f67dcd7ba32c908bd78fb",
+          "externalTotalNativeSamples": 348
         },
         {
           "key": "roslyn-identical",
           "externalSampledPrivateResidentMaximumBytes": 14225408,
           "activeNativeSampleCount": 41,
           "publicPlanCallCount": 44514,
-          "activeCpuMilliseconds": 4765.62
+          "activeCpuMilliseconds": 4765.62,
+          "originalTargetJsonSha256": "ba6ab27acabc39afe315d5a8c0f5c51c120a26853c1271333d9ef57cb386c75a",
+          "originalObserverJsonSha256": "5854eacfed39eb2a017370b875e0fde9a4318f826fd740bb7ef8c84154b9f538",
+          "externalTotalNativeSamples": 348
         },
         {
           "key": "roslyn-tail-insert",
           "externalSampledPrivateResidentMaximumBytes": 14999552,
           "activeNativeSampleCount": 42,
           "publicPlanCallCount": 43161,
-          "activeCpuMilliseconds": 4718.75
+          "activeCpuMilliseconds": 4718.75,
+          "originalTargetJsonSha256": "e622b96764963ce51be2022f1676e1ca98cd0e734a1b434ee118a9bcdeef4915",
+          "originalObserverJsonSha256": "8b9921adc1b5a6baeec51e720df4c62846feff2592166d582aad2388b608d20a",
+          "externalTotalNativeSamples": 348
         },
         {
           "key": "roslyn-tail-delete",
           "externalSampledPrivateResidentMaximumBytes": 14606336,
           "activeNativeSampleCount": 42,
           "publicPlanCallCount": 43011,
-          "activeCpuMilliseconds": 4765.62
+          "activeCpuMilliseconds": 4765.62,
+          "originalTargetJsonSha256": "767e66c820300774eb83e00ab45e2f73d1070a8d5bc3bc5983da8d6095af04c4",
+          "originalObserverJsonSha256": "a4fabda441eab0d9dcc39bf519239652c8a4c4aede3713d23aa9c25247512527",
+          "externalTotalNativeSamples": 348
         },
         {
           "key": "roslyn-composite64",
           "externalSampledPrivateResidentMaximumBytes": 18296832,
           "activeNativeSampleCount": 42,
           "publicPlanCallCount": 2295,
-          "activeCpuMilliseconds": 4671.88
+          "activeCpuMilliseconds": 4671.88,
+          "originalTargetJsonSha256": "6ea0d30b22e01b75b2b8ad42768b1217d5f05103e11655cd071f9b48d6ef11ea",
+          "originalObserverJsonSha256": "d9619804f58a6c6e9911320f002dce76a324868765fbe1f032ce275881de23fb",
+          "externalTotalNativeSamples": 348
         }
       ]
     }
