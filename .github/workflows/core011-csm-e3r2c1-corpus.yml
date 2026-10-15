@@ -1,0 +1,104 @@
+name: CORE011 CSM E3-R2C1 real-derived reuse and multiblock
+
+on:
+  pull_request:
+    branches:
+      - research/core011-csm-004-e3r2c0-real-plan-evidence
+      - main
+    paths:
+      - ".github/workflows/core011-csm-e3r2c1-corpus.yml"
+      - "docs/benchmarks/CORE011-CSM-004-E3-R2C1-CORPUS.md"
+      - "benchmarks/ChunkShift.Benchmarks/CsmE3R2c1CorpusHarness.cs"
+      - "benchmarks/ChunkShift.Benchmarks/Program.cs"
+      - "benchmarks/experiments/core011-csm-e3r2c1-corpus.v1.json"
+      - "benchmarks/scripts/core011_csm_e3r2c1.py"
+      - "benchmarks/scripts/test_core011_csm_e3r2c1.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-locked-real-and-real-derived:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ubuntu-24.04
+            platform: linux
+            python: python3
+          - image: windows-2025
+            platform: windows
+            python: python
+    name: E3 R2-C1 preregistered six-case ${{ matrix.platform }}
+    runs-on: ${{ matrix.image }}
+    timeout-minutes: 42
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - name: Checkout complete source history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Pin .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Enforce research-only reader source guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only origin/research/core011-csm-004-e3r2c0-real-plan-evidence...HEAD > "$RUNNER_TEMP/e3r2c1-scope.txt"
+          while IFS= read -r file; do
+            echo "$file"
+            case "$file" in
+              .github/workflows/core011-csm-e3r2c1-corpus.yml|docs/benchmarks/CORE011-CSM-004-E3-R2C1-CORPUS.md|benchmarks/ChunkShift.Benchmarks/CsmE3R2c1CorpusHarness.cs|benchmarks/ChunkShift.Benchmarks/Program.cs|benchmarks/experiments/core011-csm-e3r2c1-corpus.v1.json|benchmarks/scripts/core011_csm_e3r2c1.py|benchmarks/scripts/test_core011_csm_e3r2c1.py) ;;
+              *) echo "E3-R2C1 NONRESEARCH/PRODUCTION path: $file" >&2; exit 1 ;;
+            esac
+          done < "$RUNNER_TEMP/e3r2c1-scope.txt"
+          test -z "$(git diff --name-only origin/research/core011-csm-004-e3r2c0-real-plan-evidence...HEAD -- src/ tests/ Directory.Packages.props)"
+      - name: Negative tests and historical E3-R0 NO DECISION guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          ${{ matrix.python }} -m py_compile benchmarks/scripts/core011_csm_e3r2c1.py benchmarks/scripts/test_core011_csm_e3r2c1.py
+          ${{ matrix.python }} -m unittest -v benchmarks/scripts/test_core011_csm_e3r2c1.py
+          ${{ matrix.python }} benchmarks/scripts/core011_csm_e3_guard.py
+          if ${{ matrix.python }} benchmarks/scripts/core011_csm_e3_guard.py --decision-ready; then
+            echo "ERROR: original E3-R0 sealed decision gate changed" >&2
+            exit 1
+          fi
+      - name: Independently build six SHA-frozen original and openly derived source/CSM pairs then externally observe public Plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          short=$(git rev-parse --short=8 HEAD)
+          rid="CORE011-CSM-004/RUN-$(date -u +%Y%m%d)-$GITHUB_RUN_ID-$short-${{ matrix.platform }}-x64"
+          ${{ matrix.python }} benchmarks/scripts/core011_csm_e3r2c1.py \
+            --output-dir "$RUNNER_TEMP/e3r2c1" \
+            --platform ${{ matrix.platform }} --run-id "$rid"
+          ${{ matrix.python }} - "$RUNNER_TEMP/e3r2c1/summary.json" <<'PY'
+          import json,sys,os
+          data=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert data["decisionRunsAllowed"] is False and data["budgetsLocked"] is False
+          assert data["productVerdict"]=="NOT_QUALIFIED" and data["uniqueProcessIdentities"]==18
+          assert len(data["cases"])==6
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
+            print("## E3-R2C1 source-locked real + real-derived technical calibration",file=out)
+            print("| Case | Source class | Target CBLK | Reused chunks | Active native points | Sampled private high-water MiB |",file=out)
+            print("|---|---|---:|---:|---:|---:|",file=out)
+            for x in data["cases"]:
+              print("| "+x["case"]+" | "+x["sourceClass"]+" | "+str(x["targetCblkCount"])+
+                    " | "+str(x["reusedChunks"])+" | "+str(x["externalActivePlanSamples"])+
+                    " | "+str(round(x["externalPrivateResidentSampledMaximumBytes"]/1048576,3))+" |",file=out)
+            print("No candidate, no representative real versioned mixed-reuse claim, no R3/adoption decision.",file=out)
+          PY
+      - name: Archive original raw CSM, trace JSON, provenance and fail logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core011-e3r2c1-${{ matrix.platform }}
+          path: ${{ runner.temp }}/e3r2c1/
+          if-no-files-found: warn
+          retention-days: 90
