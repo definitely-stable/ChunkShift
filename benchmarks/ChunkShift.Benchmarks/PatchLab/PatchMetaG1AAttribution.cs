@@ -19,7 +19,8 @@ internal static class PatchMetaG1AAttribution
         string corpusRoot, string family, string baseVersion,
         string targetVersion, string path, string workDirectory,
         string patchPath, string observationPath,
-        CspEncoderPolicy policy, CspCreateExecution execution)
+        CspEncoderPolicy policy, CspCreateExecution execution,
+        bool enableMetaProbe = false)
     {
         Stopwatch total = Stopwatch.StartNew();
         var baseProbe = new PatchLabManifestProbe();
@@ -35,6 +36,7 @@ internal static class PatchMetaG1AAttribution
             CancellationToken.None, targetProbe).ConfigureAwait(false);
 
         var stats = new CspCreateStatistics();
+        CspMetaResearchProbe? metaProbe = enableMetaProbe ? new CspMetaResearchProbe() : null;
         long baseBytes = 0, targetBytes = 0, baseManifestBytes = 0, targetManifestBytes = 0;
         long baseReads = 0, targetReads = 0, baseSeeks = 0, targetSeeks = 0;
         double builderWallSeconds, builderCpuSeconds;
@@ -60,7 +62,7 @@ internal static class PatchMetaG1AAttribution
             patchInfo = await CspPatchBuilder.CreateAsync(
                 countedBaseManifest, countedBase, countedTargetManifest,
                 countedTarget, destination, policy,
-                execution with { Statistics = stats },
+                execution with { Statistics = stats, MetaResearchProbe = metaProbe },
                 CancellationToken.None).ConfigureAwait(false);
 
             builderWallSeconds = buildClock.Elapsed.TotalSeconds;
@@ -126,6 +128,16 @@ internal static class PatchMetaG1AAttribution
             targetManifestReadBytes = targetManifestBytes,
             baseCandidateCacheLoads = stats.CacheLoads,
             baseCandidateCacheHits = stats.CacheHits,
+            // G1B2A: opt-in consumed-stage observations, NULL when disabled.
+            // Worker stopwatch durations may overlap; these are NOT critical-path seconds.
+            metaProbeEnabled = enableMetaProbe,
+            metaBaseManifestSeconds = metaProbe?.BaseManifestSeconds,
+            metaTargetManifestSeconds = metaProbe?.TargetManifestSeconds,
+            metaCandidateSearchWorkerSeconds = metaProbe?.CandidateSearchWorkerSeconds,
+            metaCandidateSearchCalls = metaProbe?.CandidateSearchCalls,
+            metaCandidateStarts = metaProbe?.CandidateStarts,
+            metaBaseRecords = metaProbe?.BaseRecords,
+            metaUniqueBaseIds = metaProbe?.UniqueBaseIds,
             outputPatchBytes = new FileInfo(patchPath).Length,
             patchPhysicalBytes = patchInfo.PhysicalLength,
             patchSha256,
