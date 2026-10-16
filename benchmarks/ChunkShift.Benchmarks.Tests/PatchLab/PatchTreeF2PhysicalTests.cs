@@ -49,6 +49,10 @@ public sealed class PatchTreeF2PhysicalTests
                 Assert.True(lane.ExactApplyVerified);
                 Assert.True(lane.PhysicalBytes > 0);
                 Assert.Equal(lane.PhysicalBytes, lane.ReconciledPhysicalBytes);
+                Assert.Equal(lane.PhysicalBytes, lane.RawStoredBytes +
+                    lane.ZstdStoredBytes + lane.PayloadMetadataBytes +
+                    lane.IndexBytes + lane.OtherPhysicalBytes);
+                Assert.True(lane.PayloadEntries >= 0);
                 Assert.Equal(64, lane.CspSha256.Length);
                 Assert.True(lane.CreateMilliseconds >= 0);
                 Assert.True(lane.ApplyMilliseconds >= 0);
