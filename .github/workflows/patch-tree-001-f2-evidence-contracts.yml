@@ -1,0 +1,53 @@
+name: PATCH-TREE-001 F2 source-lock and evidence contracts
+
+# PR-only synthetic verifier and .NET evidence gate, never original data.
+on:
+  pull_request:
+    paths:
+      - "benchmarks/ChunkShift.Benchmarks/PatchLab/Tree/PatchTreeF2Evidence.cs"
+      - "benchmarks/ChunkShift.Benchmarks/PatchLab/Tree/PatchTreeCalibration.cs"
+      - "benchmarks/ChunkShift.Benchmarks.Tests/PatchLab/PatchTreeF2EvidenceTests.cs"
+      - "benchmarks/scripts/verify_patch_tree_001_f2.py"
+      - "benchmarks/scripts/test_verify_patch_tree_001_f2.py"
+      - ".github/workflows/patch-tree-001-f2-real-calibration.yml"
+      - ".github/workflows/patch-tree-001-f2-evidence-contracts.yml"
+      - "docs/benchmarks/PATCH-TREE-001-F2-REAL-CALIBRATION.md"
+
+permissions:
+  contents: read
+
+jobs:
+  python-gates:
+    name: F2 negative independent evidence replay fixtures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Compile and run synthetic independent F2 replay guards
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/scripts/verify_patch_tree_001_f2.py benchmarks/scripts/test_verify_patch_tree_001_f2.py
+          python -m unittest benchmarks/scripts/test_verify_patch_tree_001_f2.py -v
+          echo "Only synthetic verifier fixtures passed; real calibration NOT RUN." >> "$GITHUB_STEP_SUMMARY"
+
+  dotnet-gates:
+    name: F2 source-locked evidence C# synthetic fixtures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Build and run F2 evidence gate synthetic tests
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+          dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj \
+            -c Release --no-build --no-restore \
+            --filter FullyQualifiedName~PatchTreeF2EvidenceTests
+          echo "Original corpus and sealed holdout remain untouched." >> "$GITHUB_STEP_SUMMARY"
