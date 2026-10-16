@@ -101,6 +101,12 @@ public static class CdcMeanMatchAudit
         string planSha256 = "in-memory",
         string runSha256 = "in-memory")
     {
+        if (run.SchemaVersion != LabRunner.SchemaVersion)
+        {
+            throw new InvalidOperationException(
+                $"Unsupported lab run schema {run.SchemaVersion}; expected {LabRunner.SchemaVersion}.");
+        }
+
         ValidatePlan(plan);
 
         Dictionary<string, ExperimentResult> byId = run.Results.ToDictionary(
