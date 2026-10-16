@@ -73,6 +73,13 @@ internal sealed class PatchTreeF2AlignedCandidates
         return result;
     }
 
+    // Synthetic-only adapter: the production CSM supplies the authoritative
+    // ordered BaseRecord sequence; tests cannot forge a production manifest.
+    internal IReadOnlyList<int> ProbeOffsets(
+        (long Offset, int Length)[] records, long relativeTargetOffset) =>
+        Select(records.Select(r => new CspPatchBuilder.BaseRecord(
+            r.Offset, r.Length, default)).ToArray(), relativeTargetOffset);
+
     private static long Distance(long x, long y) => x >= y ? x - y : y - x;
 
     private static int FirstAtOrAbove(
