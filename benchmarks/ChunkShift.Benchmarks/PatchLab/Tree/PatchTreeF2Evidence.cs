@@ -146,7 +146,7 @@ internal static class PatchTreeF2Evidence
             }
         }
         if (changed != 1049 || added != 2 || records.Count != 1051 ||
-            Directory.GetFiles(directory, "*.json").Length != observedNames.Count ||
+            Directory.GetFileSystemEntries(directory).Length != observedNames.Count ||
             t0Warm != HistoricalT0Warm || t1Warm != HistoricalT1Warm)
             throw new InvalidDataException(
                 "F2 frozen real source population or original T0/T1 size drift.");
