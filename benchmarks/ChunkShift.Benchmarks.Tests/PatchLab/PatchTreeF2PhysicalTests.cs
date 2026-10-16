@@ -166,6 +166,31 @@ public sealed class PatchTreeF2PhysicalTests
     }
 
     [Fact]
+    public void OversizedDictionaryDoesNotConsumeOneOfEightEligibleCandidateSlots()
+    {
+        const int firstApp = 100;
+        const int appLength = 1_100_000;
+        var files = new[] {
+            new VerifiedTreeStream.TreeFile("prefix", 0, firstApp, new string('0', 64)),
+            new VerifiedTreeStream.TreeFile("app", firstApp, appLength, new string('0', 64))
+        };
+        var locator = new PatchTreeF2AlignedCandidates(files, "app");
+        (long Offset, int Length)[] csmRecords = [
+            (0, firstApp),
+            (100, 150_000),
+            (150_100, 400_000),
+            (550_100, 400_000),
+            (950_100, 150_000)
+        ];
+        int[] selected = locator.ProbeOffsets(csmRecords, 0).ToArray();
+        // Start at 100: four chunks total 1.1 MiB > allowed 1 MiB.
+        Assert.DoesNotContain(1, selected);
+        // Next start stays in the file and its three chunks total 950 kB.
+        Assert.Contains(2, selected);
+        Assert.Equal(selected.Length, selected.Distinct().Count());
+    }
+
+    [Fact]
     public void NoMatchingFileAndInvalidLayoutsAreFailClosed()
     {
         var layout = new[] {
