@@ -80,9 +80,25 @@ internal sealed class PatchTreeF2AlignedCandidates
             // supposedly nearest eligible starts could all be rejected later
             // by TryMeasureCandidate and the locality test would be vacuous.
             long dictionaryBytes = 0;
+            long expected = start;
+            bool complete = true;
             for (int i = candidate; i < candidate + count; i++)
-                dictionaryBytes = checked(dictionaryBytes + records[i].Length);
-            if (dictionaryBytes > CspDictionary.MaximumBytes)
+            {
+                var record = records[i];
+                if (record.Length <= 0 || record.Offset != expected)
+                {
+                    complete = false;
+                    break;
+                }
+                expected = checked(expected + record.Length);
+                if (expected > fileEnd)
+                {
+                    complete = false;
+                    break;
+                }
+                dictionaryBytes = checked(dictionaryBytes + record.Length);
+            }
+            if (!complete || dictionaryBytes > CspDictionary.MaximumBytes)
                 continue;
 
             result.Add(candidate);
