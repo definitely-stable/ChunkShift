@@ -139,7 +139,7 @@ def replay(summary_file, calibration_file, pairs_file, observation_dir):
             warm["nodict"] += row["noDictionaryPhysicalBytes"]
     need(idx == len(files) == 1051 and changed == summary["changedCount"] == 1049 and
          added == summary["addedCount"] == 2, "incomplete original F2 physical population")
-    need({p.name for p in folder.glob("*.json")} == observed,
+    need({p.name for p in folder.iterdir()} == observed,
          "unexpected or missing F2 sidecar")
     need((warm["t0"], warm["t1"]) == BASE and
          warm["t0"] == summary["t0WarmBytes"] and
