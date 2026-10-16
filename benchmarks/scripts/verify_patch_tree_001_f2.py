@@ -7,9 +7,18 @@ real CSP analysis sidecars. No materialization or sealed holdout is performed.
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 
-LOCK = "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537bfb910fd22dd"
+# PATCH-TREE-001 F2 first-attempt original-data replay must share the frozen,
+# fully-qualified 64-digit source lock with the already accepted T0/T1 verifier.
+# The original F2 run #38888000986 computed all 1051 CSPs but was rejected by
+# a transcription error in the former 63-digit literal. Keep the source of
+# truth in the preregistered corpus lock, never a copied partial digest.
+CORPUS_LOCK = Path(__file__).resolve().parents[2] / "docs/benchmarks/patch-corpus/corpus-lock.json"
+LOCK = json.loads(CORPUS_LOCK.read_text(encoding="utf-8"))["pairsSha256"]
+if re.fullmatch(r"[0-9a-f]{64}", LOCK) is None:
+    raise ValueError("F2 frozen original pairs digest must be 64 lowercase hex digits")
 SCHEMA = "chunkshift.patch-tree-f2-physical-calibration.v1"
 STATUS = "CALIBRATION_ONLY_PHYSICAL_NOT_DECISION_NO_ADOPT"
 OBS_SCHEMA = "chunkshift.patch-tree-f2-physical-foundation.v1"
