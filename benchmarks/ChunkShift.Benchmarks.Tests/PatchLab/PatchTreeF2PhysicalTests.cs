@@ -191,6 +191,32 @@ public sealed class PatchTreeF2PhysicalTests
     }
 
     [Fact]
+    public void GappedOrNonpositiveCsmRecordWindowIsNeverUsedAsADictionary()
+    {
+        var files = new[] {
+            new VerifiedTreeStream.TreeFile("prefix", 0, 100, new string('0', 64)),
+            new VerifiedTreeStream.TreeFile("app", 100, 600, new string('0', 64))
+        };
+        var locator = new PatchTreeF2AlignedCandidates(files, "app");
+        (long Offset, int Length)[] gapped = [
+            (0, 100), (100, 100), (201, 100), (301, 100),
+            (401, 100), (501, 100)
+        ];
+        // All endpoints fit in app, yet a 1-byte gap invalidates the window.
+        Assert.DoesNotContain(1, locator.ProbeOffsets(gapped, 0));
+        (long Offset, int Length)[] emptyRecord = [
+            (0, 100), (100, 100), (200, 0), (200, 100),
+            (300, 100), (400, 100)
+        ];
+        Assert.DoesNotContain(1, locator.ProbeOffsets(emptyRecord, 0));
+        (long Offset, int Length)[] valid = [
+            (0, 100), (100, 100), (200, 100), (300, 100),
+            (400, 100), (500, 100)
+        ];
+        Assert.Contains(1, locator.ProbeOffsets(valid, 0));
+    }
+
+    [Fact]
     public void NoMatchingFileAndInvalidLayoutsAreFailClosed()
     {
         var layout = new[] {
