@@ -229,7 +229,7 @@ public static class CdcMeanMatchAudit
     }
 
     private static ExperimentResult Get(
-        IReadOnlyDictionary<string, ExperimentResult> byId,
+        Dictionary<string, ExperimentResult> byId,
         string experimentId,
         string groupId)
     {
