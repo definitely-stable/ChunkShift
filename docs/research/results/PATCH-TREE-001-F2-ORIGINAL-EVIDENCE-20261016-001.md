@@ -37,7 +37,14 @@ SHA-bound sidecars, original-file SHA and size membership, ordered four-pair
 population, F0 physical component conservation, exactApplyVerified producer
 flags, public T1/H0 CSP SHA parity, BASE and target CSM identities, per-file
 T0/T1 size/SHA parity and warm-total arithmetic. The workflow added by this PR
-is the second GitHub-hosted replay gate; results are not promoted until it passes.
+is the second GitHub-hosted replay gate. **That independent GitHub-hosted replay
+PASSED**: [run #38895399430](https://github.com/definitely-stable/ChunkShift/actions/runs/38895399430),
+with retained artifact **#12043961072**,
+`patch-tree-001-f2-original-structural-replay-NO-ADOPT`, including all
+1,051 verified sidecars, `independent-replay.json`, hash manifests and
+`requalification-provenance.json`. This is structural requalification of
+the original failed run's diagnostics; it does **not** change that original
+run's FAILURE conclusion or permit sealed/production adoption.
 No raw CSP/staged targets remain available for a separate decoder rerun.
 
 ## Physical warm totals, all original calibration files (bytes)
