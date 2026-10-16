@@ -13,7 +13,7 @@ All T1 controls must use EXACTLY the same verified old-tree CSM/virtual source, 
 - T0 public: original same-path old-file CSM for 1049 changed, raw full bytes for 2 added paths.
 - T1 public: current default H2 create over original virtual-tree BASE.
 - T1 H0 sequential: byte-for-byte SHA-256 parity with same-build T1 public.
-- T1 relative-local: sequential exhaustive F2 research-only candidate starts near old matching-file offset, up to 8 candidates in 256 KiB; all four base record chunks must be fully contained within that old file.
+- T1 relative-local: sequential exhaustive F2 research-only candidate starts near old matching-file offset, up to 8 candidates in 256 KiB; every up-to-four base record chunk must be fully contained within that old file, and each candidate must obey the frozen 1 MiB total dictionary-byte cap before occupying a search slot.
 - T1 no-dictionary: same BASE with zstd/raw and zero dictionary candidates.
 
 Changing old-base ManifestId, modifying CSP v1, mixing standalone file CSM with the virtual tree, changing target chunks, using a holdout, or manufacturing new F1 candidate prices is forbidden.
