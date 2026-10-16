@@ -34,6 +34,11 @@ internal static class Program
             return LabDeterminismComparer.Run(args[1..]);
         }
 
+        if (string.Equals(mode, "cdc-mean-audit", StringComparison.OrdinalIgnoreCase))
+        {
+            return CdcMeanMatchAudit.Run(args[1..]);
+        }
+
         if (string.Equals(mode, "f08", StringComparison.OrdinalIgnoreCase))
         {
             return BoundaryScanHarness.Run(args[1..]);
@@ -199,6 +204,7 @@ internal static class Program
         Console.WriteLine("  core011-g2c-measure --dir <fixture> --operation <create|manifest-verify|enumerate> --variant <baseline|stage64|stage256> --output <json> --rounds <1..6> --repetitions <1..12>");
         Console.WriteLine("  lab --corpus <manifest.json> --experiments <experiments.json> --output <result.json> [--isolate | --only <id>]");
         Console.WriteLine("  compare --left <lab.json> --right <lab.json> [--allow-unversioned]");
+        Console.WriteLine("  cdc-mean-audit --run <lab.json> --plan <plan.json> --output <audit.json>");
         Console.WriteLine("  f08 --variant <name> --target <bytes> [--seconds 5] [--warmup-seconds 3] [--perf-ctl <fifo> --perf-ack <fifo>]");
         Console.WriteLine("  amdahl [--target <bytes>]... [--rounds 3] [--seconds 2] [--warmup-seconds 2]");
         Console.WriteLine("  core011-scan --output <pilot.json> [--size-mib 16] [--rounds 3] [--run-id <id>]");
