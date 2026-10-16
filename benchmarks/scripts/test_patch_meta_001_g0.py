@@ -102,8 +102,8 @@ class MetaG0Tests(unittest.TestCase):
         g0.MAX_UNIQUE = 1
         try:
             with tempfile.TemporaryDirectory() as root:
-                with self.assertRaisesRegex(ValueError, "unique-chunk cap"):
-                    g0.load_or_build(Path(root) / "cache", self.ctx, self.records)
+                self.assertEqual(g0.load_or_build(Path(root) / "cache", self.ctx, self.records),
+                                 (None, "BYPASS"))
         finally:
             g0.MAX_UNIQUE = saved
 
