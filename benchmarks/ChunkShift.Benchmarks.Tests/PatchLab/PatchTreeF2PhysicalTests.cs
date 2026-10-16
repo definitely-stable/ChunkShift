@@ -123,6 +123,40 @@ public sealed class PatchTreeF2PhysicalTests
     }
 
     [Fact]
+    public async Task VirtualBaseMustExactlyCoverCanonicalLayoutBeforeProducingCsp()
+    {
+        string scratch = Directory.CreateTempSubdirectory("patch-tree-f2-preflight-").FullName;
+        try
+        {
+            byte[] original = new byte[128 * 1024];
+            new Random(313).NextBytes(original);
+            using var manifest = await CsmForAsync(original);
+            using var targetManifest = await CsmForAsync(original);
+            using var virtualBase = new MemoryStream(original, writable: false);
+            using var target = new MemoryStream(original, writable: false);
+            var undersized = new[] {
+                new VerifiedTreeStream.TreeFile("same", 0, original.Length - 1, Digest(original))
+            };
+            await Assert.ThrowsAsync<InvalidDataException>(() =>
+                PatchTreeF2Physical.CompareAsync(manifest, virtualBase,
+                    targetManifest, target, undersized, "same", scratch));
+            var duplicate = new[] {
+                new VerifiedTreeStream.TreeFile("same", 0, original.Length / 2, Digest(original)),
+                new VerifiedTreeStream.TreeFile("same", original.Length / 2,
+                    original.Length / 2, Digest(original))
+            };
+            await Assert.ThrowsAsync<InvalidDataException>(() =>
+                PatchTreeF2Physical.CompareAsync(manifest, virtualBase,
+                    targetManifest, target, duplicate, "same", scratch));
+            Assert.Empty(Directory.GetFiles(scratch));
+        }
+        finally
+        {
+            Directory.Delete(scratch, recursive: true);
+        }
+    }
+
+    [Fact]
     public void NoMatchingFileAndInvalidLayoutsAreFailClosed()
     {
         var layout = new[] {
