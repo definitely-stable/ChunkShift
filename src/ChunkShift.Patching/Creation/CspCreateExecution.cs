@@ -70,6 +70,14 @@ internal sealed record CspCreateExecution(int WorkerCount, bool UseBaseCandidate
     internal ICspResearchCandidateSelector? ResearchCandidateSelector { get; init; }
 
     /// <summary>
+    /// PATCH-TREE-001 F2 lab-only sequential exhaustive candidate starts.
+    /// Null in every public create; it does not change the production selector.
+    /// Supplied starts are record ordinals in the exact verified base CSM.
+    /// </summary>
+    internal Func<IReadOnlyList<CspPatchBuilder.BaseRecord>, long, IReadOnlyList<int>>?
+        ResearchCandidateStarts { get; init; }
+
+    /// <summary>
     /// Gets an optional test hook a worker awaits before it encodes the entry
     /// with the given sequence number, so tests can reorder completions.
     /// </summary>

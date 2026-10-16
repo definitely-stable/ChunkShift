@@ -335,6 +335,7 @@ internal static partial class CspPatchBuilder
                 context.HashSuite,
                 context.Policy,
                 buffers,
+                null, // F2 research starts are forbidden for parallel workers.
                 context.Execution.ResearchCandidateSelector,
                 context.Execution.CandidateTraceSink,
                 cancellationToken).ConfigureAwait(false);
