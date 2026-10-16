@@ -43,9 +43,6 @@ def make_corpus(root: Path):
     v2[SIZE // 3: SIZE // 3 + 32768] = hashlib.shake_256(
         b"chunkshift.PATCH-META-001.G1A.target.v2").digest(32768)
     v3 = bytearray(base)
-    v3[SIZE // 2: SIZE // 2 + 16384] = b"META-001:" * 1820 + b"X" * 4
-    # Ensure exactly 16 KiB of changed bytes, not slice-induced length drift.
-    v3 = bytearray(base)
     v3[SIZE // 2:SIZE // 2 + 16384] = (b"META-001:" * 2048)[:16384]
     versions = {"v1": base, "v2": bytes(v2), "v3": bytes(v3)}
     for version, data in versions.items():
