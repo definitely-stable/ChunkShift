@@ -13,6 +13,7 @@ namespace ChunkShift.Benchmarks.PatchLab;
 internal static class PatchMetaG1AAttribution
 {
     internal const string Schema = "chunkshift.patch-meta-g1a-stage.v1";
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     internal static async Task ExecuteAsync(
         string corpusRoot, string family, string baseVersion,
@@ -136,6 +137,6 @@ internal static class PatchMetaG1AAttribution
         // Write the observation only after successful CSP creation and hashing.
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(observationPath))!);
         File.WriteAllText(observationPath, JsonSerializer.Serialize(
-            observation, new JsonSerializerOptions { WriteIndented = true }) + "\n");
+            observation, JsonOptions) + "\n");
     }
 }
