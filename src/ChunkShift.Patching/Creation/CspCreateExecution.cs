@@ -61,6 +61,9 @@ internal sealed record CspCreateExecution(int WorkerCount, bool UseBaseCandidate
     /// <summary>Gets an optional sink for the lab's and the tests' counters.</summary>
     internal CspCreateStatistics? Statistics { get; init; }
 
+    /// <summary>Opt-in PATCH-META-001 research stage measurement; null for all normal creates.</summary>
+    internal CspMetaResearchProbe? MetaResearchProbe { get; init; }
+
     /// <summary>
     /// Gets an optional research-only sink for per-entry candidate metadata.
     /// Null in the public create path.
