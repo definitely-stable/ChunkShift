@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """F2 physical verifier synthetic-only rejection fixtures; no original ZIPs."""
 import importlib.util
+import json
+import re
 from pathlib import Path
 import unittest
 
@@ -38,6 +40,15 @@ def example(kind="changed"):
 
 
 class VerifyF2PhysicalTests(unittest.TestCase):
+    def test_frozen_original_pairs_digest_matches_preregistered_corpus_lock(self):
+        # Regression for first original F2 run #38888000986: its former
+        # 63-character copied literal rejected correct original pairs.
+        authoritative = json.loads(f2.CORPUS_LOCK.read_text(encoding="utf-8"))["pairsSha256"]
+        self.assertTrue(re.fullmatch(r"[0-9a-f]{64}", f2.LOCK))
+        self.assertEqual(authoritative, f2.LOCK)
+        self.assertEqual("8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+                         f2.LOCK)
+
     def test_full_lane_contract_for_changed_and_added(self):
         for kind in ("changed", "added"):
             f2.validate_observation(*example(kind))
