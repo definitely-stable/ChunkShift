@@ -9,6 +9,8 @@ namespace ChunkShift.Benchmarks.PatchLab.Tree;
 internal sealed class PatchTreeF2AlignedCandidates
 {
     private readonly VerifiedTreeStream.TreeFile? _file;
+    internal long VerifiedLayoutLength { get; }
+    internal bool HasSamePath => _file is not null;
     private const int MaxStarts = 8;
     private const long Radius = 256 * 1024;
     private const int DictionaryChunks = 4;
@@ -19,8 +21,11 @@ internal sealed class PatchTreeF2AlignedCandidates
         ArgumentNullException.ThrowIfNull(verifiedBaseFiles);
         ArgumentException.ThrowIfNullOrEmpty(targetPath);
         long boundary = 0;
+        var visited = new HashSet<string>(StringComparer.Ordinal);
         foreach (var file in verifiedBaseFiles)
         {
+            if (!visited.Add(file.Path))
+                throw new InvalidDataException("Duplicate path in verified virtual base layout.");
             if (file.Offset != boundary || file.Length < 0)
                 throw new InvalidDataException("Noncanonical virtual base layout.");
             boundary = checked(boundary + file.Length);
@@ -31,6 +36,7 @@ internal sealed class PatchTreeF2AlignedCandidates
                 _file = file;
             }
         }
+        VerifiedLayoutLength = boundary;
     }
 
     internal IReadOnlyList<int> Select(
