@@ -1,0 +1,128 @@
+name: PATCH-TREE-001 F2 original failed-run evidence recovery
+
+# PR-only, first-attempt original data replay of sealed UNVERIFIED diagnostics.
+# No source downloads, original patch execution, production decision, or holdout.
+on:
+  pull_request:
+    paths:
+      - "benchmarks/scripts/verify_patch_tree_001_f2.py"
+      - "benchmarks/scripts/test_verify_patch_tree_001_f2.py"
+      - "docs/research/results/PATCH-TREE-001-F2-ORIGINAL-EVIDENCE-20261016-001.md"
+      - ".github/workflows/patch-tree-001-f2-original-replay-recovery.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  original-f2-replay:
+    name: first-attempt 1051-file F2 diagnostic artifact independent replay
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout audited candidate source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Pin and fetch original failed-run diagnostics
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          mkdir -p "$RUNNER_TEMP/f2-original"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/38888000986" \
+            > "$RUNNER_TEMP/f2-run.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/38888000986/artifacts?per_page=100" \
+            > "$RUNNER_TEMP/f2-artifacts.json"
+          python3 - "$RUNNER_TEMP/f2-run.json" "$RUNNER_TEMP/f2-artifacts.json" <<'PY'
+          import json, sys
+          run, artifact_set = (json.load(open(p, encoding='utf-8')) for p in sys.argv[1:])
+          assert run["id"] == 38888000986
+          assert run["event"] == "workflow_dispatch"
+          assert run["head_sha"] == "f351befd26ab42745ca98eba3ee47f0c23af90d5"
+          assert run["run_attempt"] == 1
+          assert run["status"] == "completed" and run["conclusion"] == "failure"
+          assert run["head_branch"] == "main"
+          matches = [a for a in artifact_set["artifacts"]
+                     if a["id"] == 12041179264 and
+                        a["name"] == "patch-tree-001-physical-f2-UNVERIFIED-diagnostics"]
+          assert len(matches) == 1 and not matches[0]["expired"]
+          PY
+          gh run download 38888000986 \
+            -R "$GITHUB_REPOSITORY" \
+            -n patch-tree-001-physical-f2-UNVERIFIED-diagnostics \
+            -D "$RUNNER_TEMP/f2-original"
+          test "$(cat "$RUNNER_TEMP/f2-original/UNVERIFIED-NOT-DECISION.txt" | head -n 1)" = "UNVERIFIED_NOT_DECISION"
+          test "$(find "$RUNNER_TEMP/f2-original/f2-observations" -maxdepth 1 -type f -name '*.json' | wc -l)" -eq 1051
+
+      - name: Regression and independent original-data replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/f2-original"
+          python3 -m unittest benchmarks/scripts/test_verify_patch_tree_001_f2.py -v
+          python3 benchmarks/scripts/verify_patch_tree_001_calibration.py \
+            --result "$root/calibration.json" \
+            --pairs "$root/original-pairs.json"
+          python3 benchmarks/scripts/verify_patch_tree_001_f2.py \
+            --summary "$root/f2-summary.json" \
+            --calibration "$root/calibration.json" \
+            --pairs "$root/original-pairs.json" \
+            --observations "$root/f2-observations" \
+            | tee "$RUNNER_TEMP/f2-replay-result.json"
+          python3 - "$RUNNER_TEMP/f2-replay-result.json" <<'PY'
+          import json,sys
+          r = json.load(open(sys.argv[1], encoding='utf-8'))
+          assert r["status"] == "STRUCTURAL_ORIGINAL_F2_REPLAY_PASS_NOT_ADOPT"
+          assert (r["pairs"],r["changed"],r["added"],r["observations"]) == (4,1049,2,1051)
+          assert r["t0WarmBytes"] == 14758982
+          assert r["t1WarmBytes"] == 83593822
+          assert r["relativeLocalWarmBytes"] == 47002363
+          assert r["noDictionaryWarmBytes"] == 88798916
+          PY
+          echo 'Original failed run remains FAILURE. Diagnostic evidence structurally replayed; NO_ADOPT.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Write immutable requalification provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/f2-original"
+          python3 - "$root" "$RUNNER_TEMP/f2-replay-result.json" <<'PY'
+          import hashlib, json, pathlib, os, sys
+          root=pathlib.Path(sys.argv[1])
+          result=json.load(open(sys.argv[2],encoding="utf-8"))
+          hashes={p.name:hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in (root/"original-pairs.json",root/"calibration.json",
+                            root/"f2-summary.json",root/"layouts.json")}
+          (root/"requalification-provenance.json").write_text(
+              json.dumps({"schema":"chunkshift.patch-tree-f2-failed-run-requalification.v1",
+                          "status":"STRUCTURAL_REPLAY_PASS_NOT_PRODUCTION_DECISION",
+                          "originalRun":38888000986,
+                          "originalRunConclusion":"failure",
+                          "originalArtifact":12041179264,
+                          "originalHead":"f351befd26ab42745ca98eba3ee47f0c23af90d5",
+                          "auditHead":os.environ["GITHUB_SHA"],
+                          "replay":result,"sha256":hashes},indent=2,sort_keys=True)+"\n",
+              encoding="utf-8")
+          PY
+          cp "$RUNNER_TEMP/f2-replay-result.json" "$root/independent-replay.json"
+          (
+            cd "$root"
+            find f2-observations -maxdepth 1 -type f -name '*.json' -print0 \
+              | LC_ALL=C sort -z | xargs -0 sha256sum > F2-SHA256SUMS
+            sha256sum original-pairs.json calibration.json f2-summary.json layouts.json \
+              independent-replay.json requalification-provenance.json F2-SHA256SUMS \
+              > SHA256SUMS
+            sha256sum --check SHA256SUMS
+            sha256sum --check F2-SHA256SUMS
+          )
+
+      - name: Archive requalified original diagnostics, not a decision artifact
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-001-f2-original-structural-replay-NO-ADOPT
+          path: ${{ runner.temp }}/f2-original/
+          if-no-files-found: error
+          retention-days: 90
