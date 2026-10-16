@@ -1,4 +1,5 @@
 using ChunkShift.Patching.Creation;
+using ChunkShift.Patching.Encoding;
 
 namespace ChunkShift.Benchmarks.PatchLab.Tree;
 
@@ -72,6 +73,16 @@ internal sealed class PatchTreeF2AlignedCandidates
             var last = records[candidate + count - 1];
             long end = checked(last.Offset + last.Length);
             if (end > fileEnd)
+                continue;
+
+            // Match the shipping encoder's exact up-to-four dictionary byte cap
+            // before consuming one of the eight research slots. Otherwise the
+            // supposedly nearest eligible starts could all be rejected later
+            // by TryMeasureCandidate and the locality test would be vacuous.
+            long dictionaryBytes = 0;
+            for (int i = candidate; i < candidate + count; i++)
+                dictionaryBytes = checked(dictionaryBytes + records[i].Length);
+            if (dictionaryBytes > CspDictionary.MaximumBytes)
                 continue;
 
             result.Add(candidate);
