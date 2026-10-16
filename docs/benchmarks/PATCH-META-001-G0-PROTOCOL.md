@@ -38,7 +38,7 @@ Files: benchmarks/scripts/patch_meta_001_g0.py and test_patch_meta_001_g0.py, in
 - Advisory canonical entries: (ChunkId, Length, first ordinal, first byte offset, multiplicity), sorted by (ChunkId, Length). Duplicate IDs with different lengths remain separate keys.
 - A canonical JSON record binds schema, full cache key and features using SHA-256; unknown schema/key, checksum mismatch, truncation, bad types, invalid bounds, noncanonical ordering and count mismatch are misses.
 - Sidecar writes use a same-directory temp file, flush/fsync and atomic rename. Cache write failures do not fail the authoritative computation.
-- G0 caps: 8 MiB record read/write, 25,000 distinct chunk keys, signed-64-bit total length. Oversized output is not cached; too many distinct keys make this narrow lab prototype ineligible. These are NOT public/API/production limits. A sharded design may be investigated separately after opportunity profiling.
+- G0 caps: 8 MiB record read/write, 25,000 distinct chunk keys, signed-64-bit total length. Oversized output is not cached; too many distinct keys return an explicit BYPASS result (no features), requiring the caller to use its authoritative uncached path. Such a result is never usable as a patch decision. These are NOT public/API/production limits. A sharded design may be investigated separately after opportunity profiling.
 - SHA-256 detects accidental corruption. An attacker able to rewrite both body and checksum can forge a self-consistent entry; G0 has no authenticity claim. The existing exact source/target verification always remains mandatory. Future selection-changing features also require same-build transparency or an explicitly versioned deterministic policy.
 
 No production code, CSM/CSP bytes or reader, ChunkId/ManifestId semantics, Core or Patching public API, BuildPolicy, default encoder, or release milestone is changed here.
@@ -49,7 +49,7 @@ No production code, CSM/CSP bytes or reader, ChunkId/ManifestId semantics, Core 
 2. Changing ManifestId, ProfileFingerprint, hash suite or ordered records forces recompute.
 3. Truncation, mutation, unsupported schema, malformed structure and oversized record force recompute.
 4. Basic structural contradictions must be detected even when the outer digest has been recomputed.
-5. Inputs are bounded; invalid hash IDs, zero/boolean/overflow lengths and excessive unique records fail explicitly.
+5. Inputs are bounded; invalid hash IDs, zero/boolean/overflow lengths and excessive unique records safely BYPASS caching.
 6. Linux and Windows GitHub-hosted Python 3.14 jobs pass; no extra NuGet or third-party Python dependency.
 7. G0 is never labelled an end-to-end patch verification or performance run. A smoke result alone does not change registry status to RUNNING. A concrete retained RunId is needed first, per docs/research/README.md.
 
