@@ -8,6 +8,7 @@ on:
       - "src/ChunkShift.Patching/Creation/CspPatchBuilder.cs"
       - "benchmarks/ChunkShift.Benchmarks/PatchLab/Tree/PatchTreeF2*.cs"
       - "benchmarks/ChunkShift.Benchmarks.Tests/PatchLab/PatchTreeF2PhysicalTests.cs"
+      - "tests/ChunkShift.Patching.Tests/Creation/PatchTreeF2SeamTests.cs"
       - "docs/benchmarks/PATCH-TREE-001-F2-PHYSICAL-FOUNDATION.md"
       - ".github/workflows/patch-tree-001-f2-physical.yml"
   workflow_dispatch:
@@ -36,5 +37,9 @@ jobs:
         run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
       - name: F2 physical mechanics tests
         run: dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj -c Release --no-build --no-restore --filter FullyQualifiedName~PatchTreeF2PhysicalTests
+      - name: Build F2 selector host-contract tests
+        run: dotnet build tests/ChunkShift.Patching.Tests/ChunkShift.Patching.Tests.csproj -c Release
+      - name: F2 hostile selector contract tests
+        run: dotnet test tests/ChunkShift.Patching.Tests/ChunkShift.Patching.Tests.csproj -c Release --no-build --no-restore --filter FullyQualifiedName~PatchTreeF2SeamTests
       - name: Mark no original-corpus verdict
         run: echo "F2-P1 synthetic-only physical mechanics; no original corpus or adoption evidence." >> "$GITHUB_STEP_SUMMARY"
