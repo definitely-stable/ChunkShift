@@ -39,6 +39,15 @@ internal static class PatchTreeF2Physical
         ArgumentException.ThrowIfNullOrEmpty(scratchDirectory);
         Directory.CreateDirectory(scratchDirectory);
         var anchor = new PatchTreeF2AlignedCandidates(verifiedBaseFiles, targetPath);
+        if (virtualBaseContent.Length != anchor.VerifiedLayoutLength)
+            throw new InvalidDataException(
+                "Verified virtual base layout does not cover the exact base content length.");
+        if (samePathCsm is not null && !anchor.HasSamePath)
+            throw new InvalidDataException("T0 same-path input is absent from the verified old tree.");
+        if (samePathCsm is not null &&
+            (!samePathCsm.CanSeek || !samePathCsm.CanRead ||
+             !samePathContent!.CanSeek || !samePathContent.CanRead))
+            throw new ArgumentException("T0 streams must be readable and seekable.");
         targetContent.Position = 0;
         string targetDigest = Convert.ToHexStringLower(SHA256.HashData(targetContent));
         var lanes = new List<Lane>();
