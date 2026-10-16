@@ -52,6 +52,10 @@ jobs:
           test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
           test "$GITHUB_REF" = "refs/heads/main"
           test "$GITHUB_RUN_ATTEMPT" = "1"
+          # Only the original independently audited first-attempt recovery
+          # run is admissible. A later re-materialization with the same pairs
+          # checksum is not a substitute for its artifact provenance.
+          test "$PAIRS_RUN_ID" = "38136336025"
           python3 - "$RUN_DATE" <<'PY'
           import datetime
           import os
