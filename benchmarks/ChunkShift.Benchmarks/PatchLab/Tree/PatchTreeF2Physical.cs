@@ -17,6 +17,8 @@ internal static class PatchTreeF2Physical
     internal sealed record Lane(
         string Name, long PhysicalBytes, long ReconciledPhysicalBytes,
         string CspSha256, string? BaseManifestId, string TargetManifestId,
+        long RawStoredBytes, long ZstdStoredBytes, long PayloadMetadataBytes,
+        long IndexBytes, long OtherPhysicalBytes, long PayloadEntries,
         double CreateMilliseconds, double ApplyMilliseconds, bool ExactApplyVerified);
 
     internal sealed record Summary(string Schema, string Status, string TargetSha256,
@@ -92,9 +94,24 @@ internal static class PatchTreeF2Physical
                     throw new InvalidDataException("F2 reconstructed target bytes differ.");
                 double applyMs = clock.Elapsed.TotalMilliseconds;
 
+                long payloadMetadata = checked(physical.PaylPrefixBytes +
+                    physical.PaylEntryHeaderBytes + physical.DictionaryReferenceBytes +
+                    physical.PaylCrcBytes);
+                long indexBytes = checked(physical.PidxPrefixBytes +
+                    physical.PidxEntryBytes + physical.PidxCrcBytes +
+                    physical.Sections.Where(section => section.Kind == "PIDX")
+                        .Sum(section => section.PhysicalBytes - section.PayloadBytes));
+                long otherBytes = checked(physical.PhysicalBytes - physical.RawStoredBytes -
+                    physical.ZstdStoredBytes - payloadMetadata - indexBytes);
+                if (otherBytes < 0 || checked(physical.RawStoredBytes +
+                    physical.ZstdStoredBytes + payloadMetadata + indexBytes + otherBytes)
+                    != physical.PhysicalBytes)
+                    throw new InvalidDataException("F2 physical component conservation failed.");
                 lanes.Add(new Lane(name, physical.PhysicalBytes,
                     physical.ReconciledPhysicalBytes, physical.Sha256,
                     info.BaseManifestId?.ToString(), info.TargetManifestId.ToString(),
+                    physical.RawStoredBytes, physical.ZstdStoredBytes,
+                    payloadMetadata, indexBytes, otherBytes, physical.PayloadEntries,
                     createMs, applyMs, ExactApplyVerified: true));
             }
             finally
