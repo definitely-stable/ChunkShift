@@ -102,7 +102,7 @@ public class CdcMeanMatchAuditTests
             [new CdcMeanMatchAuditGroup("matched-mean", reference, candidates)]);
 
     private static LabRun Run(params ExperimentResult[] results) => new(
-        7,
+        LabRunner.SchemaVersion,
         DateTimeOffset.UnixEpoch,
         new MeasurementProtocol(0, 1, "test", "test", "test", "test", "test", ProcessIsolationModes.None),
         new EnvironmentSnapshot("test", "X64", "X64", ".NET test", 1, "deadbeef"),
