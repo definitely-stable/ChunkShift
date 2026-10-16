@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-10-15",
+  "updated": "2026-10-16",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -431,7 +431,10 @@
       "physicalF0Protocol": "docs/benchmarks/PATCH-TREE-001-T1-PHYSICAL-F0.md",
       "physicalF0Disposition": "FOUNDATION_ONLY_NOT_REAL_CORPUS_EVIDENCE",
       "physicalF1Protocol": "docs/benchmarks/PATCH-TREE-001-T1-PHYSICAL-F1.md",
-      "physicalF1Status": "IMPLEMENTED_UNVERIFIED_CALIBRATION_NOT_RUN_NO_ADOPT"
+      "physicalF1Status": "ORIGINAL_2100_SIDECARS_INDEPENDENT_AUDIT_PASS_OBSERVATIONAL_CALIBRATION_ONLY_NO_ADOPT",
+      "physicalF1RunId": "PATCH-TREE-001/F1-CAL-20261015-38773779715",
+      "physicalF1Evidence": "docs/research/results/PATCH-TREE-001-F1-EVIDENCE-20261016-001.md",
+      "physicalF1MachineLedger": "benchmarks/experiments/patch-tree-001-f1-original-evidence-20261016.json"
     },
     {
       "id": "REPO-DELTA-001",
