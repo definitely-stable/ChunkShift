@@ -70,3 +70,15 @@ ADOPT requires on decision-grade holdout **all** of: semantic equality to cache-
 ## 7. Next allowed action
 
 Review G0 CI and security/determinism assumptions. Then instrument **read-only stage-cost attribution** in a new lab-only G1 preflight on real PatchLab repeated-build pairs; preregister corpus and thresholds before creating an on/off feature-cache comparison. If no consumed expensive feature currently exists, record a measurable opportunity NO_GO and do not fabricate an optimizer. Do not freeze PATCH-EXEC task identities or promote features into persisted CSM/CSP semantics.
+
+## 8. Initial code-topology audit (not a timed measurement)
+
+Confirmed from current main at 8834881af4daa3fdcd4636a99a707263878753b7:
+
+- PatchLabManifests.EnsureAsync hashes the full source with SHA256.HashDataAsync to construct a content-digest-named CSM cache path, then reuses the existing CSM on hit. A derived sidecar does not justify skipping that authoritative source identity read on the basis of path/mtime.
+- CspPatchBuilder.CreateAsync reads the authoritative base manifest to build a HashSet of base IDs and ordered BaseRecord entries; target manifest entries and source bytes are then processed by the create path. Skipping verification because the derived occurrence cache exists would be a correctness violation.
+- PatchLab's existing execution counters include reads, bytes read and repositioning; CspCreateStatistics also accounts for the older in-memory base-candidate cache. Those facilities are instrumentation starting points, not evidence that persisted derived features pay off.
+- PATCH-ENC-005 H6 features remain lab-only after its selector result was rejected. Merely persisting H6 features now cannot reduce the default create CPU/wall if the shipped default never computes/consumes those features.
+- The G0 key itself hashes all ordered records on each lookup. For simple occurrence summaries this O(chunkCount) key-generation work may erase the apparent saving; G1 must measure lookup cost and either demonstrate a net gain or explicitly reject that reuse granularity.
+
+**Provisional opportunity assessment:** from code shape alone, caching first-occurrence counts is a correctness/seam foundation, *not* a credible standalone 30% create accelerator. The first decision-relevant experiment is a measured stage-cost profile that identifies a real expensive consumed feature. This is not a benchmark verdict or a rejection of the broader #220 hypothesis.
