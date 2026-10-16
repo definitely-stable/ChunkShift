@@ -163,7 +163,7 @@ public class CdcMeanMatchAuditTests
             offset += length;
         }
 
-        Assert.Equal(totalBytes, offset);
+        Assert.Equal((long)totalBytes, offset);
         return result;
     }
 }
