@@ -46,3 +46,19 @@ Manual workflow_dispatch from latest authorized main SHA only; original referenc
 - Always report all four pair deltas, outliers, zero-dictionary fallback, added raw controls, content identity and end-to-end reconstruction. Never cherry-pick 981 matched paths into a product decision.
 
 Issue #184 and research freeze #251 remain open. No public API/defaults/format/tree publication changes are admitted.
+
+## Integration verification after F2-P1
+
+F2-P1 physical foundation PR #369 merged to main as
+374c7e8faf42dfaee948ad7ba8513fc6bb80de6c with all its final-head
+GitHub-hosted CI, Benchmark lab, native Heavy validation, ASP.NET Core host
+validation and specialized physical create/apply contracts successful.
+This F2-P2 PR must be tested on GitHub's **current main merge ref** after
+that integration, not merely against its earlier stacked research branch.
+The baseline publication of F2-P1 is research-only and does not authorize
+the real calibration's dispatch, sealed holdout or ADOPT.
+
+The manual real-calibration workflow additionally pins its only admissible
+original-pairs recovery artifact to run 38136336025, not just to an equivalent
+pairs SHA256. This preserves independently audited provenance rather than
+accepting an arbitrary later regeneration.
