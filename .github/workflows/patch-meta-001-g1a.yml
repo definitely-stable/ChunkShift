@@ -1,0 +1,64 @@
+name: PATCH-META-001 G1A stage preflight
+
+# Synthetic stage-mechanics smoke only. No real-corpus or ADOPT decision.
+on:
+  pull_request:
+    branches: [main, research/patch-meta-001-g0-derived-cache]
+    paths:
+      - 'benchmarks/ChunkShift.Benchmarks/PatchLab/PatchLabManifests.cs'
+      - 'benchmarks/ChunkShift.Benchmarks/PatchLab/PatchLabOne.cs'
+      - 'benchmarks/ChunkShift.Benchmarks/PatchLab/PatchMetaG1AAttribution.cs'
+      - 'benchmarks/scripts/*patch_meta_001_g1a.py'
+      - 'docs/benchmarks/PATCH-META-001-G1A-PROTOCOL.md'
+      - '.github/workflows/patch-meta-001-g1a.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage-smoke:
+    name: real-csp-synthetic-input-${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, platform: linux-x64 }
+          - { os: windows-2025, platform: windows-x64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - name: Check fail-closed driver and source locks
+        env:
+          PYTHONPATH: benchmarks/scripts
+        run: python -m unittest -v benchmarks/scripts/test_run_patch_meta_001_g1a.py
+      - name: Build production-linked PatchLab in Release
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release
+      - name: Create, apply, and cross-check every stage sample
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: >-
+          python benchmarks/scripts/run_patch_meta_001_g1a.py
+          --dll benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll
+          --corpus "${{ runner.temp }}/patch-meta-g1a-corpus"
+          --work "${{ runner.temp }}/patch-meta-g1a-work"
+          --output "artifacts/patch-meta-g1a"
+          --rounds 3
+      - name: Archive observed raw stage samples
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-meta-g1a-${{ matrix.platform }}
+          path: artifacts/patch-meta-g1a/
+          if-no-files-found: warn
+          retention-days: 14

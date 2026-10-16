@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Security.Cryptography;
 
 namespace ChunkShift.Benchmarks.PatchLab;
@@ -29,9 +30,16 @@ internal static class PatchLabManifests
         string contentPath,
         string workDirectory,
         string? expectedSha256,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        PatchLabManifestProbe? probe = null)
     {
+        long digestStarted = probe is null ? 0 : Stopwatch.GetTimestamp();
         string digest = await DigestAsync(contentPath, cancellationToken).ConfigureAwait(false);
+        if (probe is not null)
+        {
+            probe.SourceSha256 = digest;
+            probe.DigestSeconds = Stopwatch.GetElapsedTime(digestStarted).TotalSeconds;
+        }
 
         if (expectedSha256 is not null &&
             !string.Equals(digest, expectedSha256, StringComparison.OrdinalIgnoreCase))
@@ -44,6 +52,11 @@ internal static class PatchLabManifests
 
         if (File.Exists(manifestPath))
         {
+            if (probe is not null)
+            {
+                probe.CacheHit = true;
+            }
+
             return manifestPath;
         }
 
@@ -54,9 +67,15 @@ internal static class PatchLabManifests
         {
             if (File.Exists(manifestPath))
             {
+                if (probe is not null)
+                {
+                    probe.CacheHit = true;
+                }
+
                 return manifestPath;
             }
 
+            long createStarted = probe is null ? 0 : Stopwatch.GetTimestamp();
             Directory.CreateDirectory(Path.GetDirectoryName(manifestPath)!);
             string temporary = manifestPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
 
@@ -71,6 +90,10 @@ internal static class PatchLabManifests
                 }
 
                 File.Move(temporary, manifestPath);
+                if (probe is not null)
+                {
+                    probe.ManifestBuildSeconds = Stopwatch.GetElapsedTime(createStarted).TotalSeconds;
+                }
             }
             finally
             {
@@ -95,4 +118,17 @@ internal static class PatchLabManifests
         byte[] digest = await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false);
         return Convert.ToHexStringLower(digest);
     }
+}
+
+    
+/// <summary>
+/// Optional PATCH-META-001 laboratory observation of the unchanged CSM ensure path.
+/// It is not an integrity proof or persisted feature schema.
+/// </summary>
+internal sealed class PatchLabManifestProbe
+{
+    internal string SourceSha256 { get; set; } = string.Empty;
+    internal bool CacheHit { get; set; }
+    internal double DigestSeconds { get; set; }
+    internal double ManifestBuildSeconds { get; set; }
 }
