@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 
 namespace ChunkShift.Benchmarks.Lab;
@@ -63,6 +62,8 @@ public static class CdcMeanMatchAudit
             return 2;
         }
 
+        byte[] runBytes = File.ReadAllBytes(runPath!);
+        byte[] planBytes = File.ReadAllBytes(planPath!);
         string runJson = File.ReadAllText(runPath!);
         string planJson = File.ReadAllText(planPath!);
         LabRun run = Deserialize<LabRun>(runJson);
@@ -71,8 +72,8 @@ public static class CdcMeanMatchAudit
         CdcMeanMatchAuditResult result = Evaluate(
             run,
             plan,
-            Sha256(planJson),
-            Sha256(runJson));
+            Sha256(planBytes),
+            Sha256(runBytes));
 
         string? directory = Path.GetDirectoryName(Path.GetFullPath(outputPath!));
         if (!string.IsNullOrEmpty(directory))
@@ -272,9 +273,9 @@ public static class CdcMeanMatchAudit
         }
     }
 
-    private static string Sha256(string text)
+    private static string Sha256(ReadOnlySpan<byte> bytes)
     {
-        byte[] digest = SHA256.HashData(Encoding.UTF8.GetBytes(text));
+        byte[] digest = SHA256.HashData(bytes);
         return Convert.ToHexStringLower(digest);
     }
 
