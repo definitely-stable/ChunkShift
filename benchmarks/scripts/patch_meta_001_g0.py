@@ -155,7 +155,13 @@ def load_or_build(path: Path, context: Context, records):
     cached = _decode(raw, key)
     if cached is not None:
         return cached, "HIT"
-    fresh = _derive(records)
+    try:
+        fresh = _derive(records)
+    except ValueError as error:
+        if str(error).startswith("unique-chunk cap reached"):
+            # Unsupported lab size: caller must use its authoritative, uncached path.
+            return None, "BYPASS"
+        raise
     encoded = _encode(key, fresh)
     if len(encoded) <= MAX_RECORD_BYTES:
         temporary = None
