@@ -358,6 +358,7 @@ internal static partial class CspPatchBuilder
                             entryBuffers,
                             execution.ResearchCandidateSelector,
                             execution.CandidateTraceSink,
+                            execution.MetaResearchProbe,
                             cancellationToken).ConfigureAwait(false);
                     }
 
