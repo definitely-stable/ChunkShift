@@ -148,6 +148,15 @@ public sealed class PatchTreeF2PhysicalTests
             await Assert.ThrowsAsync<InvalidDataException>(() =>
                 PatchTreeF2Physical.CompareAsync(manifest, virtualBase,
                     targetManifest, target, duplicate, "same", scratch));
+            var complete = new[] {
+                new VerifiedTreeStream.TreeFile("same", 0, original.Length, Digest(original))
+            };
+            using var incorrectT0Csm = await CsmForAsync(original);
+            using var incorrectT0Data = new MemoryStream(original, writable: false);
+            await Assert.ThrowsAsync<InvalidDataException>(() =>
+                PatchTreeF2Physical.CompareAsync(manifest, virtualBase,
+                    targetManifest, target, complete, "missing", scratch,
+                    incorrectT0Csm, incorrectT0Data));
             Assert.Empty(Directory.GetFiles(scratch));
         }
         finally
