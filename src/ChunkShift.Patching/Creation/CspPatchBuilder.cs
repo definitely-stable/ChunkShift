@@ -1210,12 +1210,6 @@ internal static partial class CspPatchBuilder
         return total <= CspDictionary.MaximumBytes;
     }
 
-    /// <summary>
-    /// Returns up to <see cref="CspEncoderPolicy.MaxCandidates"/> base record
-    /// indices whose offsets lie within <see cref="CspEncoderPolicy.SearchRadius"/>
-    /// of <paramref name="targetOffset"/>, nearest first and lower index first on
-    /// a tie.
-    /// </summary>
     /// <summary>Null probe executes the original selection, with no Stopwatch reads.</summary>
     private static List<int> FindCandidateStartsMeasured(
         List<BaseRecord> records,
@@ -1234,6 +1228,12 @@ internal static partial class CspPatchBuilder
         return starts;
     }
 
+    /// <summary>
+    /// Returns up to <see cref="CspEncoderPolicy.MaxCandidates"/> base record
+    /// indices whose offsets lie within <see cref="CspEncoderPolicy.SearchRadius"/>
+    /// of <paramref name="targetOffset"/>, nearest first and lower index first on
+    /// a tie.
+    /// </summary>
     internal static List<int> FindCandidateStarts(
         List<BaseRecord> records,
         long targetOffset,
