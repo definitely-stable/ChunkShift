@@ -44,3 +44,11 @@ Physical test harness writes actual temporary CSPs, inspects F0 PAYL/PIDX/raw/zs
 Separately preregister an owner-gated GitHub-hosted *calibration-only* run against the original four .NET pairs, using prior authentic recovery run 38136336025 and exact frozen pairs SHA-256 8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537bfb910fd22dd. Require all original 1,049 changed and 2 added paths, original T0 added raw control, complete per-file and full warm-update sizes, exact original CSM/source hashes, independently checked F0 accounting, verified create/apply, wall/CPU, external native memory and base read/seek counters. Fix numerical acceptance/kill thresholds and separate later unopened evaluation *before* running any decision data.
 
 Current #184 remains RUNNING, #251 remains OPEN; naive T1 remains NO_GO/NO_ADOPT. No holdout materialization, T2/T3/update-set RFC freeze, production default or public API change authorized.
+
+## Infrastructure validation dependency
+
+The unrelated oversized Content-Length HTTP-413 test failure was isolated and
+fixed in PR #371 (main 96b30b1775ebe0afdff6d294c1a52ba31bbbde35).
+That fix lives only in the host-test suite; the F2 internal codec seam does not
+change Core ASP.NET integration. Re-run all final-head PR #369 workflows against
+the updated main merge base before accepting this foundation.
