@@ -5,6 +5,11 @@ namespace ChunkShift.Benchmarks.Tests.PatchLab;
 
 public sealed class PatchTreeF2PhysicalTests
 {
+    private static readonly string[] ExpectedLanes = [
+        "t0-public", "t1-public", "t1-h0-parity",
+        "t1-relative-local", "t1-no-dictionary"
+    ];
+
     [Fact]
     public async Task LabCreatesFivePhysicalCspLanesWithExactApplyAndFixedManifestIds()
     {
@@ -41,9 +46,7 @@ public sealed class PatchTreeF2PhysicalTests
             Assert.Equal(PatchTreeF2Physical.Schema, result.Schema);
             Assert.Equal(PatchTreeF2Physical.Status, result.Status);
             Assert.Equal(Digest(updated), result.TargetSha256);
-            Assert.Equal(new[] { "t0-public", "t1-public", "t1-h0-parity",
-                "t1-relative-local", "t1-no-dictionary" },
-                result.Lanes.Select(x => x.Name).ToArray());
+            Assert.Equal(ExpectedLanes, result.Lanes.Select(x => x.Name).ToArray());
             Assert.All(result.Lanes, lane =>
             {
                 Assert.True(lane.ExactApplyVerified);
@@ -58,7 +61,7 @@ public sealed class PatchTreeF2PhysicalTests
                 Assert.True(lane.ApplyMilliseconds >= 0);
             });
             Assert.Single(result.Lanes.Select(x => x.TargetManifestId).Distinct());
-            Assert.Single(result.Lanes.Where(x => x.Name.StartsWith("t1-"))
+            Assert.Single(result.Lanes.Where(x => x.Name.StartsWith("t1-", StringComparison.Ordinal))
                 .Select(x => x.BaseManifestId).Distinct());
             Assert.Equal(result.Lanes[1].CspSha256, result.Lanes[2].CspSha256);
             Assert.Empty(Directory.GetFiles(scratch)); // No raw CSP/target in evidence output
