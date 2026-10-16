@@ -76,6 +76,24 @@ internal static class PatchLabOne
         string workDirectory = PatchLabCorpus.ResolveWorkDirectory(
             corpusRoot,
             PatchLabArguments.Value(args, "--work"));
+        string? metaAttribution = PatchLabArguments.Value(args, "--meta-attribution");
+        if (metaAttribution is not null)
+        {
+            // An isolated, opt-in measurement. Never modify public create behavior.
+            if (lane != "csp" || executionName != "h2-w2")
+            {
+                throw new PatchLabUsageException(
+                    "--meta-attribution requires --lane csp --execution h2-w2.");
+            }
+
+            await PatchMetaG1AAttribution.ExecuteAsync(
+                corpusRoot, family, baseVersion, targetVersion, path,
+                workDirectory, patchPath, metaAttribution, policy, execution)
+                .ConfigureAwait(false);
+            PrintPeak();
+            return 0;
+        }
+
         string baseManifest = await EnsureManifestAsync(
             corpusRoot,
             family,
