@@ -85,7 +85,9 @@ internal static class PatchTreeF2Physical
                     if (!applied.IsApplied)
                         throw new InvalidDataException("F2 apply rejected the physical CSP.");
                 }
-                string actual = Convert.ToHexStringLower(SHA256.HashData(await File.ReadAllBytesAsync(staged)));
+                string actual;
+                await using (var rebuilt = File.OpenRead(staged))
+                    actual = Convert.ToHexStringLower(await SHA256.HashDataAsync(rebuilt));
                 if (actual != targetDigest)
                     throw new InvalidDataException("F2 reconstructed target bytes differ.");
                 double applyMs = clock.Elapsed.TotalMilliseconds;
