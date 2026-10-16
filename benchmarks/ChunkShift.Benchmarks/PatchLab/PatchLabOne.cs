@@ -77,18 +77,27 @@ internal static class PatchLabOne
             corpusRoot,
             PatchLabArguments.Value(args, "--work"));
         string? metaAttribution = PatchLabArguments.Value(args, "--meta-attribution");
+        string? metaProbe = PatchLabArguments.Value(args, "--meta-probe");
+        if (metaProbe is not null && metaAttribution is null)
+        {
+            throw new PatchLabUsageException("--meta-probe requires --meta-attribution.");
+        }
+
         if (metaAttribution is not null)
         {
             // An isolated, opt-in measurement. Never modify public create behavior.
-            if (lane != "csp" || executionName != "h2-w2")
+            if (lane != "csp" || executionName != "h2-w2" ||
+                metaProbe is not (null or "on" or "off"))
             {
                 throw new PatchLabUsageException(
-                    "--meta-attribution requires --lane csp --execution h2-w2.");
+                    "--meta-attribution requires --lane csp --execution h2-w2; " +
+                    "--meta-probe must be on or off.");
             }
 
             await PatchMetaG1AAttribution.ExecuteAsync(
                 corpusRoot, family, baseVersion, targetVersion, path,
-                workDirectory, patchPath, metaAttribution, policy, execution)
+                workDirectory, patchPath, metaAttribution, policy, execution,
+                enableMetaProbe: metaProbe == "on")
                 .ConfigureAwait(false);
             PrintPeak();
             return 0;

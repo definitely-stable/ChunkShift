@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ChunkShift.Patching.Encoding;
 using ChunkShift.Patching.Format;
 using ChunkShift.Patching.Hashing;
@@ -96,9 +97,11 @@ internal static partial class CspPatchBuilder
         var baseRecords = new List<BaseRecord>();
         var baseIds = new HashSet<ChunkId>();
         ManifestInfo? baseInfo = null;
+        CspMetaResearchProbe? meta = execution.MetaResearchProbe;
 
         if (baseManifest is not null)
         {
+            long baseStarted = meta is null ? 0 : Stopwatch.GetTimestamp();
             baseInfo = await ReadManifestAsync(
                 baseManifest,
                 "base",
@@ -115,14 +118,23 @@ internal static partial class CspPatchBuilder
                     _ = baseIds.Add(chunk.Id);
                 },
                 cancellationToken).ConfigureAwait(false);
+            if (meta is not null)
+            {
+                meta.RecordBaseManifest(Stopwatch.GetTimestamp() - baseStarted, baseRecords.Count, baseIds.Count);
+            }
         }
 
         long targetStart = targetManifest.Position;
+        long targetStarted = meta is null ? 0 : Stopwatch.GetTimestamp();
         ManifestInfo target = await ReadManifestAsync(
             targetManifest,
             "target",
             onRecord: null,
             cancellationToken).ConfigureAwait(false);
+        if (meta is not null)
+        {
+            meta.RecordTargetManifest(Stopwatch.GetTimestamp() - targetStarted);
+        }
 
         if (baseInfo is not null && baseInfo.HashSuite != target.HashSuite)
         {
@@ -323,6 +335,7 @@ internal static partial class CspPatchBuilder
                             entryBuffers,
                             execution.ResearchCandidateSelector,
                             execution.CandidateTraceSink,
+                            execution.MetaResearchProbe,
                             cancellationToken).ConfigureAwait(false);
                     }
                     else
@@ -345,6 +358,7 @@ internal static partial class CspPatchBuilder
                             entryBuffers,
                             execution.ResearchCandidateSelector,
                             execution.CandidateTraceSink,
+                            execution.MetaResearchProbe,
                             cancellationToken).ConfigureAwait(false);
                     }
 
@@ -518,6 +532,7 @@ internal static partial class CspPatchBuilder
         EntryBuffers buffers,
         ICspResearchCandidateSelector? researchSelector,
         ICspCandidateTraceSink? traceSink,
+        CspMetaResearchProbe? metaProbe,
         CancellationToken cancellationToken) =>
         policy.CandidateSelection == CspCandidateSelection.Exhaustive
             ? traceSink is null
@@ -530,6 +545,7 @@ internal static partial class CspPatchBuilder
                     hashSuite,
                     policy,
                     buffers,
+                    metaProbe,
                     cancellationToken)
                 : ChooseEntryExhaustiveTracedAsync(
                     encoder,
@@ -570,6 +586,7 @@ internal static partial class CspPatchBuilder
         HashSuiteId hashSuite,
         CspEncoderPolicy policy,
         EntryBuffers buffers,
+        CspMetaResearchProbe? metaProbe,
         CancellationToken cancellationToken)
     {
         var best = new EntryChoice(CspFormat.EncodingRaw, bytes, []);
@@ -598,7 +615,7 @@ internal static partial class CspPatchBuilder
         int bestStart = 0;
         int bestCount = 0;
 
-        foreach (int start in FindCandidateStarts(baseRecords, targetOffset, policy))
+        foreach (int start in FindCandidateStartsMeasured(baseRecords, targetOffset, policy, metaProbe))
         {
             if (!TryMeasureCandidate(baseRecords, start, policy, out int count, out int length))
             {
@@ -1191,6 +1208,24 @@ internal static partial class CspPatchBuilder
 
         length = total > CspDictionary.MaximumBytes ? 0 : (int)total;
         return total <= CspDictionary.MaximumBytes;
+    }
+
+    /// <summary>Null probe executes the original selection, with no Stopwatch reads.</summary>
+    private static List<int> FindCandidateStartsMeasured(
+        List<BaseRecord> records,
+        long targetOffset,
+        CspEncoderPolicy policy,
+        CspMetaResearchProbe? metaProbe)
+    {
+        if (metaProbe is null)
+        {
+            return FindCandidateStarts(records, targetOffset, policy);
+        }
+
+        long started = Stopwatch.GetTimestamp();
+        List<int> starts = FindCandidateStarts(records, targetOffset, policy);
+        metaProbe.RecordCandidateSearch(Stopwatch.GetTimestamp() - started, starts.Count);
+        return starts;
     }
 
     /// <summary>

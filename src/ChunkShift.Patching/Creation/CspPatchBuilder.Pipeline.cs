@@ -337,6 +337,7 @@ internal static partial class CspPatchBuilder
                 buffers,
                 context.Execution.ResearchCandidateSelector,
                 context.Execution.CandidateTraceSink,
+                context.Execution.MetaResearchProbe,
                 cancellationToken).ConfigureAwait(false);
 
             item.BaseWindow?.Dispose();
