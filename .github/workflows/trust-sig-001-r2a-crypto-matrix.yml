@@ -52,9 +52,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          dotnet publish benchmarks/TrustSigR2Matrix/TrustSigR2Matrix.csproj \
-            -c Release -r "${{ matrix.rid }}" -p:PublishAot=true -p:TreatWarningsAsErrors=true \
-            -o "$RUNNER_TEMP/r2-aot"
+          # SDK NativeAOT restore downloads the RID-specific ILCompiler runtime pack.
+          # GitHub-hosted NuGet DNS/service outages are transient; keep retries bounded
+          # and preserve fatal compiler/signature checks after a successful restore.
+          for attempt in 1 2 3; do
+            if dotnet publish benchmarks/TrustSigR2Matrix/TrustSigR2Matrix.csproj \
+              -c Release -r "${{ matrix.rid }}" -p:PublishAot=true -p:TreatWarningsAsErrors=true \
+              -o "$RUNNER_TEMP/r2-aot"; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "NativeAOT publish failed (attempt $attempt); retry bounded once dependencies recover" >&2
+              sleep 15
+            fi
+          done
+          echo "NativeAOT publish did not succeed on this hosted platform" >&2
+          exit 1
       - name: Run actual NativeAOT executable
         shell: bash
         run: |
