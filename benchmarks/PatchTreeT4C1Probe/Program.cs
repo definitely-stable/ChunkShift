@@ -28,7 +28,7 @@ internal static class Program
     private const string NewHash = "4573b9010344c77e8c3f71d0fdd5561c1d2018a30b4cf29bb4fa08180e7c898d";
 
     [DllImport("libc", EntryPoint = "open", SetLastError = true)]
-    private static extern int OpenDirectory([MarshalAs(UnmanagedType.LPUTF8Str)] string path, int flags);
+    private static extern int OpenDirectory(byte[] utf8NullTerminatedPath, int flags);
     [DllImport("libc", EntryPoint = "fsync", SetLastError = true)]
     private static extern int Fsync(int fd);
     [DllImport("libc", EntryPoint = "close", SetLastError = true)]
@@ -228,7 +228,7 @@ internal static class Program
         if (!OperatingSystem.IsLinux())
             return "NOT_ATTEMPTED_NO_PORTABLE_WINDOWS_DIRECTORY_FSYNC";
         const int O_DIRECTORY_LINUX = 0x10000;
-        int fd = OpenDirectory(root, O_DIRECTORY_LINUX);
+        int fd = OpenDirectory(Encoding.UTF8.GetBytes(root + "\0"), O_DIRECTORY_LINUX);
         if (fd < 0)
             return "UNAVAILABLE_DIRECTORY_OPEN_ERRNO_" + Marshal.GetLastPInvokeError();
         try
