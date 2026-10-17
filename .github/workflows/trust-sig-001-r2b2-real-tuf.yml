@@ -6,6 +6,7 @@ on:
     paths:
       - "benchmarks/TrustSigR2TufPilot/**"
       - "docs/benchmarks/TRUST-SIG-001-R2B2-REAL-TUF-CLIENT-PROTOCOL.md"
+      - "docs/research/results/TRUST-SIG-001-R2B2-REAL-TUF-CLIENT-20261017-001.md"
       - ".github/workflows/trust-sig-001-r2b2-real-tuf.yml"
 
 permissions:
