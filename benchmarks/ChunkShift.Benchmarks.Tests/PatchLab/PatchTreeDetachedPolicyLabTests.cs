@@ -88,7 +88,7 @@ public sealed class PatchTreeDetachedPolicyLabTests
         Assert.Throws<InvalidDataException>(() =>
             P.Verify(p, signature, Anchor(attacker), Cursor(), Now));
         Assert.Throws<InvalidDataException>(() =>
-            P.Verify(p, signature[..^1], Anchor(signer), Cursor(), Now));
+            P.Verify(p, signature.AsSpan(0, signature.Length - 1).ToArray(), Anchor(signer), Cursor(), Now));
         byte[] corrupt = (byte[])signature.Clone();
         corrupt[0] ^= 1;
         Assert.Throws<InvalidDataException>(() =>
