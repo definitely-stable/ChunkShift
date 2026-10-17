@@ -64,7 +64,7 @@ jobs:
           expected=["happy_verified_target","timestamp_rollback","expired_timestamp",
             "forged_targets","snapshot_mix_and_match","corrupted_target_download",
             "root_new_keys_without_old_threshold","valid_dual_signed_root_rotation",
-            "nonconsecutive_root_version"]
+            "nonconsecutive_root_version","local_cache_rollback_limit"]
           assert obj["schema"]=="chunkshift.trust-sig-001.r2b2.real-tuf-updater.v0"
           assert obj["decision"]=="REAL_TUF_NGCLIENT_LAB_ONLY_NOT_DISTRIBUTION_ADOPT"
           assert obj["client"]=="tuf.ngclient.Updater" and obj["clientVersion"]=="7.0.1"
@@ -73,6 +73,7 @@ jobs:
           assert all(c["verdict"]=="pass" for c in obj["cases"])
           assert obj["cases"][0]["observation"]["targetBytes"] > 0
           assert obj["cases"][7]["observation"]["trustedRootVersion"] == 2
+          assert obj["cases"][9]["observation"] == {"trustedBeforeAttack":2,"trustedAfterLocalAndRemoteRollback":1,"requiresExternalProtectedHighWater":True}
           assert obj["networkDownloads"] is False
           assert obj["localRollbackProtectedStore"] is False
           assert obj["trustedClockHardening"] is False
