@@ -26,18 +26,22 @@ for want_aot, report in zip((False, True), reports):
     for row in rows:
         if row["status"] == "verified":
             assert row["publicSpkiBytes"] > 0 and row["signatureBytes"] > 0
+            assert 0 < row["signatureMinBytes"] <= row["signatureBytes"] <= row["signatureMaxBytes"]
+            if not row["candidate"].startswith("S3-"):
+                assert row["signatureMinBytes"] == row["signatureMaxBytes"]
             assert row["signMedianMicroseconds"] >= 0
             assert row["verifyMedianMicroseconds"] >= 0
         else:
             assert all(row[key] is None for key in (
-                "publicSpkiBytes", "signatureBytes",
+                "publicSpkiBytes", "signatureBytes", "signatureMinBytes", "signatureMaxBytes",
                 "signMedianMicroseconds", "verifyMedianMicroseconds"))
 assert reports[0]["architecture"] == reports[1]["architecture"]
 assert [x["status"] for x in reports[0]["candidates"]] == [
     x["status"] for x in reports[1]["candidates"]], "JIT/AOT provider mismatch"
 for before, after in zip(reports[0]["candidates"], reports[1]["candidates"]):
     assert before["publicSpkiBytes"] == after["publicSpkiBytes"]
-    assert before["signatureBytes"] == after["signatureBytes"]
+    if not before["candidate"].startswith("S3-"):
+        assert before["signatureBytes"] == after["signatureBytes"]
 print("R2A host contract PASS:", reports[0]["os"],
       reports[0]["architecture"],
       [f'{row["candidate"]}:{row["status"]}' for row in reports[0]["candidates"]])
