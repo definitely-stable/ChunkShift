@@ -188,6 +188,10 @@ def kill_case(case_root: pathlib.Path, phase: str) -> dict[str, Any]:
 
 def concurrent_case(root: pathlib.Path) -> dict[str, Any]:
     old, new, sync_result = setup(root)
+    # Hold a real file descriptor from the old immutable generation through
+    # every pointer replacement; pointer names are never followed twice.
+    pinned = (root / "generations" / old / "a").open("rb")
+    old_snapshot = pinned.read()
     stop = threading.Event()
     errors: list[str] = []
     counts = [0] * 4
@@ -221,6 +225,11 @@ def concurrent_case(root: pathlib.Path) -> dict[str, Any]:
         stop.set()
         for t in threads:
             t.join(timeout=8)
+        pinned.seek(0)
+        pin_preserved = pinned.read() == old_snapshot
+        pinned.close()
+    if not pin_preserved:
+        raise AssertionError("old pinned generation content changed during commit")
     if errors:
         raise AssertionError("visible gap/torn selector/bad generation: " + repr(errors))
     if any(t.is_alive() for t in threads):
@@ -233,6 +242,7 @@ def concurrent_case(root: pathlib.Path) -> dict[str, Any]:
             "permissionRetries": retry_count[0],
             "directorySyncCapability": sync_result,
             "postReplaceDirectorySyncCounts": sync_observations,
+            "oldOpenGenerationHandlePreserved": pin_preserved,
             "observedBadPointersOrMixedTrees": 0}
 
 
