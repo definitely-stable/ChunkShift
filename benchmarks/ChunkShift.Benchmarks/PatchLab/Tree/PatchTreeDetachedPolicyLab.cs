@@ -92,6 +92,7 @@ internal static class PatchTreeDetachedPolicyLab
             using var verifier = ECDsa.Create();
             verifier.ImportSubjectPublicKeyInfo(anchor.PublicKeySpki, out int consumed);
             if (consumed != anchor.PublicKeySpki.Length || verifier.KeySize != 256 ||
+                verifier.ExportParameters(false).Curve.Oid.Value != "1.2.840.10045.3.1.7" ||
                 !verifier.VerifyData(preimage, signature, HashAlgorithmName.SHA256,
                     DSASignatureFormat.IeeeP1363FixedFieldConcatenation))
                 throw new InvalidDataException("T0 detached P-256 signature rejected.");
