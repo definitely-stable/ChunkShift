@@ -194,6 +194,36 @@ def valid_root_rotation(sim, directory: Path) -> dict:
             "oldRootKeys": len(initial_ids), "newRootKeys": len(next_ids)}
 
 
+def local_cache_rollback_limit(sim, directory: Path) -> dict:
+    """Demonstrate the explicit LIMIT of same-disk TUF cache rollback defense.
+
+    Attacker with write access to local TUF cache and malicious mirror can
+    roll back both high-water *copies*. TUF still correctly verifies authentic
+    old metadata: an independent protected high-water would be necessary.
+    This positive acceptance is an EXPECTED LIMIT, not an updater defect.
+    """
+    baseline(sim, directory)
+    cache = directory / "trusted-metadata" / "timestamp.json"
+    signed_v1 = cache.read_bytes()
+    require(Metadata.from_bytes(signed_v1).signed.version == 1,
+            "Expected old trusted timestamp v1")
+    # Legitimate publisher makes signed timestamp v2; client accepts it.
+    sim.update_timestamp()
+    candidate_client(sim, directory, bootstrap=False).refresh()
+    require(Metadata.from_file(cache).signed.version == 2,
+            "The real client did not advance to signed timestamp v2")
+    # Privileged LOCAL attacker restores old trusted timestamp, while mirror
+    # replays an authentic previously released v1.
+    cache.write_bytes(signed_v1)
+    sim.timestamp.version = 1
+    candidate_client(sim, directory, bootstrap=False).refresh()
+    accepted = Metadata.from_file(cache).signed.version
+    require(accepted == 1,
+            "Unexpected: rollback of unprotected local metadata cache did not reproduce")
+    return {"trustedBeforeAttack": 2, "trustedAfterLocalAndRemoteRollback": 1,
+            "requiresExternalProtectedHighWater": True}
+
+
 def rollback_root_chain(sim, directory: Path) -> str:
     # Repository skips v2 and presents a v3 root as if it were v2.
     sim.root.version += 2
@@ -236,10 +266,11 @@ def main() -> None:
         ("root_new_keys_without_old_threshold", broken_root_rotation),
         ("valid_dual_signed_root_rotation", valid_root_rotation),
         ("nonconsecutive_root_version", rollback_root_chain),
+        ("local_cache_rollback_limit", local_cache_rollback_limit),
     ]
     results = [run_scenario(name, callback, RepositorySimulator)
                for name, callback in scenarios]
-    require(len(results) == 9 and len({x["case"] for x in results}) == 9,
+    require(len(results) == 10 and len({x["case"] for x in results}) == 10,
             "Unexpected TUF scenario coverage")
     evidence = {
         "schema": "chunkshift.trust-sig-001.r2b2.real-tuf-updater.v0",
