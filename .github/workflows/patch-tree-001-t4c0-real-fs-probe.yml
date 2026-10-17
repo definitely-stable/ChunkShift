@@ -1,0 +1,70 @@
+name: PATCH-TREE-001 T4-C0 real filesystem head feasibility
+
+# PR-only original runtime observation, not publication or proof of power durability.
+on:
+  pull_request:
+    paths:
+      - "benchmarks/scripts/patch_tree_t4c0_fs_probe.py"
+      - "benchmarks/scripts/test_patch_tree_t4c0_fs_probe.py"
+      - "docs/benchmarks/PATCH-TREE-001-T4C0-REAL-FS-PROTOCOL.md"
+      - ".github/workflows/patch-tree-001-t4c0-real-fs-probe.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  real-fs-probe:
+    name: T4-C0 pointer replacement / process kill (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - name: Checkout research-only scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Pin CPython interpreter
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Fail-closed pointer format / negative fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/scripts/patch_tree_t4c0_fs_probe.py benchmarks/scripts/test_patch_tree_t4c0_fs_probe.py
+          python benchmarks/scripts/test_patch_tree_t4c0_fs_probe.py -v
+      - name: Host temporary filesystem pointer replacement, concurrency and kill probes
+        shell: bash
+        env:
+          EVIDENCE: ${{ runner.temp }}/t4c0-observed.json
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          python benchmarks/scripts/patch_tree_t4c0_fs_probe.py --run --output "$EVIDENCE"
+          python - "$EVIDENCE" <<'PY'
+          import json,sys
+          p=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert p["schema"] == "chunkshift.patch-tree-t4c0-fs-probe.v0"
+          assert p["status"] == "LAB_OBSERVED_NOT_PRODUCTION_ADOPT"
+          assert p["concurrent"]["publishedReplacements"] == 200
+          assert p["concurrent"]["observedBadPointersOrMixedTrees"] == 0
+          assert p["concurrent"]["oldOpenGenerationHandlePreserved"] is True
+          assert len(p["concurrent"]["readCounts"]) == 4
+          assert min(p["concurrent"]["readCounts"]) > 0
+          assert sum(p["concurrent"]["postReplaceDirectorySyncCounts"].values()) == 200
+          assert p["negative"]["negativeCasesRejected"] == 6
+          assert p["killBefore"]["phase"] == "before"
+          assert p["killAfter"]["phase"] == "after"
+          assert p["powerCutDurability"] == "NOT_TESTED"
+          assert p["signatureAuthentication"] == "NOT_IMPLEMENTED"
+          PY
+          echo "T4-C0: real temporary FS operations observed, NOT durability, signed trust or a shipping .NET adapter." >> "$GITHUB_STEP_SUMMARY"
+      - name: Archive host-specific evidence (including on failed assertions when available)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-001-t4c0-os-replace-${{ matrix.os }}
+          path: ${{ runner.temp }}/t4c0-observed.json
+          if-no-files-found: warn
+          retention-days: 90
