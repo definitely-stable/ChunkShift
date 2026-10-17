@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """R2C: actual .NET NSec.Cryptography 26.4.0 <-> OpenSSL 3 pure Ed25519.
 
-Input files including ephemeral PKCS8 key only live in TemporaryDirectory.
+NSec signing key is non-exportable. An independent OpenSSL PEM private key
+exists only inside TemporaryDirectory.
 Upload ONLY the JSON verdict and dependency/toolchain text, never this temp dir.
 This does not implement minisign serialization, TUF roles, or a real trust store.
 """
