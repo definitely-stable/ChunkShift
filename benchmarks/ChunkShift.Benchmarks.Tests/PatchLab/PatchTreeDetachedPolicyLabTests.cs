@@ -140,12 +140,13 @@ public sealed class PatchTreeDetachedPolicyLabTests
             p with { Channel = "Stable" },
             p with { Channel = "../escape" },
             p with { KeyId = "" },
-            p with { BaseTreeSha256 = Zero.ToUpperInvariant() },
+            p with { BaseTreeSha256 = new string('A', 64) },
             p with { TargetTreeSha256 = Zero },
             p with { Epoch = -1 },
             p with { Sequence = -1 },
             p with { NotBeforeUnixSeconds = -1 },
-            p with { ExpiresUnixSeconds = p.NotBeforeUnixSeconds }
+            p with { ExpiresUnixSeconds = p.NotBeforeUnixSeconds },
+            p with { ExpiresUnixSeconds = long.MaxValue }
         };
         foreach (var candidate in invalid)
             Assert.Throws<InvalidDataException>(() => P.Encode(candidate));
