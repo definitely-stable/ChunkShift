@@ -89,7 +89,8 @@ internal static class Program
     {
         Directory.CreateDirectory(Path.GetDirectoryName(output)!);
         File.WriteAllText(output, JsonSerializer.Serialize(obj,
-            new JsonSerializerOptions { WriteIndented = true }) + "\n", Encoding.UTF8);
+            new JsonSerializerOptions { WriteIndented = true }) + "\n",
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
     }
 
     private static void Check(bool condition, string message)
