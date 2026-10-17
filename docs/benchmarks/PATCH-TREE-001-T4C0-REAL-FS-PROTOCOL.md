@@ -13,6 +13,25 @@ T0 remains the size baseline. T4-A established a restricted candidate tree
 identity; T4-B's immutable publication model assumed its active generation and
 epoch/sequence cursor change in one atomic operation, but never touched a disk.
 
+### First hosted-run discovery and amended discriminator
+
+The first GitHub-hosted [run #39025561214](https://github.com/definitely-stable/ChunkShift/actions/runs/39025561214) verified
+the baseline on Ubuntu (SUCCESS) but returned **FAILURE** on Windows:
+the default CPython reader obtained a real `PermissionError (Errno 13)`
+opening `active` concurrently with replacement. This is **not evidence
+of a torn/corrupted pointer**, but it *is* a counterexample to unqualified
+read availability with default Windows sharing modes. The initial error
+and FAILURE conclusion are retained.
+
+A separately labeled amendment in the same PR now **counts** such read
+access denials, never counts them as successful reads or seamless service,
+and adds a distinct `CreateFileW` reader with explicit Win32
+`FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE`. Comparing
+the native Win32 sharing mode against Python's default open may establish
+whether file-share flags materially affect feasibility. The native Win32
+lane is **not** a .NET API test and does not waive the original failure.
+The amended run is a new test against an amended PR SHA.
+
 The full T4-C platform publication adapter cannot be accepted before #185
 defines who may sign a tree identity and how anti-rollback/recovery policy is
 bound. T4-C0 therefore answers a **narrower independent feasibility question**:
@@ -64,7 +83,8 @@ or stable cloud-hosted block-device write ordering.
 | Probe | Setup | PASS condition | What is *not* proven |
 | --- | --- | --- | --- |
 | Negative pointer | alter magic, size, epoch/seq/hash/checksum | 5 malformed pointers + 1 tampered generation rejected; active stays old | Signature, anti-rollback, hostile path checks |
-| Concurrent readers | 4 threads, 200 alternating publish attempts; keep open handle from old generation | every reader samples nonzero; each observed head is complete and refers to correct immutable files; all 200 commits succeed; pinned old open descriptor still reads the same bytes; no torn/gap/mixed observations | Linearizability for all schedules, same semantics for other filesystems |
+| Concurrent readers, default open | 4 threads, 200 alternating publish attempts; keep open handle from old generation | every reader samples nonzero; count **all PermissionError read denials separately**; every successfully opened head is complete and bound to correct immutable files; all 200 commits succeed; pinned old descriptor unchanged | If any denial >0: `HOST_OBSERVED_SHARING_DENIAL`, NOT seamless read availability |
+| Windows native share-delete control | repeat 200 alternating promotions using `CreateFileW` pointer reads with `FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE` | same complete-head/data checks, plus separate denied-read and publisher-retry counts | Still not a .NET API acceptance test, power-crash proof or exhaustive concurrency proof |
 | Kill **before** | separate child creates synced staged selector, writes barrier marker **before** replace, parent terminates child | active head remains old, staged file remains non-published, old and new generations retained | Kill at instruction-granularity race, kernel failure, power interruption |
 | Kill **after** | child creates stage, `os.replace`, attempts parent fsync on POSIX, writes barrier marker **after** replacement, parent terminates child | new full head is visible, old+new data intact | Durability across unexpected power loss |
 | Host capability record | independent per-host JSON artifact | record Python, OS, 200 per-commit directory-sync results, Windows replace permission retries and reader samples | Generalization to production install permissions or remote/storage-backed volumes |
@@ -89,7 +109,13 @@ No holdout/patched original data is involved.
 Interpretation:
 - `OBSERVED_FEASIBLE_HOSTED_FS_ONLY`: 200 replacements with zero observed
   bad pointers, both kill barriers, negative tests and pinned old handle
-  pass on that exact host; not a platform-wide atomicity theorem.
+  pass on that exact host; not a platform-wide atomicity theorem. For
+  concurrent reader availability additionally require **zero recorded
+  read PermissionError** for that exact sharing mode and host.
+- `HOST_OBSERVED_SHARING_DENIAL`: publisher may complete its updates while
+  one or more concurrent reader-open attempts fail with access denial.
+  The lane can complete *measurement* but **fails the seamless-availability
+  design criterion**; do not fold denials into successful old/new reads.
 - `HOST_BLOCKER`: any observed missing/torn head, inconsistent generation,
   persistent replace denial, failed barrier or wrong selector state.
   Diagnose the exact job and kernel/OS facts, no production fallback.
