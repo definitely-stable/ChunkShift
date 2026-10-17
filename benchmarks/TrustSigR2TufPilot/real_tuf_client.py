@@ -99,6 +99,9 @@ def timestamp_rollback(sim, directory: Path) -> str:
 
 def expired_timestamp(sim, directory: Path) -> str:
     baseline(sim, directory)
+    # A newly signed timestamp version must be downloaded; same-version
+    # cached timestamp metadata can legitimately remain trusted until expiry.
+    sim.update_timestamp()
     sim.timestamp.expires = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=1)
     return assert_reject((ExpiredMetadataError,),
         lambda: candidate_client(sim, directory, bootstrap=False).refresh(),
@@ -202,8 +205,10 @@ def rollback_root_chain(sim, directory: Path) -> str:
 
 def run_scenario(name: str, scenario, simulator_type):
     with tempfile.TemporaryDirectory(prefix="chunkshift-tuf-r2b2-") as tmp:
+        observation = scenario(simulator_type(), Path(tmp))
+        print("R2B2_CASE_PASS", name, observation, flush=True)
         return {"case": name, "verdict": "pass",
-                "observation": scenario(simulator_type(), Path(tmp))}
+                "observation": observation}
 
 
 def main() -> None:
