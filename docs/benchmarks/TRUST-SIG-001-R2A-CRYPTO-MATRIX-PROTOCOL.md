@@ -11,7 +11,7 @@ Six unambiguous candidate rows: S0 ECDSA NIST P-256 SHA256/P1363 (mandatory base
 
 On each supported row: ephemeral signer, export SPKI, independently import public-only verifier, sign and verify exact domain preimage; reject independent wrong key, modified message, bit-flipped and truncated signature. Any false acceptance, key substitution, wrong vector, abnormal provider exception or S0 failure is a fatal error. Do not serialize private keys or signatures to evidence.
 
-After eight warmups take 128 sequential single-operation Stopwatch samples per supported sign/verify lane, record medians in microseconds, DER SPKI and signature sizes, runtime, OS, architecture and NativeAOT status in schema chunkshift.trust-sig-001.r2.crypto-matrix.v0. These are runner-dependent screening samples, not stable performance claims or confidence bounds; use no fabricated results.
+After eight warmups take 128 sequential single-operation Stopwatch samples per supported sign/verify lane, record medians in microseconds, DER SPKI size, initial/min/max signature sizes, runtime, OS, architecture and NativeAOT status in schema chunkshift.trust-sig-001.r2.crypto-matrix.v0. These are runner-dependent screening samples, not stable performance claims or confidence bounds; use no fabricated results.
 
 GitHub-hosted host matrix: ubuntu-24.04 x64, ubuntu-24.04-arm arm64, windows-2025 x64, macos-15 arm64. Require both Release JIT and self-contained NativeAOT, warnings as errors, executable verification and JSON validation. Failure to publish or run AOT is FAILURE, not JIT fallback. No self-hosted runner.
 
@@ -26,3 +26,7 @@ Working choice remains documentation-only/external TUF-style framework as archit
 Primary upstream sources: https://learn.microsoft.com/dotnet/core/whats-new/dotnet-10/libraries ; https://learn.microsoft.com/dotnet/standard/security/cross-platform-cryptography ; https://learn.microsoft.com/dotnet/api/system.security.cryptography.compositemldsa.isalgorithmsupported?view=net-10.0 ; https://theupdateframework.github.io/specification/latest/
 
 Next R2-B: independent host-output audit, sample variability, pinned standalone Ed25519 dependency and interop against real external tooling, external TUF/DSSE adoption decision and threat-model boundary.
+
+## On-run correction: variable composite signature length
+
+The Windows provider revealed that Composite ML-DSA-44+ECDSA-P256 can produce different byte lengths across valid signatures. The original blanket invariant of fixed signature length was not valid for this lane. Revised measurement records initial, minimum and maximum signature sizes; the fixed-length invariant remains mandatory for S0 P1363 and S2 ML-DSA. S3 byte counts may differ across JIT and NativeAOT samples. The negative signature verification tests are unchanged. This does not establish a canonical composite wire envelope or external cryptographic interoperability.
