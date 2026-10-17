@@ -1,0 +1,119 @@
+name: TRUST-SIG-001 R2B1 .NET OpenSSL DSSE interop
+
+on:
+  pull_request:
+    paths:
+      - "benchmarks/TrustSigR2BInterop/**"
+      - "docs/benchmarks/TRUST-SIG-001-R2B1-EXTERNAL-INTEROP-PROTOCOL.md"
+      - "docs/research/results/TRUST-SIG-001-R2B1-OPENSSL-INTEROP-20261017-001.md"
+      - ".github/workflows/trust-sig-001-r2b1-interop.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  openssl-interop:
+    name: R2B1 P-256 DER and DSSE (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rid: linux-x64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Check GitHub-hosted machine and OpenSSL
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          openssl version -a
+          dotnet --info
+      - name: Compile isolated Release tool with warnings as errors
+        run: dotnet build benchmarks/TrustSigR2BInterop/TrustSigR2BInterop.csproj -c Release -warnaserror
+      - name: Independently sign and verify .NET JIT signatures with OpenSSL
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/TrustSigR2BInterop/interop.py \
+            --app benchmarks/TrustSigR2BInterop/bin/Release/net10.0/TrustSigR2BInterop.dll \
+            --output "$RUNNER_TEMP/r2b-jit.json"
+      - name: Publish NativeAOT with all warnings as errors
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet publish benchmarks/TrustSigR2BInterop/TrustSigR2BInterop.csproj \
+            -c Release -r ${{ matrix.rid }} -p:PublishAot=true \
+            -p:TreatWarningsAsErrors=true -o "$RUNNER_TEMP/r2b-native"
+      - name: Independently sign and verify NativeAOT signatures with OpenSSL
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/TrustSigR2BInterop/interop.py \
+            --native-aot --app "$RUNNER_TEMP/r2b-native/TrustSigR2BInterop" \
+            --output "$RUNNER_TEMP/r2b-aot.json"
+      - name: Validate both mode outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/r2b-jit.json" "$RUNNER_TEMP/r2b-aot.json" <<'PY'
+          import json,sys
+          a,b=[json.load(open(p,encoding="utf-8")) for p in sys.argv[1:]]
+          keys=["t0-policy-hash-and-independent-dsse-pae",
+                "dotnet-p256-der-to-openssl-policy-and-dsse",
+                "openssl-p256-der-to-dotnet-policy-and-dsse",
+                "openssl-rejects-wrong-key-p1363-as-der-mutation-type-and-truncation",
+                "dotnet-rejects-openssl-negative-cases-and-accepts-der",
+                "external-ed25519-valid-signature-and-hostile-negative-cases"]
+          for want,doc in ((False,a),(True,b)):
+              assert doc["schema"]=="chunkshift.trust-sig-001.r2b.external-interop.v0"
+              assert doc["nativeAot"] is want
+              assert doc["decision"]=="EXTERNAL_INTEROP_LAB_PASS_NOT_SIGNING_PROTOCOL_ADOPT"
+              assert doc["policyBytes"]==151
+              assert doc["policySha256"]=="87483bae4112cd14f9641400ff195f9d2052679213186a8025ea0cb960c78697"
+              assert doc["checks"]==keys
+              assert doc["p256DotnetP1363SignatureBytes"]==64
+              assert doc["externalEd25519SignatureBytes"]==64
+              assert doc["externalEd25519PublicSpkiBytes"]==44
+              assert doc["standaloneEd25519BclVerified"] is False
+              assert doc["realTufClientVerified"] is False
+              assert doc["persistentHighWaterVerified"] is False
+              assert doc["privateKeysPersistedInArtifact"] is False
+              assert 68<=doc["p256DotnetDerSignatureBytes"]<=72
+              assert 68<=doc["p256OpenSslDerSignatureBytes"]<=72
+              assert "OpenSSL" in doc["openssl"]
+          assert a["dssePaeSha256"]==b["dssePaeSha256"]
+          print("R2B1 JIT and NativeAOT evidence PASS",a["hostOs"],a["openssl"])
+          PY
+      - name: Record tools and explicit limitations
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "R2B1 interop research ONLY. External Ed25519 control does not establish standalone Ed25519 support in .NET."
+            echo "OpenSSL:"
+            openssl version -a
+            echo ".NET:"
+            dotnet --info
+          } > "$RUNNER_TEMP/r2b-toolchain.txt"
+          printf '%s\n' "R2B1: independent .NET ↔ OpenSSL P-256 DER and DSSE PAE checks passed, not an update trust implementation." >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload ONLY evidence JSON and toolchain (no keys or signatures)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trust-sig-r2b1-${{ matrix.rid }}
+          path: |
+            ${{ runner.temp }}/r2b-jit.json
+            ${{ runner.temp }}/r2b-aot.json
+            ${{ runner.temp }}/r2b-toolchain.txt
+          retention-days: 90
+          if-no-files-found: warn
