@@ -7,8 +7,8 @@ namespace TrustSigR2CEd25519;
 
 /// <summary>
 /// Disposable R2-C pure Ed25519 interop consumer. Ephemeral PKCS#8 key is
-/// exported to a short-lived test directory ONLY for external OpenSSL checks.
-/// Never use as a production signer, trust store or key-distribution protocol.
+/// kept non-exportable; only public SPKI and signature bytes are shared.
+/// This is not a production signer, trust store or key-distribution protocol.
 /// </summary>
 internal static class Program
 {
@@ -65,10 +65,8 @@ internal static class Program
         Require(policy.Length == 151 &&
             Convert.ToHexStringLower(SHA256.HashData(policy)) == T0Hash, "T0 domain vector mismatch");
         byte[] pae = EncodePae(PayloadType, policy);
-        using var signer = Key.Create(algorithm, new KeyCreationParameters
-        {
-            ExportPolicy = KeyExportPolicies.AllowPlaintextArchiving
-        });
+        // Default export policy: the NSec signing key cannot be exported.
+        using var signer = Key.Create(algorithm);
         byte[] publicSpki = signer.PublicKey.Export(KeyBlobFormat.PkixPublicKey);
         byte[] publicRaw = signer.PublicKey.Export(KeyBlobFormat.RawPublicKey);
         Require(publicSpki.Length == 44 && publicRaw.Length == 32,
@@ -91,14 +89,8 @@ internal static class Program
         File.WriteAllBytes(Path.Combine(dir, "dsse-pae.bin"), pae);
         File.WriteAllBytes(Path.Combine(dir, "nsec-public.spki"), publicSpki);
         File.WriteAllBytes(Path.Combine(dir, "nsec-public.raw"), publicRaw);
-        // The only secret material on disk is under the ephemeral, auto-removed
-        // temp directory. Never upload this file, and never log its contents.
-        byte[] secret = signer.Export(KeyBlobFormat.PkixPrivateKey);
-        try
-        {
-            File.WriteAllBytes(Path.Combine(dir, "EPHEMERAL-PRIVATE-DO-NOT-UPLOAD.pk8"), secret);
-        }
-        finally { CryptographicOperations.ZeroMemory(secret); }
+        // Only public SPKI + signatures cross this boundary. The private
+        // NSec key stays inside the NSec secure key object and is disposed.
         File.WriteAllBytes(Path.Combine(dir, "nsec-policy.sig"), sigPolicy);
         File.WriteAllBytes(Path.Combine(dir, "nsec-dsse.sig"), sigPae);
     }
