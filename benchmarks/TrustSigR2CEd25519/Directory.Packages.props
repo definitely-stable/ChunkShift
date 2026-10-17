@@ -1,0 +1,5 @@
+<Project>
+  <!-- Scoped to the disposable R2-C experiment; root production CPM unchanged. -->
+  <PropertyGroup><ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally></PropertyGroup>
+  <ItemGroup><PackageVersion Include="NSec.Cryptography" Version="26.4.0" /></ItemGroup>
+</Project>
