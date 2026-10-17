@@ -29,12 +29,13 @@ Primary upstream docs: https://theupdateframework.readthedocs.io/en/latest/api/t
 | 7 root_new_keys_without_old_threshold | Root v2 signed only by newly designated keys, not the previously trusted root keys | `UnsignedMetadataError`; cached trusted root stays v1 |
 | 8 valid_dual_signed_root_rotation | Same root v2 metadata signed by **both old and new authorized root key thresholds** | Refresh succeeds and trusted cached root advances to v2/new root key set |
 | 9 nonconsecutive_root_version | Root served in versioned v2 path internally claims v3 | `BadVersionNumberError` |
+| 10 local_cache_rollback_limit | Local attacker restores the previously authenticated timestamp v1 cache after a real v2 update while mirror replays correctly signed v1 | **Expected vulnerability under explicitly stronger local attacker**: without protected independent high-water, real Updater will trust v1 again. This is **not a TUF protocol failure**, only a boundary of local storage assumptions |
 
 All cases must PASS or the CI job fails with full traceback. A negative test passes only when the **expected exception class** is raised, not on any arbitrary error; no skipped unavailable scenarios. The signed target is an inert illustrative byte string, **not** a real CSP stream. Runner clocks are not simulated or trusted: an expiration failure relative to the CI wall clock does not establish adversarial clock-tampering resistance.
 
 ## Host gates and evidence
 
-GitHub-hosted Ubuntu 24.04, Windows 2025 and macOS 15, Python 3.13 setup pinned to action commit; read-only exact upstream checkout; fresh pip install. Retain JSON results and runtime/dependency versions only. Output schema `chunkshift.trust-sig-001.r2b2.real-tuf-updater.v0`, exactly 9 stable named cases, explicit capability/limitation flags. The PR must also pass full general CI, CodeQL, Heavy and Benchmark gates on the **same final HEAD**.
+GitHub-hosted Ubuntu 24.04, Windows 2025 and macOS 15, Python 3.13 setup pinned to action commit; read-only exact upstream checkout; fresh pip install. Retain JSON results and runtime/dependency versions only. Output schema `chunkshift.trust-sig-001.r2b2.real-tuf-updater.v0`, exactly 10 stable named cases, explicit capability/limitation flags. The PR must also pass full general CI, CodeQL, Heavy and Benchmark gates on the **same final HEAD**.
 
 ### Safety interpretation
 
