@@ -11,7 +11,7 @@ class T4C0FormatTests(unittest.TestCase):
     def test_pinned_canonical_le_pointer_and_checksum(self):
         raw = probe.encode_head(0, 1, "0" * 64)
         self.assertEqual(88, len(raw))
-        self.assertEqual("T4C0v0!\\n".encode(), raw[:8])
+        self.assertEqual(bytes.fromhex("543443307630210a"), raw[:8])
         self.assertEqual("0a33e8319dd69e441921385b256f5c8333e699f3d8b02af1d0becb3215c4ce67",
                          raw[56:].hex())
         self.assertEqual((0, 1, "0" * 64), probe.decode_head(raw))
