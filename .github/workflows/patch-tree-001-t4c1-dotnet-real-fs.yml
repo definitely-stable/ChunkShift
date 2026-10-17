@@ -1,0 +1,77 @@
+name: PATCH-TREE-001 T4-C1 .NET real filesystem pilot
+
+# Research-only PR runner, deliberately no original corpus, no signing or release.
+on:
+  pull_request:
+    paths:
+      - "benchmarks/PatchTreeT4C1Probe/**"
+      - "docs/benchmarks/PATCH-TREE-001-T4C1-DOTNET-FS-PROTOCOL.md"
+      - "docs/research/results/PATCH-TREE-001-T4C1-DOTNET-FS-20261017-001.md"
+      - ".github/workflows/patch-tree-001-t4c1-dotnet-real-fs.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  dotnet-fs:
+    name: T4-C1 actual .NET pointer and process-kill (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - name: Checkout frozen PR commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Restore standalone isolated probe (no third-party packages)
+        run: dotnet restore benchmarks/PatchTreeT4C1Probe/PatchTreeT4C1Probe.csproj
+      - name: Compile Release with warnings as errors
+        run: dotnet build benchmarks/PatchTreeT4C1Probe/PatchTreeT4C1Probe.csproj -c Release --no-restore -warnaserror
+      - name: Real .NET FileStream and File.Move empirical experiment
+        shell: bash
+        env:
+          EVIDENCE: ${{ runner.temp }}/t4c1-evidence.json
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          dotnet run --project benchmarks/PatchTreeT4C1Probe/PatchTreeT4C1Probe.csproj \
+            -c Release --no-build --no-restore -- --output "$EVIDENCE"
+          python - "$EVIDENCE" <<'PY'
+          import json,sys
+          r=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert r["schema"]=="chunkshift.patch-tree-t4c1-dotnet-fs.v0"
+          assert r["status"]=="LAB_OBSERVATION_ONLY_NOT_ADOPT"
+          assert r["primitive"]=="System.IO.File.Move(staged,active,overwrite:true)"
+          assert r["writerFlush"]=="FileStream.Flush(flushToDisk:true)"
+          assert r["sourceDestination"]=="SIBLING_FILES_SAME_DIRECTORY"
+          assert r["powerCut"]=="NOT_TESTED"
+          assert r["trustedSignatures"]=="NOT_IMPLEMENTED"
+          for label in ("defaultShareRead","explicitShareDelete"):
+              s=r[label]
+              assert s["published"]==200
+              assert sum(s["readerSnapshots"])>0 and min(s["readerSnapshots"])>0
+              assert len(s["readerAccessDenials"])==4
+              assert s["observedTornOrMixed"]==0
+              assert s["oldGenerationPinnedHandleIntact"] is True
+              assert sum(s["parentSyncResults"].values())==200
+          for label,expected in (("killBefore",1),("killAfter",2)):
+              assert r[label]["expectedCursor"]==expected
+              assert r[label]["oldAndNewRetained"] is True
+          assert r["negatives"]["rejected"]==6
+          assert r["negatives"]["stageWriteFailureSimulated"] is True
+          assert r["hostileLinksOrReparse"]=="NOT_TESTED"
+          PY
+          echo "T4-C1: real .NET API behavior observed; sharing denials, retries and parent fsync logged. Not authenticated or power-crash safe." >> "$GITHUB_STEP_SUMMARY"
+      - name: Archive diagnostic or completed per-host evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-001-t4c1-dotnet-${{ matrix.os }}
+          path: ${{ runner.temp }}/t4c1-evidence.json
+          if-no-files-found: warn
+          retention-days: 90
