@@ -107,8 +107,55 @@ def setup(root: pathlib.Path) -> tuple[str, str, str]:
     return old, new, sync_result
 
 
-def visible(root: pathlib.Path) -> tuple[int, int, str]:
-    epoch, sequence, digest = decode_head((root / "active").read_bytes())
+def win32_read_share_delete(path: pathlib.Path) -> bytes:
+    """Windows CreateFileW reader: explicitly share READ|WRITE|DELETE.
+
+    Separate from Path.read_bytes(), whose native sharing contract can block
+    replacement. This is OS-level feasibility, NOT production .NET code.
+    """
+    if os.name != "nt":
+        raise RuntimeError("Win32 reader is Windows-only")
+    import ctypes
+    from ctypes import wintypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    create = kernel.CreateFileW
+    create.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                       ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD,
+                       wintypes.HANDLE]
+    create.restype = wintypes.HANDLE
+    read = kernel.ReadFile
+    read.argtypes = [wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD,
+                     ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p]
+    read.restype = wintypes.BOOL
+    close = kernel.CloseHandle
+    close.argtypes = [wintypes.HANDLE]
+    close.restype = wintypes.BOOL
+    handle = create(str(path), 0x80000000, 0x00000001 | 0x00000002 | 0x00000004,
+                    None, 3, 0x00000080, None)
+    if handle == ctypes.c_void_p(-1).value:
+        error = ctypes.get_last_error()
+        raise PermissionError(error, "Win32 CreateFileW failed", str(path))
+    try:
+        buffer = ctypes.create_string_buffer(HEAD_BYTES + 1)
+        count = wintypes.DWORD(0)
+        if not read(handle, buffer, HEAD_BYTES + 1, ctypes.byref(count), None):
+            error = ctypes.get_last_error()
+            raise OSError(error, "Win32 ReadFile failed", str(path))
+        return buffer.raw[:count.value]
+    finally:
+        if not close(handle):
+            raise OSError(ctypes.get_last_error(), "Win32 CloseHandle failed")
+
+
+def visible(root: pathlib.Path, pointer_mode: str = "python-default") -> tuple[int, int, str]:
+    if pointer_mode == "win32-share-delete":
+        contents = win32_read_share_delete(root / "active")
+    elif pointer_mode == "python-default":
+        contents = (root / "active").read_bytes()
+    else:
+        raise ValueError("unknown pointer open mode")
+    epoch, sequence, digest = decode_head(contents)
     verify_generation(root, digest)
     return epoch, sequence, digest
 
@@ -186,7 +233,7 @@ def kill_case(case_root: pathlib.Path, phase: str) -> dict[str, Any]:
             proc.stderr.close()
 
 
-def concurrent_case(root: pathlib.Path) -> dict[str, Any]:
+def concurrent_case(root: pathlib.Path, pointer_mode: str) -> dict[str, Any]:
     old, new, sync_result = setup(root)
     # Hold a real file descriptor from the old immutable generation through
     # every pointer replacement; pointer names are never followed twice.
@@ -195,16 +242,25 @@ def concurrent_case(root: pathlib.Path) -> dict[str, Any]:
     stop = threading.Event()
     errors: list[str] = []
     counts = [0] * 4
+    reader_denials = [0] * 4
     retry_count = [0]
     sync_observations: dict[str, int] = {}
 
     def reader(i: int) -> None:
         while not stop.is_set() and not errors:
             try:
-                epoch, sequence, identity = visible(root)
+                epoch, sequence, identity = visible(root, pointer_mode)
                 if epoch != 0 or sequence < 1 or identity not in (old, new):
                     raise AssertionError("invalid selected generation/cursor")
                 counts[i] += 1
+            except PermissionError:
+                # A real Windows sharing denial is an observed read failure,
+                # NOT evidence that every reader continuously sees old/new.
+                # Bound it, count it, and do not relabel a denial as seamless.
+                reader_denials[i] += 1
+                if reader_denials[i] > 10000:
+                    errors.append(f"reader-{i}:excessive sharing/access denials")
+                    stop.set()
             except (OSError, ValueError, AssertionError) as exc:
                 errors.append(f"reader-{i}:{type(exc).__name__}:{exc}")
                 stop.set()
@@ -239,6 +295,10 @@ def concurrent_case(root: pathlib.Path) -> dict[str, Any]:
     if visible(root) != (0, 201, old):
         raise AssertionError("final active generation is not the last promoted")
     return {"publishedReplacements": 200, "readCounts": counts,
+            "pointerOpenMode": pointer_mode,
+            "readPermissionDenied": reader_denials,
+            "accessContinuity": ("HOST_OBSERVED_SHARING_DENIAL" if sum(reader_denials) else
+                                 "NO_READ_DENIAL_OBSERVED"),
             "permissionRetries": retry_count[0],
             "directorySyncCapability": sync_result,
             "postReplaceDirectorySyncCounts": sync_observations,
@@ -287,7 +347,10 @@ def run_suite(output: pathlib.Path) -> None:
             "signatureAuthentication": "NOT_IMPLEMENTED",
             "hostileReparseAndSymlinkWalk": "NOT_TESTED",
         }
-        results["concurrent"] = concurrent_case(base / "concurrent")
+        results["concurrent"] = concurrent_case(base / "concurrent-default", "python-default")
+        results["concurrentWin32ShareDelete"] = (
+            concurrent_case(base / "concurrent-win32-delete-sharing", "win32-share-delete")
+            if os.name == "nt" else "NOT_APPLICABLE_NON_WINDOWS")
         results["killBefore"] = kill_case(base / "kill-before", "before")
         results["killAfter"] = kill_case(base / "kill-after", "after")
         results["negative"] = negative_case(base / "negative")
