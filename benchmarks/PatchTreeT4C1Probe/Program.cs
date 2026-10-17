@@ -16,6 +16,7 @@ namespace PatchTreeT4C1Probe;
 /// </summary>
 internal static class Program
 {
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private const int HeadBytes = 88;
     private const int HeadBodyBytes = 56;
     private const int Replacements = 200;
@@ -26,8 +27,8 @@ internal static class Program
     private const string OldHash = "f5c1d9d57e51b275fd1dde57061ba2630f135f886526882173ee0eded280db1c";
     private const string NewHash = "4573b9010344c77e8c3f71d0fdd5561c1d2018a30b4cf29bb4fa08180e7c898d";
 
-    [DllImport("libc", EntryPoint = "open", SetLastError = true, CharSet = CharSet.Ansi)]
-    private static extern int OpenDirectory(string path, int flags);
+    [DllImport("libc", EntryPoint = "open", SetLastError = true)]
+    private static extern int OpenDirectory([MarshalAs(UnmanagedType.LPUTF8Str)] string path, int flags);
     [DllImport("libc", EntryPoint = "fsync", SetLastError = true)]
     private static extern int Fsync(int fd);
     [DllImport("libc", EntryPoint = "close", SetLastError = true)]
@@ -88,8 +89,7 @@ internal static class Program
     private static void WriteJson(string output, object obj)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(output)!);
-        File.WriteAllText(output, JsonSerializer.Serialize(obj,
-            new JsonSerializerOptions { WriteIndented = true }) + "\n",
+        File.WriteAllText(output, JsonSerializer.Serialize(obj, JsonOptions) + "\n",
             new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
     }
 
@@ -135,7 +135,7 @@ internal static class Program
         {
             byte[] flipped = (byte[])initial.Clone();
             flipped[i] ^= 1;
-            try { Decode(flipped); throw new Exception("Bad head accepted"); }
+            try { Decode(flipped); throw new InvalidOperationException("Bad head accepted"); }
             catch (InvalidDataException) { /* fail-closed */ }
         }
     }
