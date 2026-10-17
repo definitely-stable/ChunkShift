@@ -187,12 +187,12 @@ internal static class Program
     {
         Require(publicSpki.Length > 0 && firstSignature.Length > 0, candidate + " empty key/signature");
         Require(verify(firstSignature), candidate + " valid signature failed");
-        Require(!wrongKeyVerify(firstSignature), candidate + " wrong trusted key accepted");
-        Require(!wrongMessageVerify(firstSignature), candidate + " modified payload accepted");
+        Require(!VerifyAdversarial(wrongKeyVerify, firstSignature), candidate + " wrong trusted key accepted");
+        Require(!VerifyAdversarial(wrongMessageVerify, firstSignature), candidate + " modified payload accepted");
         byte[] mutatedSignature = (byte[])firstSignature.Clone();
         mutatedSignature[^1] ^= 0x01;
-        Require(!verify(mutatedSignature), candidate + " corrupted signature accepted");
-        Require(!VerifyTruncated(verify, firstSignature), candidate + " truncated signature accepted");
+        Require(!VerifyAdversarial(verify, mutatedSignature), candidate + " corrupted signature accepted");
+        Require(!VerifyAdversarial(verify, firstSignature.AsSpan(0, firstSignature.Length - 1).ToArray()), candidate + " truncated signature accepted");
         for (int i = 0; i < Warmup; i++)
         {
             Require(verify(sign()), candidate + " warmup failed");
@@ -209,9 +209,9 @@ internal static class Program
             signMedian, verifyMedian);
     }
 
-    private static bool VerifyTruncated(Func<byte[], bool> verify, byte[] sig)
+    private static bool VerifyAdversarial(Func<byte[], bool> verify, byte[] signature)
     {
-        try { return verify(sig.AsSpan(0, sig.Length - 1).ToArray()); }
+        try { return verify(signature); }
         catch (CryptographicException) { return false; }
         catch (ArgumentException) { return false; }
     }
