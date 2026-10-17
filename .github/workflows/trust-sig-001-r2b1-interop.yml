@@ -5,6 +5,7 @@ on:
     paths:
       - "benchmarks/TrustSigR2BInterop/**"
       - "docs/benchmarks/TRUST-SIG-001-R2B1-EXTERNAL-INTEROP-PROTOCOL.md"
+      - "docs/research/results/TRUST-SIG-001-R2B1-OPENSSL-INTEROP-20261017-001.md"
       - ".github/workflows/trust-sig-001-r2b1-interop.yml"
 
 permissions:
