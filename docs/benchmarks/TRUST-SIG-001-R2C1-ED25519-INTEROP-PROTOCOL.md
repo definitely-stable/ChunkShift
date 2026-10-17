@@ -21,7 +21,7 @@ External crypto implementation: independently installed OpenSSL 3. RFC 8032 §7.
 | Negative controls in NSec | Wrong imported public key, modified content, changed DSSE type, changed DSSE content, corrupt and truncated signatures reject |
 | JIT / NativeAOT | A separately compiled native executable (warnings as errors) must re-run full cross-implementation signing/verification; no silent JIT fallback |
 | Dependencies / native assets | Record exact resolved NSec/libsodium versions, OpenSSL version, operating system, RID and NativeAOT output manifest |
-| Evidence/data safety | Store only summary JSON and dependency/toolchain text. No signatures, seed, PKCS8 private key or ephemeral keyring in GitHub uploads |
+| Evidence/data safety | Store only summary JSON and dependency/toolchain text. No signatures, seed, private key or ephemeral keyring in GitHub uploads; NSec signing key remains non-exportable |
 
 Runner targets: `ubuntu-24.04` (x64), `ubuntu-24.04-arm` (ARM64), `windows-2025` (x64), `macos-15` (ARM64), all **GitHub-hosted**. No self-hosted runners. Require an actual OpenSSL 3 executable on each host; on macOS use the preinstalled Homebrew openssl@3. If a host or NativeAOT is incompatible, **report failure/unsupported, do not claim coverage**. Do not add a production NuGet/package dependency.
 
@@ -31,7 +31,7 @@ No performance ranking is attempted in R2-C1. Correctness, native asset/runtime 
 
 Ed25519 interoperability at a raw signature and DSSE **PAE** level does **not** implement minisign/signify envelope parsing, DSSE JSON envelope verification, TUF root/targets/snapshot/timestamp role trust, Sigstore transparency, secure bootstrap trust, encrypted key custody, trusted time, or the rollback-resistant installed high-water demonstrated necessary in R2B2. Do not describe this as complete end-to-end signed updates. TUF and NSec answer different questions.
 
-Exporting a plaintext private key to a temporary test directory is strictly a **laboratory-only interop necessity** to drive OpenSSL from the exact same NSec key; the source comments and tool deliberately prevent uploading this directory, automatically remove it, and never print private bytes. This should never be copied to production signers.
+NSec signing keys remain **non-exportable**: only public SPKI and raw signatures cross the process boundary. The independent OpenSSL signer creates a distinct, ephemeral private PEM solely inside a temporary directory deleted before artifact upload. No first-party signing key is ever exported. This should not be confused with a production key-management design.
 
 References:
 - https://www.rfc-editor.org/rfc/rfc8032#section-7.1
