@@ -37,6 +37,7 @@ internal static class PatchTreeDetachedPolicyLab
         ValidateDigest(policy.TargetTreeSha256);
         if (policy.Epoch < 0 || policy.Sequence < 0 ||
             policy.NotBeforeUnixSeconds < 0 ||
+            policy.ExpiresUnixSeconds > DateTimeOffset.MaxValue.ToUnixTimeSeconds() ||
             policy.ExpiresUnixSeconds <= policy.NotBeforeUnixSeconds ||
             policy.BaseTreeSha256 == policy.TargetTreeSha256)
             throw new InvalidDataException("T0 invalid cursor, validity window or tree transition.");
