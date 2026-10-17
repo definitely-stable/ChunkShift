@@ -16,7 +16,7 @@ internal static class Program
         "87483bae4112cd14f9641400ff195f9d2052679213186a8025ea0cb960c78697";
 
     private sealed record Measurement(string Candidate, string Status, string Detail,
-        int? PublicSpkiBytes, int? SignatureBytes,
+        int? PublicSpkiBytes, int? SignatureBytes, int? SignatureMinBytes, int? SignatureMaxBytes,
         double? SignMedianMicroseconds, double? VerifyMedianMicroseconds);
 
     private static int Main(string[] args)
@@ -34,7 +34,7 @@ internal static class Program
             List<Measurement> rows =
             [
                 Ecdsa(payload),
-                new("S1-Ed25519-standalone", "not_in_net10_bcl", "Dependency required; not emulated by CompositeMLDsa.", null, null, null, null),
+                new("S1-Ed25519-standalone", "not_in_net10_bcl", "Dependency required; not emulated by CompositeMLDsa.", null, null, null, null, null, null),
                 Mldsa(payload, "S2-ML-DSA-44", MLDsaAlgorithm.MLDsa44),
                 Mldsa(payload, "S2-ML-DSA-65", MLDsaAlgorithm.MLDsa65),
                 Composite(payload, "S3-ML-DSA-44+ECDSA-P256", CompositeMLDsaAlgorithm.MLDsa44WithECDsaP256),
@@ -72,6 +72,10 @@ internal static class Program
                     else json.WriteNull("publicSpkiBytes");
                     if (row.SignatureBytes is int sig) json.WriteNumber("signatureBytes", sig);
                     else json.WriteNull("signatureBytes");
+                    if (row.SignatureMinBytes is int min) json.WriteNumber("signatureMinBytes", min);
+                    else json.WriteNull("signatureMinBytes");
+                    if (row.SignatureMaxBytes is int max) json.WriteNumber("signatureMaxBytes", max);
+                    else json.WriteNull("signatureMaxBytes");
                     if (row.SignMedianMicroseconds is double sign) json.WriteNumber("signMedianMicroseconds", sign);
                     else json.WriteNull("signMedianMicroseconds");
                     if (row.VerifyMedianMicroseconds is double verify) json.WriteNumber("verifyMedianMicroseconds", verify);
@@ -147,7 +151,7 @@ internal static class Program
     private static Measurement Mldsa(byte[] payload, string candidate, MLDsaAlgorithm algorithm)
     {
         if (!MLDsa.IsSupported)
-            return new(candidate, "provider_unavailable", "MLDsa.IsSupported=false on this runner", null, null, null, null);
+            return new(candidate, "provider_unavailable", "MLDsa.IsSupported=false on this runner", null, null, null, null, null, null);
         using var signer = MLDsa.GenerateKey(algorithm);
         byte[] publicSpki = signer.ExportSubjectPublicKeyInfo();
         using var verifier = MLDsa.ImportSubjectPublicKeyInfo(publicSpki);
@@ -165,7 +169,7 @@ internal static class Program
     private static Measurement Composite(byte[] payload, string candidate, CompositeMLDsaAlgorithm algorithm)
     {
         if (!CompositeMLDsa.IsAlgorithmSupported(algorithm))
-            return new(candidate, "provider_unavailable", "CompositeMLDsa.IsAlgorithmSupported=false on this runner", null, null, null, null);
+            return new(candidate, "provider_unavailable", "CompositeMLDsa.IsAlgorithmSupported=false on this runner", null, null, null, null, null, null);
         using var signer = CompositeMLDsa.GenerateKey(algorithm);
         byte[] publicSpki = signer.ExportSubjectPublicKeyInfo();
         using var verifier = CompositeMLDsa.ImportSubjectPublicKeyInfo(publicSpki);
@@ -197,16 +201,23 @@ internal static class Program
         {
             Require(verify(sign()), candidate + " warmup failed");
         }
+        bool mayVary = candidate.StartsWith("S3-", StringComparison.Ordinal);
+        int minimumSignatureLength = firstSignature.Length;
+        int maximumSignatureLength = firstSignature.Length;
         double signMedian = MedianMicroseconds(() =>
         {
             byte[] signature = sign();
-            Require(signature.Length == firstSignature.Length, candidate + " variable signature length");
+            Require(signature.Length > 0, candidate + " empty measured signature");
+            if (!mayVary)
+                Require(signature.Length == firstSignature.Length, candidate + " unexpected variable signature length");
+            minimumSignatureLength = Math.Min(minimumSignatureLength, signature.Length);
+            maximumSignatureLength = Math.Max(maximumSignatureLength, signature.Length);
             GC.KeepAlive(signature);
         });
         double verifyMedian = MedianMicroseconds(() =>
             Require(verify(firstSignature), candidate + " verify measurement failed"));
         return new(candidate, "verified", detail, publicSpki.Length, firstSignature.Length,
-            signMedian, verifyMedian);
+            minimumSignatureLength, maximumSignatureLength, signMedian, verifyMedian);
     }
 
     private static bool VerifyAdversarial(Func<byte[], bool> verify, byte[] signature)
