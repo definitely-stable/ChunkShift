@@ -52,7 +52,19 @@ jobs:
           assert p["concurrent"]["oldOpenGenerationHandlePreserved"] is True
           assert len(p["concurrent"]["readCounts"]) == 4
           assert min(p["concurrent"]["readCounts"]) > 0
+          assert len(p["concurrent"]["readPermissionDenied"]) == 4
           assert sum(p["concurrent"]["postReplaceDirectorySyncCounts"].values()) == 200
+          if "Windows" in p["platform"]:
+              assert isinstance(p["concurrentWin32ShareDelete"], dict)
+              s = p["concurrentWin32ShareDelete"]
+              assert s["pointerOpenMode"] == "win32-share-delete"
+              assert s["publishedReplacements"] == 200
+              assert s["observedBadPointersOrMixedTrees"] == 0
+              assert s["oldOpenGenerationHandlePreserved"] is True
+              assert min(s["readCounts"]) > 0
+              assert sum(s["postReplaceDirectorySyncCounts"].values()) == 200
+          else:
+              assert p["concurrentWin32ShareDelete"] == "NOT_APPLICABLE_NON_WINDOWS"
           assert p["negative"]["negativeCasesRejected"] == 6
           assert p["killBefore"]["phase"] == "before"
           assert p["killAfter"]["phase"] == "after"
