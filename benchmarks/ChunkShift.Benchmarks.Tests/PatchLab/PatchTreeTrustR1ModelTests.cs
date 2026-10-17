@@ -46,7 +46,6 @@ public sealed class PatchTreeTrustR1ModelTests
         Assert.Equal(2, rotated.Root.Version);
         Assert.Equal(Root2().MetadataSha256, rotated.Root.MetadataSha256);
         Assert.Equal(prior.Cursor, rotated.Cursor);
-        Assert.Equal(prior.Root, prior.Root); // no mutation of original
         Assert.Equal(1, prior.Root.Version);
     }
 
