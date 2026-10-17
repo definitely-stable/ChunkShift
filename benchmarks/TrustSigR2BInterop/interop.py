@@ -70,6 +70,10 @@ def main():
                 "-signature", folder / "dotnet-policy.der", folder / "policy.bin")
         openssl("dgst", "-sha256", "-verify", folder / "public.pem",
                 "-signature", folder / "dotnet-dsse.der", folder / "dsse-pae.bin")
+        openssl("pkey", "-pubin", "-in", folder / "public.pem",
+                "-pubout", "-outform", "DER", "-out", folder / "public.spki")
+        p256_public_spki_bytes = len((folder / "public.spki").read_bytes())
+        assert p256_public_spki_bytes == 91, "Unexpected NIST P-256 public SPKI length"
         checks.append("dotnet-p256-der-to-openssl-policy-and-dsse")
 
         openssl("dgst", "-sha256", "-sign", folder / "ephemeral-private-DO-NOT-UPLOAD.pem",
@@ -158,7 +162,7 @@ def main():
             "policyBytes": len(payload),
             "dssePayloadType": PAE_TYPE.decode("ascii"),
             "dssePaeSha256": hashlib.sha256(pae).hexdigest(),
-            "p256PublicSpkiBytes": 91,
+            "p256PublicSpkiBytes": p256_public_spki_bytes,
             "p256DotnetDerSignatureBytes": len((folder / "dotnet-policy.der").read_bytes()),
             "p256DotnetP1363SignatureBytes": len((folder / "dotnet-policy.p1363").read_bytes()),
             "p256OpenSslDerSignatureBytes": len((folder / "openssl-policy.der").read_bytes()),
