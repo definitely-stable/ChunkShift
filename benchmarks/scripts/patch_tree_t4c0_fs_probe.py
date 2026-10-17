@@ -114,7 +114,7 @@ def visible(root: pathlib.Path) -> tuple[int, int, str]:
 
 
 def promote(root: pathlib.Path, digest: str, sequence: int,
-            count_retries: list[int]) -> None:
+            count_retries: list[int], sync_observations: dict[str, int]) -> None:
     verify_generation(root, digest)
     stage = root / f".next-{sequence}"
     write_synced(stage, encode_head(0, sequence, digest))
@@ -123,6 +123,8 @@ def promote(root: pathlib.Path, digest: str, sequence: int,
         try:
             os.replace(stage, root / "active")
             count_retries[0] += attempt
+            sync_result = directory_sync(root)
+            sync_observations[sync_result] = sync_observations.get(sync_result, 0) + 1
             return
         except PermissionError:
             # Windows reader sharing can refuse replacement; record all retries
@@ -190,6 +192,7 @@ def concurrent_case(root: pathlib.Path) -> dict[str, Any]:
     errors: list[str] = []
     counts = [0] * 4
     retry_count = [0]
+    sync_observations: dict[str, int] = {}
 
     def reader(i: int) -> None:
         while not stop.is_set() and not errors:
@@ -211,7 +214,7 @@ def concurrent_case(root: pathlib.Path) -> dict[str, Any]:
             if errors:
                 break
             promote(root, new if sequence % 2 == 0 else old,
-                    sequence, retry_count)
+                    sequence, retry_count, sync_observations)
             if sequence % 8 == 0:
                 time.sleep(0.001)
     finally:
@@ -229,6 +232,7 @@ def concurrent_case(root: pathlib.Path) -> dict[str, Any]:
     return {"publishedReplacements": 200, "readCounts": counts,
             "permissionRetries": retry_count[0],
             "directorySyncCapability": sync_result,
+            "postReplaceDirectorySyncCounts": sync_observations,
             "observedBadPointersOrMixedTrees": 0}
 
 
