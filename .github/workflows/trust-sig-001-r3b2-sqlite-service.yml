@@ -1,0 +1,34 @@
+name: TRUST-SIG-001 R3B2 SQLite subprocess witness pilot
+on:
+  pull_request:
+    paths:
+      - "benchmarks/scripts/trust_sig_r3b2_sqlite_server.py"
+      - "benchmarks/scripts/test_trust_sig_r3b2_sqlite_server.py"
+      - "docs/benchmarks/TRUST-SIG-001-R3B2-SQLITE-SERVICE-PROTOCOL.md"
+      - ".github/workflows/trust-sig-001-r3b2-sqlite-service.yml"
+permissions:
+  contents: read
+jobs:
+  sqlite-witness:
+    name: R3B2 SQLite service (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - name: Checkout exact PR merge
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup pinned Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v6.0.0
+        with:
+          python-version: "3.13"
+      - name: Compile the isolated lab
+        run: python -m py_compile benchmarks/scripts/trust_sig_r3b2_sqlite_server.py benchmarks/scripts/test_trust_sig_r3b2_sqlite_server.py
+      - name: Exercise transaction crashes, replay and malicious same-service rollback
+        run: python -m unittest discover -s benchmarks/scripts -p test_trust_sig_r3b2_sqlite_server.py -v
+      - name: No security adoption
+        shell: bash
+        run: |
+          echo "LAB ONLY: SQLite process persistence, NOT independently protected witness/anti-rollback, NO remote TLS/authorization or production publisher." >> "$GITHUB_STEP_SUMMARY"
