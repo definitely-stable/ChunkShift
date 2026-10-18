@@ -96,7 +96,7 @@ def response_mac(key: bytes, nonce: bytes, revision: int, checkpoint: dict) -> s
 def connection(path: Path):
     db = sqlite3.connect(str(path), timeout=10, isolation_level=None)
     db.execute("PRAGMA busy_timeout=10000")
-    db.execute("PRAGMA synchronous=FULL")
+    db.execute("PRAGMA synchronous=EXTRA")
     return db
 
 
