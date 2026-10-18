@@ -51,10 +51,10 @@ missing DB. A transaction uses `BEGIN IMMEDIATE`, reads the full current
 checkpoint, compares it with the complete expected checkpoint, validates
 strict monotonic epoch+sequence with unchanged root and changed target tree,
 updates both checkpoint and revision, then COMMIT. `journal_mode=DELETE`
-and `synchronous=FULL` are chosen explicitly. SQLite rollback journal
+and `synchronous=EXTRA` are chosen explicitly. SQLite's documented `EXTRA` behavior additionally syncs the containing directory when a DELETE-mode rollback journal is unlinked; `FULL` may lose a just-committed transaction after a power failure on some filesystems. SQLite rollback journal
 and transaction semantics are used, not reimplemented. This does **not**
 prove storage-controller flush honesty, independent hardware monotonicity,
-host power-cut durability, multi-host consistency or rollback protection
+host power-cut durability on the tested storage/controller, multi-host consistency or rollback protection
 against server-storage replacement.
 
 Lab-only failure headers trigger abrupt process exit immediately before
