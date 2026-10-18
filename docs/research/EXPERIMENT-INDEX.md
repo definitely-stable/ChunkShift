@@ -1,7 +1,7 @@
 # Experiment index
 
 Status: Active registry
-Last reviewed: 2026-10-11
+Last reviewed: 2026-10-18
 
 This table is the human-readable research index. Machine-readable experiment definitions may also live under `benchmarks/experiments/`.
 
@@ -64,7 +64,7 @@ This table is the human-readable research index. Machine-readable experiment def
 | REPO-REMOTE-002 | Repository verification | #148, #139 | Bao/BLAKE3 authenticated partial ranges | PLANNED | — |
 | REPO-REMOTE-003 | Repository reconstruction | #148 | Reflink/sparse local reconstruction | PLANNED | — |
 | REPO-DELTA-001 | Repository research | #151, #138, #146, #147, #148 | Locality-bounded one-hop delta storage | PLANNED | — |
-| TRUST-SIG-001 | Trust | #185, #1 | Detached trust envelope: signature algorithm and package matrix (RFC-0004 §4–§5) | PLANNED | — |
+| TRUST-SIG-001 | Trust | #185, #184, #251 | Detached authenticity / root continuity, real TUF interoperability, crypto matrix and witness-first installed-tree recovery | RUNNING | [R2-A host algorithm matrix](results/TRUST-SIG-001-R2A-EVIDENCE-20261017-001.md), [R2-B1 OpenSSL/DSSE interoperability](results/TRUST-SIG-001-R2B1-OPENSSL-INTEROP-20261017-001.md), [R2-B2 real TUF client / local rollback limitation](results/TRUST-SIG-001-R2B2-REAL-TUF-CLIENT-20261017-001.md), [R2-C1 NSec Ed25519/OpenSSL/AOT interoperability](results/TRUST-SIG-001-R2C1-NSEC-ED25519-20261017-001.md) (**lab results, NO production signing/TUF/rollback adoption**); [R3-A proposed witness-first logical protocol](../benchmarks/TRUST-SIG-001-R3A-WITNESS-FIRST-PROTOCOL.md) (**PR-only, no protected-store evidence or verdict**) |
 
 PATCH-ENC-001 and PATCH-ZSTD-001 predate this registry; their evidence notes stay under `docs/benchmarks/` and are indexed here so the decisions remain discoverable.
 
