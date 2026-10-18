@@ -547,11 +547,12 @@
       "id": "TRUST-SIG-001",
       "issues": [
         185,
-        1
+        184,
+        251
       ],
       "area": "trust",
-      "status": "PLANNED",
-      "question": "detached trust envelope: signature algorithm and package matrix"
+      "status": "RUNNING",
+      "question": "Detached trust boundary: crypto/TUF evidence and protected witness-first recovery"
     },
     {
       "id": "PATCH-META-001",
