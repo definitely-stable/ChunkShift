@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-10-16",
+  "updated": "2026-10-19",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -551,8 +551,10 @@
         251
       ],
       "area": "trust",
-      "status": "RUNNING",
-      "question": "Detached trust boundary: crypto/TUF evidence and protected witness-first recovery"
+      "status": "ADOPT",
+      "question": "Host-owned detached trust architecture ADOPT; first-party signer/witness DEFER and SQLite local anti-rollback REJECT",
+      "decision": "docs/architecture/RFC-0006-patching-distribution-trust-boundary.md",
+      "evidence": "docs/research/results/TRUST-SIG-001-R3C-ARCHITECTURE-DECISION-20261019-001.md"
     },
     {
       "id": "PATCH-META-001",
