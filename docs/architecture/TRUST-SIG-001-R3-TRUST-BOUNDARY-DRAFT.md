@@ -1,10 +1,11 @@
 # TRUST-SIG-001 R3 — distribution/trust boundary: provisional architecture decision
 
-Status: **DRAFT / NOT ACCEPTED**. Owner: #185; depends on #184 and #251.
+Status: **SUPERSEDED ON 2026-10-19 by [RFC-0006](RFC-0006-patching-distribution-trust-boundary.md)**. Historical preregistration only; NOT current authority. Owner: #185; dependencies #184 and #251.
 Research evidence: T0, R1, R2A/B1/B2/C1. R3-A is a pure witness-first
 logical contract only; see [protocol](../benchmarks/TRUST-SIG-001-R3A-WITNESS-FIRST-PROTOCOL.md).
 
-## Decision this draft proposes
+> Historical context: the decision was resolved by RFC-0006 after R3-B1/B2.
+> Preserve this early draft for research traceability, not as an ongoing requirement for Patching publication.\n\n## Decision this draft proposed
 
 Keep the ChunkShift Core and Patching content verification boundary unchanged.
 CSM/CSP remain integrity artifacts and **do not** transport trusted keys,
