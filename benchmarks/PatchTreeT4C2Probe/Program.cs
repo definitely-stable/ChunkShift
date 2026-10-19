@@ -318,7 +318,9 @@ internal static class Program
         bool stageRemains = File.Exists(stage);
         Check(stageRemains == (!shouldBeNew && cut != Cut.BeforeStage),
             "unexpected staged selector retention or publication");
-        bool observedDirectorySyncCall =\n            (cut is Cut.AfterSyncBeforeAck or Cut.Complete) &&\n            sync == "LINUX_DIR_FSYNC_SYSCALL_OK";
+        bool observedDirectorySyncCall =
+            (cut is Cut.AfterSyncBeforeAck or Cut.Complete) &&
+            sync == "LINUX_DIR_FSYNC_SYSCALL_OK";
         return new
         {
             cut = cut.ToString(), phaseOutcome = outcome,
