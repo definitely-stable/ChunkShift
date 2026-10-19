@@ -1,0 +1,77 @@
+name: PATCH-TREE-001 T4C2A scoped filesystem fault boundaries
+on:
+  pull_request:
+    paths:
+      - "benchmarks/PatchTreeT4C2Probe/**"
+      - "docs/benchmarks/PATCH-TREE-001-T4C2A-FAULT-BOUNDARIES-PROTOCOL.md"
+      - ".github/workflows/patch-tree-001-t4c2a-fault-boundaries.yml"
+permissions:
+  contents: read
+jobs:
+  fault-cuts:
+    name: T4C2A real .NET failure cuts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - name: Checkout exact PR merge
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Restore isolated lab
+        run: dotnet restore benchmarks/PatchTreeT4C2Probe/PatchTreeT4C2Probe.csproj
+      - name: Release build with errors on warnings
+        run: dotnet build benchmarks/PatchTreeT4C2Probe/PatchTreeT4C2Probe.csproj -c Release --no-restore -warnaserror
+      - name: Execute actual host filesystem failure cuts and independently check output
+        shell: bash
+        env:
+          EVIDENCE: ${{ runner.temp }}/patch-tree-t4c2a.json
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          dotnet run --project benchmarks/PatchTreeT4C2Probe/PatchTreeT4C2Probe.csproj -c Release --no-build --no-restore -- --output "$EVIDENCE"
+          python - "$EVIDENCE" <<'PY'
+          import json,sys
+          r=json.load(open(sys.argv[1],encoding='utf-8'))
+          assert r['schema']=='chunkshift.patch-tree-t4c2a-faults.v0'
+          assert r['status']=='LAB_FAULT_OBSERVATION_ONLY_NOT_ADOPT'
+          assert r['trustedPolicy']=='NOT_IMPLEMENTED_RFC0006_HOST_OWNED'
+          assert r['powerCut']=='NOT_TESTED'
+          assert r['hostilePathRace']=='NOT_TESTED'
+          cuts=r['cuts']
+          expected={'BeforeStage':False,'PartialStage':False,'AfterStageFlush':False,
+                    'CorruptStage':False,'BeforeMove':False,'AfterMoveBeforeSync':True,
+                    'ParentSyncFailure':True,'AfterSyncBeforeAck':True,'Complete':True}
+          assert len(cuts)==9 and set(c['cut'] for c in cuts)==set(expected)
+          for c in cuts:
+              new=expected[c['cut']]
+              assert c['postCommit'] is new
+              assert c['visible']==('NEW_VALID_GENERATION' if new else 'OLD_VALID_GENERATION')
+              assert c['claimPowerCutDurability'] is False
+              assert c['generationsRetained'] is True
+              assert c['stageRemains']==(not new and c['cut']!='BeforeStage')
+              if c['cut']=='AfterSyncBeforeAck':
+                  assert c['phaseOutcome']=='LAB_INJECTED_ACK_LOSS'
+              if c['cut']=='ParentSyncFailure':
+                  assert c['phaseOutcome']=='LAB_INJECTED_PARENT_SYNC_FAILURE'
+          assert r['negatives']['rejected']==4
+          assert r['negatives']['previousGenerationUnaffected'] is True
+          assert r['negatives']['precheckIsRaceProof'] is False
+          assert r['processLock']['competingWriterDenied'] is True
+          assert r['processLock']['reacquiredAfterChildExit'] is True
+          assert r['processLock']['processLockIsSecurityBoundary'] is False
+          print('T4C2A scoped cut checks PASS; NO production/durability/security ADOPT')
+          PY
+      - name: Archive host evidence even on failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-t4c2a-${{ matrix.os }}
+          path: ${{ runner.temp }}/patch-tree-t4c2a.json
+          if-no-files-found: warn
+          retention-days: 90
