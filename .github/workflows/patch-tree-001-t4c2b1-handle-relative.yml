@@ -48,7 +48,7 @@ jobs:
           assert a['supportsWritablePublisher'] is False
           assert a['hostileHardlinkBlocked'] is False
           assert a['guaranteedNoPowerCutLoss'] is False
-          if 'Linux' in o['os']:
+          if ('Linux' in o['os'] or 'Ubuntu' in o['os']):
               assert a['handlePinnedAfterSwap'] is True
               assert a['renameBlocked'] is False
               assert a['pinObservation']=='POST_OPEN_SWAP_HANDLE_STAYS_PINNED'
