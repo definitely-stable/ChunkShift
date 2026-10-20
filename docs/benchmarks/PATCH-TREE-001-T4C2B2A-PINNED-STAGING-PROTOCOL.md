@@ -31,8 +31,8 @@ product security/publisher condition.
   `OBJ_DONT_REPARSE|OBJ_CASE_INSENSITIVE`,
   `FILE_OPEN_REPARSE_POINT` and on-handle reparse attribute refusal.
   Open stage with DELETE permission for rename. Then
-  `SetFileInformationByHandle(FileRenameInfo)` with
-  `ReplaceIfExists=false` and `FILE_RENAME_INFO.RootDirectory`
+  `NtSetInformationFile(FileRenameInformation)` with
+  `ReplaceIfExists=false` and `FILE_RENAME_INFORMATION.RootDirectory`
   containing the retained parent handle, and only a relative target
   single component. No `File.Move` full-path fallback.
 - The **starting trusted root is fixture-owned and pretrusted**.
@@ -94,3 +94,14 @@ identities, Windows reparse/junction/hardlink/ACL cases and native
 failure-injection. T4-D separately covers replacement of the committed
 selector, reader pinning/retirement, writeback ordering,
 power-cut/ENOSPC/EIO and authenticated host policy.
+
+## CI-driven Windows capability correction
+
+First hosted Windows run compiled but failed `SetFileInformationByHandle`
+with Win32 `ERROR_INVALID_PARAMETER (87)` for a non-NULL
+`RootDirectory` and relative target. This was not a successful no-replace
+proof. The laboratory now uses user-mode `NtSetInformationFile` with
+`FileRenameInformation=10` and the same held directory handle; any
+failure is a HOST_BLOCKER. This direct native boundary is still not a
+commitment to support a public OS publisher. Reference:
+[FILE_RENAME_INFORMATION](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information).

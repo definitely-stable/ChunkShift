@@ -83,10 +83,10 @@ internal static class Program
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetFileInformationByHandleEx(
         SafeFileHandle handle, int infoClass, out AttributeTagInfo data, uint length);
-    [DllImport("kernel32.dll", EntryPoint = "SetFileInformationByHandle", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetFileInformationByHandle(
-        SafeFileHandle handle, int infoClass, IntPtr data, uint length);
+    [DllImport("ntdll.dll", EntryPoint = "NtSetInformationFile", ExactSpelling = true)]
+    private static extern int NtSetInformationFile(
+        SafeFileHandle file, out IoStatusBlock iosb, IntPtr data,
+        uint length, int informationClass);
     [DllImport("ntdll.dll", ExactSpelling = true)]
     private static extern int NtCreateFile(out IntPtr handle, uint access,
         ref ObjectAttributes attributes, out IoStatusBlock status, IntPtr allocation,
@@ -228,9 +228,12 @@ internal static class Program
         if (!OperatingSystem.IsWindows() || RuntimeInformation.ProcessArchitecture != Architecture.X64)
             throw new PlatformNotSupportedException("rename ABI unsupported");
 
-        // FILE_RENAME_INFO x64 layout: flags at 0, RootDirectory HANDLE at 8,
-        // FileNameLength at 16, FileName UTF-16 at offset 20.
-        // FileRenameInfo=3, ReplaceIfExists=0. No path-based fallback.
+        // FILE_RENAME_INFORMATION x64 layout: ReplaceIfExists at 0,
+        // RootDirectory HANDLE at 8, FileNameLength at 16, UTF-16 at 20.
+        // NtSetInformationFile FileRenameInformation=10, NOREPLACE.
+        // Win32 SetFileInformationByHandle(FileRenameInfo) on observed host
+        // rejects non-NULL RootDirectory (ERROR_INVALID_PARAMETER=87).
+        // No unsafe full-path fallback; unsupported native API fails closed.
         byte[] utf16 = Encoding.Unicode.GetBytes(targetName);
         IntPtr info = Marshal.AllocHGlobal(checked(20 + utf16.Length));
         try
@@ -239,8 +242,11 @@ internal static class Program
             Marshal.WriteIntPtr(info, 8, parent.DangerousGetHandle());
             Marshal.WriteInt32(info, 16, utf16.Length);
             Marshal.Copy(utf16, 0, IntPtr.Add(info, 20), utf16.Length);
-            if (!SetFileInformationByHandle(stage, 3, info, checked((uint)(20 + utf16.Length))))
-                throw new IOException("SetFileInformationByHandle NOREPLACE Win32=" + Errno());
+            int ntstatus = NtSetInformationFile(stage, out _, info,
+                checked((uint)(20 + utf16.Length)), 10);
+            if (ntstatus < 0)
+                throw new IOException("NtSetInformationFile NOREPLACE NTSTATUS=0x" +
+                    unchecked((uint)ntstatus).ToString("X8", CultureInfo.InvariantCulture));
         }
         finally { Marshal.FreeHGlobal(info); }
     }
@@ -343,7 +349,7 @@ internal static class Program
             runtime = RuntimeInformation.FrameworkDescription,
             mechanism = OperatingSystem.IsLinux() ?
                 "openat2+renameat2(RENAME_NOREPLACE)" :
-                "NtCreateFile+SetFileInformationByHandle(FileRenameInfo)",
+                "NtCreateFile+NtSetInformationFile(FileRenameInformation)",
             validStage = true,
             existingCreateRejected = true,
             existingRenameRejected = true,

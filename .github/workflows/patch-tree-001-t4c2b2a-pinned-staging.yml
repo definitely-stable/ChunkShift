@@ -50,7 +50,7 @@ jobs:
               assert q[k] is False,k
           assert q['testedRaceInterleavings']==1
           assert q['mechanism'] in ('openat2+renameat2(RENAME_NOREPLACE)',
-              'NtCreateFile+SetFileInformationByHandle(FileRenameInfo)')
+              'NtCreateFile+NtSetInformationFile(FileRenameInformation)')
           print('T4C2B2A limited native staging PASS; NO production publisher')
           PY
       - name: Upload original evidence (including host blockers)
