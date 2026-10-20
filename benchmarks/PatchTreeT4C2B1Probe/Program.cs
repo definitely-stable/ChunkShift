@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
@@ -15,6 +16,8 @@ namespace PatchTreeT4C2B1Probe;
 /// </summary>
 internal static class Program
 {
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+
     private const int UnixReadOnly = 0;
     private const int UnixDirectory = 0x10000;
     private const int UnixNoFollow = 0x20000;
@@ -107,7 +110,7 @@ internal static class Program
             if (fd < 0)
                 throw new IOException("T4C2B1 trusted root open errno=" +
                     Marshal.GetLastPInvokeError());
-            return new SafeFileHandle((IntPtr)fd, ownsHandle: true);
+            return new SafeFileHandle(checked((IntPtr)fd), ownsHandle: true);
         }
 
         if (OperatingSystem.IsWindows())
@@ -137,7 +140,7 @@ internal static class Program
                 Marshal.GetLastPInvokeError());
         if ((info.FileAttributes & FileAttributeReparsePoint) != 0)
             throw new IOException("T4C2B1 reparse point denied tag=" +
-                info.ReparseTag.ToString("X8"));
+                info.ReparseTag.ToString("X8", CultureInfo.InvariantCulture));
     }
 
     private static SafeFileHandle LinuxChild(SafeFileHandle parent,
@@ -193,7 +196,7 @@ internal static class Program
                 IntPtr.Zero, 0);
             if (ntstatus < 0)
                 throw new IOException("T4C2B1 NtCreateFile refused NTSTATUS=0x" +
-                    unchecked((uint)ntstatus).ToString("X8"));
+                    unchecked((uint)ntstatus).ToString("X8", CultureInfo.InvariantCulture));
             var handle = new SafeFileHandle(raw, ownsHandle: true);
             try
             {
@@ -464,7 +467,6 @@ internal static class Program
     private static void Write(string path, object obj)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, JsonSerializer.Serialize(obj,
-            new JsonSerializerOptions { WriteIndented = true }) + "\n");
+        File.WriteAllText(path, JsonSerializer.Serialize(obj, JsonOptions) + "\n");
     }
 }
