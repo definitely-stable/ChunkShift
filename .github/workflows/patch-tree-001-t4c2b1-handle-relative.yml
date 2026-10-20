@@ -1,0 +1,71 @@
+name: PATCH-TREE-001 T4C2B1 native handle-relative no-follow
+on:
+  pull_request:
+    paths:
+      - "benchmarks/PatchTreeT4C2B1Probe/**"
+      - "docs/benchmarks/PATCH-TREE-001-T4C2B1-HANDLE-RELATIVE-PROTOCOL.md"
+      - ".github/workflows/patch-tree-001-t4c2b1-handle-relative.yml"
+permissions:
+  contents: read
+jobs:
+  handle-probe:
+    name: T4C2B1 handles (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup pinned .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Restore isolated host probe
+        run: dotnet restore benchmarks/PatchTreeT4C2B1Probe/PatchTreeT4C2B1Probe.csproj
+      - name: Compile Release with warnings as errors
+        run: dotnet build benchmarks/PatchTreeT4C2B1Probe/PatchTreeT4C2B1Probe.csproj -c Release --no-restore -warnaserror
+      - name: Execute handle-relative host adversarial probe
+        shell: bash
+        env:
+          EVIDENCE: ${{ runner.temp }}/patch-tree-t4c2b1.json
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          dotnet run --project benchmarks/PatchTreeT4C2B1Probe/PatchTreeT4C2B1Probe.csproj -c Release --no-build --no-restore -- --output "$EVIDENCE"
+          python - "$EVIDENCE" <<'PY'
+          import json, sys
+          o=json.load(open(sys.argv[1],encoding='utf-8'))
+          assert o['schema']=='chunkshift.patch-tree-t4c2b1-handles.v0'
+          assert o['verdict']=='HOST_SCOPED_READ_HANDLE_OBSERVATION_NO_ADOPT'
+          a=o['result']
+          assert a['allowed'] is True and a['invalidPathsRejected']==9
+          assert a['intermediateLinkRefused'] is True and a['directoryLinkRefused'] is True
+          assert a['bypassToOutsideObserved'] is False
+          assert a['hostRootPretrusted'] is True
+          assert a['supportsWritablePublisher'] is False
+          assert a['hostileHardlinkBlocked'] is False
+          assert a['guaranteedNoPowerCutLoss'] is False
+          if 'Linux' in o['os']:
+              assert a['handlePinnedAfterSwap'] is True
+              assert a['renameBlocked'] is False
+              assert a['pinObservation']=='POST_OPEN_SWAP_HANDLE_STAYS_PINNED'
+              assert a['methods'].startswith('openat2(')
+          elif 'Windows' in o['os']:
+              assert a['methods'].startswith('NtCreateFile(')
+              assert (a['handlePinnedAfterSwap'] is True) != (a['renameBlocked'] is True)
+              assert a['pinObservation'] in ('POST_OPEN_SWAP_HANDLE_STAYS_PINNED', 'RENAME_OF_OPEN_DIRECTORY_DENIED')
+          else:
+              raise AssertionError('unsupported host')
+          print('T4C2B1 host-specific read no-follow observations PASS; NO publisher ADOPT')
+          PY
+      - name: Archive all original evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-t4c2b1-${{ matrix.os }}
+          path: ${{ runner.temp }}/patch-tree-t4c2b1.json
+          if-no-files-found: warn
+          retention-days: 90
