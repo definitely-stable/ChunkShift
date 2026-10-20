@@ -1,0 +1,63 @@
+name: PATCH-TREE-001 T4C2B2A pinned-parent staging and no-replace
+on:
+  pull_request:
+    paths:
+      - "benchmarks/PatchTreeT4C2B2AProbe/**"
+      - "docs/benchmarks/PATCH-TREE-001-T4C2B2A-PINNED-STAGING-PROTOCOL.md"
+      - ".github/workflows/patch-tree-001-t4c2b2a-pinned-staging.yml"
+permissions:
+  contents: read
+jobs:
+  pinned-staging:
+    name: T4C2B2A native stage (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - name: Checkout PR merge
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Restore
+        run: dotnet restore benchmarks/PatchTreeT4C2B2AProbe/PatchTreeT4C2B2AProbe.csproj
+      - name: Build with analyzers
+        run: dotnet build benchmarks/PatchTreeT4C2B2AProbe/PatchTreeT4C2B2AProbe.csproj -c Release --no-restore -warnaserror
+      - name: Native held-parent CREATE and NOREPLACE host checks
+        shell: bash
+        env:
+          EVIDENCE: ${{ runner.temp }}/patch-tree-t4c2b2a.json
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          dotnet run --project benchmarks/PatchTreeT4C2B2AProbe/PatchTreeT4C2B2AProbe.csproj -c Release --no-build --no-restore -- --output "$EVIDENCE"
+          python - "$EVIDENCE" <<'PY'
+          import json,sys
+          q=json.load(open(sys.argv[1],encoding='utf-8'))
+          assert q['schema']=='chunkshift.patch-tree-t4c2b2a.v0'
+          assert q['verdict']=='SCOPED_RELATIVE_CREATE_AND_NOREPLACE_OBSERVED_NO_ADOPT'
+          for k in ('validStage','existingCreateRejected','existingRenameRejected',
+                    'stageRemovedOnRename','parentNameReplaced',
+                    'publishedIntoPinnedOldDirectory','maliciousOutsideUnaffected',
+                    'maliciousSymlinkRefused','pretrustedRoot'):
+              assert q[k] is True, k
+          for k in ('writerAuthorization','rootStillAuthorizedAfterMove',
+                    'supportsProductionPublisher','powerCutDurability'):
+              assert q[k] is False,k
+          assert q['testedRaceInterleavings']==1
+          assert q['mechanism'] in ('openat2+renameat2(RENAME_NOREPLACE)',
+              'NtCreateFile+NtSetInformationFile(FileRenameInformation)')
+          print('T4C2B2A limited native staging PASS; NO production publisher')
+          PY
+      - name: Upload original evidence (including host blockers)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-t4c2b2a-${{ matrix.os }}
+          path: ${{ runner.temp }}/patch-tree-t4c2b2a.json
+          if-no-files-found: warn
+          retention-days: 90
