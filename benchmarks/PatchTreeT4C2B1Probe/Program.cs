@@ -162,7 +162,7 @@ internal static class Program
         if (fd < 0)
             throw new IOException("T4C2B1 openat2 denied errno=" +
                 Marshal.GetLastPInvokeError());
-        return new SafeFileHandle((IntPtr)fd, ownsHandle: true);
+        return new SafeFileHandle(checked((IntPtr)fd), ownsHandle: true);
     }
 
     private static SafeFileHandle WindowsChild(SafeFileHandle parent,
