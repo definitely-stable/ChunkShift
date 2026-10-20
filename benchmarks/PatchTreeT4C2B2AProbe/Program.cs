@@ -1,0 +1,445 @@
+using System.Globalization;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using Microsoft.Win32.SafeHandles;
+
+namespace PatchTreeT4C2B2AProbe;
+
+/// <summary>
+/// BOUNDED LAB ONLY: trust the initially opened root; use retained directory
+/// handles for stage CREATE_NEW and NO_REPLACE rename. This is NOT a secure
+/// OS publisher, install-root authorization, or power-cut durability proof.
+/// </summary>
+internal static class Program
+{
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    private const int LinuxDirectory = 0x10000;
+    private const int LinuxNoFollow = 0x20000;
+    private const int LinuxCloseOnExec = 0x80000;
+    private const int LinuxReadWrite = 2;
+    private const int LinuxCreate = 0x40;
+    private const int LinuxExclusive = 0x80;
+    private const long Openat2Number = 437;
+    private const uint LinuxRenameNoReplace = 1;
+    private const ulong Resolve = 0x01 | 0x04 | 0x08; // NO_XDEV|NO_SYMLINKS|BENEATH
+
+    private const uint ShareAll = 7;
+    private const uint FileReadData = 1;
+    private const uint FileWriteData = 2;
+    private const uint FileReadAttributes = 0x80;
+    private const uint DeleteAccess = 0x10000;
+    private const uint Synchronize = 0x100000;
+    private const uint NtCreateNew = 2; // FILE_CREATE
+    private const uint NtOpenExisting = 1; // FILE_OPEN
+    private const uint NtDirectory = 1;
+    private const uint NtNonDirectory = 0x40;
+    private const uint NtSynchronous = 0x20;
+    private const uint NtOpenReparse = 0x200000;
+    private const uint NtCaseInsensitiveDontReparse = 0x1040;
+    private const uint ReparseAttr = 0x400;
+    private const uint BackupSemantics = 0x02000000;
+    private const uint OpenReparsePoint = 0x00200000;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct OpenHow { public ulong Flags; public ulong Mode; public ulong Resolve; }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct UnicodeString
+    {
+        public ushort Length;
+        public ushort MaximumLength;
+        public IntPtr Buffer;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ObjectAttributes
+    {
+        public int Length;
+        public IntPtr RootDirectory;
+        public IntPtr ObjectName;
+        public uint Attributes;
+        public IntPtr SecurityDescriptor;
+        public IntPtr SecurityQualityOfService;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct IoStatusBlock { public IntPtr Status; public IntPtr Information; }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct AttributeTagInfo { public uint Attributes; public uint ReparseTag; }
+
+    [DllImport("libc", EntryPoint = "open", SetLastError = true)]
+    private static extern int Open(byte[] path, int flags);
+    [DllImport("libc", EntryPoint = "syscall", SetLastError = true)]
+    private static extern long Openat2(long number, int dirfd, byte[] path,
+        ref OpenHow how, nuint size);
+    [DllImport("libc", EntryPoint = "renameat2", SetLastError = true)]
+    private static extern int Renameat2(int olddirfd, byte[] oldname,
+        int newdirfd, byte[] newname, uint flags);
+
+    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode,
+        SetLastError = true)]
+    private static extern IntPtr CreateFileW(string path, uint access, uint share,
+        IntPtr security, uint disposition, uint flags, IntPtr templateHandle);
+    [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetFileInformationByHandleEx(
+        SafeFileHandle handle, int infoClass, out AttributeTagInfo data, uint length);
+    [DllImport("kernel32.dll", EntryPoint = "SetFileInformationByHandle", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetFileInformationByHandle(
+        SafeFileHandle handle, int infoClass, IntPtr data, uint length);
+    [DllImport("ntdll.dll", ExactSpelling = true)]
+    private static extern int NtCreateFile(out IntPtr handle, uint access,
+        ref ObjectAttributes attributes, out IoStatusBlock status, IntPtr allocation,
+        uint fileAttributes, uint share, uint disposition, uint options,
+        IntPtr eaBuffer, uint eaLength);
+
+    private static byte[] U8(string text) => Encoding.UTF8.GetBytes(text + "\0");
+    private static void Require(bool condition, string reason)
+    {
+        if (!condition) throw new InvalidDataException("T4C2B2A " + reason);
+    }
+    private static string Errno() => Marshal.GetLastPInvokeError().ToString(
+        CultureInfo.InvariantCulture);
+
+    private static void ValidateName(string value)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length > 63 ||
+            value is "." or ".." ||
+            value.EndsWith('.') || value.EndsWith(' ') ||
+            value.Any(ch => !char.IsAsciiLetterOrDigit(ch) && ch is not ('_' or '-' or '.')))
+            throw new ArgumentException("T4C2B2A invalid component");
+        var stem = value.Split('.')[0].ToUpperInvariant();
+        if (OperatingSystem.IsWindows() && (stem is "CON" or "PRN" or "AUX" or "NUL" or
+            "COM1" or "COM2" or "COM3" or "COM4" or "COM5" or "COM6" or "COM7" or "COM8" or "COM9" or
+            "LPT1" or "LPT2" or "LPT3" or "LPT4" or "LPT5" or "LPT6" or "LPT7" or "LPT8" or "LPT9"))
+            throw new ArgumentException("T4C2B2A reserved device name");
+    }
+
+    private static SafeFileHandle TrustedRoot(string path)
+    {
+        if (OperatingSystem.IsLinux())
+        {
+            int fd = Open(U8(path), LinuxDirectory | LinuxNoFollow | LinuxCloseOnExec);
+            if (fd < 0) throw new IOException("trusted root open errno=" + Errno());
+            return new SafeFileHandle(checked((IntPtr)fd), ownsHandle: true);
+        }
+        if (OperatingSystem.IsWindows() &&
+            RuntimeInformation.ProcessArchitecture == Architecture.X64)
+        {
+            IntPtr raw = CreateFileW(path,
+                FileReadAttributes | Synchronize, ShareAll,
+                IntPtr.Zero, 3, BackupSemantics | OpenReparsePoint, IntPtr.Zero);
+            var handle = new SafeFileHandle(raw, ownsHandle: true);
+            if (handle.IsInvalid) { handle.Dispose(); throw new IOException("root CreateFile failed " + Errno()); }
+            try { RejectReparse(handle); return handle; }
+            catch { handle.Dispose(); throw; }
+        }
+        throw new PlatformNotSupportedException("Lab only Linux x64/arm64 and Windows x64");
+    }
+
+    private static void RejectReparse(SafeFileHandle handle)
+    {
+        if (!GetFileInformationByHandleEx(handle, 9, out var tag, 8))
+            throw new IOException("tag-info Win32 error=" + Errno());
+        if ((tag.Attributes & ReparseAttr) != 0)
+            throw new IOException("reparse handle denied");
+    }
+
+    private static SafeFileHandle LinuxOpenChild(SafeFileHandle dir, string name,
+        bool create, bool directory)
+    {
+        if (RuntimeInformation.ProcessArchitecture is not (Architecture.X64 or Architecture.Arm64))
+            throw new PlatformNotSupportedException("openat2 ABI not tested");
+        var flags = LinuxNoFollow | LinuxCloseOnExec |
+            (directory ? LinuxDirectory : 0) |
+            (create ? LinuxReadWrite | LinuxCreate | LinuxExclusive : 0);
+        var how = new OpenHow { Flags = (ulong)flags, Mode = create ? 0x180UL : 0UL,
+            Resolve = Resolve };
+        long fd = Openat2(Openat2Number, checked((int)dir.DangerousGetHandle()),
+            U8(name), ref how, (nuint)Marshal.SizeOf<OpenHow>());
+        if (fd < 0) throw new IOException("openat2 errno=" + Errno());
+        return new SafeFileHandle(checked((IntPtr)fd), ownsHandle: true);
+    }
+
+    private static SafeFileHandle WindowsOpenChild(SafeFileHandle dir,
+        string name, bool create, bool directory)
+    {
+        IntPtr unmanagedName = IntPtr.Zero;
+        IntPtr nameStruct = IntPtr.Zero;
+        try
+        {
+            unmanagedName = Marshal.StringToHGlobalUni(name);
+            var unicode = new UnicodeString {
+                Buffer = unmanagedName,
+                Length = checked((ushort)(name.Length * 2)),
+                MaximumLength = checked((ushort)((name.Length + 1) * 2))
+            };
+            nameStruct = Marshal.AllocHGlobal(Marshal.SizeOf<UnicodeString>());
+            Marshal.StructureToPtr(unicode, nameStruct, false);
+            var attr = new ObjectAttributes {
+                Length = Marshal.SizeOf<ObjectAttributes>(),
+                RootDirectory = dir.DangerousGetHandle(),
+                ObjectName = nameStruct,
+                Attributes = NtCaseInsensitiveDontReparse
+            };
+            uint rights = Synchronize | FileReadAttributes |
+                (create ? FileReadData | FileWriteData | DeleteAccess : FileReadData);
+            int status = NtCreateFile(out IntPtr raw, rights, ref attr, out _,
+                IntPtr.Zero, 0, ShareAll, create ? NtCreateNew : NtOpenExisting,
+                NtSynchronous | NtOpenReparse |
+                (directory ? NtDirectory : NtNonDirectory), IntPtr.Zero, 0);
+            if (status < 0) throw new IOException("NtCreateFile NTSTATUS=0x" +
+                unchecked((uint)status).ToString("X8", CultureInfo.InvariantCulture));
+            var handle = new SafeFileHandle(raw, ownsHandle: true);
+            try { Require(!handle.IsInvalid, "invalid NtCreateFile handle");
+                RejectReparse(handle); return handle; }
+            catch { handle.Dispose(); throw; }
+        }
+        finally
+        {
+            if (nameStruct != IntPtr.Zero) Marshal.FreeHGlobal(nameStruct);
+            if (unmanagedName != IntPtr.Zero) Marshal.FreeHGlobal(unmanagedName);
+        }
+    }
+
+    private static SafeFileHandle Child(SafeFileHandle directory, string component,
+        bool create = false, bool isDirectory = false)
+    {
+        ValidateName(component);
+        if (OperatingSystem.IsLinux())
+            return LinuxOpenChild(directory, component, create, isDirectory);
+        if (OperatingSystem.IsWindows())
+            return WindowsOpenChild(directory, component, create, isDirectory);
+        throw new PlatformNotSupportedException();
+    }
+
+    private static void MoveNoReplace(SafeFileHandle parent, SafeFileHandle stage,
+        string stageName, string targetName)
+    {
+        ValidateName(stageName); ValidateName(targetName);
+        Require(stageName != targetName, "same source/destination");
+        if (OperatingSystem.IsLinux())
+        {
+            int fd = checked((int)parent.DangerousGetHandle());
+            if (Renameat2(fd, U8(stageName), fd, U8(targetName), LinuxRenameNoReplace) != 0)
+                throw new IOException("renameat2 NOREPLACE errno=" + Errno());
+            return;
+        }
+        if (!OperatingSystem.IsWindows() || RuntimeInformation.ProcessArchitecture != Architecture.X64)
+            throw new PlatformNotSupportedException("rename ABI unsupported");
+
+        // FILE_RENAME_INFO x64 layout: flags at 0, RootDirectory HANDLE at 8,
+        // FileNameLength at 16, FileName UTF-16 at offset 20.
+        // FileRenameInfo=3, ReplaceIfExists=0. No path-based fallback.
+        byte[] utf16 = Encoding.Unicode.GetBytes(targetName);
+        IntPtr info = Marshal.AllocHGlobal(checked(20 + utf16.Length));
+        try
+        {
+            Marshal.WriteInt32(info, 0, 0);
+            Marshal.WriteIntPtr(info, 8, parent.DangerousGetHandle());
+            Marshal.WriteInt32(info, 16, utf16.Length);
+            Marshal.Copy(utf16, 0, IntPtr.Add(info, 20), utf16.Length);
+            if (!SetFileInformationByHandle(stage, 3, info, checked((uint)(20 + utf16.Length))))
+                throw new IOException("SetFileInformationByHandle NOREPLACE Win32=" + Errno());
+        }
+        finally { Marshal.FreeHGlobal(info); }
+    }
+
+    private static void WriteStage(SafeFileHandle parent, string name, string text)
+    {
+        using var fileHandle = Child(parent, name, create: true);
+        using var file = new FileStream(fileHandle, FileAccess.ReadWrite, 4096, false);
+        byte[] bytes = Encoding.UTF8.GetBytes(text);
+        file.Write(bytes);
+        file.Flush(flushToDisk: true);
+    }
+
+    private static string ReadRelative(SafeFileHandle parent, string name)
+    {
+        using var handle = Child(parent, name);
+        using var stream = new FileStream(handle, FileAccess.Read, 4096, false);
+        byte[] bytes = new byte[256];
+        int n = stream.Read(bytes);
+        Require(stream.ReadByte() == -1, "oversized payload");
+        return Encoding.UTF8.GetString(bytes, 0, n);
+    }
+
+    private static bool Denied(Action op)
+    {
+        try { op(); return false; }
+        catch (IOException) { return true; }
+        catch (UnauthorizedAccessException) { return true; }
+        catch (ArgumentException) { return true; }
+    }
+
+    private static object Run(string temp)
+    {
+        string trusted = Path.Combine(temp, "trusted");
+        string directory = Path.Combine(trusted, "anchor");
+        string displaced = Path.Combine(trusted, "detached");
+        string outside = Path.Combine(temp, "external");
+        Directory.CreateDirectory(directory);
+        Directory.CreateDirectory(outside);
+        File.WriteAllText(Path.Combine(outside, "outside.txt"), "OUTSIDE_UNTOUCHED");
+        File.WriteAllText(Path.Combine(outside, "published.txt"), "OUTSIDE_SENTINEL");
+        File.WriteAllText(Path.Combine(directory, "published.txt"), "EXISTING_SENTINEL");
+
+        using SafeFileHandle root = TrustedRoot(trusted);
+        using SafeFileHandle parent = Child(root, "anchor", isDirectory: true);
+
+        Require(Denied(() => Child(parent, "../escape", create: true).Dispose()),
+            "unsafe name permitted");
+        WriteStage(parent, "stage_one", "FIRST_VALID_TARGET");
+
+        Require(Denied(() => WriteStage(parent, "stage_one", "MALICIOUS_OVERWRITE")),
+            "CREATE_NEW accepted existing file");
+        Require(Denied(() => { using var originalStage = OpenExistingStage(parent, "stage_one");
+            MoveNoReplace(parent, originalStage, "stage_one", "published.txt"); }),
+            "rename overwrote existing target");
+        Require(ReadRelative(parent, "published.txt") == "EXISTING_SENTINEL",
+            "noreplace changed existing destination");
+        Require(ReadRelative(parent, "stage_one") == "FIRST_VALID_TARGET",
+            "stage mutated during collision");
+
+        // The old destination still exists: unique second name publishes
+        // with no replacement and the source disappears.
+        using (SafeFileHandle stage = OpenExistingStage(parent, "stage_one"))
+            MoveNoReplace(parent, stage, "stage_one", "first.txt");
+        Require(ReadRelative(parent, "first.txt") == "FIRST_VALID_TARGET",
+            "first stage not published");
+        Require(Denied(() => ReadRelative(parent, "stage_one")),
+            "renamed stage name remained live");
+
+        WriteStage(parent, "stage_two", "PINNED_TARGET");
+        bool nameDisplaced = false;
+        try
+        {
+            // An attacker with namespace modification rights renames the
+            // visible anchor then binds its old name to an outside symlink.
+            Directory.Move(directory, displaced);
+            nameDisplaced = true;
+            Directory.CreateSymbolicLink(directory, outside);
+            using (SafeFileHandle stage = OpenExistingStage(parent, "stage_two"))
+                MoveNoReplace(parent, stage, "stage_two", "second.txt");
+            Require(ReadRelative(parent, "second.txt") == "PINNED_TARGET",
+                "renamed file escaped pinned original directory");
+            Require(File.ReadAllText(Path.Combine(outside, "published.txt")) ==
+                "OUTSIDE_SENTINEL", "outside file modified");
+            Require(!File.Exists(Path.Combine(outside, "second.txt")),
+                "stage moved to attacker outside directory");
+            Require(Denied(() => Child(root, "anchor", isDirectory: true).Dispose()),
+                "new link followed from trusted root");
+        }
+        finally
+        {
+            if (nameDisplaced && Directory.Exists(directory))
+                Directory.Delete(directory);
+        }
+        Require(nameDisplaced, "directory rename capability unavailable");
+        return new {
+            schema = "chunkshift.patch-tree-t4c2b2a.v0",
+            verdict = "SCOPED_RELATIVE_CREATE_AND_NOREPLACE_OBSERVED_NO_ADOPT",
+            os = RuntimeInformation.OSDescription,
+            runtime = RuntimeInformation.FrameworkDescription,
+            mechanism = OperatingSystem.IsLinux() ?
+                "openat2+renameat2(RENAME_NOREPLACE)" :
+                "NtCreateFile+SetFileInformationByHandle(FileRenameInfo)",
+            validStage = true,
+            existingCreateRejected = true,
+            existingRenameRejected = true,
+            stageRemovedOnRename = true,
+            parentNameReplaced = true,
+            publishedIntoPinnedOldDirectory = true,
+            maliciousOutsideUnaffected = true,
+            maliciousSymlinkRefused = true,
+            pretrustedRoot = true,
+            writerAuthorization = false,
+            rootStillAuthorizedAfterMove = false,
+            testedRaceInterleavings = 1,
+            supportsProductionPublisher = false,
+            powerCutDurability = false
+        };
+    }
+
+    private static SafeFileHandle OpenExistingStage(SafeFileHandle parent, string name)
+    {
+        if (OperatingSystem.IsLinux())
+        {
+            var how = new OpenHow { Flags = (ulong)(LinuxReadWrite | LinuxNoFollow | LinuxCloseOnExec),
+                Mode = 0, Resolve = Resolve };
+            long fd = Openat2(Openat2Number, checked((int)parent.DangerousGetHandle()),
+                U8(name), ref how, (nuint)Marshal.SizeOf<OpenHow>());
+            if (fd < 0) throw new IOException("open stage errno=" + Errno());
+            return new SafeFileHandle(checked((IntPtr)fd), ownsHandle: true);
+        }
+        // Windows read-only child does not have DELETE for rename; stage
+        // writer uses the same open-by-handle mechanism with DELETE access.
+        return WindowsOpenChildExistingForRename(parent, name);
+    }
+
+    private static SafeFileHandle WindowsOpenChildExistingForRename(
+        SafeFileHandle parent, string name)
+    {
+        ValidateName(name);
+        IntPtr buffer = IntPtr.Zero;
+        IntPtr uni = IntPtr.Zero;
+        try
+        {
+            buffer = Marshal.StringToHGlobalUni(name);
+            var text = new UnicodeString { Buffer = buffer,
+                Length = checked((ushort)(name.Length * 2)),
+                MaximumLength = checked((ushort)((name.Length + 1) * 2)) };
+            uni = Marshal.AllocHGlobal(Marshal.SizeOf<UnicodeString>());
+            Marshal.StructureToPtr(text, uni, false);
+            var attrs = new ObjectAttributes { Length = Marshal.SizeOf<ObjectAttributes>(),
+                RootDirectory = parent.DangerousGetHandle(), ObjectName = uni,
+                Attributes = NtCaseInsensitiveDontReparse };
+            int status = NtCreateFile(out IntPtr raw,
+                Synchronize | FileReadAttributes | FileReadData | FileWriteData | DeleteAccess,
+                ref attrs, out _, IntPtr.Zero, 0, ShareAll, NtOpenExisting,
+                NtNonDirectory | NtSynchronous | NtOpenReparse, IntPtr.Zero, 0);
+            if (status < 0) throw new IOException("open stage-for-rename NTSTATUS=0x" +
+                unchecked((uint)status).ToString("X8", CultureInfo.InvariantCulture));
+            var handle = new SafeFileHandle(raw, ownsHandle: true);
+            try { RejectReparse(handle); return handle; }
+            catch { handle.Dispose(); throw; }
+        }
+        finally
+        {
+            if (uni != IntPtr.Zero) Marshal.FreeHGlobal(uni);
+            if (buffer != IntPtr.Zero) Marshal.FreeHGlobal(buffer);
+        }
+    }
+
+    private static int Main(string[] args)
+    {
+        if (args.Length != 2 || args[0] != "--output")
+            throw new ArgumentException("Usage: --output evidence.json");
+        string output = Path.GetFullPath(args[1]);
+        string temp = Path.Combine(Path.GetTempPath(),
+            "chunkshift-t4c2b2a-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+        try
+        {
+            object data = Run(temp);
+            File.WriteAllText(output, JsonSerializer.Serialize(data, JsonOptions));
+            Console.WriteLine(File.ReadAllText(output));
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            File.WriteAllText(output, JsonSerializer.Serialize(new {
+                schema = "chunkshift.patch-tree-t4c2b2a.v0",
+                verdict = "HOST_BLOCKER_UNVERIFIED",
+                error = ex.ToString()
+            }, JsonOptions));
+            Console.Error.WriteLine(ex);
+            return 1;
+        }
+        finally
+        {
+            try { Directory.Delete(temp, recursive: true); }
+            catch (IOException) { /* diagnostic files deleted only when possible */ }
+        }
+    }
+}
