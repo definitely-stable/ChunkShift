@@ -390,27 +390,27 @@ internal static class Program
         Require(AuthoritativeNameMatches(root, parent, "anchor"),
             "initial parent identity mismatch");
 
-        using SafeFileHandle nested = CreateDirectoryRelative(parent, "nested");
-        NativeIdentity nestedId = Identity(nested);
-        Require(nestedId.Volume == parentId.Volume, "nested directory crosses volume");
-        Require(Denied(() => CreateDirectoryRelative(parent, "nested").Dispose()),
-            "duplicate nested directory creation unexpectedly succeeded");
-        using (SafeFileHandle nestedReadback = ChildForIdentity(parent, "nested"))
+        NativeIdentity nestedId;
+        using (SafeFileHandle created = CreateDirectoryRelative(parent, "nested"))
+        {
+            nestedId = Identity(created);
+            Require(nestedId.Volume == parentId.Volume, "nested directory crosses volume");
+            Require(Denied(() => CreateDirectoryRelative(parent, "nested").Dispose()),
+                "duplicate nested directory creation unexpectedly succeeded");
+            using SafeFileHandle nestedReadback = ChildForIdentity(parent, "nested");
             Require(Identity(nestedReadback) == nestedId,
                 "nested directory identity drift on readback");
+        } // close ALL descendant handles before trying Windows directory move
 
-        // The check is TRUE here. If an attacker changes namespace immediately
-        // after the check, neither statx nor FILE_ID_INFO fences a later rename.
+        // The check is TRUE here. If the namespace changes immediately
+        // after it, statx / FILE_ID_INFO do not fence later stage operations.
         bool precheckPassed = AuthoritativeNameMatches(root, parent, "anchor");
         Require(precheckPassed, "precheck failed before adversarial change");
-        using SafeFileHandle stage = Child(nested, "stage", create: true);
-        NativeIdentity stageId = Identity(stage);
-        Require(stageId.Volume == nestedId.Volume, "stage different volume");
-        WriteToAlreadyOpenedStage(stage, "PINNED_BYTES");
 
-        // Deterministic interruption after the identity check and before
-        // the stage rename. This supplies a *negative counterexample* to a
-        // supposed security proof from precheck + pinned handle.
+        // Deliberate interleaving after precheck but BEFORE opening stage.
+        // Windows runner refused rename with descendant stage HANDLEs open;
+        // parent itself remains pinned, while nested is reopened only AFTER
+        // namespace change relative to that old pinned parent.
         Directory.Move(initial, detached);
         Directory.CreateDirectory(initial);
         bool mismatchedReplacement = !AuthoritativeNameMatches(root, parent, "anchor");
@@ -418,8 +418,17 @@ internal static class Program
             "replacement name unexpectedly identifies the old directory");
         Require(Identity(parent) == parentId, "old pinned handle ID changed");
 
-        // Intentionally allow the rename in the lab, to prove that a
-        // non-atomic precheck did NOT authorize this publish.
+        using SafeFileHandle nested = Child(parent, "nested", isDirectory: true);
+        Require(Identity(nested) == nestedId,
+            "post-move held-parent relative nested identity drift");
+        using SafeFileHandle stage = Child(nested, "stage", create: true);
+        NativeIdentity stageId = Identity(stage);
+        Require(stageId.Volume == nestedId.Volume, "stage different volume");
+        WriteToAlreadyOpenedStage(stage, "PINNED_BYTES");
+
+        // Despite old preflight passing, the native rename now lands inside
+        // the *detached* original parent. That is the negative authorization
+        // control, not a supported production install operation.
         MoveNoReplace(nested, stage, "stage", "target");
         using SafeFileHandle published = Child(nested, "target");
         bool publishedSameId = Identity(published) == stageId;
