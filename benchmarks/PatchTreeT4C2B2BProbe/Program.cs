@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Win32.SafeHandles;
@@ -277,15 +276,6 @@ internal static class Program
         finally { Marshal.FreeHGlobal(info); }
     }
 
-    private static void WriteStage(SafeFileHandle parent, string name, string text)
-    {
-        using var fileHandle = Child(parent, name, create: true);
-        using var file = new FileStream(fileHandle, FileAccess.ReadWrite, 4096, false);
-        byte[] bytes = Encoding.UTF8.GetBytes(text);
-        file.Write(bytes);
-        file.Flush(flushToDisk: true);
-    }
-
     private static string ReadRelative(SafeFileHandle parent, string name)
     {
         using var handle = Child(parent, name);
@@ -397,7 +387,7 @@ internal static class Program
             Require(nestedId.Volume == parentId.Volume, "nested directory crosses volume");
             Require(Denied(() => CreateDirectoryRelative(parent, "nested").Dispose()),
                 "duplicate nested directory creation unexpectedly succeeded");
-            using SafeFileHandle nestedReadback = ChildForIdentity(parent, "nested");
+            using SafeFileHandle nestedReadback = Child(parent, "nested", isDirectory: true);
             Require(Identity(nestedReadback) == nestedId,
                 "nested directory identity drift on readback");
         } // close ALL descendant handles before trying Windows directory move
@@ -474,62 +464,6 @@ internal static class Program
             productionPublisherAdopted = false,
             powerCutTested = false
         };
-    }
-
-    private static SafeFileHandle ChildForIdentity(SafeFileHandle parent, string name)
-    {
-        // Readback handle can safely be disposed by caller's using expression.
-        return Child(parent, name, isDirectory: true);
-    }
-
-    private static SafeFileHandle OpenExistingStage(SafeFileHandle parent, string name)
-    {
-        if (OperatingSystem.IsLinux())
-        {
-            var how = new OpenHow { Flags = (ulong)(LinuxReadWrite | LinuxNoFollow | LinuxCloseOnExec),
-                Mode = 0, Resolve = Resolve };
-            long fd = Openat2(Openat2Number, checked((int)parent.DangerousGetHandle()),
-                U8(name), ref how, (nuint)Marshal.SizeOf<OpenHow>());
-            if (fd < 0) throw new IOException("open stage errno=" + Errno());
-            return new SafeFileHandle(checked((IntPtr)fd), ownsHandle: true);
-        }
-        // Windows read-only child does not have DELETE for rename; stage
-        // writer uses the same open-by-handle mechanism with DELETE access.
-        return WindowsOpenChildExistingForRename(parent, name);
-    }
-
-    private static SafeFileHandle WindowsOpenChildExistingForRename(
-        SafeFileHandle parent, string name)
-    {
-        ValidateName(name);
-        IntPtr buffer = IntPtr.Zero;
-        IntPtr uni = IntPtr.Zero;
-        try
-        {
-            buffer = Marshal.StringToHGlobalUni(name);
-            var text = new UnicodeString { Buffer = buffer,
-                Length = checked((ushort)(name.Length * 2)),
-                MaximumLength = checked((ushort)((name.Length + 1) * 2)) };
-            uni = Marshal.AllocHGlobal(Marshal.SizeOf<UnicodeString>());
-            Marshal.StructureToPtr(text, uni, false);
-            var attrs = new ObjectAttributes { Length = Marshal.SizeOf<ObjectAttributes>(),
-                RootDirectory = parent.DangerousGetHandle(), ObjectName = uni,
-                Attributes = NtCaseInsensitiveDontReparse };
-            int status = NtCreateFile(out IntPtr raw,
-                Synchronize | FileReadAttributes | FileReadData | FileWriteData | DeleteAccess,
-                ref attrs, out _, IntPtr.Zero, 0, ShareAll, NtOpenExisting,
-                NtNonDirectory | NtSynchronous | NtOpenReparse, IntPtr.Zero, 0);
-            if (status < 0) throw new IOException("open stage-for-rename NTSTATUS=0x" +
-                unchecked((uint)status).ToString("X8", CultureInfo.InvariantCulture));
-            var handle = new SafeFileHandle(raw, ownsHandle: true);
-            try { RejectReparse(handle); return handle; }
-            catch { handle.Dispose(); throw; }
-        }
-        finally
-        {
-            if (uni != IntPtr.Zero) Marshal.FreeHGlobal(uni);
-            if (buffer != IntPtr.Zero) Marshal.FreeHGlobal(buffer);
-        }
     }
 
     private static int Main(string[] args)
