@@ -1,0 +1,72 @@
+name: PATCH-TREE-001 T4C2B2B identity and nested path authority gap
+on:
+  pull_request:
+    paths:
+      - "benchmarks/PatchTreeT4C2B2BProbe/**"
+      - "docs/benchmarks/PATCH-TREE-001-T4C2B2B-IDENTITY-AUTHORITY-PROTOCOL.md"
+      - ".github/workflows/patch-tree-001-t4c2b2b-identity-authority.yml"
+permissions:
+  contents: read
+jobs:
+  native-identity:
+    name: T4C2B2B native identity (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - name: Checkout exact PR merge
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup pinned .NET 10
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Restore
+        run: dotnet restore benchmarks/PatchTreeT4C2B2BProbe/PatchTreeT4C2B2BProbe.csproj
+      - name: Build Release warnings as errors
+        run: dotnet build benchmarks/PatchTreeT4C2B2BProbe/PatchTreeT4C2B2BProbe.csproj -c Release --no-restore -warnaserror
+      - name: Execute real native file identity and authorization-race counterexample
+        shell: bash
+        env:
+          EVIDENCE: ${{ runner.temp }}/patch-tree-t4c2b2b.json
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          dotnet run --project benchmarks/PatchTreeT4C2B2BProbe/PatchTreeT4C2B2BProbe.csproj -c Release --no-build --no-restore -- --output "$EVIDENCE"
+          python - "$EVIDENCE" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1],encoding='utf-8'))
+          assert x['schema']=='chunkshift.patch-tree-t4c2b2b-identity.v0'
+          assert x['verdict']=='NATIVE_IDENTITY_AND_NESTED_CREATE_PASS_AUTHORIZATION_RACE_NO_GO'
+          for key in ('initialIdentityMatched','rootAndParentVolumeMatched',
+                      'nestedVolumeMatched','duplicateCreateRejected',
+                      'pinnedFileIdentityRetained','preflightBeforeSwapPassed',
+                      'replacementIdentityMismatchDetected',
+                      'oldPinnedHandleIdentityRetained',
+                      'renameAfterPrecheckAllowedInDetachedDirectory',
+                      'maliciousOutsideUnaffected','outsideSymlinkRejected',
+                      'pretrustedRoot'):
+              assert x[key] is True, key
+          for key in ('finalRootNameAuthorized','snapshotCheckIsAtomicWithRename',
+                      'hostileConcurrencyCovered','productionPublisherAdopted',
+                      'powerCutTested'):
+              assert x[key] is False,key
+          if 'Ubuntu' in x['os'] or 'Linux' in x['os']:
+              assert x['nativeIdentity']=='statx:dev:mount:inode'
+              assert x['nestedCreate']=='mkdirat+openat2'
+          else:
+              assert 'Windows' in x['os']
+              assert x['nativeIdentity']=='FILE_ID_INFO:volume:fileid128'
+              assert x['nestedCreate']=='NtCreateFile(FILE_CREATE|DIRECTORY)'
+          print('T4C2B2B native identity PASS; preflight-only authority is NO-GO')
+          PY
+      - name: Archive original failure and success evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-t4c2b2b-${{ matrix.os }}
+          path: ${{ runner.temp }}/patch-tree-t4c2b2b.json
+          if-no-files-found: warn
+          retention-days: 90
