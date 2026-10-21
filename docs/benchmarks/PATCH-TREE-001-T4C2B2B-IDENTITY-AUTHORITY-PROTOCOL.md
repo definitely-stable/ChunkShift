@@ -71,18 +71,23 @@ authority, or eliminate mount/file-ID reuse and filesystem semantics.
 3. Create nested directory `nested` through a held `anchor` handle.
    Reject a second create. Reopen nested with no-follow and compare
    object ID and volume to retained root/parent.
-4. Create and flush a stage under held `nested`, **keeping the same
-   stage HANDLE open throughout** (no re-open by mutable source name).
-5. Deliberately interleave a namespace change *after* the identity
-   precheck: rename `anchor` to `detached` and create a **new**
-   physical directory at the old `anchor` name.
-6. A fresh trusted-root-relative ID observation MUST detect mismatch;
-   the held `anchor` handle MUST retain its old ID.
-7. In this experimental counterexample, deliberately perform a
-   no-replace rename using the old held `nested` handle. The output
-   MUST exist in `detached/nested` and MUST NOT exist in the
-   newly installed `anchor` directory. Verify same file ID of
-   stage/target and exact target contents.
+4. Close both nested descendant directory handles and perform an
+   identity precheck on the still-held `anchor` parent. This boundary
+   was refined after the first hosted Windows test found that moving
+   the directory with a stage/descendant open was refused by Windows
+   file sharing (not a proof of atomic authorization).
+5. Deliberately interleave namespace change *after* the identity
+   precheck but **before opening a stage**: rename `anchor` to
+   `detached` and create a **new** physical directory at old name.
+6. Fresh trusted-root-relative ID observation MUST detect mismatch;
+   pinned `anchor` retains old ID. Reopen nested relative to the
+   old held `anchor` handle and confirm same nested ID.
+7. Create and flush a stage in that nested directory while **keeping
+   the same stage HANDLE open through a no-replace rename**. Output
+   MUST land in `detached/nested`, not the *new* `anchor` directory.
+   Verify stage/target IDs and target bytes. This supplies a precise
+   negative example of preflight-only authority, despite the rename
+   being scoped to a held original directory handle.
 8. Remove the fresh `anchor`, install an outside symlink to its old
    name, verify native trusted-root-relative open still rejects it,
    and verify outside sentinel bytes remain unchanged.
@@ -126,3 +131,16 @@ window. Design an OS-specific namespace ownership/policy boundary
 where the updater has exclusive authority over the committed selector,
 and qualify reader handles/leases and crash recovery (T4-D). Strong
 anti-rollback/remote trust is separate under RFC-0006.
+
+## Host-driven case refinement (2026-10-21)
+
+The first Linux test passed its original ordering. The first Windows
+attempt returned `Access denied` when `Directory.Move(anchor,detached)`
+ran with an open descendant directory/stage handle. This was a *failed
+experimental schedule*, not a passed check. The revised frozen schedule
+releases descendant handles for the move but retains the original
+parent handle and its identity. The stage is opened **after** the
+replacement name is installed, and remains held through write/rename.
+The new schedule still exposes the precise precheck-to-use authorization
+gap, but it does NOT demonstrate simultaneous rename with an open stage
+on Windows. Both OSes must pass this revised schedule.
