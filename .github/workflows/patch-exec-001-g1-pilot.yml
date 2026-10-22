@@ -47,7 +47,7 @@ jobs:
       - name: Pilot and exact patch validation
         run: python benchmarks/scripts/run_patch_exec_001_pilot.py --project benchmarks/ChunkShift.Benchmarks/ChunkShift.Benchmarks.csproj --corpus '${{ runner.temp }}/patch-exec-g1-corpus' --output artifacts/patch-exec-g1 --files 12 --bytes 393216 --rounds 2
       - name: Archive fully verified pilot
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: patch-exec-001-g1-${{ matrix.platform }}
           path: artifacts/patch-exec-g1/
