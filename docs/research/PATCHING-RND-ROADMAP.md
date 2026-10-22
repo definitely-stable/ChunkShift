@@ -1,7 +1,7 @@
 # Patching R&D roadmap
 
 Status: Active research roadmap  
-Last reviewed: 2026-10-08  
+Last reviewed: 2026-10-22  
 Architecture proposal: [RFC-0005](../architecture/RFC-0005-patch-compiler-architecture.md) (**Proposed**, not yet an accepted authority)
 
 ## 1. Purpose
@@ -93,6 +93,7 @@ Priority: **PHASE A now / Phase B after frozen G4 evidence**. A separate, lab-on
 
 - **#150 exact incremental manifest:** unchanged logical CSM records can be reused without rehashing source bytes, but current `ManifestIdAccumulator` sequentially hashes every logical record. A Merkle sidecar or external record index does not make existing ManifestId directly composable. Separate source-byte read savings from manifest-record/finalization work.
 - **#184 cross-file source:** current CSP apply materializes a `Dictionary<ChunkId,ChunkInfo>` with an operational bound of 4,194,304 distinct base IDs. A concatenated tree cannot silently inherit arbitrary scale; require a bounded exact locator and memory/build/read measurements before a format choice. Keep the first-occurrence semantic rule.
+- **#184 T4-C3A publisher authority (2026-10-22):** [decision record](results/PATCH-TREE-001-T4C3-PUBLISHER-BOUNDARY-DECISION-20261022-001.md) applies accepted RFC-0006: external host owns trusted namespace, staging, atomic selector qualification, reader pins, recovery and durability. **REJECT** inode/FileId preflight as atomic authorization; **DEFER** first-party OS publisher and tree API; **NO_PRODUCTION_ADOPT**. T2/T3 and portable tree metadata remain open under #184/#251, with T0 baseline.
 - **#220 derived features:** never treat stale cache entries or incomplete source-change metadata as integrity evidence. Missing/corrupt caches fall back to authoritative bytes/CSM.
 - **#181 selector:** choosing a different dictionary candidate within the same representation family showed negligible exact-oracle headroom; do not claim this rules out other representation families.
 - **#183:** G1/G3 and G4-BCJ are REJECT on their frozen lanes; the G4 Zucchini reference remains pending. No residual trial is injected into its calibration/evaluation lanes.
