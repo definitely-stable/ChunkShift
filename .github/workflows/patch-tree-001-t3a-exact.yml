@@ -16,8 +16,8 @@ permissions:
 
 jobs:
   t3a-exact:
-    name: Synthetic T3A contracts (${{ matrix.os })
-    runs-on: ${{ matrix.os }
+    name: Synthetic T3A contracts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
