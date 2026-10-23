@@ -16,8 +16,8 @@ permissions:
 
 jobs:
   b0-contract:
-    name: Locked T3B0 control tests (${{ matrix.os })
-    runs-on: ${{ matrix.os }
+    name: Locked T3B0 control tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
