@@ -77,6 +77,51 @@ def input_lock(root: Path, inv: dict, raw_pairs: bytes, f1: dict) -> None:
             require(reread == p[side], "actual materialized " + side + " content drift")
 
 
+
+def scan_pair(item: dict, frozen: dict) -> dict:
+    base = item["base"]
+    target = item["target"]
+    plan, map_bytes = t3.plan(base, target)
+    added = [p for p in target["files"]
+             if p["path"] not in {x["path"] for x in base["files"]}]
+    old_index: dict[tuple[int, str], list[str]] = {}
+    for p in base["files"]:
+        old_index.setdefault((p["length"], p["sha256"]), []).append(p["path"])
+    still = {p["path"] for p in target["files"]}
+    candidates = [p for p in added if old_index.get((p["length"], p["sha256"]))]
+    strict = sum(1 for p in candidates if any(x not in still for x in
+                 old_index[(p["length"], p["sha256"])]))
+    require(plan["addedCount"] == len(frozen["added"]) ==
+            len(added), "added path count mismatch")
+    require(plan["t0AddedRawBytes"] == sum(e["size"] for e in frozen["added"]),
+            "original added raw size mismatch")
+    # Inspect real source content for every selected match, not only
+    # for metadata candidates (the inventory itself is rehashed above).
+    old_by_path = {x["path"]: x for x in base["files"]}
+    for m in plan["matches"]:
+        src = old_by_path[m["sourcePath"]]
+        require(src["length"] == m["length"] and src["sha256"] == m["sha256"],
+                "selected old source mismatch")
+    row = dict(
+        family=item["family"], baseVersion=item["baseVersion"],
+        targetVersion=item["targetVersion"],
+        baseLayoutSha256=base["layoutSha256"],
+        targetLayoutSha256=target["layoutSha256"],
+        changedCount=len(frozen["changed"]), removedCount=len(frozen["removed"]),
+        unchangedCount=frozen["identicalFiles"], addedCount=len(added),
+        exactCandidateCount=len(candidates), strictMoveCount=strict,
+        copyOrAmbiguousCount=len(candidates) - strict,
+        mappedCount=len(plan["matches"]),
+        addedRawBytes=plan["t0AddedRawBytes"],
+        mappedContentBytes=plan["t0AddedRawBytes"] - plan["t3AddedRawBytes"],
+        mapPhysicalBytes=len(map_bytes),
+        netSavedBytes=plan["addedLaneNetSavingsBytes"],
+        referenceSha256=plan["referenceSha256"],
+        matches=plan["matches"])
+    require(row["netSavedBytes"] == row["mappedContentBytes"] -
+            row["mapPhysicalBytes"], "physical reference accounting")
+    return row
+
 def census(root: Path, inv: dict, pairs_bytes: bytes, f1: dict) -> dict:
     input_lock(root, inv, pairs_bytes, f1)
     original = [x for x in json.loads(pairs_bytes)["pairs"]
@@ -87,47 +132,7 @@ def census(root: Path, inv: dict, pairs_bytes: bytes, f1: dict) -> dict:
                             "copyOrAmbiguousCount", "mappedCount", "addedRawBytes",
                             "mappedContentBytes", "mapPhysicalBytes", "netSavedBytes")}
     for item, frozen in zip(inv["pairs"], original):
-        base = item["base"]
-        target = item["target"]
-        plan, map_bytes = t3.plan(base, target)
-        added = [p for p in target["files"]
-                 if p["path"] not in {x["path"] for x in base["files"]}]
-        old_index: dict[tuple[int, str], list[str]] = {}
-        for p in base["files"]:
-            old_index.setdefault((p["length"], p["sha256"]), []).append(p["path"])
-        still = {p["path"] for p in target["files"]}
-        candidates = [p for p in added if old_index.get((p["length"], p["sha256"]))]
-        strict = sum(1 for p in candidates if any(x not in still for x in
-                     old_index[(p["length"], p["sha256"])]))
-        require(plan["addedCount"] == len(frozen["added"]) ==
-                len(added), "added path count mismatch")
-        require(plan["t0AddedRawBytes"] == sum(e["size"] for e in frozen["added"]),
-                "original added raw size mismatch")
-        # Inspect real source content for every selected match, not only
-        # for metadata candidates (the inventory itself is rehashed above).
-        old_by_path = {x["path"]: x for x in base["files"]}
-        for m in plan["matches"]:
-            src = old_by_path[m["sourcePath"]]
-            require(src["length"] == m["length"] and src["sha256"] == m["sha256"],
-                    "selected old source mismatch")
-        row = dict(
-            family=item["family"], baseVersion=item["baseVersion"],
-            targetVersion=item["targetVersion"],
-            baseLayoutSha256=base["layoutSha256"],
-            targetLayoutSha256=target["layoutSha256"],
-            changedCount=len(frozen["changed"]), removedCount=len(frozen["removed"]),
-            unchangedCount=frozen["identicalFiles"], addedCount=len(added),
-            exactCandidateCount=len(candidates), strictMoveCount=strict,
-            copyOrAmbiguousCount=len(candidates) - strict,
-            mappedCount=len(plan["matches"]),
-            addedRawBytes=plan["t0AddedRawBytes"],
-            mappedContentBytes=plan["t0AddedRawBytes"] - plan["t3AddedRawBytes"],
-            mapPhysicalBytes=len(map_bytes),
-            netSavedBytes=plan["addedLaneNetSavingsBytes"],
-            referenceSha256=plan["referenceSha256"],
-            matches=plan["matches"])
-        require(row["netSavedBytes"] == row["mappedContentBytes"] -
-                row["mapPhysicalBytes"], "physical reference accounting")
+        row = scan_pair(item, frozen)
         for key in totals:
             totals[key] += row[key]
         rows.append(row)
