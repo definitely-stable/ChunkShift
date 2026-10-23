@@ -151,7 +151,7 @@ def census(root: Path, inv: dict, pairs_bytes: bytes, f1: dict) -> dict:
         "model": "T0 warm original physical ledger minus T3A exact added-path differential; NOT a new measured CSP/update-set",
         "baselineT0WarmPhysicalBytes": baseline,
         "commonTreeMetadataBytesUnchanged": f1["totals"]["commonTreeMetadataBytes"],
-        "modelledT3WarmLowerBoundBytes": baseline - totals["netSavedBytes"],
+        "modelledT3WarmCostBytes": baseline - totals["netSavedBytes"],
         "modelledWarmSavingsBasisPoints": totals["netSavedBytes"] * 10000 // baseline,
         "totals": totals, "pairs": rows,
         "limitations": [
