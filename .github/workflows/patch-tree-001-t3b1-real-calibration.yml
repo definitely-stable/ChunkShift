@@ -1,0 +1,169 @@
+name: PATCH-TREE-001 T3B1 original renamed DLL CSP calibration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'benchmarks/ChunkShift.Benchmarks/PatchLab/Tree/PatchTreeT3B1.cs'
+      - 'benchmarks/scripts/patch_tree_001_t3b1_select.py'
+      - '.github/workflows/patch-tree-001-t3b1-real-calibration.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: patch-tree-001-t3b1-original
+  cancel-in-progress: false
+
+jobs:
+  original-renamed-dll-pairs:
+    name: Source-locked two real CSP lanes (linux-x64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 250
+    steps:
+      - name: Restrict to first original GitHub-hosted main push
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "definitely-stable/ChunkShift"
+          test "$GITHUB_EVENT_NAME" = "push"
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$GITHUB_RUN_ATTEMPT" = "1"
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          test "$RUNNER_OS" = "Linux"
+          test "$RUNNER_ARCH" = "X64"
+      - name: Checkout original frozen repository history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Cache checksum-locked original source archives
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-tree-001-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+      - name: Validate immutable original pairs reference
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/38136336025" > "$RUNNER_TEMP/pairs-run.json"
+          python3 - "$RUNNER_TEMP/pairs-run.json" <<'PY'
+          import json,os,sys
+          x=json.load(open(sys.argv[1],encoding='utf-8'))
+          if not (x.get('id')==38136336025 and
+                  x.get('status')=='completed' and x.get('conclusion')=='success' and
+                  x.get('run_attempt')==1 and x.get('event')=='workflow_dispatch' and
+                  x.get('head_branch')=='main' and
+                  x.get('repository',{}).get('full_name')==os.environ['GITHUB_REPOSITORY'] and
+                  x.get('path','').split('@')[0]=='.github/workflows/patch-tree-001-pairs-reference.yml'):
+              raise SystemExit('Original pairs provenance violation')
+          PY
+          mkdir -p "$RUNNER_TEMP/b1-pairs"
+          gh run download 38136336025 -R "$GITHUB_REPOSITORY" \
+            -n patch-tree-001-original-pairs -D "$RUNNER_TEMP/b1-pairs"
+          (
+            cd "$RUNNER_TEMP/b1-pairs"
+            sha256sum --check SHA256SUMS
+            echo "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd  pairs.json" | sha256sum --check
+          )
+      - name: Materialize ONLY the original four .NET calibration pairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/t3b1-results"
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$RUNNER_TEMP/t3b1-corpus" --sources "$HOME/patch-corpus/sources" \
+            --download --lock --calibration-only \
+            --pairs-reference "$RUNNER_TEMP/b1-pairs/pairs.json"
+          python3 benchmarks/scripts/patch_tree_001_inventory.py \
+            --root "$RUNNER_TEMP/t3b1-corpus" \
+            --output "$RUNNER_TEMP/t3b1-results/layouts.json" --calibration-only
+          cp "$RUNNER_TEMP/b1-pairs/pairs.json" "$RUNNER_TEMP/t3b1-results/original-pairs.json"
+      - name: Select fixed two original changed-and-renamed DLLs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/patch_tree_001_t3b1_select.py \
+            --corpus "$RUNNER_TEMP/t3b1-corpus" \
+            --inventory "$RUNNER_TEMP/t3b1-results/layouts.json" \
+            --output "$RUNNER_TEMP/t3b1-results/t3b1-selection.json"
+      - name: Build and test actual CSP v1 SDK on hosted runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+          dotnet test benchmarks/ChunkShift.Benchmarks.slnx -c Release \
+            --no-build --no-restore --filter FullyQualifiedName~PatchTreeT3B1
+      - name: Execute raw/T0S/T3 real create-apply and physical conservation
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --no-build --project benchmarks/ChunkShift.Benchmarks -c Release -- \
+            patch-lab tree-t3b1 --corpus "$RUNNER_TEMP/t3b1-corpus" \
+            --selection "$RUNNER_TEMP/t3b1-results/t3b1-selection.json" \
+            --scratch "$RUNNER_TEMP/t3b1-temporary-csp" \
+            --output "$RUNNER_TEMP/t3b1-results/t3b1-physical.json"
+          python3 - "$RUNNER_TEMP/t3b1-results" <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          root=pathlib.Path(sys.argv[1])
+          doc=json.loads((root/'t3b1-physical.json').read_text(encoding='utf-8'))
+          assert doc['schema']=='chunkshift.patch-tree-t3b1-two-csp.v1'
+          assert doc['status']=='CALIBRATION_ONLY_TWO_RENAMED_FILES_NO_ADOPT'
+          assert doc['rawRenamedTargetBytes']==2713272
+          assert len(doc['rows'])==2 and all(row['exactReconstruction'] for row in doc['rows'])
+          assert not (pathlib.Path(os.environ['RUNNER_TEMP'])/'t3b1-temporary-csp').exists()
+          provenance={
+            'schema':'chunkshift.patch-tree-t3b1-original-provenance.v1',
+            'runId':os.environ['GITHUB_RUN_ID'],'attempt':os.environ['GITHUB_RUN_ATTEMPT'],
+            'gitRef':os.environ['GITHUB_REF'],
+            'sourceSha':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
+            'runnerEnvironment':os.environ['RUNNER_ENVIRONMENT'],
+            'runnerOS':os.environ['RUNNER_OS'],'runnerArch':os.environ['RUNNER_ARCH'],
+            'originalPairsRunId':38136336025,'originalT0RunId':38142160679,
+            'sealedHoldoutOpened':False,
+          }
+          assert provenance['sourceSha']==os.environ['GITHUB_SHA']
+          (root/'provenance.json').write_text(json.dumps(provenance,indent=2,sort_keys=True)+'\n',encoding='utf-8')
+          with (root/'SHA256SUMS').open('w',encoding='ascii') as h:
+            for name in ('original-pairs.json','layouts.json','t3b1-selection.json',
+                         't3b1-physical.json','provenance.json'):
+              h.write(hashlib.sha256((root/name).read_bytes()).hexdigest()+'  '+name+'\n')
+          for row in doc['rows']:
+            print('T3B1 ORIGINAL',row['baseVersion'],'to',row['targetVersion'],
+              'raw',row['rawT0Bytes'],'T0S',row['t0SPhysicalBytes'],
+              'T3 CSP',row['t3CspPhysicalBytes'],'map',row['mapPhysicalBytes'],
+              'warm',row['t3WarmBytes'],'cold',row['t3ColdBytesIncludingBaseCsm'])
+          print('T3B1 modelled full four-pair warm:',doc['modelledFullT3WarmBytes'])
+          PY
+          ( cd "$RUNNER_TEMP/t3b1-results" && sha256sum --check SHA256SUMS )
+          echo 'T3B1 real fixed DLL source-locked calibration; NO_ADOPT' >> "$GITHUB_STEP_SUMMARY"
+      - name: Mark any failed evidence UNVERIFIED
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/t3b1-results"
+          printf 'UNVERIFIED_NOT_DECISION\nGitSha=%s\nRun=%s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" > "$RUNNER_TEMP/t3b1-results/UNVERIFIED-NOT-DECISION.txt"
+      - name: Archive failed diagnostics without qualification
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-t3b1-UNVERIFIED-diagnostics
+          path: ${{ runner.temp }}/t3b1-results/
+          retention-days: 14
+      - name: Archive source-locked exact-apply physical evidence
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-t3b1-original-two-DLL-NO-ADOPT
+          path: ${{ runner.temp }}/t3b1-results/
+          if-no-files-found: error
+          retention-days: 90
