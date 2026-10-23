@@ -29,7 +29,7 @@ internal static class PatchLabRunner
     {
         if (args.Length == 0)
         {
-            Console.Error.WriteLine("patch-lab needs a mode: run, memory, one, apply-check, enc005-g2, gap or tree-calibration, tree-boundary or tree-physical-f0.");
+            Console.Error.WriteLine("patch-lab needs a mode: run, memory, one, apply-check, enc005-g2, gap or tree-calibration, tree-boundary, tree-physical-f0 or tree-t3b1.");
             return 2;
         }
 
@@ -46,6 +46,7 @@ internal static class PatchLabRunner
                 "tree-calibration" => PatchTreeCalibration.Execute(args[1..]),
                 "tree-boundary" => PatchTreeBoundaryAttribution.Execute(args[1..]),
                 "tree-physical-f0" => PatchTreePhysicalAttribution.Execute(args[1..]),
+                "tree-t3b1" => PatchTreeT3B1.Execute(args[1..]),
                 _ => UnknownMode(args[0]),
             };
         }
@@ -121,7 +122,7 @@ internal static class PatchLabRunner
 
     private static int UnknownMode(string mode)
     {
-        Console.Error.WriteLine($"Unknown patch-lab mode '{mode}'; expected run, memory, one, apply-check, enc005-g2, gap, tree-calibration or tree-boundary.");
+        Console.Error.WriteLine($"Unknown patch-lab mode '{mode}'; expected run, memory, one, apply-check, enc005-g2, gap, tree-calibration, tree-boundary or tree-t3b1.");
         return 2;
     }
 }
