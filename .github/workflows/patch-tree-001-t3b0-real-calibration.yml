@@ -49,12 +49,12 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/patch-corpus/sources
-          key: patch-tree-001-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }
+          key: patch-tree-001-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
 
       - name: Verify original completed main-run metadata provenance
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/38136336025" > "$RUNNER_TEMP/original-run.json"
@@ -150,7 +150,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: patch-tree-t3b0-UNVERIFIED-diagnostics
-          path: ${{ runner.temp }/t3b0-results/
+          path: ${{ runner.temp }}/t3b0-results/
           if-no-files-found: warn
           retention-days: 14
 
@@ -159,6 +159,6 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: patch-tree-t3b0-original-calibration-NO-ADOPT
-          path: ${{ runner.temp }/t3b0-results/
+          path: ${{ runner.temp }}/t3b0-results/
           if-no-files-found: error
           retention-days: 90
