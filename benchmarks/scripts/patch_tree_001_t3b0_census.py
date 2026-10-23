@@ -89,7 +89,7 @@ def scan_pair(item: dict, frozen: dict) -> dict:
         old_index.setdefault((p["length"], p["sha256"]), []).append(p["path"])
     still = {p["path"] for p in target["files"]}
     candidates = [p for p in added if old_index.get((p["length"], p["sha256"]))]
-    strict = sum(1 for p in candidates if any(x not in still for x in
+    strict = sum(1 for p in candidates if all(x not in still for x in
                  old_index[(p["length"], p["sha256"])]))
     require(plan["addedCount"] == len(frozen["added"]) ==
             len(added), "added path count mismatch")
