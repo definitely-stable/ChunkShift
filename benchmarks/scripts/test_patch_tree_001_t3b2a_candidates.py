@@ -101,6 +101,14 @@ class StructuralCandidatesTests(unittest.TestCase):
         self.assertEqual(result["fallbackReasons"],
                          {"source_claimed_by_multiple_targets": 2})
 
+    def test_large_matching_source_bucket_is_bounded_and_falls_back(self):
+        for i in range(planner.MAX_SOURCE_POOL + 1):
+            self.put(self.old, f"bin/app_1.0.{i}.0.dll", bytes([i]) * N)
+        self.put(self.new, "bin/app_1.0.100.0.dll", b"z" * N)
+        result = self.plan()
+        self.assertEqual(result["selectedCount"], 0)
+        self.assertEqual(result["fallbackReasons"], {"source_pool_limit": 1})
+
     def test_monotonic_version_and_parent_are_required(self):
         self.put(self.old, "bin/app_2.0.0.0.dll")
         self.put(self.new, "bin/app_1.0.0.0.dll", b"Z" * N)
