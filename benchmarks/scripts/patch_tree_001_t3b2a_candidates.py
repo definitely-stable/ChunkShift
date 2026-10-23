@@ -25,6 +25,7 @@ MAX_FILES = 100_000
 MAX_PATH_BYTES = 4_096
 MIN_BYTES = 65_536
 MAX_BYTES = 64 * 1024 * 1024
+MAX_SOURCE_POOL = 8
 # Strict ASCII filename grammar, with a required separating underscore.
 # Prefix is interpreted as opaque data; extension is case-sensitive.
 FILENAME = re.compile(
@@ -80,9 +81,8 @@ def select_pair(base: dict, target: dict, frozen: dict) -> dict:
         file = old_map[name]
         if s is not None and MIN_BYTES <= file["length"] <= MAX_BYTES:
             source_index[(s[0], s[1])].append((name, s[2]))
-    for values in source_index.values():
-        values.sort(key=lambda x: x[0].encode("utf-8"))
-
+    # Input is already in canonical path order. Never sort a potentially huge
+    # bucket and never perform an unbounded per-target candidate scan.
     possible: dict[str, str] = {}
     fallback: dict[str, str] = {}
     candidates_by_source: dict[str, list[str]] = defaultdict(list)
@@ -95,8 +95,12 @@ def select_pair(base: dict, target: dict, frozen: dict) -> dict:
         if f["length"] < MIN_BYTES or f["length"] > MAX_BYTES:
             fallback[dst] = "target_size_out_of_bounds"
             continue
+        pool = source_index.get((t[0], t[1]), ())
+        if len(pool) > MAX_SOURCE_POOL:
+            fallback[dst] = "source_pool_limit"
+            continue
         matches = []
-        for src, version in source_index.get((t[0], t[1]), ()):
+        for src, version in pool:
             prior = old_map[src]
             if version >= t[2] or prior["sha256"] == f["sha256"]:
                 continue
