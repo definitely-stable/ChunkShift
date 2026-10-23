@@ -49,7 +49,7 @@ def validate_layout(data: dict) -> list[dict]:
         fail("file count mismatch")
     total = _integer(data.get("totalBytes"), "total size")
     previous = None
-    seen_folded = set()
+    seen_nodes: dict[str, tuple[str, str]] = {}
     offset = 0
     h = hashlib.sha256()
     for entry in files:
@@ -59,10 +59,18 @@ def validate_layout(data: dict) -> list[dict]:
         encoded = name.encode("utf-8")
         if len(encoded) > MAX_PATH_BYTES or (previous is not None and previous >= encoded):
             fail("noncanonical path ordering or length")
-        folded = name.casefold()
-        if folded in seen_folded:
-            fail("casefold collision")
-        seen_folded.add(folded)
+        # A/x and a/y collide in the same directory on a casefolding host,
+        # even though their full file paths are distinct. Also reject a file
+        # used as an ancestor directory by another entry.
+        parts = name.split("/")
+        for depth in range(1, len(parts) + 1):
+            prefix = "/".join(parts[:depth])
+            kind = "file" if depth == len(parts) else "directory"
+            key = prefix.casefold()
+            previous_node = seen_nodes.get(key)
+            if previous_node is not None and previous_node != (prefix, kind):
+                fail("casefold or file-directory collision")
+            seen_nodes[key] = (prefix, kind)
         length = _integer(entry.get("length"), "file length")
         if _integer(entry.get("offset"), "file offset") != offset or length > inventory.MAX_OFFSET - offset:
             fail("noncontiguous or overflowing virtual offsets")
