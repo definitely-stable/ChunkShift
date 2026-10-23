@@ -190,6 +190,23 @@ class T3ExactTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "mapping differs"):
             t3.reconstruct_fixture(self.old, self.new, self.parent / "stage", old, new, outcome)
 
+    def test_casefold_ancestor_and_file_directory_collisions_rejected(self):
+        self.put(self.old, "a", b"X")
+        self.put(self.old, "b", b"Y")
+        # These forged layouts cannot be produced by inventory.layout, but
+        # their paths are individually valid; the independent T3 validator
+        # must reject them before trusting/rechecking the layout digest.
+        base = inv.layout(self.old)
+        base["files"][0]["path"] = "A/x"
+        base["files"][1]["path"] = "a/y"
+        with self.assertRaisesRegex(ValueError, "casefold or file-directory"):
+            t3.validate_layout(base)
+        base = inv.layout(self.old)
+        base["files"][0]["path"] = "a"
+        base["files"][1]["path"] = "a/b"
+        with self.assertRaisesRegex(ValueError, "casefold or file-directory"):
+            t3.validate_layout(base)
+
     def test_staging_existing_refused(self):
         data = b"E" * 5000
         self.put(self.old, "base", data)
