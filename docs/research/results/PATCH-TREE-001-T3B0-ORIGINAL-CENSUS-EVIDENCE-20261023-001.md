@@ -50,6 +50,8 @@ The GitHub artifact was downloaded and inspected independently after the hosted 
 
 **Scope of audit:** this independently audits the **archived SHA-locked inventory and result**, not actual source binaries after they leave the hosted runner. The runner's original materializer and second independent source-file SHA walk performed actual source-byte verification there. The archived ZIP contains original path hashes and counts, **not** reconstituted binaries, raw CSPs, CPU profiles or hostile filesystem traces. True power-cut/publisher durability and external cryptographic trust are outside T3-B0.
 
+Independent replay is preserved as [standalone `recompute.py`](data/PATCH-TREE-001-T3B0-EVIDENCE-20261023-001/recompute.py). To reproduce, download artifact #12485021458 as a ZIP and run `python recompute.py patch-tree-t3b0-original-calibration.zip`; it requires only the Python standard library, verifies all pinned ZIP/member digests and independently reproduces the source-locked four-pair census without importing the experiment producer. The initial local audit used the same independent byte/layout/count checks.
+
 ## Decision and next bounded question
 
 1. **REJECT** promotion of T3-A exact added-path reuse on this original calibration corpus. The result has **zero exact-match opportunities**, not merely insufficient gains after map overhead. Adding a permanent cross-path map for these four transitions would introduce cost/complexity without eliminating any raw added file.
