@@ -1,0 +1,42 @@
+name: PATCH-TREE-001 T3B1 independent original ZIP replay
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/research/results/PATCH-TREE-001-T3B1-ORIGINAL-PHYSICAL-EVIDENCE-20261023-001.md'
+      - 'docs/research/results/data/PATCH-TREE-001-T3B1-EVIDENCE-20261023-001/recompute.py'
+      - '.github/workflows/patch-tree-001-t3b1-original-replay.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  replay-original:
+    name: Verify T3B1 immutable original ZIP and independently recompute cost
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout independent auditor
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up pinned stdlib Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Download exact original archived ZIP, validate checksum, replay
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/12506269723/zip" \
+            -o "$RUNNER_TEMP/t3b1-original.zip"
+          echo "06ce564ef43b07e5ea386551479fe86edaf8c58f266e01f579578acd50293624  $RUNNER_TEMP/t3b1-original.zip" | sha256sum --check
+          python3 docs/research/results/data/PATCH-TREE-001-T3B1-EVIDENCE-20261023-001/recompute.py \
+            "$RUNNER_TEMP/t3b1-original.zip"
+          echo 'B1 independent original archived cost REPLAY PASS / NO_PRODUCTION_ADOPT' >> "$GITHUB_STEP_SUMMARY"
