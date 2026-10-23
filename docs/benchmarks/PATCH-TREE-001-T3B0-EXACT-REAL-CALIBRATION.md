@@ -15,7 +15,7 @@ For each of the **four** calibration transitions, re-read and SHA-256 verify all
 
 Then execute the **unchanged T3-A** exact algorithm on both verified layouts:
 
-1. For every target path absent in the old tree, count candidate sources with equal complete `(length,SHA-256)` in *any* old file. Separately count strict moves (some matching old path absent from new tree) and copies/ambiguous (only matching old paths retained in new tree).
+1. For every target path absent in the old tree, count candidate sources with equal complete `(length,SHA-256)` in *any* old file. Separately count strict moves (all matching old paths absent from new tree) and copies/ambiguous (at least one matching old path retained in new tree).
 2. Apply the T3-A canonical source tie-break (shortest UTF-8 path then UTF-8 lexical), and its 100,000-entry, 4096-byte-path, 16-MiB-map bounds and strict per-reference/whole-map raw-byte break-even rule.
 3. Record counts, raw added bytes, selected content bytes, **actual encoded reference map bytes** and independent `SHA-256` of the map for each transition. Preserve deterministic selected path/source identities in the result.
 4. The **modelled** warm T3 result is original T0 warm minus `sum(selected raw bytes - map bytes)`; the common target tree metadata is unchanged. This is a *cost substitution on previously measured T0*, not a new physical CSP update-set or an upper/lower bound on a future product implementation. The exact source locator, publisher, authentication and new shipped sidecar format are **not** paid for.
