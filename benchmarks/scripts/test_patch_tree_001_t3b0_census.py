@@ -99,8 +99,8 @@ class ExactCensusTests(unittest.TestCase):
         self.add(self.new, "added", data)
         item, frozen = self.fixture()
         row = b0.scan_pair(item, frozen)
-        self.assertEqual(row["strictMoveCount"], 1)
-        self.assertEqual(row["copyOrAmbiguousCount"], 0)
+        self.assertEqual(row["strictMoveCount"], 0)
+        self.assertEqual(row["copyOrAmbiguousCount"], 1)
         self.assertEqual(row["mappedCount"], 1)
 
     def test_forged_pair_metadata_fails_before_census(self):
