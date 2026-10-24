@@ -4,7 +4,7 @@
 
 ## Falsifiable question and confounders
 
-Are B2B's high logical source reads predominantly *repeat coverage of the same underlying byte ranges*, or mostly distinct records/candidate windows? Quantify exact byte-range union and backward/discontinuous transitions for the same public SDK CSP v1 create. **Do not infer "cache broken" from repeated reads**: `CspPatchBuilder` already uses bounded `BaseCandidateCache` by default and tests multiple dictionary candidate windows. The physical source may be page-cached; Stream reads do not equal disk IO.
+Are B2B's high logical source reads predominantly *repeat coverage of the same underlying byte ranges*, or mostly distinct records/candidate windows? Quantify exact byte-range union and backward/discontinuous transitions for the same public SDK CSP v1 create. **Do not infer "cache broken" from repeated reads**: the production `CspCreateExecution.Default` chooses H2-W2 **without** `BaseCandidateCache` at ≥2 processors (H0 without cache on one processor), while existing internal H3 can enable the bounded candidate cache and tests multiple dictionary candidate windows. The physical source may be page-cached; Stream reads do not equal disk IO.
 
 This experiment runs at the caller-controlled **BASE content Stream boundary** without changing shipping patching code. A `TracingBaseStream` forwards the same byte content, positions and read results as a `FileStream` and observes:
 - number of read calls, bytes returned, assigned positions and Seek calls;
