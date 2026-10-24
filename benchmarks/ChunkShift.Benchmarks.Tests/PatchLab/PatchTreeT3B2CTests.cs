@@ -34,6 +34,28 @@ public sealed class PatchTreeT3B2CTests
     }
 
     [Fact]
+    public async Task ExactUniqueCoverageAcrossPageBoundaryAndEofDoesNotInflatePhysicalCoverage()
+    {
+        await using var underlying = new MemoryStream(new byte[8192], writable: false);
+        await using var trace = new PatchTreeT3B2C.RangeObserver(underlying);
+        trace.Position = 4000;
+        Assert.Equal(300, trace.Read(new byte[300]));
+        trace.Position = 4100;
+        Assert.Equal(300, await trace.ReadAsync(new byte[300]));
+        trace.Position = 8170;
+        Assert.Equal(22, trace.Read(new byte[50]));
+        Assert.Equal(0, trace.Read(new byte[50]));
+        var p = trace.Profile();
+        Assert.Equal(622, p.LogicalReadBytes);
+        Assert.Equal(422, p.UniqueCoveredBytes);
+        Assert.Equal(200, p.RepeatedReadBytes);
+        Assert.Equal(4, p.ReadCalls);
+        Assert.Equal(3, p.ReadRanges);
+        Assert.Equal(2, p.MostRepeated4KiBPageTouches);
+        Assert.Equal(0, p.BackwardPositionSets);
+    }
+
+    [Fact]
     public async Task H2AndBoundedH3ProduceExactlyEqualRealCspAndVerifyOriginalShape()
     {
         using var f = new Fixture();
