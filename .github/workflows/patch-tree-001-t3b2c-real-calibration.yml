@@ -1,0 +1,207 @@
+name: PATCH-TREE-001 T3B2C original H2 H3 base-read attribution
+
+# Post-reviewed-main first-run-only; never use unreviewed PR code on source releases.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'benchmarks/ChunkShift.Benchmarks/PatchLab/Tree/PatchTreeT3B2C.cs'
+      - '.github/workflows/patch-tree-001-t3b2c-real-calibration.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: patch-tree-001-t3b2c-original
+  cancel-in-progress: false
+
+jobs:
+  repeated-real-csp:
+    name: Original two renamed DLLs, H2/H3 source-range attribution (ubuntu-x64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 220
+    steps:
+      - name: Restrict original to first GitHub-hosted main push
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'definitely-stable/ChunkShift'
+          test "$GITHUB_EVENT_NAME" = 'push'
+          test "$GITHUB_REF" = 'refs/heads/main'
+          test "$GITHUB_RUN_ATTEMPT" = '1'
+          test "$RUNNER_ENVIRONMENT" = 'github-hosted'
+          test "$RUNNER_OS" = 'Linux'
+          test "$RUNNER_ARCH" = 'X64'
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-tree-001-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+      - name: Pin original input provenance independently before source download
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/t3b2c-original" "$RUNNER_TEMP/t3b2c-b1" "$RUNNER_TEMP/t3b2c-b2a"
+          for id in 38136336025 39967460136 39977481690; do
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" > "$RUNNER_TEMP/$id.json"
+          done
+          python3 - "$RUNNER_TEMP" <<'PY'
+          import json,os,pathlib,sys
+          t=pathlib.Path(sys.argv[1])
+          runs=[
+             (38136336025,'workflow_dispatch','.github/workflows/patch-tree-001-pairs-reference.yml',None),
+             (39967460136,'push','.github/workflows/patch-tree-001-t3b1-real-calibration.yml','a64fc8cedb651d9c7f14f886709cfdf65c693f10'),
+             (39977481690,'push','.github/workflows/patch-tree-001-t3b2a-real-calibration.yml','1282fd6f1d01384f2858acf1192ab0f3600ec4f8')
+          ]
+          for id,event,workflow,sha in runs:
+            x=json.loads((t/f'{id}.json').read_text(encoding='utf-8'))
+            assert x['id']==id and x['event']==event and x['head_branch']=='main'
+            assert x['run_attempt']==1 and x['status']=='completed' and x['conclusion']=='success'
+            assert x['repository']['full_name']==os.environ['GITHUB_REPOSITORY']
+            assert x['path'].split('@')[0]==workflow
+            if sha: assert x['head_sha']==sha
+          PY
+          gh run download 38136336025 -R "$GITHUB_REPOSITORY" \
+            -n patch-tree-001-original-pairs -D "$RUNNER_TEMP/t3b2c-original"
+          gh run download 39967460136 -R "$GITHUB_REPOSITORY" \
+            -n patch-tree-t3b1-original-two-DLL-NO-ADOPT -D "$RUNNER_TEMP/t3b2c-b1"
+          gh run download 39977481690 -R "$GITHUB_REPOSITORY" \
+            -n patch-tree-t3b2a-original-structural-NO-ADOPT -D "$RUNNER_TEMP/t3b2c-b2a"
+          ( cd "$RUNNER_TEMP/t3b2c-original" && sha256sum --check SHA256SUMS &&
+            echo "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd  pairs.json" | sha256sum --check )
+          ( cd "$RUNNER_TEMP/t3b2c-b1" && sha256sum --check SHA256SUMS &&
+            echo "2627067691b3fb2cd6515d8eaf5107b331080c4603599b5ae276e522d08dfdad  t3b1-selection.json" | sha256sum --check )
+          ( cd "$RUNNER_TEMP/t3b2c-b2a" && sha256sum --check SHA256SUMS &&
+            echo "1798536b998c9078fda8dca5fb2af457909753c7b7f811e89402f63e9ad8242b  t3b2a-selected.json" | sha256sum --check )
+      - name: Materialize and hash original calibration trees (no holdout)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/t3b2c-results"
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$RUNNER_TEMP/t3b2c-corpus" --sources "$HOME/patch-corpus/sources" \
+            --download --lock --calibration-only \
+            --pairs-reference "$RUNNER_TEMP/t3b2c-original/pairs.json"
+          python3 benchmarks/scripts/patch_tree_001_inventory.py \
+            --root "$RUNNER_TEMP/t3b2c-corpus" \
+            --output "$RUNNER_TEMP/t3b2c-results/layouts.json" --calibration-only
+          cp "$RUNNER_TEMP/t3b2c-original/pairs.json" "$RUNNER_TEMP/t3b2c-results/original-pairs.json"
+          cp "$RUNNER_TEMP/t3b2c-b1/t3b1-selection.json" "$RUNNER_TEMP/t3b2c-results/original-b1-selection.json"
+          cp "$RUNNER_TEMP/t3b2c-b2a/t3b2a-selected.json" "$RUNNER_TEMP/t3b2c-results/original-b2a-selected.json"
+          python3 benchmarks/scripts/patch_tree_001_t3b1_select.py \
+            --corpus "$RUNNER_TEMP/t3b2c-corpus" \
+            --inventory "$RUNNER_TEMP/t3b2c-results/layouts.json" \
+            --output "$RUNNER_TEMP/t3b2c-results/rehash-selection.json"
+      - name: Require independently pinned B1 and B2A old/new source identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/t3b2c-results" <<'PY'
+          import json,pathlib,sys
+          t=pathlib.Path(sys.argv[1])
+          b1=json.loads((t/'original-b1-selection.json').read_text())
+          verified=json.loads((t/'rehash-selection.json').read_text())
+          b2=json.loads((t/'original-b2a-selected.json').read_text())
+          assert verified==b1 and b1['schema']=='chunkshift.patch-tree-t3b1-fixed-two.v1'
+          picked=[x for p in b2['pairs'] for x in p['candidates']]
+          assert len(picked)==2 and len(b1['candidates'])==2 and b2['totals']['fallBackCount']==0
+          for expected,found in zip(b1['candidates'],picked):
+            for k in ('sourcePath','targetPath','sourceSha256','targetSha256',
+                      'sourceLength','targetLength'):
+              assert expected[k]==found[k]
+          PY
+      - name: Compile exact shipping CSP v1 SDK and preflight B2B tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+          dotnet test benchmarks/ChunkShift.Benchmarks.slnx -c Release \
+            --no-build --no-restore --filter FullyQualifiedName~PatchTreeT3B2C
+      - name: Observe original base read ranges in alternating H2/H3 CSP create/apply
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --no-build --project benchmarks/ChunkShift.Benchmarks -c Release -- \
+            patch-lab tree-t3b2c --corpus "$RUNNER_TEMP/t3b2c-corpus" \
+            --selection "$RUNNER_TEMP/t3b2c-results/original-b1-selection.json" \
+            --scratch "$RUNNER_TEMP/t3b2c-temporary-csp" \
+            --output "$RUNNER_TEMP/t3b2c-results/ranges.json"
+          python3 - "$RUNNER_TEMP/t3b2c-results" <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          t=pathlib.Path(sys.argv[1])
+          doc=json.loads((t/'ranges.json').read_text())
+          assert doc['schema']=='chunkshift.patch-tree-t3b2c-source-ranges.v1'
+          assert doc['status']=='ORIGINAL_CALIBRATION_H2_H3_ATTRIBUTION_NO_ADOPT'
+          assert doc['warmupsPerLane']==1 and doc['measuredRoundsPerLane']==3
+          assert len(doc['pairs'])==2
+          for pair in doc['pairs']:
+            samples=pair['samples']
+            assert len(samples)==8 and sum(not x['warmup'] for x in samples)==6
+            assert {x['lane'] for x in samples}=={'H2','H3'}
+            assert len({x['patchSha256'] for x in samples})==1
+            assert all(x['reconstructedAndVerified'] for x in samples)
+            assert pair['h2WarmPatchBytes']==pair['h3WarmPatchBytes']
+            for x in samples:
+              p=x['sourceReads']
+              assert p['logicalReadBytes']>=p['uniqueCoveredBytes']
+              assert p['repeatedReadBytes']==p['logicalReadBytes']-p['uniqueCoveredBytes']
+              assert p['readRanges']<=100000
+            print('T3B2C',pair['baseVersion'],'->',pair['targetVersion'],
+              'H2 source stream reads',sum(x['sourceReads']['logicalReadBytes']
+                 for x in samples if not x['warmup'] and x['lane']=='H2'),
+              'H3 source stream reads',sum(x['sourceReads']['logicalReadBytes']
+                 for x in samples if not x['warmup'] and x['lane']=='H3'),
+              'H3/H2 CPU',pair['h3OverH2CpuRatio'],'H3/H2 wall',pair['h3OverH2WallRatio'])
+          assert not (pathlib.Path(os.environ['RUNNER_TEMP'])/'t3b2c-temporary-csp').exists()
+          provenance={
+            'schema':'chunkshift.patch-tree-t3b2c-original-provenance.v1',
+            'runId':os.environ['GITHUB_RUN_ID'],'runAttempt':os.environ['GITHUB_RUN_ATTEMPT'],
+            'sourceSha':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
+            'ref':os.environ['GITHUB_REF'],'runnerEnvironment':os.environ['RUNNER_ENVIRONMENT'],
+            'runnerOS':os.environ['RUNNER_OS'],'runnerArch':os.environ['RUNNER_ARCH'],
+            'originalPairsRunId':38136336025,'originalB1RunId':39967460136,
+            'originalB2aRunId':39977481690,'holdoutOpened':False,'rawCspArchived':False,
+          }
+          assert provenance['sourceSha']==os.environ['GITHUB_SHA']
+          (t/'provenance.json').write_text(json.dumps(provenance,indent=2,sort_keys=True)+'\n')
+          with (t/'SHA256SUMS').open('w') as h:
+            for name in ('original-pairs.json','original-b1-selection.json',
+                         'original-b2a-selected.json','rehash-selection.json',
+                         'layouts.json','ranges.json','provenance.json'):
+              h.write(hashlib.sha256((t/name).read_bytes()).hexdigest()+'  '+name+'\n')
+          PY
+          ( cd "$RUNNER_TEMP/t3b2c-results" && sha256sum --check SHA256SUMS )
+          echo 'T3B2C ORIGINAL 3-round H2/H3 source-range attribution, NO PRODUCTION ADOPT' >> "$GITHUB_STEP_SUMMARY"
+      - name: Mark failures UNVERIFIED
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/t3b2c-results"
+          printf 'UNVERIFIED_NOT_DECISION\nRun=%s\nSHA=%s\n' "$GITHUB_RUN_ID" "$GITHUB_SHA" > "$RUNNER_TEMP/t3b2c-results/UNVERIFIED.txt"
+      - name: Archive failed diagnostic, not evidence
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-t3b2c-UNVERIFIED-diagnostics
+          path: ${{ runner.temp }}/t3b2c-results/
+          retention-days: 14
+      - name: Archive original paired measurements only
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-t3b2c-original-ranges-NO-ADOPT
+          path: ${{ runner.temp }}/t3b2c-results/
+          if-no-files-found: error
+          retention-days: 90
