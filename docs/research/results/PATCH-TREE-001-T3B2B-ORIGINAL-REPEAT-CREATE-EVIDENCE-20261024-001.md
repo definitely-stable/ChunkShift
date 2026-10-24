@@ -61,7 +61,7 @@ Old-file size was **1,356,632 B**, so reported T3 old-file read amplification is
 
 Single setup samples are diagnostic, not stable estimates of CSM build cost. The significant first CSM warmup discrepancy also demonstrates why B1 single timings could not serve as a controlled performance baseline.
 
-**Memory interpretation:** A 10-ms sampler recorded whole-process `WorkingSet64` and `PrivateMemorySize64`, not private RSS or isolated operation high-water. Median *observed process WorkingSet peaks* were approximately **156.7 MiB vs 157.8 MiB** for first T0S/T3 pair and **204.5 MiB vs 209.0 MiB** for second (values in evidence JSON are bytes; these approximate labels should be understood as decimal MB when dividing by 1e6, not exact binary MiB). Prior rounds and GC can change process baseline; no causal peak-memory gain/penalty or safe production memory bound follows. GC allocated-byte observations above likewise are process-global.
+**Memory interpretation:** A 10-ms sampler recorded whole-process `WorkingSet64` and `PrivateMemorySize64`, not private RSS or isolated operation high-water. Median *observed process WorkingSet peaks* were approximately **156.7 MB vs 157.8 MB** for first T0S/T3 pair and **204.5 MB vs 209.0 MB** for second (decimal megabytes from archived byte counts, not binary MiB). Prior rounds and GC can change process baseline; no causal peak-memory gain/penalty or safe production memory bound follows. GC allocated-byte observations above likewise are process-global.
 
 ## Frozen cost-admission result and safety boundary
 
