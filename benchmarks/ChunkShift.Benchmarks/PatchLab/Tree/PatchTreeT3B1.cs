@@ -91,7 +91,7 @@ internal static class PatchTreeT3B1
         !value.Contains('\\') && !value.Contains(':') && !value.Contains('\0') &&
         value.Split('/').All(x => x.Length != 0 && x is not ("." or ".."));
 
-    private static string SourcePath(string root, string family, string version, string relative)
+    internal static string SourcePath(string root, string family, string version, string relative)
     {
         string versionRoot = Path.GetFullPath(Path.Combine(root, "tree", family, version));
         string absolute = Path.GetFullPath(Path.Combine(versionRoot,
@@ -119,14 +119,14 @@ internal static class PatchTreeT3B1
         return Convert.ToHexStringLower(await SHA256.HashDataAsync(input));
     }
 
-    private static async Task CheckFileAsync(string file, long length, string sha)
+    internal static async Task CheckFileAsync(string file, long length, string sha)
     {
         if (new FileInfo(file).Length != length ||
             await HashFileAsync(file) != sha)
             throw new InvalidDataException("Original source bytes or length drift.");
     }
 
-    private static byte[] DiagnosticReference(Selection c, string baseManifestId)
+    internal static byte[] DiagnosticReference(Selection c, string baseManifestId)
     {
         // Exact experimental wire-cost ledger; not an adopted update-set API.
         using var mem = new MemoryStream();
