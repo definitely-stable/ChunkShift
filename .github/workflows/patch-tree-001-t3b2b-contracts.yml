@@ -1,0 +1,39 @@
+name: PATCH-TREE-001 T3B2B paired create CPU and cost contracts
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'benchmarks/ChunkShift.Benchmarks/PatchLab/Tree/PatchTreeT3B1.cs'
+      - 'benchmarks/ChunkShift.Benchmarks/PatchLab/Tree/PatchTreeT3B2B.cs'
+      - 'benchmarks/ChunkShift.Benchmarks.Tests/PatchLab/PatchTreeT3B2BTests.cs'
+      - 'benchmarks/ChunkShift.Benchmarks/PatchLab/PatchLabRunner.cs'
+      - '.github/workflows/patch-tree-001-t3b2b-contracts.yml'
+      - '.github/workflows/patch-tree-001-t3b2b-real-calibration.yml'
+      - 'docs/benchmarks/PATCH-TREE-001-T3B2B-REPEAT-CREATE-ADMISSION-PROTOCOL.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paired-synthetic:
+    name: Real SDK create and CPU budgets (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Build and test original-free T3B2B real SDK CSP lanes
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj \
+            -c Release --filter FullyQualifiedName~PatchTreeT3B2B
+          echo 'T3B2B SYNTHETIC paired create/apply ONLY; no original/holdout or production ADOPT' >> "$GITHUB_STEP_SUMMARY"
