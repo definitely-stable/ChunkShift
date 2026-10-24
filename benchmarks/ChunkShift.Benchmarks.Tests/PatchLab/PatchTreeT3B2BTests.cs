@@ -63,7 +63,7 @@ public sealed class PatchTreeT3B2BTests
             Assert.Equal(2, pair.Samples.Count(s => s.Lane == "T0S" && !s.IsWarmup));
             Assert.Equal(2, pair.Samples.Count(s => s.Lane == "T3" && !s.IsWarmup));
             Assert.Equal(2, pair.Samples.Count(s => s.IsWarmup));
-            Assert.Equal(pair.T0SMedianCreateCpuMs > 0, pair.T0SMedianCreateCpuMs > 0);
+            Assert.True(pair.T0SMedianCreateCpuMs > 0);
             Assert.True(pair.RawTargetBytes > 0);
             Assert.True(pair.MapBytes > 0);
             Assert.True(pair.OldCsmBuild.PhysicalCsmBytes > 0);
