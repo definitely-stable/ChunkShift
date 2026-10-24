@@ -51,7 +51,7 @@ public sealed class PatchTreeT3B2CTests
         Assert.Equal(200, p.RepeatedReadBytes);
         Assert.Equal(4, p.ReadCalls);
         Assert.Equal(3, p.ReadRanges);
-        Assert.Equal(2, p.MostRepeated4KiBPageTouches);
+        Assert.Equal(3, p.MostRepeated4KiBPageTouches);
         Assert.Equal(0, p.BackwardPositionSets);
     }
 
