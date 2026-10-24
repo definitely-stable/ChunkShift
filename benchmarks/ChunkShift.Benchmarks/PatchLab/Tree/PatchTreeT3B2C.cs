@@ -48,8 +48,9 @@ internal static class PatchTreeT3B2C
         int MeasuredRoundsPerLane, Pair[] Pairs);
 
     /// <summary>Snapshot of read events; bounded by 100k events per create.</summary>
-    internal sealed class RangeObserver(Stream inner) : Stream
+    internal sealed class RangeObserver : Stream
     {
+        private readonly Stream inner;
         private const int MaxEvents = 100_000;
         private readonly List<(long Start, long End)> _intervals = [];
         private long _readCalls;
@@ -61,6 +62,7 @@ internal static class PatchTreeT3B2C
 
         internal RangeObserver(Stream inner)
         {
+            this.inner = inner;
             if (!inner.CanRead || !inner.CanSeek)
                 throw new ArgumentException("Need readable seekable base.");
             _lastPosition = inner.Position;
