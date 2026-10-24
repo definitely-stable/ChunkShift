@@ -70,8 +70,8 @@ public sealed class PatchTreeT3B2C0Tests
         foreach (var pair in result.Pairs)
         {
             Assert.Equal(6, pair.Samples.Length);
-            Assert.Equal(["counter-only", "trace", "counter-only", "trace",
-                "trace", "counter-only"], pair.Samples.Select(x => x.Mode));
+            Assert.Equal(new[] { "counter-only", "trace", "counter-only", "trace",
+                "trace", "counter-only" }, pair.Samples.Select(x => x.Mode));
             Assert.Equal(1, pair.Samples.Select(x => x.CspSha256).Distinct().Count());
             Assert.Equal(1, pair.Samples.Select(x => x.CspBytes).Distinct().Count());
             Assert.Equal(pair.PhysicalCspBytes, pair.Samples[0].CspBytes);
