@@ -7,6 +7,10 @@ namespace ChunkShift.Benchmarks.Tests.PatchLab;
 public sealed class PatchTreeT3B2C0Tests
 {
     private const string Prefix = "shared/Microsoft.NETCore.App/{version}/mscordaccore_amd64_amd64_";
+    private static readonly string[] ExpectedModes =
+    [
+        "counter-only", "trace", "counter-only", "trace", "trace", "counter-only",
+    ];
     private static readonly string[] Names =
     [
         Prefix + "10.0.1026.32716.dll",
@@ -70,10 +74,9 @@ public sealed class PatchTreeT3B2C0Tests
         foreach (var pair in result.Pairs)
         {
             Assert.Equal(6, pair.Samples.Length);
-            Assert.Equal(new[] { "counter-only", "trace", "counter-only", "trace",
-                "trace", "counter-only" }, pair.Samples.Select(x => x.Mode));
-            Assert.Equal(1, pair.Samples.Select(x => x.CspSha256).Distinct().Count());
-            Assert.Equal(1, pair.Samples.Select(x => x.CspBytes).Distinct().Count());
+            Assert.Equal(ExpectedModes, pair.Samples.Select(x => x.Mode));
+            Assert.Single(pair.Samples.Select(x => x.CspSha256).Distinct());
+            Assert.Single(pair.Samples.Select(x => x.CspBytes).Distinct());
             Assert.Equal(pair.PhysicalCspBytes, pair.Samples[0].CspBytes);
             Assert.Equal(64, pair.PhysicalCspSha256.Length);
             Assert.True(pair.BaseCsmBytes > 0);
