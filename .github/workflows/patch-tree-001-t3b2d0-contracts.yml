@@ -1,0 +1,39 @@
+name: PATCH-TREE-001 T3B2D0 exhaustive encode-stage contracts
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ChunkShift.Patching/Creation/CspBuildStageProbe.cs'
+      - 'src/ChunkShift.Patching/Creation/CspCreateExecution.cs'
+      - 'src/ChunkShift.Patching/Creation/CspPatchBuilder.cs'
+      - 'src/ChunkShift.Patching/Creation/CspPatchBuilder.Pipeline.cs'
+      - 'benchmarks/ChunkShift.Benchmarks/PatchLab/Tree/PatchTreeT3B2D0.cs'
+      - 'benchmarks/ChunkShift.Benchmarks.Tests/PatchLab/PatchTreeT3B2D0Tests.cs'
+      - 'docs/benchmarks/PATCH-TREE-001-T3B2D0-ENCODE-STAGE-PROTOCOL.md'
+      - '.github/workflows/patch-tree-001-t3b2d0-*.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage-contracts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Exact source-free staged CSP, integrity, and fail-closed tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj \
+            -c Release --filter FullyQualifiedName~PatchTreeT3B2D0
+          echo 'B2D0 contract-only; NO ORIGINAL VERDICT / NO_PRODUCTION_ADOPT' >> "$GITHUB_STEP_SUMMARY"
