@@ -1,0 +1,40 @@
+name: PATCH-TREE-001 T3 first-release admission audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'benchmarks/experiments/patch-tree-001-t3-closeout-20261025.json'
+      - 'benchmarks/scripts/verify_patch_tree_001_t3_closeout.py'
+      - 'benchmarks/scripts/test_verify_patch_tree_001_t3_closeout.py'
+      - 'docs/research/results/PATCH-TREE-001-T3-FIRST-RELEASE-CLOSEOUT-20261025-001.md'
+      - '.github/workflows/patch-tree-001-t3-closeout.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  closeout-replay:
+    name: Verify frozen T3 B2B+C1+D0 admission, original ZIP
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Replay committed decision inputs and run tampering negatives
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/verify_patch_tree_001_t3_closeout.py
+          python3 -m unittest discover -s benchmarks/scripts -p 'test_verify_patch_tree_001_t3_closeout.py' -v
+      - name: Fetch original archived T3B2B ZIP and replay independently
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/definitely-stable/ChunkShift/actions/artifacts/12553937250/zip > "$RUNNER_TEMP/t3b2b-original.zip"
+          python3 benchmarks/scripts/verify_patch_tree_001_t3_closeout.py \
+            --b2b-original-zip "$RUNNER_TEMP/t3b2b-original.zip"
+          echo 'T3 original gate REPLAY PASS; production DEFER; #184/#251 OPEN' >> "$GITHUB_STEP_SUMMARY"
