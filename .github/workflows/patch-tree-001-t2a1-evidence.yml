@@ -1,0 +1,36 @@
+name: PATCH-TREE-001 T2A1 independent original evidence replay
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/research/results/data/PATCH-TREE-001-T2A1-EVIDENCE-20261025-001/**'
+      - 'docs/research/results/PATCH-TREE-001-T2A1-ORIGINAL-CSM-EVIDENCE-20261025-001.md'
+      - '.github/workflows/patch-tree-001-t2a1-evidence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  original-csm-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Replay immutable source-free CSM identities, bounds and T0 metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 docs/research/results/data/PATCH-TREE-001-T2A1-EVIDENCE-20261025-001/recompute.py
+      - name: Download exact first-attempt original artifact and audit all members
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/definitely-stable/ChunkShift/actions/artifacts/12603112300/zip > "$RUNNER_TEMP/t2a1-original.zip"
+          python3 docs/research/results/data/PATCH-TREE-001-T2A1-EVIDENCE-20261025-001/recompute.py \
+            --original-zip "$RUNNER_TEMP/t2a1-original.zip"
+          echo 'T2A1 archive/source/CSM original census REPLAY PASS; NO T2 CSP / NO_ADOPT' >> "$GITHUB_STEP_SUMMARY"
