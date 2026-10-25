@@ -338,6 +338,7 @@ internal static partial class CspPatchBuilder
                 null, // F2 research starts are forbidden for parallel workers.
                 context.Execution.ResearchCandidateSelector,
                 context.Execution.CandidateTraceSink,
+                context.Execution.StageProbe,
                 cancellationToken).ConfigureAwait(false);
 
             item.BaseWindow?.Dispose();

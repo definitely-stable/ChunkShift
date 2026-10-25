@@ -61,6 +61,9 @@ internal sealed record CspCreateExecution(int WorkerCount, bool UseBaseCandidate
     /// <summary>Gets an optional sink for the lab's and the tests' counters.</summary>
     internal CspCreateStatistics? Statistics { get; init; }
 
+    /// <summary>T3-B2D0, opt-in internal exhaustive-stage timings; null for shipping.</summary>
+    internal CspBuildStageProbe? StageProbe { get; init; }
+
     /// <summary>
     /// Gets an optional research-only sink for per-entry candidate metadata.
     /// Null in the public create path.

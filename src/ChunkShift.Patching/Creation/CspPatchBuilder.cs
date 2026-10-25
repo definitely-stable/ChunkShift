@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ChunkShift.Patching.Encoding;
 using ChunkShift.Patching.Format;
 using ChunkShift.Patching.Hashing;
@@ -84,6 +85,12 @@ internal static partial class CspPatchBuilder
     {
         ValidatePolicy(policy);
         ValidateExecution(execution);
+        if (execution.StageProbe is not null &&
+            (policy.CandidateSelection != CspCandidateSelection.Exhaustive ||
+             execution.CandidateTraceSink is not null ||
+             execution.ResearchCandidateStarts is not null ||
+             execution.ResearchCandidateSelector is not null))
+            throw new ArgumentException("T3-B2D0 stage probe only supports ordinary exhaustive create.", nameof(execution));
 
         if (execution.ResearchCandidateStarts is not null &&
             (execution.WorkerCount != 0 || execution.UseBaseCandidateCache ||
@@ -332,6 +339,7 @@ internal static partial class CspPatchBuilder
                             execution.ResearchCandidateStarts,
                             execution.ResearchCandidateSelector,
                             execution.CandidateTraceSink,
+                            execution.StageProbe,
                             cancellationToken).ConfigureAwait(false);
                     }
                     else
@@ -355,6 +363,7 @@ internal static partial class CspPatchBuilder
                             execution.ResearchCandidateStarts,
                             execution.ResearchCandidateSelector,
                             execution.CandidateTraceSink,
+                            execution.StageProbe,
                             cancellationToken).ConfigureAwait(false);
                     }
 
@@ -529,9 +538,14 @@ internal static partial class CspPatchBuilder
         Func<IReadOnlyList<BaseRecord>, long, IReadOnlyList<int>>? researchStarts,
         ICspResearchCandidateSelector? researchSelector,
         ICspCandidateTraceSink? traceSink,
+        CspBuildStageProbe? stageProbe,
         CancellationToken cancellationToken) =>
         policy.CandidateSelection == CspCandidateSelection.Exhaustive
-            ? traceSink is null
+            ? stageProbe is not null
+                ? ChooseEntryExhaustiveMeasuredAsync(
+                    encoder, baseRecords, baseChunks, targetChunk.Offset, bytes,
+                    hashSuite, policy, buffers, researchStarts, stageProbe, cancellationToken)
+                : traceSink is null
                 ? ChooseEntryExhaustiveUntracedAsync(
                     encoder,
                     baseRecords,
@@ -669,6 +683,118 @@ internal static partial class CspPatchBuilder
 
         return best with { DictionaryChunkIds = dictionaryIds };
     }
+
+    /// <summary>
+    /// T3-B2D0 research-only copy of the frozen exhaustive chooser. This is
+    /// selected only when StageProbe is supplied, preserving a completely
+    /// unchanged shipping hot path. No candidate/codec/selection divergence.
+    /// </summary>
+    private static async Task<EntryChoice> ChooseEntryExhaustiveMeasuredAsync(
+        CspPayloadEncoder? encoder,
+        List<BaseRecord> baseRecords,
+        BaseChunkSource? baseChunks,
+        long targetOffset,
+        ReadOnlyMemory<byte> bytes,
+        HashSuiteId hashSuite,
+        CspEncoderPolicy policy,
+        EntryBuffers buffers,
+        Func<IReadOnlyList<BaseRecord>, long, IReadOnlyList<int>>? researchStarts,
+        CspBuildStageProbe probe,
+        CancellationToken cancellationToken)
+    {
+        probe.AddEntry();
+        var best = new EntryChoice(CspFormat.EncodingRaw, bytes, []);
+
+        if (encoder is null)
+        {
+            return best;
+        }
+
+        int bestCost = bytes.Length;
+        long plainStart = Stopwatch.GetTimestamp();
+        ReadOnlySpan<byte> frame = encoder.EncodeZstd(bytes.Span, ReadOnlySpan<byte>.Empty);
+        probe.AddPlain(plainStart);
+
+        if (frame.Length < bestCost)
+        {
+            best = new EntryChoice(CspFormat.EncodingZstd, buffers.KeepFrame(frame), []);
+            bestCost = frame.Length;
+        }
+
+        if (policy.DictionaryChunks == 0 || baseChunks is null)
+        {
+            return best;
+        }
+
+        buffers.EnsureDictionaries();
+        bool haveDictionary = false;
+        int bestStart = 0;
+        int bestCount = 0;
+
+        foreach (int start in GetCandidateStarts(baseRecords, targetOffset, policy, researchStarts))
+        {
+            if (!TryMeasureCandidate(baseRecords, start, policy, out int count, out int length))
+            {
+                continue;
+            }
+
+            Memory<byte> dictionary = buffers.Candidate.AsMemory(0, length);
+            long readStart = Stopwatch.GetTimestamp();
+            await baseChunks
+                .ReadAsync(start, count, dictionary, cancellationToken)
+                .ConfigureAwait(false);
+            probe.AddDictionaryRead(readStart);
+
+            if (!CspDictionary.IsUsable(dictionary.Span))
+            {
+                continue;
+            }
+
+            long encodeStart = Stopwatch.GetTimestamp();
+            ReadOnlySpan<byte> dictionaryFrame = encoder.EncodeZstd(bytes.Span, dictionary.Span);
+            probe.AddDictionaryEncode(encodeStart);
+            int cost = dictionaryFrame.Length + (count * CspFormat.DictionaryReferenceSize);
+
+            if (cost < bestCost)
+            {
+                bestCost = cost;
+                best = new EntryChoice(CspFormat.EncodingZstd, buffers.KeepFrame(dictionaryFrame), []);
+                buffers.KeepCandidateAsBest();
+                haveDictionary = true;
+                bestStart = start;
+                bestCount = count;
+            }
+        }
+
+        if (!haveDictionary)
+        {
+            return best;
+        }
+
+        long verifyStart = Stopwatch.GetTimestamp();
+        var dictionaryIds = new ChunkId[bestCount];
+        int verified = 0;
+
+        for (int index = 0; index < bestCount; index++)
+        {
+            BaseRecord record = baseRecords[bestStart + index];
+
+            if (PatchHashing.Hash(hashSuite, buffers.Best.AsSpan(verified, record.Length))
+                != record.ChunkId.Value)
+            {
+                throw new InvalidDataException(
+                    "The base content does not match the base manifest: a dictionary " +
+                    "chunk does not hash to its ChunkId.");
+            }
+
+            dictionaryIds[index] = record.ChunkId;
+            verified += record.Length;
+        }
+
+        probe.AddVerification(verifyStart, bestCount);
+        return best with { DictionaryChunkIds = dictionaryIds };
+    }
+
 
     /// <summary>
     /// Traced exhaustive chooser used only by untimed evidence capture.
