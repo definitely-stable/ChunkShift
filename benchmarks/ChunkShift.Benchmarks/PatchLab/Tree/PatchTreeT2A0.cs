@@ -162,6 +162,7 @@ internal static class PatchTreeT2A0
             // no target-tree wire format is embedded or authorized.
             oldTree.Position = 0;
             targetTree.Position = 0;
+            long oldCreateReadStart = oldTree.BytesRead;
             await using (var bs = File.OpenRead(oldCsmPath))
             await using (var ts = File.OpenRead(newCsmPath))
             await using (var patch = new FileStream(t2CspPath, FileMode.CreateNew))
@@ -170,6 +171,7 @@ internal static class PatchTreeT2A0
                     bs, oldTree, ts, targetTree, patch, cancellationToken: cancellationToken);
                 await patch.FlushAsync(cancellationToken);
             }
+            long createOldBytesRead = oldTree.BytesRead - oldCreateReadStart;
             proc.Refresh();
             double cpuCreate = (proc.TotalProcessorTime - cpu0).TotalMilliseconds;
             double wallCreate = Stopwatch.GetElapsedTime(t0).TotalMilliseconds;
@@ -234,7 +236,7 @@ internal static class PatchTreeT2A0
                 oldDiagnostic.Length, targetDiagnostic.Length,
                 Convert.ToHexStringLower(SHA256.HashData(targetDiagnostic)),
                 t0ChangedCsp, t0RawAdded, t0Warm,
-                cspBytes, sha, t2Warm, t2Cold, oldTree.BytesRead,
+                cspBytes, sha, t2Warm, t2Cold, createOldBytesRead,
                 cpuCreate, wallCreate, cpuApply, wallApply, true,
                 "SYNTHETIC research mechanics: one run per lane, no paired timed decision; target map and old locator are diagnostic non-shipping bytes, not signed full update-set; process-wide CPU and no private-RSS bound.");
         }
