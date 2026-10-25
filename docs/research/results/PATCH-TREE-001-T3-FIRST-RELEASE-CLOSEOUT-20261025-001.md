@@ -9,9 +9,7 @@ This is the closeout of the **original-calibration T3 program and current admiss
 
 ## 1. Scope, source locks and evidence authority
 
-This record reconciles existing independent evidence; it **does not run a new timing experiment**. The frozen four-pair .NET original calibration is identified by `original-pairs.json` SHA-256 `8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537bfb910fd22dd` **(see note below: canonical actual SHA is `8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537bfb910fd22dd`; the reference used by the checks is the 64-hex value in the source ledger)**.
-
-**Correction and canonical original identity:** `8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537bfb910fd22dd` is copied into this decision from the retained source-lock records; the executable ledger is the authority for its exact bytes. Only the two preselected ASP.NET Core win-x64 `mscordaccore` changed-renamed transitions were actually run through T3. The .NET Runtime Linux ARM64 pair inventory contributed to exact-added-path census, **not** to the two T3 cost admissions. No sealed Node/tzdata/ChunkShift-source holdout was opened.
+This record reconciles existing independent evidence; it **does not run a new timing experiment**. The frozen original four-pair .NET calibration is identified by `original-pairs.json` SHA-256 `8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd`. Only the two preselected ASP.NET Core win-x64 `mscordaccore` changed-renamed transitions were actually run through T3. The .NET Runtime Linux ARM64 pair inventory contributed to exact-added-path census, **not** to the two T3 cost admissions. No sealed Node/tzdata/ChunkShift-source holdout was opened.
 
 | Prior evidence | Authoritative recorded observation | Inference boundary |
 | --- | --- | --- |
