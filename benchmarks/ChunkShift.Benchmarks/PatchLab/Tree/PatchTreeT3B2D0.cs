@@ -88,7 +88,7 @@ internal static class PatchTreeT3B2D0
                 for (int round = 0; round < rounds; round++)
                 {
                     // Rotation avoids a fixed ON-last/JIT/cache order across rounds.
-                    string[] order = round % 3 switch
+                    string[] order = (round % 3) switch
                     {
                         0 => ["OFF_A", "ON", "OFF_B"],
                         1 => ["ON", "OFF_B", "OFF_A"],
