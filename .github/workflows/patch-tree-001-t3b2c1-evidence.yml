@@ -1,0 +1,36 @@
+name: PATCH-TREE-001 T3B2C1 original evidence replay
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/research/results/data/PATCH-TREE-001-T3B2C1-EVIDENCE-20261025-001/**'
+      - 'docs/research/results/PATCH-TREE-001-T3B2C1-ORIGINAL-H2H3-EVIDENCE-20261025-001.md'
+      - '.github/workflows/patch-tree-001-t3b2c1-evidence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  independent-replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Replay all retained original numerical samples (stdlib)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 docs/research/results/data/PATCH-TREE-001-T3B2C1-EVIDENCE-20261025-001/recompute.py
+      - name: Independently verify original GitHub ZIP and every retained sample
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/definitely-stable/ChunkShift/actions/artifacts/12597788284/zip > "$RUNNER_TEMP/t3b2c1-original.zip"
+          python3 docs/research/results/data/PATCH-TREE-001-T3B2C1-EVIDENCE-20261025-001/recompute.py \
+            --original-zip "$RUNNER_TEMP/t3b2c1-original.zip"
+          echo 'T3B2C1 independent original ZIP/TSV replay PASS; NO_PRODUCTION_ADOPT' >> "$GITHUB_STEP_SUMMARY"
