@@ -47,6 +47,8 @@ The original B2B preregistration requires:
 | **T3/T0S wall** | **12.991× — FAIL** | **4.267× — FAIL** |
 | Admission | `FALLBACK_T0_OR_T0S__CREATE_BUDGET` | `FALLBACK_T0_OR_T0S__CREATE_BUDGET` |
 
+**Rounding note for audit:** the table rounds wall medians to three decimals. The actual B2B original ZIP records `133.9347 / 1740.0025 ms` and `128.8137 / 549.6067 ms`; the executable admission ledger retains all four original digits, so independent physical/archive replay compares exact observations rather than rounded prose.
+
 **Conservation of two-file physical costs:** T0S = **1,097,577 B**; T3 warm = **92,671 B**; T3 cold = **94,899 B**. Warm two-file saving against *measured T0S* = **1,004,906 B (91.56%)**. Both pairs **pass** the size condition but **fail** the unchanged create-CPU and create-wall thresholds.
 
 **Different denominator — do not conflate it:** the four-original-pair complete *modelled* T0 warm tree aggregate is **14,758,982 B**; the T3-B1 two-file substitution models **12,138,381 B** (2,620,601 B less). This is **not** a newly materialized, signed, end-to-end physical T3 update-set, does not include a real authoritative base selector or installation metadata, and cannot alone justify the original issue's ≥10% complete-update admission. An actual complete update-set would require consistent target population and a charged, cryptographically bound tree manifest and source locator.
