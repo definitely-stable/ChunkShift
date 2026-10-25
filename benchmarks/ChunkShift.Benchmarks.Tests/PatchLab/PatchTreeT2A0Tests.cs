@@ -27,8 +27,8 @@ public sealed class PatchTreeT2A0Tests
         fixture.PutNew("empty.txt", []);
         fixture.PutNew("added/empty", []);
 
-        var oldLayout = fixture.Layout(fixture.Old);
-        var newLayout = fixture.Layout(fixture.New);
+        var oldLayout = Fixture.Layout(fixture.Old);
+        var newLayout = Fixture.Layout(fixture.New);
         string scratch = Path.Combine(fixture.Parent, "scratch");
         var first = await PatchTreeT2A0.CompareSyntheticAsync(
             fixture.Old, oldLayout, fixture.New, newLayout, scratch);
@@ -69,7 +69,7 @@ public sealed class PatchTreeT2A0Tests
         using var fixture = new Fixture();
         fixture.PutOld("a", [1]);
         fixture.PutNew("a", [1]);
-        var layout = fixture.Layout(fixture.New);
+        var layout = Fixture.Layout(fixture.New);
         byte[] first = PatchTreeT2A0.DiagnosticMap(layout);
         Assert.Equal(first, PatchTreeT2A0.DiagnosticMap(layout));
         var corrupt = layout with { Files =
@@ -89,8 +89,8 @@ public sealed class PatchTreeT2A0Tests
         using var fixture = new Fixture();
         fixture.PutOld("one", [1, 2, 3]);
         fixture.PutNew("one", [1, 2, 4]);
-        var oldLayout = fixture.Layout(fixture.Old);
-        var newLayout = fixture.Layout(fixture.New);
+        var oldLayout = Fixture.Layout(fixture.Old);
+        var newLayout = Fixture.Layout(fixture.New);
         fixture.PutOld("one", [7, 8, 9]);
         string scratch = Path.Combine(fixture.Parent, "scratch");
         await Assert.ThrowsAsync<InvalidDataException>(() =>
@@ -112,7 +112,7 @@ public sealed class PatchTreeT2A0Tests
         using var fixture = new Fixture();
         fixture.PutOld("oversized", [1]);
         fixture.PutNew("oversized", [1]);
-        var layout = fixture.Layout(fixture.New);
+        var layout = Fixture.Layout(fixture.New);
         var bigger = layout.Files[0] with
         {
             Length = PatchTreeT2A0.MaximumSyntheticTreeBytes + 1
@@ -153,7 +153,7 @@ public sealed class PatchTreeT2A0Tests
             File.WriteAllBytes(full, bytes);
         }
 
-        internal PatchTreeCalibration.Layout Layout(string root)
+        internal static PatchTreeCalibration.Layout Layout(string root)
         {
             string[] paths = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
                 .Select(f => Path.GetRelativePath(root, f).Replace('\\', '/'))
