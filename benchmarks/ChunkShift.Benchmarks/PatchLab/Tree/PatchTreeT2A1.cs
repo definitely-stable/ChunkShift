@@ -154,7 +154,6 @@ internal static class PatchTreeT2A1
                 targetTree, row.Target, Path.Combine(scratch, "target.csm"), cancellationToken);
             if (baseSide.ManifestId != baseline.OldTreeManifestId ||
                 baseSide.CsmPhysicalBytes != baseline.OldTreeCsmBytes ||
-                row.Base.LayoutSha256 != row.Base.LayoutSha256 ||
                 baseline.BaseLayoutBytes < 0 ||
                 baseline.TargetTreeManifestBytes < 0)
                 throw new InvalidDataException("T2A1 independently rebuilt BASE CSM differs from original T0.");
