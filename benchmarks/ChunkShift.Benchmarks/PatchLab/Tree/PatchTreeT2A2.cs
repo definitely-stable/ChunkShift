@@ -231,6 +231,7 @@ internal static class PatchTreeT2A2
                         bm, baseTree, tm, targetTree, capped, cancellationToken: ct);
                     await capped.FlushAsync(ct);
                 }
+                long createOldReads = baseTree.BytesRead - oldReads;
                 proc.Refresh();
                 double createCpu = (proc.TotalProcessorTime - cpuStart).TotalMilliseconds;
                 double createWall = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
@@ -268,7 +269,7 @@ internal static class PatchTreeT2A2
                 await VerifyTargetRegions(reconstructed, row.Target, targetTree, ct);
                 samples.Add(new Sample(round, warmup, physical, patchSha, createCpu,
                     createWall, applyCpu, applyWall,
-                    baseTree.BytesRead - oldReads, true));
+                    createOldReads, true));
                 File.Delete(patchPath);
                 File.Delete(reconstructed);
             }
@@ -299,7 +300,7 @@ internal static class PatchTreeT2A2
         finally { Directory.Delete(scratch, recursive: true); }
     }
 
-    private static byte[] MakeTargetMap(PatchTreeCalibration.Layout target) =>
+    internal static byte[] MakeTargetMap(PatchTreeCalibration.Layout target) =>
         JsonSerializer.SerializeToUtf8Bytes(new
         {
             schema = "chunkshift.patch-tree-regular-files-reference.v1",
@@ -309,7 +310,7 @@ internal static class PatchTreeT2A2
             }).ToArray()
         });
 
-    private static byte[] MakeBaseLocator(PatchTreeCalibration.Layout source) =>
+    internal static byte[] MakeBaseLocator(PatchTreeCalibration.Layout source) =>
         JsonSerializer.SerializeToUtf8Bytes(new
         {
             schema = "chunkshift.patch-tree-base-locator-reference.v1",
