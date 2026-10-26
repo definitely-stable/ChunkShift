@@ -59,7 +59,7 @@ jobs:
           global-json-file: global.json
 
       - name: Setup Python 3.14 for PATCH-ENC-005 decoder
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
 
@@ -204,7 +204,7 @@ jobs:
           PY
 
       - name: Upload result
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: benchmark-lab-smoke
           path: |
@@ -252,7 +252,7 @@ jobs:
             | tee artifacts/benchmarks/architecture-evidence.log
 
       - name: Upload architecture evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: architecture-evidence
           path: artifacts/benchmarks/architecture-evidence
@@ -316,7 +316,7 @@ jobs:
           done
 
       - name: Upload scanner API evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: scanner-api-phase1
           path: artifacts/benchmarks/scanner-api-phase1
@@ -392,7 +392,7 @@ jobs:
           test -s "$out/freeze-compact-evidence.md"
 
       - name: Upload final scanner freeze evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: scanner-api-freeze-${{ matrix.arch }}
           path: |
@@ -577,7 +577,7 @@ jobs:
 
       - name: Upload F08 evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: boundary-scan-f08-${{ matrix.arch }}
           path: ${{ env.OUT }}
@@ -651,7 +651,7 @@ jobs:
 
       - name: Upload pre-freeze evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cdc-prefreeze-${{ matrix.arch }}
           path: ${{ env.OUT }}
@@ -666,7 +666,7 @@ jobs:
 
     steps:
       - name: Download pre-freeze evidence
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: cdc-prefreeze-*
           path: evidence
@@ -781,7 +781,7 @@ jobs:
 
       - name: Upload deterministic real-corpus evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cdc-real-prefreeze-${{ matrix.arch }}
           path: ${{ env.OUT }}
@@ -796,7 +796,7 @@ jobs:
 
     steps:
       - name: Download deterministic real-corpus evidence
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: cdc-real-prefreeze-*
           path: evidence
@@ -849,7 +849,7 @@ jobs:
           cat cross-arch-summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload cross-architecture verdict
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cdc-real-prefreeze-cross-arch
           path: cross-arch-summary.md
@@ -911,7 +911,7 @@ jobs:
 
       - name: Upload runtime guardrail evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cdc-runtime-guardrail-${{ matrix.arch }}
           path: ${{ env.OUT }}
@@ -932,7 +932,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Download runtime guardrail evidence
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: cdc-runtime-guardrail-*
           path: evidence
@@ -948,7 +948,7 @@ jobs:
           cat runtime-cross-arch.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload cross-architecture runtime verdict
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cdc-runtime-guardrail-cross-arch
           path: runtime-cross-arch.md
