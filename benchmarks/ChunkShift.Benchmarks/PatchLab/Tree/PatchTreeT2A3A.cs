@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -359,7 +360,7 @@ internal static class PatchTreeT2A3A
         {
             ct.ThrowIfCancellationRequested();
             var piece = pieces[i];
-            string file = Path.Combine(runDir, i.ToString() + ".dat");
+            string file = Path.Combine(runDir, i.ToString(CultureInfo.InvariantCulture) + ".dat");
             await using (var output = new FileStream(file, FileMode.CreateNew))
             {
                 if (piece.OldFile is null)
@@ -411,7 +412,7 @@ internal static class PatchTreeT2A3A
         for (int i = 0; i < pieces.Count; i++)
         {
             var row = pieces[i].Expected;
-            string path = Path.Combine(output, i.ToString() + ".dat");
+            string path = Path.Combine(output, i.ToString(CultureInfo.InvariantCulture) + ".dat");
             long bytes = new FileInfo(path).Length;
             string sha;
             await using (var file = File.OpenRead(path))
