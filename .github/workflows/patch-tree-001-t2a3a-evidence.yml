@@ -1,0 +1,77 @@
+name: PATCH-TREE-001 T2A3A independently audit original paired CREATE evidence
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/research/results/PATCH-TREE-001-T2A3A-ORIGINAL-PAIRED-CREATE-EVIDENCE-20261027-001.md'
+      - 'docs/research/results/data/PATCH-TREE-001-T2A3A-EVIDENCE-20261027-001/**'
+      - '.github/workflows/patch-tree-001-t2a3a-evidence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  original-paired-replay:
+    name: Independently source-pin ABBA T0/T2 originals (Ubuntu x64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Fetch GitHub original successful first-attempt run, parent A2 and pinned artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/definitely-stable/ChunkShift/actions/runs/40299065287 > "$RUNNER_TEMP/t2a3a-run.json"
+          gh api repos/definitely-stable/ChunkShift/actions/runs/40281148160 > "$RUNNER_TEMP/t2a3a-a2.json"
+          gh api repos/definitely-stable/ChunkShift/actions/artifacts/12641767485 > "$RUNNER_TEMP/t2a3a-artifact.json"
+          gh api repos/definitely-stable/ChunkShift/actions/artifacts/12641767485/zip > "$RUNNER_TEMP/t2a3a-original.zip"
+          echo '7570fee0a9f67b49741a7fb333d6e04b6e3fc20082cda1dfd7596d2b671fb511  '"$RUNNER_TEMP/t2a3a-original.zip" | sha256sum --check
+      - name: Independently recompute four source trees, 40 raw samples, all medians and frozen 2/4 cost gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 docs/research/results/data/PATCH-TREE-001-T2A3A-EVIDENCE-20261027-001/recompute.py \
+            --zip "$RUNNER_TEMP/t2a3a-original.zip" \
+            --run-json "$RUNNER_TEMP/t2a3a-run.json" \
+            --artifact-json "$RUNNER_TEMP/t2a3a-artifact.json" \
+            --a2-json "$RUNNER_TEMP/t2a3a-a2.json"
+          echo 'T2A3A original ABBA: two of four exceed frozen 60s T2 wall cap -> FIRST_RELEASE_DEFER; CPU ratios <=3x; no RSS/publisher/ADOPT' >> "$GITHUB_STEP_SUMMARY"
+      - name: Negative semantic mutations must fail independently
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/t2a3a-original.zip" <<'PY'
+          import copy,importlib.util,pathlib,sys
+          script=pathlib.Path('docs/research/results/data/PATCH-TREE-001-T2A3A-EVIDENCE-20261027-001/recompute.py')
+          spec=importlib.util.spec_from_file_location('t2a3a_audit',script)
+          verifier=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(verifier)
+          base=verifier.zip_records(sys.argv[1])
+          mutants=('sample_cpu','sample_digest','cost_gate','ABBA_order','source_path','provenance')
+          for kind in mutants:
+              broken=copy.deepcopy(base)
+              r=broken['t2a3a-paired-create.json']
+              if kind=='sample_cpu':
+                  r['pairs'][0]['samples'][2]['cpuMilliseconds']+=100000
+              elif kind=='sample_digest':
+                  r['pairs'][1]['samples'][3]['digest']='0'*64
+              elif kind=='cost_gate':
+                  r['pairs'][0]['createCostGate']='PASS_A3A_CREATE_GUARD'
+              elif kind=='ABBA_order':
+                  r['pairs'][2]['samples'][4]['order']=1
+              elif kind=='source_path':
+                  broken['layouts.json']['pairs'][0]['target']['files'][0]['path']='../../unsafe'
+              elif kind=='provenance':
+                  broken['provenance.json']['runAttempt']='2'
+              try:
+                  verifier.audit(broken)
+              except (ValueError,KeyError,TypeError,AssertionError):
+                  continue
+              raise SystemExit('Mutated original evidence unexpectedly passed: '+kind)
+          print('PASS: six negative semantic mutants fail closed')
+          PY
