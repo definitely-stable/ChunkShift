@@ -10,11 +10,11 @@ public sealed class PatchTreeT2A3ATests
     [Fact]
     public void FrozenPairedOrderIsCounterbalancedAndRefusesExtraRounds()
     {
-        Assert.Equal(["T0", "T2"], PatchTreeT2A3A.LaneOrder(-1));
-        Assert.Equal(["T0", "T2"], PatchTreeT2A3A.LaneOrder(0));
-        Assert.Equal(["T2", "T0"], PatchTreeT2A3A.LaneOrder(1));
-        Assert.Equal(["T2", "T0"], PatchTreeT2A3A.LaneOrder(2));
-        Assert.Equal(["T0", "T2"], PatchTreeT2A3A.LaneOrder(3));
+        Assert.Equal(new[] { "T0", "T2" }, PatchTreeT2A3A.LaneOrder(-1));
+        Assert.Equal(new[] { "T0", "T2" }, PatchTreeT2A3A.LaneOrder(0));
+        Assert.Equal(new[] { "T2", "T0" }, PatchTreeT2A3A.LaneOrder(1));
+        Assert.Equal(new[] { "T2", "T0" }, PatchTreeT2A3A.LaneOrder(2));
+        Assert.Equal(new[] { "T0", "T2" }, PatchTreeT2A3A.LaneOrder(3));
         Assert.Throws<ArgumentOutOfRangeException>(() => PatchTreeT2A3A.LaneOrder(4));
         Assert.Equal(3, PatchTreeT2A3A.MaxCpuRatio);
         Assert.Equal(3, PatchTreeT2A3A.MaxWallRatio);
