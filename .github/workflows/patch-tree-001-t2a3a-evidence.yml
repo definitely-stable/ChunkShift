@@ -57,7 +57,7 @@ jobs:
               broken=copy.deepcopy(base)
               r=broken['t2a3a-paired-create.json']
               if kind=='sample_cpu':
-                  r['pairs'][0]['samples'][2]['cpuMilliseconds']+=100000
+                  r['pairs'][0]['samples'][5]['cpuMilliseconds']+=100000
               elif kind=='sample_digest':
                   r['pairs'][1]['samples'][3]['digest']='0'*64
               elif kind=='cost_gate':
