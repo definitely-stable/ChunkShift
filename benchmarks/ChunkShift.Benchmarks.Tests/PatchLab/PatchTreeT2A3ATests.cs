@@ -2,19 +2,22 @@ using System.Security.Cryptography;
 using System.Text;
 using ChunkShift.Benchmarks.PatchLab;
 using ChunkShift.Benchmarks.PatchLab.Tree;
+using ChunkShift.Patching;
 
 namespace ChunkShift.Benchmarks.Tests.PatchLab;
 
 public sealed class PatchTreeT2A3ATests
 {
+    private static readonly string[] T0T2 = ["T0", "T2"];
+    private static readonly string[] T2T0 = ["T2", "T0"];
     [Fact]
     public void FrozenPairedOrderIsCounterbalancedAndRefusesExtraRounds()
     {
-        Assert.Equal(new[] { "T0", "T2" }, PatchTreeT2A3A.LaneOrder(-1));
-        Assert.Equal(new[] { "T0", "T2" }, PatchTreeT2A3A.LaneOrder(0));
-        Assert.Equal(new[] { "T2", "T0" }, PatchTreeT2A3A.LaneOrder(1));
-        Assert.Equal(new[] { "T2", "T0" }, PatchTreeT2A3A.LaneOrder(2));
-        Assert.Equal(new[] { "T0", "T2" }, PatchTreeT2A3A.LaneOrder(3));
+        Assert.Equal(T0T2, PatchTreeT2A3A.LaneOrder(-1));
+        Assert.Equal(T0T2, PatchTreeT2A3A.LaneOrder(0));
+        Assert.Equal(T2T0, PatchTreeT2A3A.LaneOrder(1));
+        Assert.Equal(T2T0, PatchTreeT2A3A.LaneOrder(2));
+        Assert.Equal(T0T2, PatchTreeT2A3A.LaneOrder(3));
         Assert.Throws<ArgumentOutOfRangeException>(() => PatchTreeT2A3A.LaneOrder(4));
         Assert.Equal(3, PatchTreeT2A3A.MaxCpuRatio);
         Assert.Equal(3, PatchTreeT2A3A.MaxWallRatio);
@@ -43,10 +46,10 @@ public sealed class PatchTreeT2A3ATests
         Assert.Equal(2, result.Samples.Count(x => x.Lane == "T0" && !x.Warmup));
         Assert.Equal(2, result.Samples.Count(x => x.Lane == "T2" && !x.Warmup));
         Assert.All(result.Samples, x => Assert.True(x.PhysicalIdentityVerified));
-        Assert.Single(result.Samples.Where(x => x.Round == 0 && x.Order == 0 &&
-                                                x.Lane == "T0"));
-        Assert.Single(result.Samples.Where(x => x.Round == 1 && x.Order == 0 &&
-                                                x.Lane == "T2"));
+        Assert.Single(result.Samples, x => x.Round == 0 && x.Order == 0 &&
+                                                x.Lane == "T0");
+        Assert.Single(result.Samples, x => x.Round == 1 && x.Order == 0 &&
+                                                x.Lane == "T2");
         Assert.All(result.Samples.Where(x => x.Lane == "T0"),
             x => Assert.Equal(prior.T0PayloadBytes, x.PayloadBytes));
         Assert.All(result.Samples.Where(x => x.Lane == "T2"),
