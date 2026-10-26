@@ -1,0 +1,211 @@
+name: PATCH-TREE-001 T2A2 original whole-tree CSP physical pilot
+
+# Source-locked, preregistered code on reviewed main ONLY. Never run on PR.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'benchmarks/ChunkShift.Benchmarks/PatchLab/Tree/PatchTreeT2A2.cs'
+      - '.github/workflows/patch-tree-001-t2a2-real-pilot.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: patch-tree-001-t2a2-original-first-main-pilot
+  cancel-in-progress: false
+
+jobs:
+  original-full-tree-csp:
+    name: Original four .NET pairs full-tree real CSP create/apply (Ubuntu x64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 220
+    steps:
+      - name: Fail closed outside first GH-hosted main push
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$RUNNER_OS" = Linux
+          test "$RUNNER_ARCH" = X64
+          test "$GITHUB_REPOSITORY" = definitely-stable/ChunkShift
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_RUN_ATTEMPT" = 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-tree-001-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Pin original A1 run, source provenance, archived CSM and prior T0
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/40204580308" > "$RUNNER_TEMP/t2a1-parent-run.json"
+          python3 - "$RUNNER_TEMP/t2a1-parent-run.json" <<'PY'
+          import json,os,sys
+          x=json.load(open(sys.argv[1]))
+          assert x['id']==40204580308 and x['event']=='push'
+          assert x['run_attempt']==1 and x['status']=='completed'
+          assert x['conclusion']=='success' and x['head_branch']=='main'
+          assert x['head_sha']=='555c992f30473c373f1efd0d6d8b3d18bf87a090'
+          assert x['path'].split('@')[0]=='.github/workflows/patch-tree-001-t2a1-real-preflight.yml'
+          assert x['repository']['full_name']==os.environ['GITHUB_REPOSITORY']
+          PY
+          mkdir -p "$RUNNER_TEMP/t2a2-a1" "$RUNNER_TEMP/t2a2-results"
+          gh run download 40204580308 -R "$GITHUB_REPOSITORY" \
+            -n patch-tree-t2a1-original-CSM-only-NO-ADOPT -D "$RUNNER_TEMP/t2a2-a1"
+          ( cd "$RUNNER_TEMP/t2a2-a1" && sha256sum --check SHA256SUMS )
+          echo '823820571d3534b302e2acb8f0501ac4dbe4c6030093e6e27b3a066945d65fb6  '"$RUNNER_TEMP/t2a2-a1/t2a1-preflight.json" | sha256sum --check
+          echo '8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd  '"$RUNNER_TEMP/t2a2-a1/original-pairs.json" | sha256sum --check
+          echo '6deb37fd4cb778fab1ad67a1da8d187ed0205ac2c89c4fa391e5507169da389a  '"$RUNNER_TEMP/t2a2-a1/layouts.json" | sha256sum --check
+          echo 'd0de7fb182cc15bd590b1335c92705d464764fab0cdfc021ad9f31928e2d5b5c  '"$RUNNER_TEMP/t2a2-a1/prior-t0-calibration.json" | sha256sum --check
+
+      - name: Rebuild immutable source-locked original four .NET trees (never heldout)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$RUNNER_TEMP/t2a2-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download --lock --calibration-only \
+            --pairs-reference "$RUNNER_TEMP/t2a2-a1/original-pairs.json"
+          python3 benchmarks/scripts/patch_tree_001_inventory.py \
+            --root "$RUNNER_TEMP/t2a2-corpus" \
+            --output "$RUNNER_TEMP/t2a2-results/layouts.json" --calibration-only
+          cmp "$RUNNER_TEMP/t2a2-results/layouts.json" "$RUNNER_TEMP/t2a2-a1/layouts.json"
+          cp "$RUNNER_TEMP/t2a2-a1/original-pairs.json" "$RUNNER_TEMP/t2a2-results/original-pairs.json"
+          cp "$RUNNER_TEMP/t2a2-a1/prior-t0-calibration.json" "$RUNNER_TEMP/t2a2-results/prior-t0-calibration.json"
+          cp "$RUNNER_TEMP/t2a2-a1/t2a1-preflight.json" "$RUNNER_TEMP/t2a2-results/prior-t2a1-preflight.json"
+
+      - name: Compile shipping CSP SDK and source-free A2 contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+          dotnet test benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-build --no-restore \
+            --filter FullyQualifiedName~PatchTreeT2A2
+
+      - name: Generate actual original whole-tree CSP, exact Apply all paths, repeated CPU/wall
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --no-build --project benchmarks/ChunkShift.Benchmarks -c Release -- \
+            patch-lab tree-t2a2 \
+            --corpus "$RUNNER_TEMP/t2a2-corpus" \
+            --inventory "$RUNNER_TEMP/t2a2-results/layouts.json" \
+            --baseline "$RUNNER_TEMP/t2a2-results/prior-t0-calibration.json" \
+            --preflight "$RUNNER_TEMP/t2a2-results/prior-t2a1-preflight.json" \
+            --scratch "$RUNNER_TEMP/t2a2-temporary-csp" \
+            --output "$RUNNER_TEMP/t2a2-results/t2a2-original-pilot.json"
+          test ! -e "$RUNNER_TEMP/t2a2-temporary-csp"
+
+      - name: Independently validate original result ledger and bind SHA provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/t2a2-results" <<'PY'
+          import hashlib,json,math,os,pathlib,statistics,subprocess,sys
+          d=pathlib.Path(sys.argv[1])
+          obj=json.loads((d/'t2a2-original-pilot.json').read_text())
+          a1=json.loads((d/'prior-t2a1-preflight.json').read_text())
+          prior=json.loads((d/'prior-t0-calibration.json').read_text())
+          assert obj['schema']=='chunkshift.patch-tree-t2a2-original-csp-pilot.v1'
+          assert obj['status']=='ORIGINAL_T2_CSP_PHYSICAL_PILOT_NO_RESOURCE_OR_PRODUCTION_VERDICT'
+          assert obj['sealedHoldoutOpened'] is False
+          assert obj['warmupsPerPair']==1 and obj['measuredRoundsPerPair']==3
+          assert len(obj['pairs'])==len(a1['pairs'])==len(prior['pairs'])==4
+          assert obj['completeT0WarmBytes']==14758982
+          sum_t0=sum_t2=sum_cold=0
+          for p,x,y in zip(obj['pairs'],a1['pairs'],prior['pairs']):
+            assert (p['family'],p['baseVersion'],p['targetVersion'])==(
+              x['family'],x['baseVersion'],x['targetVersion'])
+            assert p['baseManifestId']==x['base']['manifestId']
+            assert p['targetManifestId']==x['target']['manifestId']
+            assert p['baseCsmBytes']==x['base']['csmPhysicalBytes']
+            assert p['targetCsmBytes']==x['target']['csmPhysicalBytes']
+            assert p['priorT0WarmPhysicalBytes']==y['t0WarmPhysicalBytes']
+            assert p['priorT0PayloadBytes']==y['t0PayloadBytes']
+            assert p['sourceLocatorMapBytes']==y['baseLayoutBytes']
+            assert p['targetTreeMapBytes']==y['targetTreeManifestBytes']
+            assert [p[k] for k in ('changedFiles','addedFiles','removedFiles','unchangedFiles')] == [
+              y[k] for k in ('changedCount','addedCount','removedCount','unchangedCount')]
+            assert p['t2CspBytes']>0 and p['t2CspBytes']<=256*1024*1024
+            assert p['t2WarmPhysicalBytes']==p['t2CspBytes']+p['targetTreeMapBytes']
+            assert p['t2ColdPhysicalBytes']==p['t2WarmPhysicalBytes']+p['baseCsmBytes']+p['sourceLocatorMapBytes']
+            assert p['completeFlatReconstruction'] is True and len(p['samples'])==4
+            assert [s['round'] for s in p['samples']]==[-1,0,1,2]
+            assert [s['warmup'] for s in p['samples']]==[True,False,False,False]
+            assert all(s['exactReconstruction'] and s['cspBytes']==p['t2CspBytes'] and
+                       s['cspSha256']==p['t2CspSha256'] and
+                       s['baseCreateLogicalReadBytes']>=0 and
+                       all(math.isfinite(s[k]) and s[k]>=0 for k in
+                         ('createCpuMilliseconds','createWallMilliseconds',
+                          'applyCpuMilliseconds','applyWallMilliseconds'))
+                       for s in p['samples'])
+            for k,result in [('createCpuMilliseconds','medianT2CreateCpuMilliseconds'),
+                             ('createWallMilliseconds','medianT2CreateWallMilliseconds'),
+                             ('applyCpuMilliseconds','medianT2ApplyCpuMilliseconds'),
+                             ('applyWallMilliseconds','medianT2ApplyWallMilliseconds')]:
+              assert math.isclose(statistics.median(s[k] for s in p['samples'][1:]),
+                                  p[result],rel_tol=1e-10,abs_tol=1e-9)
+            sum_t0+=p['priorT0WarmPhysicalBytes']
+            sum_t2+=p['t2WarmPhysicalBytes']
+            sum_cold+=p['t2ColdPhysicalBytes']
+          assert (sum_t0,sum_t2,sum_cold)==(
+            obj['completeT0WarmBytes'],obj['completeT2WarmBytes'],obj['completeT2ColdBytes'])
+          source_sha=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+          assert source_sha==os.environ['GITHUB_SHA']
+          provenance={'schema':'chunkshift.patch-tree-t2a2-original-provenance.v1',
+            'sourceSha':source_sha,'runId':os.environ['GITHUB_RUN_ID'],
+            'runAttempt':os.environ['GITHUB_RUN_ATTEMPT'],
+            'ref':os.environ['GITHUB_REF'],
+            'runnerEnvironment':os.environ['RUNNER_ENVIRONMENT'],
+            'runnerOS':os.environ['RUNNER_OS'],'runnerArch':os.environ['RUNNER_ARCH'],
+            'a1OriginalRunId':40204580308,'sealedHoldoutOpened':False,
+            'physicalT2CspArchived':False,'productionAdopt':False,
+            'cpuWallPairedT0':False,'privateRssAdmission':False}
+          (d/'provenance.json').write_text(json.dumps(provenance,sort_keys=True,indent=2)+'\n')
+          names=('original-pairs.json','layouts.json','prior-t0-calibration.json',
+                 'prior-t2a1-preflight.json','t2a2-original-pilot.json','provenance.json')
+          with (d/'SHA256SUMS').open('w') as f:
+            for name in names: f.write(hashlib.sha256((d/name).read_bytes()).hexdigest()+'  '+name+'\n')
+          print('T2-A2 pilot physical bytes:',sum_t2,'T0 archived warm:',sum_t0,
+                'ratio:',sum_t2/sum_t0)
+          print('T2-A2 decision remains NO_RESOURCE_OR_PRODUCTION_VERDICT')
+          PY
+          ( cd "$RUNNER_TEMP/t2a2-results" && sha256sum --check SHA256SUMS )
+          echo 'T2A2 original full-tree CSP PHYSICAL PILOT only: NO private RSS, NO T0 paired CPU, NO_PRODUCTION_ADOPT' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Mark incomplete original observation as UNVERIFIED
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/t2a2-results"
+          printf 'UNVERIFIED_NOT_DECISION\nRun=%s\nSha=%s\n' "$GITHUB_RUN_ID" "$GITHUB_SHA" > "$RUNNER_TEMP/t2a2-results/UNVERIFIED_NOT_DECISION.txt"
+      - name: Preserve diagnostics without promoting them
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-t2a2-UNVERIFIED-NOT-DECISION
+          path: ${{ runner.temp }}/t2a2-results/
+          retention-days: 14
+      - name: Archive original metadata/sample ledger without CSP bytes
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-t2a2-original-CSP-pilot-NO-ADOPT
+          path: ${{ runner.temp }}/t2a2-results/
+          if-no-files-found: error
+          retention-days: 90
