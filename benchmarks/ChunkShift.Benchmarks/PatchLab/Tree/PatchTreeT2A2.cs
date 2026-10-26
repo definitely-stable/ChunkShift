@@ -321,7 +321,7 @@ internal static class PatchTreeT2A2
             }).ToArray()
         });
 
-    private static async Task BuildPinnedCsm(VerifiedTreeStream tree, string path,
+    internal static async Task BuildPinnedCsm(VerifiedTreeStream tree, string path,
         PatchTreeT2A1.Side expected, CancellationToken ct)
     {
         tree.Position = 0;
