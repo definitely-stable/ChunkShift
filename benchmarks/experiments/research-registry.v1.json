@@ -292,7 +292,7 @@
         153
       ],
       "area": "patching-research",
-      "status": "PLANNED",
+      "status": "RUNNING",
       "question": "exact dirty-range incremental rechunk"
     },
     {
