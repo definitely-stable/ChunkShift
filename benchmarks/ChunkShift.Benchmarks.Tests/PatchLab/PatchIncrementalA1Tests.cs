@@ -10,8 +10,8 @@ public sealed class PatchIncrementalA1Tests
         var old = new byte[4 * 1024 * 1024];
         var edits = new[]
         {
-            new PatchIncrementalA1.Splice(12_000, 12_005, [11, 12, 13]),
-            new PatchIncrementalA1.Splice(2_800_000, 2_800_000, [1, 2, 3, 4, 5, 6])
+            new PatchIncrementalA1.Splice(12_000, 12_005, [11, 12, 13, 14, 15]),
+            new PatchIncrementalA1.Splice(2_895_000, 2_895_006, [1, 2, 3, 4, 5, 6])
         };
         var result = await CheckAsync(old, edits);
         Assert.True(result.ProvenConvergences >= 2);
