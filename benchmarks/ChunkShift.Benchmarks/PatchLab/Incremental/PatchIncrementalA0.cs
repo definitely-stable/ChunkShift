@@ -146,7 +146,7 @@ internal static class PatchIncrementalA0
             throw new InvalidDataException("Chunk records do not cover the content length.");
     }
 
-    private sealed class Converged : Exception;
+    private sealed class Converged : Exception { }
 
     private sealed class CountedStream : MemoryStream
     {
