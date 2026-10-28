@@ -113,6 +113,7 @@ internal static class PatchIncrementalA1
         int interiorRecords = 0;
         int suffixRecords = 0;
         int convergences = 0;
+        bool finalEditConvergence = false;
 
         while (nextEdit < normalized.Length)
         {
@@ -175,17 +176,18 @@ internal static class PatchIncrementalA1
                 // Rechunked all remaining new bytes (possibly across many
                 // edits). No suffix is reused if no mapped cut was reached.
                 nextEdit = normalized.Length;
+                finalEditConvergence = false;
                 break;
             }
 
             convergences++;
             delta = matched.DeltaAfter;
             nextEdit = matched.EditIndex + 1;
+            finalEditConvergence = nextEdit == normalized.Length;
             index = matched.NextOldIndex;
         }
 
-        if (nextEdit == normalized.Length && convergences > 0 &&
-            index < oldEntries.Count)
+        if (finalEditConvergence && index < oldEntries.Count)
         {
             // Only append the terminal suffix if the final convergence
             // belongs to the LAST edit, not an earlier gap with later edits.
