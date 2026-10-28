@@ -67,6 +67,16 @@ internal static class PatchIncrementalA0
             start = old[prefix].Offset + old[prefix].Length;
             prefix++;
         }
+        // The final old record may have ended ONLY because old EOF occurred.
+        // If the edit appends content, old EOF is not a genuine reusable cut:
+        // back up one full old chunk before scanning the appended bytes.
+        // A forced/predicate cut at exactly old EOF would also be safe, but
+        // without boundary provenance conservatively rehash the final chunk.
+        if (start == oldLength && oldLength > 0 && newEditEnd > oldStart)
+        {
+            prefix--;
+            start = old[prefix].Offset;
+        }
         var entries = new List<Entry>(old.Count + 8);
         for (int i = 0; i < prefix; i++) entries.Add(old[i]);
 
