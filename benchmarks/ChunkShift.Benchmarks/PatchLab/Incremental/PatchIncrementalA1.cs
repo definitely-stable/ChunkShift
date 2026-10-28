@@ -261,7 +261,7 @@ internal static class PatchIncrementalA1
     }
 
     private static Dictionary<long, Candidate> BuildCandidates(
-        IReadOnlyList<PatchIncrementalA0.Entry> old,
+        List<PatchIncrementalA0.Entry> old,
         IReadOnlyList<NormalizedSplice> edits, int oldLength, int targetLength)
     {
         var candidates = new Dictionary<long, Candidate>();
