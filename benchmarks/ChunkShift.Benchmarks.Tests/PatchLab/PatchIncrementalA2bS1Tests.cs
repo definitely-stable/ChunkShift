@@ -12,9 +12,9 @@ public sealed class PatchIncrementalA2bS1Tests
         bool blockIndex)
     {
         byte[] old = new byte[12 * 1024 * 1024 + 97];
-        byte[] target = Splice(old, 90_000, 90_004, [4, 3, 2, 1]);
+        byte[] target = Splice(old, 350_000, 350_004, [4, 3, 2, 1]);
         PatchIncrementalA2bS1.Result result =
-            await CheckAsync(old, target, 90_000, 90_004, 90_004, blockIndex);
+            await CheckAsync(old, target, 350_000, 350_004, 350_004, blockIndex);
         Assert.NotNull(result.ConvergenceOffset);
         Assert.True(result.PrefixRecordsReused > 0);
         Assert.True(result.SuffixRecordsReused > 0);
