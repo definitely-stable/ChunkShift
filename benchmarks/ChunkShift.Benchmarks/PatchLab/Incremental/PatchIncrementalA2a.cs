@@ -12,13 +12,17 @@ internal static class PatchIncrementalA2a
 {
     internal const string Status = "A2A_PHYSICAL_CSM_LAB_ONLY_NO_PRODUCTION_ADOPT";
 
+    internal sealed record Result(
+        ManifestId ManifestId, Hash256 FileDigest, ulong ChunkCount,
+        ulong ContentLength, ulong PhysicalLength, bool HasBlockIndex);
+
     /// <summary>
     /// Caller must provide a fresh, private STAGING destination and an
     /// authenticated A1 record sequence. Never expose destination bytes as
     /// a valid CSM before successful completion and independent verification.
     /// Errors/cancellation can leave a partial staging stream.
     /// </summary>
-    internal static async Task<CsmWriteResult> WriteStagingAsync(
+    internal static async Task<Result> WriteStagingAsync(
         Stream destination,
         IReadOnlyList<PatchIncrementalA0.Entry> records,
         long targetLength,
@@ -67,6 +71,8 @@ internal static class PatchIncrementalA2a
             result.ContentLength != (ulong)targetLength ||
             result.ChunkCount != (ulong)records.Count)
             throw new InvalidDataException("A2a CSM encoder result disagrees with preflight.");
-        return result;
+        return new Result(result.ManifestId, result.FileDigest,
+            result.ChunkCount, result.ContentLength, result.PhysicalLength,
+            result.HasBlockIndex);
     }
 }
