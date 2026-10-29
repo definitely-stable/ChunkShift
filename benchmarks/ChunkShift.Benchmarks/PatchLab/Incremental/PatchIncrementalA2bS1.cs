@@ -301,7 +301,7 @@ internal static class PatchIncrementalA2bS1
             byte[] buffer, int offset, int count,
             CancellationToken cancellationToken)
         {
-            int n = await inner.ReadAsync(buffer, offset, count, cancellationToken)
+            int n = await inner.ReadAsync(buffer.AsMemory(offset, count), cancellationToken)
                 .ConfigureAwait(false);
             BytesRead = checked(BytesRead + n);
             return n;
