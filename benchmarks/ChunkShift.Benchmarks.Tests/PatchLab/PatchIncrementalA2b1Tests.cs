@@ -10,8 +10,9 @@ public sealed class PatchIncrementalA2b1Tests
     public async Task ScansOnlyAffectedNewSourceAndWritesExactPhysicalCsm(bool bidx)
     {
         byte[] old = new byte[4 * 1024 * 1024 + 17];
-        byte[] replacement = [8, 7, 6, 5, 4, 3, 2, 1];
-        var result = await CheckAsync(old, 40_000, replacement, bidx);
+        byte[] replacement = [1, 2, 3, 4, 5, 6];
+        // Reuse-positive old-zero scenario independently admitted by A1.
+        var result = await CheckAsync(old, 2_895_000, replacement, bidx);
         Assert.True(result.PrefixRecordsReused > 0);
         Assert.True(result.SuffixRecordsReused > 0);
         Assert.NotNull(result.ProvenConvergenceOffset);
