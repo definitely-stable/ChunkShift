@@ -253,7 +253,7 @@ internal static class PatchIncrementalA2b1
             byte[] buffer, int offset, int count,
             CancellationToken cancellationToken)
         {
-            int n = await inner.ReadAsync(buffer, offset, count, cancellationToken)
+            int n = await inner.ReadAsync(buffer.AsMemory(offset, count), cancellationToken)
                 .ConfigureAwait(false);
             BytesRead = checked(BytesRead + n);
             return n;
@@ -281,7 +281,7 @@ internal static class PatchIncrementalA2b1
             get => _position;
             set
             {
-                if (value < 0) throw new ArgumentOutOfRangeException(nameof(value));
+                ArgumentOutOfRangeException.ThrowIfNegative(value);
                 _position = value;
             }
         }
