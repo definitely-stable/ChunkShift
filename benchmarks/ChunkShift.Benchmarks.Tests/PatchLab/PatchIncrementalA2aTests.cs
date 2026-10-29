@@ -125,7 +125,7 @@ public sealed class PatchIncrementalA2aTests
     {
         byte[] fullBytes = await CreateCsmAsync(result.Target, blockIndex);
         using var stage = new MemoryStream();
-        CsmWriteResult written = await PatchIncrementalA2a.WriteStagingAsync(
+        PatchIncrementalA2a.Result written = await PatchIncrementalA2a.WriteStagingAsync(
             stage, result.Entries, result.Target.LongLength, result.ManifestId,
             includeBlockIndex: blockIndex);
         byte[] produced = stage.ToArray();
