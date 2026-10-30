@@ -257,11 +257,11 @@ internal static class PatchIncrementalA2bS3
     private static int FindEligibleGap(
         Edit[] edits, int first, long newCut, long newLength)
     {
-        for (int i = first; i < edits.Count; i++)
+        for (int i = first; i < edits.Length; i++)
         {
             Edit e = edits[i];
             if (newCut < e.NewEnd) break;
-            long nextStart = i + 1 < edits.Count ?
+            long nextStart = i + 1 < edits.Length ?
                 edits[i + 1].NewStart : newLength;
             if (newCut <= nextStart) return i;
         }
