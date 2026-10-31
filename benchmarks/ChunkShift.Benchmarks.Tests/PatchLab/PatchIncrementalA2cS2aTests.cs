@@ -32,6 +32,7 @@ public sealed class PatchIncrementalA2cS2aTests
                 authorizedEdits++;
                 Assert.Equal(3, changes.Count);
                 Assert.Equal((long)1_000_000, changes[1].OldStart);
+                changes[0].Replacement[0] ^= 0xFF; // Host callback cannot alter S3 input.
                 return ValueTask.CompletedTask;
             });
 
