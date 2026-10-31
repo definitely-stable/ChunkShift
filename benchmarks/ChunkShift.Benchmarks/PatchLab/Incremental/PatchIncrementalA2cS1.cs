@@ -41,9 +41,9 @@ internal static class PatchIncrementalA2cS1
         string finalCsmPath,
         IReadOnlyList<PatchIncrementalA2bS3.Splice> edits,
         bool includeBlockIndex = false,
-        CancellationToken cancellationToken = default,
         Action? afterSnapshotsCopied = null,
-        Func<CancellationToken, ValueTask>? beforePublish = null)
+        Func<CancellationToken, ValueTask>? beforePublish = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(oldContentPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(oldCsmPath);
