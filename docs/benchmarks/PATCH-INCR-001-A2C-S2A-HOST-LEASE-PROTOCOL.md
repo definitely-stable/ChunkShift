@@ -19,7 +19,7 @@ The host must independently guarantee:
 
 ## Exact processing
 
-1. Validate distinct seekable readable streams, destination absence and bounded splice count (32) / total payload bytes (4 MiB); deep-copy every payload before awaiting or invoking host callbacks.
+1. Validate distinct seekable readable streams, destination absence and bounded splice count (32) / total payload bytes (4 MiB); deep-copy every payload before awaiting or invoking host callbacks. Hand the authorization callback a *separate* deep-cloned receipt view, so a callback that retains or mutates its input cannot modify the immutable payload copy subsequently passed to S3.
 2. Assert the host lease, ask the host to authorize the copied edit transcript, assert the lease again.
 3. Independently verify the complete old physical CSM with Core `ChunkManifest.VerifyManifestAsync`; fail closed if its authenticated logical `ManifestId` differs from the **externally supplied** expected value, or if unconsumed bytes remain.
 4. Use the *same* A2b-S3 engine on the pinned streams and a private empty staged CSM. S3 fully checks the old **content** against that CSM, proves exact mapped reset-cut convergence across all splices and emits canonical CSM v1 using Core `CsmEncoderSession`. This still reads the entire old source for content verification and rehashes all logical manifest records; it does **not** make total old-source I/O sublinear.
