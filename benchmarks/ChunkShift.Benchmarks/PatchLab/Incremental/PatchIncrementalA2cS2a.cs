@@ -99,7 +99,15 @@ internal static class PatchIncrementalA2cS2a
         // manifest to that externally authorized identity.
         await lease.AssertPinnedAsync(cancellationToken).ConfigureAwait(false);
         assertions++;
-        await lease.AuthorizeEditsAsync(frozen, cancellationToken).ConfigureAwait(false);
+        // Do not hand the mutable array that S3 will consume to any callback.
+        // Even a delayed host callback may retain/edit its own receipt view,
+        // but it cannot change the already frozen reconstruction payloads.
+        var receiptView = new PatchIncrementalA2bS3.Splice[frozen.Length];
+        for (int i = 0; i < frozen.Length; i++)
+            receiptView[i] = new(frozen[i].OldStart, frozen[i].OldEnd,
+                (byte[])frozen[i].Replacement.Clone());
+        await lease.AuthorizeEditsAsync(
+            receiptView, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         await lease.AssertPinnedAsync(cancellationToken).ConfigureAwait(false);
         assertions++;
