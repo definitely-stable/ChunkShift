@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import zipfile
 from pathlib import Path
 
 PAIRS_SHA = "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd"
@@ -118,6 +119,25 @@ def run_pair(old: Path, new: Path, hdiffz: Path, hpatchz: Path,
     return {"oldSha256": old_sha, "targetSha256": new_sha,
             "targetBytes": new.stat().st_size, "lanes": outcome}
 
+def verify_binary_archive(archive: Path, hdiffz: Path, hpatchz: Path) -> dict:
+    """Bind both executables to exact bytes in the SHA-locked original ZIP."""
+    require(sha(archive) == ARCHIVE_SHA, "HDiffPatch Linux64 release archive SHA mismatch")
+    digest_by_name = {}
+    with zipfile.ZipFile(archive) as source:
+        for name in source.namelist():
+            base = Path(name).name
+            if base not in ("hdiffz", "hpatchz"):
+                continue
+            require(base not in digest_by_name, "Duplicate official binary name: " + base)
+            digest_by_name[base] = hashlib.sha256(source.read(name)).hexdigest()
+    require(set(digest_by_name) == {"hdiffz", "hpatchz"},
+            "Official ZIP must contain exactly one of each binary")
+    actual = {"hdiffz": sha(hdiffz), "hpatchz": sha(hpatchz)}
+    require(actual == digest_by_name,
+            "Supplied executable does not match SHA-pinned original ZIP member")
+    return actual
+
+
 def run_smoke(root: Path, hdiffz: Path, hpatchz: Path) -> dict:
     root.mkdir(parents=True, exist_ok=True)
     # Deterministic binary fixture; not decision evidence.
@@ -145,9 +165,8 @@ def main(argv=None) -> int:
     p.add_argument("--run-id", default="SMOKE_NOT_DECISION")
     args = p.parse_args(argv)
 
-    require(sha(args.archive) == ARCHIVE_SHA, "HDiffPatch Linux64 release archive SHA mismatch")
     hdiffz, hpatchz = args.hdiffz.resolve(), args.hpatchz.resolve()
-    binaries = {"hdiffz": sha(hdiffz), "hpatchz": sha(hpatchz)}
+    binaries = verify_binary_archive(args.archive, hdiffz, hpatchz)
     if args.mode == "smoke":
         require(not args.corpus and not args.role, "Smoke must not consume frozen corpus")
         result = run_smoke(args.work, hdiffz, hpatchz)
