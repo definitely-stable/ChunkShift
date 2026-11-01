@@ -76,17 +76,16 @@ public sealed class PatchIncrementalA2cS2bTests
         await File.WriteAllBytesAsync(fixture.Source, old);
         await File.WriteAllBytesAsync(fixture.Csm, oldCsm);
 
-        try
-        {
-            await Assert.ThrowsAsync<InvalidDataException>(() =>
-                PatchIncrementalA2cS2b.BuildLocalAsync(
-                    fixture.Source, fixture.Csm, fixture.Output,
-                    ManifestIdAsync(oldCsm).GetAwaiter().GetResult(),
-                    [new(12_000, 12_000, [1])],
-                    _ => ValueTask.CompletedTask,
-                    (_, _) => ValueTask.CompletedTask));
-        }
-        catch (NotSupportedException ex) when (CloneUnavailable(ex)) { }
+        ManifestId authorized = await ManifestIdAsync(oldCsm);
+        Exception? failure = await Record.ExceptionAsync(() =>
+            PatchIncrementalA2cS2b.BuildLocalAsync(
+                fixture.Source, fixture.Csm, fixture.Output,
+                authorized, [new(12_000, 12_000, [1])],
+                _ => ValueTask.CompletedTask,
+                (_, _) => ValueTask.CompletedTask));
+        if (failure is not NotSupportedException unsupported ||
+            !CloneUnavailable(unsupported))
+            Assert.IsType<InvalidDataException>(failure);
         Assert.False(File.Exists(fixture.Output));
         fixture.AssertNoScratch();
     }
@@ -101,18 +100,17 @@ public sealed class PatchIncrementalA2cS2bTests
         await File.WriteAllBytesAsync(fixture.Source, old);
         await File.WriteAllBytesAsync(fixture.Csm, oldCsm);
 
-        try
-        {
-            await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-                PatchIncrementalA2cS2b.BuildLocalAsync(
-                    fixture.Source, fixture.Csm, fixture.Output,
-                    ManifestIdAsync(oldCsm).GetAwaiter().GetResult(),
-                    [new(12_000, 12_000, [1])],
-                    _ => ValueTask.CompletedTask,
-                    (_, _) => throw new UnauthorizedAccessException(
-                        "Host edit authorization denied")));
-        }
-        catch (NotSupportedException ex) when (CloneUnavailable(ex)) { }
+        ManifestId authorized = await ManifestIdAsync(oldCsm);
+        Exception? failure = await Record.ExceptionAsync(() =>
+            PatchIncrementalA2cS2b.BuildLocalAsync(
+                fixture.Source, fixture.Csm, fixture.Output,
+                authorized, [new(12_000, 12_000, [1])],
+                _ => ValueTask.CompletedTask,
+                (_, _) => throw new UnauthorizedAccessException(
+                    "Host edit authorization denied")));
+        if (failure is not NotSupportedException unsupported ||
+            !CloneUnavailable(unsupported))
+            Assert.IsType<UnauthorizedAccessException>(failure);
         Assert.False(File.Exists(fixture.Output));
         fixture.AssertNoScratch();
     }
