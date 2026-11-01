@@ -121,6 +121,7 @@ def main():
     target.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
     print("A3_SCREEN_DECISION:", decision)
     print("A3_SCREEN_SUMMARY:", target)
+    print("A3_SCREEN_SUMMARY_JSON:", json.dumps(summary, sort_keys=True))
     if not fatal:
         print("A3 holdout is not automatically authorized; review physical I/O, RSS and trust.")
     return 0
