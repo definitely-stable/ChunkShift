@@ -68,12 +68,17 @@ def pair_jobs(corpus: Path, role: str) -> list[dict]:
             old = corpus / "tree" / family / pair["base"] / rel
             new = corpus / "tree" / family / pair["target"] / rel
             require(old.is_file() and new.is_file(), "Frozen corpus pair missing")
+            require(old.stat().st_size == item["baseSize"]
+                    and sha(old) == item["baseSha256"],
+                    "Frozen base identity mismatch: " + relative)
             require(new.stat().st_size == item["targetSize"]
                     and sha(new) == item["targetSha256"],
                     "Frozen target identity mismatch: " + relative)
             jobs.append({"family": family, "base": pair["base"],
                          "target": pair["target"], "path": relative,
                          "old": str(old), "new": str(new),
+                         "baseSha256": item["baseSha256"],
+                         "baseBytes": item["baseSize"],
                          "targetSha256": item["targetSha256"],
                          "targetBytes": item["targetSize"]})
     expected = 1049 if role == "calibration" else 844
