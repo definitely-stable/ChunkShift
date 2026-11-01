@@ -1,0 +1,104 @@
+name: PATCH-INCR A3 go-no-go screen
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "benchmarks/ChunkShift.Benchmarks/PatchLab/Incremental/PatchIncrementalA3Screen.cs"
+      - "benchmarks/scripts/run_patch_incr_a3_screen.py"
+      - "benchmarks/ChunkShift.Benchmarks/Program.cs"
+      - "docs/benchmarks/PATCH-INCR-001-A3-S0-GONOGO-PROTOCOL.md"
+      - ".github/workflows/patch-incr-a3-screen.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: patch-incr-a3-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  BTRFS_ROOT: /mnt/chunkshift-incr-a3-btrfs
+
+jobs:
+  a3-screen:
+    name: btrfs-a3-s0-gonogo
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Prepare genuine Btrfs with reflink support
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends btrfs-progs
+          truncate -s 640M "$RUNNER_TEMP/chunkshift-incr-a3-btrfs.img"
+          sudo mkfs.btrfs -f "$RUNNER_TEMP/chunkshift-incr-a3-btrfs.img"
+          sudo mkdir -p "$BTRFS_ROOT"
+          sudo mount -t btrfs -o loop "$RUNNER_TEMP/chunkshift-incr-a3-btrfs.img" "$BTRFS_ROOT"
+          sudo chown "$(id -u):$(id -g)" "$BTRFS_ROOT"
+          test "$(stat -f -c %T "$BTRFS_ROOT")" = btrfs
+          python3 - <<'PY'
+          import fcntl, os
+          from pathlib import Path
+          root = Path(os.environ["BTRFS_ROOT"])
+          src = root / "ficlone-probe-src"
+          dst = root / "ficlone-probe-dst"
+          src.write_bytes(b"A" * 4096)
+          with src.open("rb") as source, dst.open("wb") as clone:
+              fcntl.ioctl(clone.fileno(), 0x40049409, source.fileno())
+          src.write_bytes(b"B" * 4096)
+          assert dst.read_bytes() == b"A" * 4096
+          src.unlink()
+          dst.unlink()
+          print("A3_FICLONE_POSITIVE=1")
+          PY
+
+      - name: Build Release benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Execute process-isolated preregistered A3-S0 screen
+        shell: bash
+        env:
+          TMPDIR: /mnt/chunkshift-incr-a3-btrfs
+          CHUNKSHIFT_REQUIRE_REFLINK_POSITIVE: "1"
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/a3-s0-evidence" "$BTRFS_ROOT/fixture"
+          python3 benchmarks/scripts/run_patch_incr_a3_screen.py \
+            --root "$BTRFS_ROOT/fixture" \
+            --binary benchmarks/ChunkShift.Benchmarks/bin/Release/net10.0/ChunkShift.Benchmarks.dll \
+            --evidence "$RUNNER_TEMP/a3-s0-evidence" \
+            --run-id "A3S0-${{ github.run_id }}-${{ github.run_attempt }}" \
+            --size-mib 96
+
+      - name: Upload A3 evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-incr-a3-s0-evidence
+          path: ${{ runner.temp }}/a3-s0-evidence/
+          if-no-files-found: warn
+
+      - name: Unmount Btrfs and clean probe
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if mountpoint -q "$BTRFS_ROOT"; then sudo umount "$BTRFS_ROOT"; fi
+          rm -f "$RUNNER_TEMP/chunkshift-incr-a3-btrfs.img"
