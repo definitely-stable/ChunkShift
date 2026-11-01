@@ -1,0 +1,60 @@
+name: PATCH-GAP-001 retained factor ledger
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "benchmarks/scripts/assemble_patch_gap_factor_ledger.py"
+      - "benchmarks/scripts/test_assemble_patch_gap_factor_ledger.py"
+      - "docs/research/results/PATCH-GAP-001-FACTOR-LEDGER-20261101-001.md"
+      - ".github/workflows/patch-gap-001-factor-ledger.yml"
+  push:
+    branches: [main]
+    paths:
+      - "benchmarks/scripts/assemble_patch_gap_factor_ledger.py"
+      - "docs/research/results/PATCH-GAP-001-FACTOR-LEDGER-20261101-001.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-recompute:
+    name: frozen-factor-evidence-and-tamper-guards
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Compile independent verifier
+        run: python3 -m py_compile benchmarks/scripts/assemble_patch_gap_factor_ledger.py benchmarks/scripts/test_assemble_patch_gap_factor_ledger.py
+
+      - name: Test real retained evidence and fail-closed tampering
+        run: python3 benchmarks/scripts/test_assemble_patch_gap_factor_ledger.py -v
+
+      - name: Recompute actual frozen factor ledger
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/assemble_patch_gap_factor_ledger.py \
+            --output "$RUNNER_TEMP/patch-gap-factor-ledger.json"
+          python3 - "$RUNNER_TEMP/patch-gap-factor-ledger.json" <<'PY'
+          import json, sys
+          result = json.load(open(sys.argv[1], encoding="utf-8"))
+          assert result["readyToCloseIssue183"] is False
+          assert result["readyToCloseGate251"] is False
+          assert result["decision"] == "NO_RFC_FROM_TESTED_SINGLE_FACTORS__RESEARCH_FREEZE_STILL_OPEN"
+          for factor in ("G1", "G3", "G4_BCJ"):
+              print(factor, json.dumps(result["factors"][factor], sort_keys=True))
+          print("G2", json.dumps(result["factors"]["G2"], sort_keys=True))
+          print("G5", json.dumps(result["factors"]["G5_PUFFIN"], sort_keys=True))
+          print("UNRESOLVED", json.dumps(result["referenceLanes"], sort_keys=True))
+          PY
+
+      - name: Upload inspectable factor ledger (not reference measurements)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-001-frozen-factor-ledger
+          path: ${{ runner.temp }}/patch-gap-factor-ledger.json
+          if-no-files-found: error
+          retention-days: 90
