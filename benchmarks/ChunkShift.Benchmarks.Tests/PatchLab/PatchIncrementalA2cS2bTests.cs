@@ -145,9 +145,13 @@ public sealed class PatchIncrementalA2cS2bTests
         fixture.AssertNoScratch();
     }
 
+    // The dedicated Btrfs CI lane demands the REAL kernel-positive path.
+    // A green conditional test on ordinary ext4/overlayfs is not enough.
     private static bool CloneUnavailable(NotSupportedException ex) =>
-        ex is PlatformNotSupportedException ||
-        ex.Message.Contains("FICLONE unavailable", StringComparison.Ordinal);
+        Environment.GetEnvironmentVariable(
+            "CHUNKSHIFT_REQUIRE_REFLINK_POSITIVE") != "1" &&
+        (ex is PlatformNotSupportedException ||
+         ex.Message.Contains("FICLONE unavailable", StringComparison.Ordinal));
 
     private static byte[] Apply(
         byte[] old, IReadOnlyList<PatchIncrementalA2bS3.Splice> edits)
