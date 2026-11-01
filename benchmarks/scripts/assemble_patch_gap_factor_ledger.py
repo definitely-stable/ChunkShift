@@ -15,6 +15,15 @@ DATASET = "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd"
 H0_EVALUATION = 26_363_364
 H0_CALIBRATION = 11_860_274
 SIZE_GATE = 0.15
+# Frozen, already-reviewed source identities; do not accept an arbitrary
+# 40-character SHA string as provenance for a historical factor verdict.
+SOURCE_COMMITS = {
+    "g1": "8983eb11faa3e7c2df17b74d201249a19dd3dc13",
+    "g3": "4975b0d4121b0bee426b9a7e3fce140918cce151",
+    "g4": "c71f0c8fa483c45bf65fee4850d293c45f7878a6",
+    "g2oracle": "489d3f2fe2582cc6251ee2fa87cd23bad1793b01",
+    "g2guard": "148ee8adc6df47cce0d866ea2e6eb25d684713d7",
+}
 
 FILES = {
     "g1": "docs/research/results/data/PATCH-GAP-001-G1-EVALUATION-EVIDENCE-20261006-001/evaluation.json",
@@ -68,8 +77,8 @@ def build(root=ROOT):
     for name, value in (("g1", g1), ("g3", g3), ("g4", g4)):
         require(value["protocolCommit"] == PROTOCOL,
                 f"{name}: frozen protocol mismatch")
-        require(len(value["sourceCommit"]) == 40,
-                f"{name}: missing source SHA")
+        require(value["sourceCommit"] == SOURCE_COMMITS[name],
+                f"{name}: frozen source SHA mismatch")
     for name, value in (("g1", g1), ("g3", g3), ("g2oracle", oracle),
                         ("g2guard", guard)):
         require(value["datasetSha256"] == DATASET,
@@ -141,6 +150,9 @@ def build(root=ROOT):
     require(oracle["protocolCommit"] == ENC_PROTOCOL and
             guard["protocolCommit"] == ENC_PROTOCOL,
             "G2 producer protocol mismatch")
+    require(oracle["sourceCommit"] == SOURCE_COMMITS["g2oracle"] and
+            guard["sourceCommit"] == SOURCE_COMMITS["g2guard"],
+            "G2 original run source SHA mismatch")
     require(oracle["schema"] == "chunkshift.patch-enc-005-g2-verdict.v1"
             and oracle["status"] == "MISS"
             and oracle["datasetRole"] == "calibration"
