@@ -91,13 +91,8 @@ internal static class PatchIncrementalA2cS2b
             // The old CSM is bounded by manifest size, not file length.
             // Independent copying is NOT a joint atomic snapshot; the
             // authorized ManifestId and S3 full content verification gate it.
-            File.Copy(csm, pinnedCsm, overwrite: false);
-            long csmLength = new FileInfo(pinnedCsm).Length;
-            await using (var flushedCsm = new FileStream(
-                pinnedCsm, FileMode.Open, FileAccess.Read, FileShare.Read))
-            {
-                flushedCsm.Flush(flushToDisk: true);
-            }
+            long csmLength = await CopyCsmAsync(
+                csm, pinnedCsm, cancellationToken).ConfigureAwait(false);
             afterSnapshotsPinned?.Invoke();
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -129,6 +124,33 @@ internal static class PatchIncrementalA2cS2b
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }
+    }
+
+    private static async Task<long> CopyCsmAsync(
+        string original, string destination, CancellationToken cancellationToken)
+    {
+        const int bufferSize = 64 * 1024;
+        await using var input = new FileStream(original, FileMode.Open,
+            FileAccess.Read, FileShare.ReadWrite | FileShare.Delete,
+            bufferSize, useAsync: true);
+        await using var copy = new FileStream(destination, FileMode.CreateNew,
+            FileAccess.Write, FileShare.None, bufferSize, useAsync: true);
+        byte[] buffer = new byte[bufferSize];
+        long copied = 0;
+        while (true)
+        {
+            int n = await input.ReadAsync(
+                buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
+            if (n == 0) break;
+            await copy.WriteAsync(
+                buffer.AsMemory(0, n), cancellationToken).ConfigureAwait(false);
+            copied = checked(copied + n);
+        }
+        await copy.FlushAsync(cancellationToken).ConfigureAwait(false);
+        copy.Flush(flushToDisk: true);
+        if (copy.Length != copied)
+            throw new IOException("A2c-S2b CSM snapshot copy incomplete.");
+        return copied;
     }
 
     private static long CloneReflink(string original, string destination)
