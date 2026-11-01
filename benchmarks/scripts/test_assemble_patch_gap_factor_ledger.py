@@ -69,6 +69,10 @@ class PatchGapFactorLedgerTests(unittest.TestCase):
         self.with_mutation("inventory", lambda d: d["g5"]["evaluation"]
                            .update(puffinSupportedRows=1))
 
+    def test_rejects_unpinned_g4_original_source(self):
+        self.with_mutation("g4", lambda d: d.update(
+            sourceCommit="0" * 40))
+
     def test_rejects_unpinned_g2_oracle(self):
         self.with_mutation("g2oracle", lambda d: d.update(
             protocolCommit="0" * 40))
