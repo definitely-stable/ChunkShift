@@ -2,6 +2,7 @@ using BenchmarkDotNet.Running;
 using ChunkShift.Benchmarks.Lab;
 using ChunkShift.Benchmarks.Lab.Prefreeze;
 using ChunkShift.Benchmarks.PatchLab;
+using ChunkShift.Benchmarks.PatchLab.Incremental;
 using ChunkShift.Benchmarks.VerifyLab;
 
 namespace ChunkShift.Benchmarks;
@@ -159,6 +160,11 @@ internal static class Program
             return ChunkDumpHarness.Run(args[1..]);
         }
 
+        if (string.Equals(mode, "patch-incr-a3", StringComparison.OrdinalIgnoreCase))
+        {
+            return PatchIncrementalA3Screen.Run(args[1..]);
+        }
+
         if (string.Equals(mode, "patch-lab", StringComparison.OrdinalIgnoreCase))
         {
             // Timings from an unoptimized library build would be evidence of
@@ -221,6 +227,7 @@ internal static class Program
         Console.WriteLine("  prefreeze --plan <plan.json> --output <result.json> [--markdown <summary.md>] [--lane <name>] [--real <real-corpus.json>] [--no-synthetic]");
         Console.WriteLine("  prefreeze validate-real --real <real-corpus.json> [--plan <plan.json>] [--lock-output <corpus-lock.json>]");
         Console.WriteLine("  chunks --list <list.tsv>");
+        Console.WriteLine("  patch-incr-a3 <prepare|measure> --dir <fixture> [--size-mib 96 | --lane <full|s2b> --bidx <true|false> --run-id <id> --output <sample.json>]");
         Console.WriteLine("  patch-lab run --corpus <root> --lane <name> --output <file.json> [--families <id,...>] [--workers <n>] [--apply-repeats <n>] [--no-apply] [--run-id <id>] [--work <dir>]");
         Console.WriteLine("  patch-lab memory --corpus <root> --output <file.json> [--min-bytes <n>] [--families <id,...>] [--run-id <id>] [--work <dir>] [--lane <name>]");
         Console.WriteLine("  patch-lab apply-check <prepare|time|concurrent|memory> --corpus <root> [--work <dir>] [--output <file.json>] [--repetition <r>] [--run-id <id>]");
