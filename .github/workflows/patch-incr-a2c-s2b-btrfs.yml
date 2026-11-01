@@ -1,0 +1,106 @@
+name: PATCH-INCR A2c-S2b Btrfs positive
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "benchmarks/ChunkShift.Benchmarks/PatchLab/Incremental/PatchIncrementalA2cS2b.cs"
+      - "benchmarks/ChunkShift.Benchmarks.Tests/PatchLab/PatchIncrementalA2cS2bTests.cs"
+      - "docs/benchmarks/PATCH-INCR-001-A2C-S2B-LINUX-REFLINK-PROTOCOL.md"
+      - ".github/workflows/patch-incr-a2c-s2b-btrfs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: patch-incr-a2c-s2b-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  BTRFS_ROOT: ${{ runner.temp }}/chunkshift-a2c-s2b-btrfs
+
+jobs:
+  reflink-positive:
+    name: linux-btrfs-real-ficlone
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Create isolated Btrfs loopback filesystem
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends btrfs-progs
+          truncate -s 320M "$RUNNER_TEMP/chunkshift-a2c-s2b.img"
+          sudo mkfs.btrfs -f "$RUNNER_TEMP/chunkshift-a2c-s2b.img"
+          sudo mkdir -p "$BTRFS_ROOT"
+          sudo mount -t btrfs -o loop "$RUNNER_TEMP/chunkshift-a2c-s2b.img" "$BTRFS_ROOT"
+          sudo chown "$(id -u):$(id -g)" "$BTRFS_ROOT"
+          test "$(stat -f -c %T "$BTRFS_ROOT")" = "btrfs"
+          echo "BTRFS_POSITIVE_MOUNT=$BTRFS_ROOT"
+
+      - name: Prove kernel FICLONE works and isolates later source writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import fcntl
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["BTRFS_ROOT"])
+          src = root / "probe-old"
+          dest = root / "probe-clone"
+          src.write_bytes(b"A" * (1024 * 1024))
+          src_fd = os.open(src, os.O_RDONLY)
+          dest_fd = os.open(dest, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
+          try:
+              fcntl.ioctl(dest_fd, 0x40049409, src_fd)
+              os.fsync(dest_fd)
+          finally:
+              os.close(dest_fd)
+              os.close(src_fd)
+          src.write_bytes(b"B" * (1024 * 1024))
+          assert dest.read_bytes() == b"A" * (1024 * 1024)
+          src.unlink()
+          dest.unlink()
+          print("FICLONE_POSITIVE: real Linux Btrfs COW verified")
+          PY
+
+      - name: Restore and build benchmark lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Run required positive reflink differential and negative tests
+        shell: bash
+        env:
+          TMPDIR: ${{ runner.temp }}/chunkshift-a2c-s2b-btrfs
+          CHUNKSHIFT_REQUIRE_REFLINK_POSITIVE: "1"
+        run: |
+          set -euo pipefail
+          dotnet test benchmarks/ChunkShift.Benchmarks.slnx -c Release \
+            --no-build --no-restore \
+            --filter "FullyQualifiedName~PatchIncrementalA2cS2bTests" \
+            --logger "console;verbosity=normal"
+
+      - name: Unmount and remove scratch
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if mountpoint -q "$BTRFS_ROOT"; then sudo umount "$BTRFS_ROOT"; fi
+          rm -f "$RUNNER_TEMP/chunkshift-a2c-s2b.img"
