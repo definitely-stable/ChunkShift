@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
 using ChunkShift.Primitives;
@@ -12,6 +13,7 @@ namespace ChunkShift.Benchmarks.PatchLab.Incremental;
 internal static class PatchIncrementalA3Screen
 {
     private const int BlockSize = 64 * 1024;
+    private static readonly JsonSerializerOptions IndentedJsonOptions = new() { WriteIndented = true };
     private const int EditOffset = 48 * 1024;
     private static readonly byte[] Replacement = [0xC3, 0x50, 0xF1, 0x99];
 
@@ -45,9 +47,9 @@ internal static class PatchIncrementalA3Screen
         if (mode == "prepare")
         {
             int mib = int.Parse(Get("--size-mib") ??
-                throw new ArgumentException("Missing --size-mib."));
+                throw new ArgumentException("Missing --size-mib."), CultureInfo.InvariantCulture);
             if (mib < 8 || mib > 1024)
-                throw new ArgumentOutOfRangeException(nameof(mib), "Preparation size restricted to 8..1024 MiB.");
+                throw new ArgumentException("Preparation size restricted to 8..1024 MiB.", nameof(args));
             await PrepareAsync(root, mib).ConfigureAwait(false);
             return;
         }
@@ -191,8 +193,7 @@ internal static class PatchIncrementalA3Screen
                 oracleEqual = true,
                 methodologicalLimits = "Process rchar/wchar and read_bytes/write_bytes include runtime and filesystem cache effects; full lane has an already materialized target; S2b metadata authorization preload excluded; peak includes process startup."
             };
-            string json = JsonSerializer.Serialize(evidence,
-                new JsonSerializerOptions { WriteIndented = true });
+            string json = JsonSerializer.Serialize(evidence, IndentedJsonOptions);
             await File.WriteAllTextAsync(outputJson, json).ConfigureAwait(false);
             Console.WriteLine(json);
         }
@@ -268,7 +269,7 @@ internal static class PatchIncrementalA3Screen
         {
             int colon = line.IndexOf(':');
             if (colon < 0) continue;
-            counters[line[..colon]] = long.Parse(line[(colon + 1)..].Trim());
+            counters[line[..colon]] = long.Parse(line[(colon + 1)..].Trim(), CultureInfo.InvariantCulture);
         }
         return new LinuxIoCounters(
             counters["rchar"], counters["wchar"],
