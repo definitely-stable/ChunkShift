@@ -16,7 +16,7 @@ class ReferenceHarnessTests(unittest.TestCase):
     def test_frozen_lanes_and_identity(self):
         self.assertEqual(ref.LANES, {"memory": "-m-4", "stream": "-s-64"})
         self.assertEqual(ref.PAIRS_SHA,
-                         "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8f")
+                         "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd")
         self.assertEqual(ref.ARCHIVE_SHA,
                          "628963bf2ee9108a97260fa5eef44acd9ec94369b76090a957c9182b3abbb558")
 
