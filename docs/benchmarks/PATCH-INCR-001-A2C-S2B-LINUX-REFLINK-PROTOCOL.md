@@ -24,9 +24,13 @@ The differential xUnit test attempts real kernel reflink on the GitHub-hosted Li
 
 The reported `PinnedSourceLogicalBytes` is the **logical size of reflinked extents**, not bytes read or bytes physically copied. `CopiedCsmLogicalBytes` is the separate CSM copy. `ReflinkElapsed` and `EndToEndElapsed` are wall-clock observations, not calibrated benchmarks; S2a+S3 still read N old bytes for verification and rehash all output CSM records. No physical I/O, per-invocation peak RSS, CPU reduction, 10/100GiB original benchmark, sealed holdout or production ADOPT is asserted.
 
+## Pinned positive GitHub-hosted evidence
+
+The dedicated Ubuntu/Btrfs workflow completed successfully on the pinned implementation SHA. An independent kernel ioctl probe and **all five required-positive xUnit cases** passed, including BIDX on/off. See [A2c-S2b evidence](../research/results/PATCH-INCR-001-A2C-S2B-REFLINK-POSITIVE-20261101-001.md) and [run #41284379176](https://github.com/definitely-stable/ChunkShift/actions/runs/41284379176). This is strictly a **lab-positive snapshot result**, not a decision-grade throughput or security ADOPT.
+
 ## Follow-up requirements
 
-1. Verify the **positive reflink branch** on a pinned Btrfs/XFS GitHub-hosted filesystem with an explicit support probe and independent fault/mutation checks. A green job exercising only the unsupported branch does not satisfy this.
+1. Preserve the **pinned positive Btrfs oracle** and repeat on any additional platform/filesystem being claimed; do not generalize from the successful Btrfs lane. Add stronger concurrent source-mutation, hostile namespace and fault-injection qualifications.
 2. Qualify authenticated host generation/lease and edit receipt (freshness, rollback, revoked lease, exclusive path and persistent namespace ownership); do not elevate host callbacks to security proof.
 3. Measure full CreateAsync, copied S1, host-pinned S2a and reflink S2b under matched original/holdout workloads. Include snapshot acquisition, all old CSM/base verification, stage verification and publication, CPU, wall, physical/logical I/O and isolated peak RSS, plus BIDX on/off.
 4. Define durable generation/rename, fsync and journal recovery policy before any production publication claim. If there is no system capable of supplying the required provenance and snapshot, mark S2b **DEFER** instead of relaxing the gate.
