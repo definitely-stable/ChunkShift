@@ -123,6 +123,7 @@ jobs:
             benchmarks/scripts/test_evaluate_patch_enc_005_h6o_guard.py \
             benchmarks/scripts/test_collect_patch_gap_puffin_locator.py \
             benchmarks/scripts/test_research_registry.py \
+            benchmarks/scripts/test_patch_tree_001_first_release_closeout.py \
             benchmarks/scripts/test_patch_gap_g4_workflow_contract.py \
             benchmarks/scripts/test_patch_gap_g4_evidence.py \
             benchmarks/scripts/test_patch_gap_g4_zucchini_reference.py \

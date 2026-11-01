@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-10-19",
+  "updated": "2026-11-01",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -422,9 +422,9 @@
         7
       ],
       "area": "patching-research",
-      "status": "RUNNING",
+      "status": "DEFER",
       "question": "update sets: cross-file base reuse and tree manifest",
-      "evidence": "docs/research/results/PATCH-TREE-001-T1B-EVIDENCE-20261015-001.md",
+      "evidence": "docs/research/results/PATCH-TREE-001-FIRST-RELEASE-CLOSEOUT-20261101-001.md",
       "calibrationEvidence": "benchmarks/experiments/patch-tree-001-t1-boundary-20261015.json",
       "calibrationRunId": "PATCH-TREE-001/T1-BOUNDARY-20261015-38736641373",
       "calibrationVerdict": "T1 boundary loss observed; naive T1 5.6639x physical CSP cost. Original matched cohort: 90.08% of net physical byte regression from changed files with identical exact-match availability. PHYSICAL_CAUSALITY_NOT_PROVEN / NO_ADOPT; T2/T3 and publication gates open.",
@@ -434,7 +434,15 @@
       "physicalF1Status": "ORIGINAL_2100_SIDECARS_INDEPENDENT_AUDIT_PASS_OBSERVATIONAL_CALIBRATION_ONLY_NO_ADOPT",
       "physicalF1RunId": "PATCH-TREE-001/F1-CAL-20261015-38773779715",
       "physicalF1Evidence": "docs/research/results/PATCH-TREE-001-F1-EVIDENCE-20261016-001.md",
-      "physicalF1MachineLedger": "benchmarks/experiments/patch-tree-001-f1-original-evidence-20261016.json"
+      "physicalF1MachineLedger": "benchmarks/experiments/patch-tree-001-f1-original-evidence-20261016.json",
+      "firstReleaseDisposition": "DEFER_TREE_UPDATE_SET_REPRESENTATIONS_RETAIN_PER_FILE_CSP_V1",
+      "firstReleaseDecisionId": "PATCH-TREE-001/EVIDENCE-20261101-001",
+      "firstReleaseScope": "Per-file CSP v1 only; T0 research comparator, no automatic T0S policy, no persisted tree manifest, publisher, trusted source locator or update-set public API",
+      "firstReleaseEvidence": [
+        "docs/research/results/PATCH-TREE-001-T2A3A-ORIGINAL-PAIRED-CREATE-EVIDENCE-20261027-001.md",
+        "docs/research/results/PATCH-TREE-001-T3-FIRST-RELEASE-CLOSEOUT-20261025-001.md",
+        "docs/research/results/PATCH-TREE-001-T4C3-PUBLISHER-BOUNDARY-DECISION-20261022-001.md"
+      ]
     },
     {
       "id": "REPO-DELTA-001",
