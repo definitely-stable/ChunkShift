@@ -68,8 +68,7 @@ def validate(report: dict, expected: list[dict]) -> dict:
     env = report.get("environment")
     require(isinstance(env, dict) and isinstance(env.get("sourceGitCommit"), str)
             and COMMIT_RE.fullmatch(env["sourceGitCommit"]), "tested Git HEAD")
-    require(report["runId"].split("-")[-5] == env["sourceGitCommit"][:7]
-            if False else report["runId"].endswith(
+    require(report["runId"].endswith(
                 "-" + env["sourceGitCommit"][:7] + "-linux-x64-hdiff-calibration"),
             "RunId Git HEAD binding")
 
