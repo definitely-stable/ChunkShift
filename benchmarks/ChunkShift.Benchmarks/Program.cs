@@ -162,6 +162,13 @@ internal static class Program
 
         if (string.Equals(mode, "patch-incr-a3", StringComparison.OrdinalIgnoreCase))
         {
+            if (typeof(ChunkManifest).Assembly.GetCustomAttributes(
+                typeof(System.Diagnostics.DebuggableAttribute), false)
+                is [System.Diagnostics.DebuggableAttribute { IsJITOptimizerDisabled: true }])
+            {
+                Console.Error.WriteLine("A3 refuses to benchmark unoptimized Core.");
+                return 1;
+            }
             return PatchIncrementalA3Screen.Run(args[1..]);
         }
 
