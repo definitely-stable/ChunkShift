@@ -3,6 +3,8 @@ import importlib.util
 import json
 import tempfile
 import unittest
+import hashlib
+import zipfile
 from pathlib import Path
 from unittest import mock
 
@@ -41,6 +43,26 @@ class ReferenceHarnessTests(unittest.TestCase):
                               "--hpatchz", str(archive), "--archive", str(archive),
                               "--output", str(out), "--work", str(root / "scratch")])
             self.assertFalse(out.exists())
+
+    def test_rejects_executable_substitution_even_when_zip_matches(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = root / "hdiff.zip"
+            with zipfile.ZipFile(archive, "w") as zipped:
+                zipped.writestr("linux64/hdiffz", b"official-diff")
+                zipped.writestr("linux64/hpatchz", b"official-patch")
+            hdiffz = root / "hdiffz"
+            hpatchz = root / "hpatchz"
+            hdiffz.write_bytes(b"official-diff")
+            hpatchz.write_bytes(b"substitute")
+            with mock.patch.object(ref, "ARCHIVE_SHA",
+                                   hashlib.sha256(archive.read_bytes()).hexdigest()):
+                with self.assertRaisesRegex(ref.EvidenceError,
+                                            "does not match SHA-pinned"):
+                    ref.verify_binary_archive(archive, hdiffz, hpatchz)
+                hpatchz.write_bytes(b"official-patch")
+                accepted = ref.verify_binary_archive(archive, hdiffz, hpatchz)
+                self.assertEqual(set(accepted), {"hdiffz", "hpatchz"})
 
     def test_command_failure_is_fatal(self):
         with mock.patch.object(ref.subprocess, "run") as run:
