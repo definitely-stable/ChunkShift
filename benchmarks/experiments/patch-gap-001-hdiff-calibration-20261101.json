@@ -1,0 +1,128 @@
+{
+  "schema": "chunkshift.patch-gap-001-hdiff-original-calibration-retained.v1",
+  "experimentId": "PATCH-GAP-001",
+  "evidenceId": "PATCH-GAP-001/HDIFF-CALIBRATION-EVIDENCE-20261101-001",
+  "role": "calibration",
+  "status": "MEASURED_CALIBRATION_ONLY__FIRST_ATTEMPT_REPORT_AUDIT_PASS__FINAL_PROVENANCE_STEP_FAIL",
+  "rfcSizeGate": "NOT_APPLICABLE",
+  "readyToCloseIssue183": false,
+  "readyForEvaluation": false,
+  "run": {
+    "workflowRunId": 41333408342,
+    "jobId": 124928074969,
+    "runAttempt": 1,
+    "workflowConclusion": "failure",
+    "measurementStepsPassed": true,
+    "reportAuditStepPassed": true,
+    "artifactUploadPassed": true,
+    "failedStep": "Record provenance; do not imply evaluation or adoption",
+    "sourceCommit": "f0224c252503c09174093031650ea2ca1c86ee04",
+    "runId": "PATCH-GAP-001/RUN-20261101-3-f0224c2-linux-x64-hdiff-calibration"
+  },
+  "source": {
+    "pairsSha256": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+    "protocolCommit": "5372678ae8451a71cc95eb24f30855cbbd7e0633",
+    "hdiffSourceCommit": "3b9dca715ca492873bf2c49e22e5d5b7d2a78620",
+    "hdiffOfficialLinuxZipSha256": "628963bf2ee9108a97260fa5eef44acd9ec94369b76090a957c9182b3abbb558"
+  },
+  "referenceArtifact": {
+    "id": 13094063839,
+    "zipBytes": 244427,
+    "zipSha256": "e42db34baf9e5bb1c5374ac151d6d2ebf2a9862377d2964e6d1d0a058411548b",
+    "reportedDigest": "sha256:e42db34baf9e5bb1c5374ac151d6d2ebf2a9862377d2964e6d1d0a058411548b",
+    "zipMemberNames": [
+      "calibration-reference.json",
+      "calibration-report-audit.json",
+      "calibration-report-audit.txt"
+    ],
+    "physicalRowsSha256": "cd6ed78e209625f9988311b6c47cde695f29dfbb47f50a537975e8b86a9876f7",
+    "expired": false
+  },
+  "h0Control": {
+    "workflowRunId": 37231286406,
+    "artifactId": 11316573406,
+    "zipSha256": "1380b35ad6f2d5adf6e78710088ca281622dad96564bafb23fbdfc951ac792bf",
+    "calibrationBytes": 11860274,
+    "datasetSha256": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd"
+  },
+  "fileCount": 1049,
+  "targetBytes": 393123835,
+  "totals": {
+    "memory": {
+      "patchBytes": 7899748,
+      "savedVsH0Bytes": 3960526,
+      "reductionPercent": 33.393208,
+      "beatH0Files": 1049,
+      "tieH0Files": 0,
+      "worseH0Files": 0
+    },
+    "stream": {
+      "patchBytes": 21426954,
+      "savedVsH0Bytes": -9566680,
+      "reductionPercent": -80.661543,
+      "beatH0Files": 829,
+      "tieH0Files": 2,
+      "worseH0Files": 218
+    }
+  },
+  "families": {
+    "dotnet-aspnetcore-win-x64": {
+      "files": 669,
+      "targetBytes": 215722497,
+      "h0Bytes": 7324878,
+      "memoryBytes": 5164366,
+      "streamBytes": 12360971
+    },
+    "dotnet-runtime-linux-arm64": {
+      "files": 380,
+      "targetBytes": 177401338,
+      "h0Bytes": 4535396,
+      "memoryBytes": 2735382,
+      "streamBytes": 9065983
+    }
+  },
+  "pairs": {
+    "dotnet-aspnetcore-win-x64/10.0.10->10.0.11": {
+      "files": 334,
+      "h0Bytes": 4331507,
+      "memoryBytes": 2857597,
+      "streamBytes": 7731992
+    },
+    "dotnet-aspnetcore-win-x64/10.0.11->10.0.12": {
+      "files": 335,
+      "h0Bytes": 2993371,
+      "memoryBytes": 2306769,
+      "streamBytes": 4628979
+    },
+    "dotnet-runtime-linux-arm64/10.0.10->10.0.11": {
+      "files": 190,
+      "h0Bytes": 2765693,
+      "memoryBytes": 1598697,
+      "streamBytes": 5727390
+    },
+    "dotnet-runtime-linux-arm64/10.0.11->10.0.12": {
+      "files": 190,
+      "h0Bytes": 1769703,
+      "memoryBytes": 1136685,
+      "streamBytes": 3338593
+    }
+  },
+  "audit": {
+    "retrievedOriginalReferenceZip": true,
+    "retrievedFrozenG1H0Zip": true,
+    "completeZipShaAndCRCPass": true,
+    "perFileSourceAndTargetShaMatchIndependentG1": true,
+    "perFileH0Matched": true,
+    "sourceFileCountVerified": 1049,
+    "derivedRowsShaMatch": true,
+    "independentBinaryReapply": false,
+    "firstAttemptFrozenEvaluationNotRun": true
+  },
+  "limitations": [
+    "The upstream H0 comparison is the prior frozen G1 calibration; matched per-file SHA/path/version checks passed on the downloaded original ZIPs.",
+    "The original reconstructed targets were checked by the HDiffPatch producer; an independent binary reapply of all patches cannot be performed from this report-only archive.",
+    "Create/apply wall measurements are one run on a hosted runner, not a balanced paired resource experiment against CSP; do not infer CPU/RSS equivalence.",
+    "The first workflow conclusion is failure ONLY due to upload-artifact digest formatting in the last provenance step, not failed measurement; no rerun is authorized.",
+    "The frozen evaluation role and Chromium Zucchini real reference are still unmeasured; no CSP format RFC gate is passed."
+  ]
+}
