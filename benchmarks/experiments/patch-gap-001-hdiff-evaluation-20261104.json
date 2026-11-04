@@ -1,0 +1,168 @@
+{
+  "schema": "chunkshift.patch-gap-hdiff-evaluation-retained.v1",
+  "experimentId": "PATCH-GAP-001",
+  "evidenceId": "PATCH-GAP-001/HDIFF-EVALUATION-EVIDENCE-20261104-001",
+  "date": "2026-11-04",
+  "role": "evaluation",
+  "status": "ORIGINAL_844_FIXED_EVALUATION_INDEPENDENT_REPORT_AUDIT_PASS_REFERENCE_ONLY",
+  "rfcSizeGate": "NOT_APPLICABLE",
+  "readyToCloseIssue183": false,
+  "readyToCloseGate251": false,
+  "originalRun": {
+    "workflowRunId": 41869881770,
+    "workflowRunAttempt": 1,
+    "jobId": 126713738266,
+    "runConclusion": "success",
+    "sourceCommit": "37c43c7d551280efd925aa20de90b780e1585e78",
+    "runId": "PATCH-GAP-001/RUN-20261104-3-37c43c7-linux-x64-hdiff-evaluation"
+  },
+  "originalReferenceArtifact": {
+    "artifactId": 13343078345,
+    "zipBytes": 166944,
+    "zipSha256": "0d1141fdfab562dee42c12443ebfa97f3632c308c5c6696823bdd0f802a47d49",
+    "matchedPhysicalRowsSha256": "33991b5af38a4253ed457589fb35f8c5f2a679f8959b8bb3ce0db96a1f225e46",
+    "retentionDays": 90
+  },
+  "originalH0Artifact": {
+    "workflowRunId": 37432365043,
+    "artifactId": 11409716915,
+    "sourceCommit": "8983eb11faa3e7c2df17b74d201249a19dd3dc13",
+    "zipSha256": "dc2a725f1612556f711d07b819f3de17d3b887bcd2e38a598eb557f9ae3ed2b0",
+    "indexSha256": "73be4009cda2e8f4af6a302f4863be04039b2ae327379bfb582eed91fe66a953"
+  },
+  "originalCalibrationEvidence": "benchmarks/experiments/patch-gap-001-hdiff-calibration-20261101.json",
+  "originalCorpusSha256": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+  "protocolCommit": "5372678ae8451a71cc95eb24f30855cbbd7e0633",
+  "originalToolSourceCommit": "3b9dca715ca492873bf2c49e22e5d5b7d2a78620",
+  "originalToolLinuxZipSha256": "628963bf2ee9108a97260fa5eef44acd9ec94369b76090a957c9182b3abbb558",
+  "fileCount": 844,
+  "totalTargetBytes": 464589746,
+  "h0CspBytes": 26363364,
+  "lanes": {
+    "memory": {
+      "patchBytes": 11005397,
+      "savedBytes": 15357967,
+      "savingsPercent": 58.25495942020146,
+      "winCount": 839,
+      "tieCount": 0,
+      "lossCount": 5
+    },
+    "stream": {
+      "patchBytes": 33207126,
+      "savedBytes": -6843762,
+      "savingsPercent": -25.9593654284787,
+      "winCount": 830,
+      "tieCount": 0,
+      "lossCount": 14
+    }
+  },
+  "biggestFiveMemorySavingsBytes": 14721948,
+  "groups": [
+    {
+      "family": "node-win-x64",
+      "base": "24.19.0",
+      "target": "24.20.0",
+      "fileCount": 276,
+      "h0Bytes": 5815543,
+      "memoryBytes": 2909569,
+      "streamBytes": 7754059
+    },
+    {
+      "family": "node-win-x64",
+      "base": "24.20.0",
+      "target": "24.21.0",
+      "fileCount": 7,
+      "h0Bytes": 3136135,
+      "memoryBytes": 1641649,
+      "streamBytes": 5978489
+    },
+    {
+      "family": "node-linux-x64",
+      "base": "24.19.0",
+      "target": "24.20.0",
+      "fileCount": 342,
+      "h0Bytes": 11413023,
+      "memoryBytes": 3765490,
+      "streamBytes": 10475679
+    },
+    {
+      "family": "node-linux-x64",
+      "base": "24.20.0",
+      "target": "24.21.0",
+      "fileCount": 189,
+      "h0Bytes": 5583867,
+      "memoryBytes": 2512098,
+      "streamBytes": 8827347
+    },
+    {
+      "family": "tzdata",
+      "base": "2026b",
+      "target": "2026c",
+      "fileCount": 14,
+      "h0Bytes": 17438,
+      "memoryBytes": 7068,
+      "streamBytes": 7444
+    },
+    {
+      "family": "tzdata",
+      "base": "2026c",
+      "target": "2026d",
+      "fileCount": 14,
+      "h0Bytes": 18191,
+      "memoryBytes": 7953,
+      "streamBytes": 8723
+    },
+    {
+      "family": "chunkshift-source",
+      "base": "9e7fd3a",
+      "target": "27aa319",
+      "fileCount": 1,
+      "h0Bytes": 356797,
+      "memoryBytes": 137999,
+      "streamBytes": 132236
+    },
+    {
+      "family": "chunkshift-source",
+      "base": "287a59d",
+      "target": "27aa319",
+      "fileCount": 1,
+      "h0Bytes": 22370,
+      "memoryBytes": 23571,
+      "streamBytes": 23149
+    }
+  ],
+  "originalRowIdentitiesSha256": "d80ef2248fe5d270adc79fd42bcd51b73f6e8b5bf00170bcb03fee49948c5aeb",
+  "physicalRowData": {
+    "schema": "chunkshift.patch-gap-hdiff-evaluation-byte-triplets.v1",
+    "description": "Original 844 report rows in original pairs.json reference order; each row is little-endian unsigned 32-bit triple: H0 CSP bytes, HDiff memory bytes, HDiff stream bytes. Identity binds to the immutable ordered original 844 source-pair rows, SHA and grouped run lengths.",
+    "encoding": "zlib+base64",
+    "binaryFormat": "<III",
+    "bytesPerRow": 12,
+    "rows": 844,
+    "uncompressedBytes": 10128,
+    "base64Sha256": "8a87706adce9f25f1178edf89161f25b1ffd795bcb00d081956d461eeb1fb475",
+    "uncompressedSha256": "274bd27e1ae275d92d0b78d30cfe1c4669dd20f6c0f6c4522a20bf148abaf0ca",
+    "data": "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"
+  },
+  "audit": {
+    "originalGitHubHostedRunCompleted": true,
+    "bothModesExactNativeApplyVerifiedByOriginalProducer": true,
+    "downloadedOriginalReferenceZipShaAndCrcPass": true,
+    "downloadedOriginalH0ZipShaAndCrcPass": true,
+    "originalH0IndexShaPass": true,
+    "independentlyMatchedAllSourceTargetIdentities": true,
+    "independentlyRecomputedAllFileBytesAndGroupTotals": true,
+    "matchedRowShaPass": true,
+    "independentBinaryReapply": false,
+    "freshStatisticalHoldout": false
+  },
+  "limitations": [
+    "External whole-file HDiffPatch reference only: no CSP 15%-factor RFC gate.",
+    "Previously observed fixed evaluation split; not out-of-corpus predictive generalization.",
+    "Five largest memory savings provide 95.858703% of whole-split savings, dominated by Node binary updates.",
+    "The archived reference ZIP contains per-file hashes and timings, not individual physical patch binaries; independent binary re-apply is not possible after the producer's original hash checks.",
+    "Per-file durable compact table keeps original H0/memory/stream physical sizes with pair group offsets and row-identity SHA; tool-specific patch hashes remain in retention-limited exact ZIP.",
+    "CPU/RSS and end-to-end apply costs are not matched CSP versus HDiffPatch; no new shipping default or API decision.",
+    "Authentic Chromium Zucchini reference still needs separately reviewed feasible hosted execution or explicit DEFER."
+  ]
+}

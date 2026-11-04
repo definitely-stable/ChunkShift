@@ -413,7 +413,13 @@
       "evidence": "docs/research/results/PATCH-GAP-001-EVIDENCE-20261003-001.md",
       "decision": "Stage-A inventory locked; G5 NOT_PRESENT. G1 REJECT: evaluation best B8/B32 2.273822% vs frozen 15% gate, 88.491273x base-read amplification, no G1 runtime gate; advance to frozen G3 RUN/FILE.",
       "calibrationEvidence": "docs/research/results/PATCH-GAP-001-G1-CALIBRATION-EVIDENCE-20261004-001.md",
-      "g1EvaluationEvidence": "docs/research/results/PATCH-GAP-001-G1-EVALUATION-EVIDENCE-20261006-001.md"
+      "g1EvaluationEvidence": "docs/research/results/PATCH-GAP-001-G1-EVALUATION-EVIDENCE-20261006-001.md",
+      "hdiffCalibrationEvidence": "docs/research/results/PATCH-GAP-001-HDIFF-CALIBRATION-EVIDENCE-20261101-001.md",
+      "hdiffEvaluationEvidence": "docs/research/results/PATCH-GAP-001-HDIFF-EVALUATION-EVIDENCE-20261104-001.md",
+      "hdiffEvaluationMachine": "benchmarks/experiments/patch-gap-001-hdiff-evaluation-20261104.json",
+      "hdiffEvaluationStatus": "ORIGINAL_844_FIXED_EVALUATION_REPORT_INDEPENDENT_AUDIT_PASS_REFERENCE_ONLY",
+      "hdiffEvaluationRunId": "PATCH-GAP-001/RUN-20261104-3-37c43c7-linux-x64-hdiff-evaluation",
+      "hdiffEvaluationDisposition": "REFERENCE_MEASURED__NOT_CSP_FACTOR__ZUCCHINI_UNRESOLVED__NO_PUBLIC_API_FREEZE"
     },
     {
       "id": "PATCH-TREE-001",
