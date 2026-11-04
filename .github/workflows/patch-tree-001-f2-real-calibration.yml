@@ -243,7 +243,7 @@ jobs:
 
       - name: Archive failed physical F2 trace (never decision evidence)
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: patch-tree-001-physical-f2-UNVERIFIED-diagnostics
           path: ${{ runner.temp }}/patch-tree-f2-evidence/
@@ -252,7 +252,7 @@ jobs:
 
       - name: Archive verified F2 calibration evidence only
         if: success()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: patch-tree-001-f2-real-calibration
           path: ${{ runner.temp }}/patch-tree-f2-evidence/

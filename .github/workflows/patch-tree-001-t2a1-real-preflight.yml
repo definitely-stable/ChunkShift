@@ -179,14 +179,14 @@ jobs:
           printf 'UNVERIFIED_NOT_DECISION\nRun=%s\nSha=%s\n' "$GITHUB_RUN_ID" "$GITHUB_SHA" > "$RUNNER_TEMP/t2a1-results/UNVERIFIED_NOT_DECISION.txt"
       - name: Archive failed diagnostics without acceptance
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: patch-tree-t2a1-UNVERIFIED-NOT-DECISION
           path: ${{ runner.temp }}/t2a1-results/
           retention-days: 14
       - name: Archive original source-locked CSM-only preflight
         if: success()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: patch-tree-t2a1-original-CSM-only-NO-ADOPT
           path: ${{ runner.temp }}/t2a1-results/

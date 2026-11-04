@@ -239,7 +239,7 @@ jobs:
 
       - name: Archive failed physical F1 trace (never decision evidence)
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: patch-tree-001-physical-f1-UNVERIFIED-diagnostics
           path: ${{ runner.temp }}/patch-tree-f1-evidence/
@@ -248,7 +248,7 @@ jobs:
 
       - name: Archive verified F1 calibration trace only
         if: success()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: patch-tree-001-t1-physical-f1-calibration
           path: ${{ runner.temp }}/patch-tree-f1-evidence/
