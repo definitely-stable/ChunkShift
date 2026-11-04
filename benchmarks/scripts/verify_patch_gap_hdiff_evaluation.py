@@ -17,8 +17,6 @@ from collections import defaultdict
 from pathlib import Path
 
 PAIRS_SHA = "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd"
-# Correct original frozen corpus lock, source-of-truth shared with lab.
-PAIRS_SHA = "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd"
 PROTOCOL = "5372678ae8451a71cc95eb24f30855cbbd7e0633"
 SOURCE_COMMIT = "3b9dca715ca492873bf2c49e22e5d5b7d2a78620"
 ARCHIVE_SHA = "628963bf2ee9108a97260fa5eef44acd9ec94369b76090a957c9182b3abbb558"
