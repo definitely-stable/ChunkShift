@@ -1,0 +1,135 @@
+name: PATCH-GAP-001 Zucchini hosted capacity probe
+
+# Non-decision resource observation only; *never* builds Chromium or uses paid
+# larger runners. A real Zucchini reference requires separate explicit approval.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/patch-gap-001-zucchini-capacity.yml"
+      - "benchmarks/scripts/patch_gap_zucchini_hosted_capacity.py"
+      - "benchmarks/scripts/test_patch_gap_zucchini_hosted_capacity.py"
+      - "docs/benchmarks/PATCH-GAP-001-ZUCCHINI-CAPACITY-RUNBOOK.md"
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: patch-gap-001-zucchini-hosted-capacity
+  cancel-in-progress: false
+
+jobs:
+  contracts:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate resource observation and negative contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile benchmarks/scripts/patch_gap_zucchini_hosted_capacity.py
+          python3 -m unittest benchmarks/scripts/test_patch_gap_zucchini_hosted_capacity.py -v
+          echo 'Fixture-only tests PASS; no hosted capacity actually measured by this PR job.' >> "$GITHUB_STEP_SUMMARY"
+
+  probe:
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.number == 183 &&
+      github.event.issue.pull_request == null &&
+      github.event.comment.user.id == 271974079 &&
+      startsWith(github.event.comment.body, '/zucchini-capacity ')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COMMAND: ${{ github.event.comment.body }}
+      CAPACITY_PROBE_RUNNER_LABEL: ubuntu-24.04
+      RUNNER_ENVIRONMENT: ${{ runner.environment }}
+    steps:
+      - name: Checkout exact current main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Authorize one-shot standard-runner observation, never a Chromium build
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=normal)"
+          python3 - <<'PY'
+          import datetime,json,os,re,subprocess
+          match=re.fullmatch(r"/zucchini-capacity (20[0-9]{6})",os.environ["COMMAND"])
+          if match is None:
+              raise SystemExit("Only exact /zucchini-capacity YYYYMMDD accepted")
+          date=match.group(1)
+          datetime.datetime.strptime(date,"%Y%m%d")
+          repo=os.environ["GITHUB_REPOSITORY"]
+          def api(path):
+              return json.loads(subprocess.check_output(["gh","api","repos/"+repo+"/"+path],text=True))
+          source=os.environ["GITHUB_SHA"]
+          if api("branches/main")["commit"]["sha"]!=source:
+              raise SystemExit("main changed since the command; stale source")
+          runs=api("actions/workflows/patch-gap-001-zucchini-capacity.yml/runs?event=issue_comment&per_page=100")
+          if runs.get("total_count",0)>100:
+              raise SystemExit("Too many resource probes for bounded review")
+          for run in runs.get("workflow_runs",[]):
+              if str(run["id"])==os.environ["GITHUB_RUN_ID"]:
+                  continue
+              if run.get("status")!="completed":
+                  raise SystemExit("Another hosted resource probe is active")
+              if run.get("conclusion")=="success":
+                  raise SystemExit("Original hosted resource probe already completed")
+          if api("branches/main")["commit"]["sha"]!=source:
+              raise SystemExit("main advanced during authorization")
+          with open(os.environ["GITHUB_ENV"],"a",encoding="utf-8") as f:
+              f.write("CAPACITY_PROBE_DATE="+date+"\n")
+          PY
+
+      - name: Measure actual clean standard GitHub-hosted hardware and frozen build gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/patch_gap_zucchini_hosted_capacity.py             --output "$RUNNER_TEMP/zucchini-hosted-capacity.json"             | tee "$RUNNER_TEMP/zucchini-hosted-capacity.txt"
+          python3 - "$RUNNER_TEMP/zucchini-hosted-capacity.json" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert x["hardware"]["requiredDiskGiB"]==100
+          assert x["hardware"]["requiredMemoryGiB"]==8
+          assert x["fullChromiumBuildExecuted"] is False
+          assert x["organizationLargerRunnerInventoryVerified"] is False
+          assert x["runner"]["label"]=="ubuntu-24.04"
+          print("CAPACITY_OBSERVATION_RECORDED; NOT a Chromium build or Zucchini reference measurement.")
+          PY
+          cat "$RUNNER_TEMP/zucchini-hosted-capacity.txt" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Preserve machine evidence on first original GitHub-hosted observation
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-001-zucchini-standard-host-capacity-${{ github.run_id }}-${{ github.sha }}
+          path: ${{ runner.temp }}/zucchini-hosted-capacity.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Record evidence origin and strict non-claims
+        shell: bash
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
+        run: |
+          set -euo pipefail
+          test -n "$ARTIFACT_ID"
+          [[ "$ARTIFACT_DIGEST" =~ ^(sha256:)?[0-9a-f]{64}$ ]]
+          {
+            echo "Run: $GITHUB_RUN_ID, attempt: $GITHUB_RUN_ATTEMPT, HEAD: $GITHUB_SHA"
+            echo "Artifact ID: $ARTIFACT_ID, digest: sha256:${ARTIFACT_DIGEST#sha256:}"
+            echo "Standard hosted capacity ONLY: org larger-runner availability UNKNOWN."
+            echo "No paid runner, Chromium binary or calibration/evaluation evidence."
+          } >> "$GITHUB_STEP_SUMMARY"
