@@ -49,13 +49,14 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       COMMAND: ${{ github.event.comment.body }}
       CAPACITY_PROBE_RUNNER_LABEL: ubuntu-24.04
-      RUNNER_ENVIRONMENT: ${{ runner.environment }}
     steps:
       - name: Checkout exact current main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Authorize one-shot standard-runner observation, never a Chromium build
         shell: bash
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
         run: |
           set -euo pipefail
           test "$GITHUB_REF" = refs/heads/main
@@ -94,6 +95,8 @@ jobs:
 
       - name: Measure actual clean standard GitHub-hosted hardware and frozen build gate
         shell: bash
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
         run: |
           set -euo pipefail
           python3 benchmarks/scripts/patch_gap_zucchini_hosted_capacity.py             --output "$RUNNER_TEMP/zucchini-hosted-capacity.json"             | tee "$RUNNER_TEMP/zucchini-hosted-capacity.txt"
