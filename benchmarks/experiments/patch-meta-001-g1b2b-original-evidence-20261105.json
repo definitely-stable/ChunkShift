@@ -1,0 +1,379 @@
+{
+  "schema": "chunkshift.patch-meta-001-original-codec-evidence.v1",
+  "experimentId": "PATCH-META-001",
+  "evidenceId": "PATCH-META-001/G1B2B-FIRST-RELEASE-DEFER-20261105-001",
+  "date": "2026-11-05",
+  "status": "DEFER",
+  "scope": "FIRST_PUBLIC_PATCHING_RELEASE_ONLY",
+  "action": "NO_PUBLIC_FEATURE_CACHE_API__NO_PERSISTED_METADATA_FORMAT__NO_CSP_CHANGE",
+  "run": {
+    "id": 41953519062,
+    "attempt": 1,
+    "conclusion": "success",
+    "sha": "7dea7c722bfeefd3871ff051903dc62d3eec3881",
+    "stackedPR": 445,
+    "parentDraftPRs": [
+      372,
+      370,
+      368,
+      367
+    ]
+  },
+  "source": {
+    "family": "roslyn-pe",
+    "versions": [
+      "4.13.0",
+      "4.14.0"
+    ],
+    "entry": "lib/net8.0/Microsoft.CodeAnalysis.CSharp.dll",
+    "sha256": {
+      "4.13.0": "7da8fb18fa6e19a166b35d87b731ecbb040c3ad2cc7894b19953384aee0f5fe4",
+      "4.14.0": "9acdb971334046d22a07fad02648e2725ef5a1b9d0fbe4fe82f1ada57fa70c9e"
+    },
+    "packages": {
+      "4.13.0": "8f33bbff68fbacfaaee17b66e25861d888da8b0f9a524891fb2627f9af2683f3",
+      "4.14.0": "e4cce3dd791860b9300d6875eebd4d11749b5f0c166103e23a6912325828d496"
+    },
+    "exactOriginal": true
+  },
+  "retainedMetrics": {
+    "fields": [
+      "round",
+      "mode",
+      "builderWallSeconds",
+      "builderCpuSeconds",
+      "originalStageSha256",
+      "plainCodecWorkerSeconds",
+      "dictionaryCodecWorkerSeconds",
+      "dictionaryReadWorkerSeconds",
+      "plainCodecTrials",
+      "dictionaryCodecTrials",
+      "dictionaryReadCalls"
+    ],
+    "reason": "Exact original per-run compact projection; full verified original stage records in matching 30-day GitHub Actions ZIPs."
+  },
+  "platforms": {
+    "linux-x64": {
+      "artifactId": 13382387028,
+      "archiveZipBytes": 15531,
+      "archiveZipSha256": "77a7aa4d8dde8544c3914f6279c61d0fd61e368603205b72421b2f85334e291e",
+      "codecSummarySha256": "4e70b053571d9720eee244871745fd1f347da63595b8f4cbfdc0467d1ee9cd6a",
+      "pairsSha256": "cbc6a9b2918208703fa799e4e78eb345ae33d81068b27036b9cd342aac8d4d16",
+      "samples": [
+        [
+          0,
+          "off",
+          14.50155,
+          29.563137,
+          "cbdd8d93336ec2e66ebea3b8e45badc07425051eb44bccab73f5b5d714a8fce0",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          0,
+          "on",
+          11.5727961,
+          23.841564,
+          "b0ee66b9341c523ce05ef3438b053df6be6dc6518d27696d0d25629b81167fba",
+          2.767718758,
+          19.861411324,
+          0.042792632,
+          81,
+          464,
+          464
+        ],
+        [
+          1,
+          "on",
+          11.4625478,
+          23.579388,
+          "26aeb0d853106ea2a53d85f9dcf9e719fe08a95d1f4b9d27de7087dca3b08fa6",
+          2.724994087,
+          19.686930792,
+          0.042638482,
+          81,
+          464,
+          464
+        ],
+        [
+          1,
+          "off",
+          11.4465146,
+          23.558659,
+          "6a682dc45dfea84c8872fca07e87cd0a33de29133fac52a2b102420446ae6188",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          2,
+          "off",
+          11.5739391,
+          23.760861,
+          "c377c2685535217349fa0410ddd7ad650e34c068c2fa26f7b4739eafacdcb399",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          2,
+          "on",
+          11.5406683,
+          23.730054,
+          "c65d7083a3737a3029050046296b063597a9701e8ba223f09c6fe660bc94b56c",
+          2.787113716,
+          19.776978637,
+          0.04114502,
+          81,
+          464,
+          464
+        ],
+        [
+          3,
+          "on",
+          11.5192094,
+          23.667557,
+          "be5bc35f04509be3d6c53beb5e14952d9a91710c4b473066033c4281e1965047",
+          2.751890313,
+          19.786308586,
+          0.041219621,
+          81,
+          464,
+          464
+        ],
+        [
+          3,
+          "off",
+          11.6535352,
+          23.921995,
+          "c08e1e2021f33f1cdb72b8f2ac4e6bb15107da4dd9b7a1831ba1265bfa047514",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          4,
+          "off",
+          11.4885739,
+          23.634736,
+          "da5962ad8174c91d13a2695a7c8c6418f516571f001aec2ef4bf5d79939f05b0",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          4,
+          "on",
+          11.5958212,
+          23.855059,
+          "a65596f29e9bce86724a8814412250fb8ced9fc58a7e721e9b13ed8fffc2aac5",
+          2.782236048,
+          19.903691549,
+          0.04238343,
+          81,
+          464,
+          464
+        ]
+      ],
+      "medianWarmCandidateSearchWorkerSeconds": 0.0006197995,
+      "medianWarmDictionaryReadBytes": 164725443,
+      "medians": {
+        "offBuilder": 11.531256500000001,
+        "onBuilder": 11.52993885,
+        "plain": 2.7670631805,
+        "dict": 19.7816436115,
+        "read": 0.0418015255
+      }
+    },
+    "windows-x64": {
+      "artifactId": 13382636333,
+      "archiveZipBytes": 15503,
+      "archiveZipSha256": "cefd98578688bfd4961a80324c17e9a2cbba01d987f3359a3a26a5666483b5c7",
+      "codecSummarySha256": "cead68845ce4fd8f9cda3b0f3ac27fba2f29c137aa24b870dfa87a4ac054e84e",
+      "pairsSha256": "f9d2c7b34759dd3560c85bb96f97b3c3ace76459799659cf831871487f6c2b9b",
+      "samples": [
+        [
+          0,
+          "off",
+          12.1118656,
+          24.421875,
+          "755701d4362fac22972d43fb4dce2c967f91be906f4eb5c39c60ca0796817b27",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          0,
+          "on",
+          9.9138459,
+          20.296875,
+          "b50c7b8b93910b44d66d6c47277d38e4aa3570d1177839d44c14fbc20e8a4e46",
+          2.2145432,
+          17.1443726,
+          0.0643094,
+          81,
+          464,
+          464
+        ],
+        [
+          1,
+          "on",
+          9.8328994,
+          20.046875,
+          "69761d95b535a9ab62c19ecf59f8cddd8918ce1f8839ff84e888a2772c7be674",
+          2.2310751,
+          16.9729633,
+          0.0639171,
+          81,
+          464,
+          464
+        ],
+        [
+          1,
+          "off",
+          9.8564305,
+          20.125,
+          "1aec60a799cdba6cdca1e015fc3af6efe7ce39f52af2631bf3eb5a9c60b1d2ac",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          2,
+          "off",
+          9.6515058,
+          19.796875,
+          "693bbbf7466633df009856e2b49b773a5b38ccc007397eb63eb9d9c69074084a",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          2,
+          "on",
+          9.6225355,
+          19.65625,
+          "ab3b06b568bd63512b192d91168c5c78713f17c574cee419cb917b9a8c6bb5ce",
+          2.1641609,
+          16.617938,
+          0.057122,
+          81,
+          464,
+          464
+        ],
+        [
+          3,
+          "on",
+          9.7465154,
+          20.046875,
+          "7e88940081f64a7f3affa9394d2f4146777e802a5178fe05abc3820993c485c0",
+          2.1830909,
+          16.8679521,
+          0.0588846,
+          81,
+          464,
+          464
+        ],
+        [
+          3,
+          "off",
+          9.4346717,
+          19.390625,
+          "46e67142d266d3021c1ff804b8dce424efed377df5a1d4016c25e1c6bf640e23",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          4,
+          "off",
+          9.9272066,
+          20.390625,
+          "19f5289e5e075c0041475ca81597690e8307caae7d13360e89e59aaedc8c86a3",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          4,
+          "on",
+          9.9366229,
+          20.421875,
+          "119ccbadba68ef6504067d7d0c622c9ceae27badf6a4045212908036f41c750f",
+          2.2063836,
+          17.243934,
+          0.0610778,
+          81,
+          464,
+          464
+        ]
+      ],
+      "medianWarmCandidateSearchWorkerSeconds": null,
+      "medianWarmDictionaryReadBytes": 164725443,
+      "medians": {
+        "offBuilder": 9.75396815,
+        "onBuilder": 9.789707400000001,
+        "plain": 2.19473725,
+        "dict": 16.9204577,
+        "read": 0.0599812
+      }
+    }
+  },
+  "outputSameBuildCspSha256": "842b8f8904556e0793e1a788058f33755bdc891eb17fe51689a91a878997f0b6",
+  "eachPlatform": {
+    "rounds": 5,
+    "creates": 10,
+    "exactApplies": 10,
+    "coldRoundExcluded": true,
+    "monitoredWorkerCount": 2
+  },
+  "eligibleCacheSavingsNotMeasured": true,
+  "cacheABPerformed": false,
+  "independentProductFamiliesMeasured": 1,
+  "readyToAdopt": false,
+  "readyToFreezePatchingAPI": false,
+  "evidenceInterpretation": {
+    "candidateStartEnumeration": "G1B2A observed near-millisecond worker sum; not a 30% opportunity on this Roslyn pair",
+    "dictionaryReads": "actual content reads, not safely skipped by disposable sidecars",
+    "codec": "target-dependent; worker sums overlap, not a reusable derived metadata budget",
+    "deferReason": "No demonstrated safely reusable consumed feature meeting 30% repeated-create opportunity. Safe G0 mechanics unintegrated with builder, no multi-family A/B or corrupt-cache speedup evidence."
+  },
+  "futureResearch": "Reopen only with newly demonstrated feature-cost headroom on independent families, preregistered invalidation checks, <=2% sidecar storage and sound warm/cold A/B; task-result caching under PATCH-EXEC-001 #225.",
+  "blockersToGlobalRejection": [
+    "Only one .NET product family observed",
+    "No actual disposable cache enabled in create",
+    "No independent multi-family holdout or repeated-source cache A/B",
+    "Worker-sum timings overlap and must not be read as wall-time speedup limits"
+  ]
+}
