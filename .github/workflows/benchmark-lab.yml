@@ -126,6 +126,7 @@ jobs:
             benchmarks/scripts/test_patch_gap_hdiff_retained_calibration.py \
             benchmarks/scripts/test_patch_gap_hdiff_retained_evaluation.py \
             benchmarks/scripts/test_patch_gap_first_release_closeout.py \
+            benchmarks/scripts/test_patch_meta_g1b2b_retained_evidence.py \
             benchmarks/scripts/test_patch_tree_001_first_release_closeout.py \
             benchmarks/scripts/test_patch_gap_g4_workflow_contract.py \
             benchmarks/scripts/test_patch_gap_g4_evidence.py \

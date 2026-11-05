@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-11-04",
+  "updated": "2026-11-05",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -585,8 +585,14 @@
         181
       ],
       "area": "patching-research",
-      "status": "PLANNED",
-      "question": "Reusable derived patch features across repeated create"
+      "status": "DEFER",
+      "question": "Reusable derived patch features across repeated create",
+      "decision": "First-public-release DEFER of disposable derived PatchFeatures sidecar: original source-locked G1B2B two-host consumed codec/read calibration, same-build CSP/apply identity; no safely reusable consumed feature or 30% net A/B shown; preserve CSP v1, no public metadata API. This does not REJECT future multi-family metadata reuse.",
+      "firstReleaseEvidence": "docs/research/results/PATCH-META-001-G1B2B-FIRST-RELEASE-DEFER-20261105-001.md",
+      "firstReleaseMachine": "benchmarks/experiments/patch-meta-001-g1b2b-original-evidence-20261105.json",
+      "originalCodecRunId": 41953519062,
+      "originalCodecBranch": "research/patch-meta-001-g1b2b-codec-attribution",
+      "originalCodecDisposition": "ORIGINAL_TWO_HOST_CALIBRATION_PASS__NO_CACHE_AB__FIRST_RELEASE_DEFER"
     },
     {
       "id": "PATCH-RESIDUAL-001",
