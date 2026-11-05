@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-11-01",
+  "updated": "2026-11-04",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -407,11 +407,11 @@
         7
       ],
       "area": "patching-research",
-      "status": "RUNNING",
+      "status": "DEFER",
       "question": "decompose the CSP size gap to zstd --patch-from, bsdiff, HDiffPatch, Zucchini",
       "protocol": "docs/benchmarks/PATCH-GAP-001-PROTOCOL.md",
       "evidence": "docs/research/results/PATCH-GAP-001-EVIDENCE-20261003-001.md",
-      "decision": "Stage-A inventory locked; G5 NOT_PRESENT. G1 REJECT: evaluation best B8/B32 2.273822% vs frozen 15% gate, 88.491273x base-read amplification, no G1 runtime gate; advance to frozen G3 RUN/FILE.",
+      "decision": "First-release research disposition: tested G1/G2/G3/G4-BCJ/G5 do not justify a CSP vNext RFC; HDiffPatch independently measured as reference only; Zucchini source-locked executable reference DEFER_RESOURCE_UNVERIFIED after hosted 100-GiB preflight failure; keep CSP v1 and #251 open.",
       "calibrationEvidence": "docs/research/results/PATCH-GAP-001-G1-CALIBRATION-EVIDENCE-20261004-001.md",
       "g1EvaluationEvidence": "docs/research/results/PATCH-GAP-001-G1-EVALUATION-EVIDENCE-20261006-001.md",
       "hdiffCalibrationEvidence": "docs/research/results/PATCH-GAP-001-HDIFF-CALIBRATION-EVIDENCE-20261101-001.md",
@@ -419,7 +419,13 @@
       "hdiffEvaluationMachine": "benchmarks/experiments/patch-gap-001-hdiff-evaluation-20261104.json",
       "hdiffEvaluationStatus": "ORIGINAL_844_FIXED_EVALUATION_REPORT_INDEPENDENT_AUDIT_PASS_REFERENCE_ONLY",
       "hdiffEvaluationRunId": "PATCH-GAP-001/RUN-20261104-3-37c43c7-linux-x64-hdiff-evaluation",
-      "hdiffEvaluationDisposition": "REFERENCE_MEASURED__NOT_CSP_FACTOR__ZUCCHINI_UNRESOLVED__NO_PUBLIC_API_FREEZE"
+      "hdiffEvaluationDisposition": "REFERENCE_MEASURED__NOT_CSP_FACTOR__ZUCCHINI_DEFER_FIRST_RELEASE__NO_PUBLIC_API_FREEZE",
+      "firstReleaseEvidence": "docs/research/results/PATCH-GAP-001-FIRST-RELEASE-CLOSEOUT-20261104-001.md",
+      "firstReleaseMachine": "benchmarks/experiments/patch-gap-001-first-release-closeout-20261104.json",
+      "firstReleaseDecisionId": "PATCH-GAP-001/FIRST-RELEASE-CLOSEOUT-20261104-001",
+      "firstReleaseCsp": "KEEP_CSP_V1_NO_VNEXT_RFC_FROM_TESTED_FACTORS",
+      "zucchiniFirstReleaseDisposition": "DEFER_RESOURCE_UNVERIFIED__REFERENCE_NOT_MEASURED",
+      "zucchiniStandardHostRunId": 41876675201
     },
     {
       "id": "PATCH-TREE-001",
