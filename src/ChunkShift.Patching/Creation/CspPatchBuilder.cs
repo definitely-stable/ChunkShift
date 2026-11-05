@@ -597,7 +597,12 @@ internal static partial class CspPatchBuilder
         }
 
         int bestCost = bytes.Length;
+        long plainStarted = metaProbe is null ? 0 : Stopwatch.GetTimestamp();
         ReadOnlySpan<byte> frame = encoder.EncodeZstd(bytes.Span, ReadOnlySpan<byte>.Empty);
+        if (metaProbe is not null)
+        {
+            metaProbe.RecordCodecTrial(Stopwatch.GetTimestamp() - plainStarted, bytes.Length, 0);
+        }
 
         if (frame.Length < bestCost)
         {
@@ -623,16 +628,26 @@ internal static partial class CspPatchBuilder
             }
 
             Memory<byte> dictionary = buffers.Candidate.AsMemory(0, length);
+            long dictionaryReadStarted = metaProbe is null ? 0 : Stopwatch.GetTimestamp();
             await baseChunks
                 .ReadAsync(start, count, dictionary, cancellationToken)
                 .ConfigureAwait(false);
+            if (metaProbe is not null)
+            {
+                metaProbe.RecordDictionaryRead(Stopwatch.GetTimestamp() - dictionaryReadStarted, length);
+            }
 
             if (!CspDictionary.IsUsable(dictionary.Span))
             {
                 continue;
             }
 
+            long dictionaryEncodeStarted = metaProbe is null ? 0 : Stopwatch.GetTimestamp();
             ReadOnlySpan<byte> dictionaryFrame = encoder.EncodeZstd(bytes.Span, dictionary.Span);
+            if (metaProbe is not null)
+            {
+                metaProbe.RecordCodecTrial(Stopwatch.GetTimestamp() - dictionaryEncodeStarted, bytes.Length, length);
+            }
             int cost = dictionaryFrame.Length + (count * CspFormat.DictionaryReferenceSize);
 
             if (cost < bestCost)

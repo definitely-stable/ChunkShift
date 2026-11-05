@@ -42,6 +42,54 @@ internal sealed class CspMetaResearchProbe
         Interlocked.Add(ref _candidateStarts, starts);
     }
 
+    // G1B2B: these counters describe actual consumed work, not reusable META.
+    // Compression frames are target-dependent; candidate bytes are verified
+    // against the authoritative base before a selected dictionary is used.
+    private long _plainCodecTicks;
+    private long _dictionaryCodecTicks;
+    private long _dictionaryReadTicks;
+    private long _plainCodecTrials;
+    private long _dictionaryCodecTrials;
+    private long _dictionaryReadCalls;
+    private long _plainInputBytes;
+    private long _dictionaryTargetInputBytes;
+    private long _dictionaryInputBytes;
+    private long _dictionaryReadBytes;
+
+    internal double PlainZstdWorkerSeconds => Seconds(Volatile.Read(ref _plainCodecTicks));
+    internal double DictionaryZstdWorkerSeconds => Seconds(Volatile.Read(ref _dictionaryCodecTicks));
+    internal double DictionaryReadWorkerSeconds => Seconds(Volatile.Read(ref _dictionaryReadTicks));
+    internal long PlainZstdTrials => Volatile.Read(ref _plainCodecTrials);
+    internal long DictionaryZstdTrials => Volatile.Read(ref _dictionaryCodecTrials);
+    internal long DictionaryReadCalls => Volatile.Read(ref _dictionaryReadCalls);
+    internal long PlainInputBytes => Volatile.Read(ref _plainInputBytes);
+    internal long DictionaryTargetInputBytes => Volatile.Read(ref _dictionaryTargetInputBytes);
+    internal long DictionaryInputBytes => Volatile.Read(ref _dictionaryInputBytes);
+    internal long DictionaryReadBytes => Volatile.Read(ref _dictionaryReadBytes);
+
+    internal void RecordCodecTrial(long elapsedTicks, int targetBytes, int dictionaryBytes)
+    {
+        if (dictionaryBytes == 0)
+        {
+            Interlocked.Add(ref _plainCodecTicks, elapsedTicks);
+            Interlocked.Increment(ref _plainCodecTrials);
+            Interlocked.Add(ref _plainInputBytes, targetBytes);
+            return;
+        }
+
+        Interlocked.Add(ref _dictionaryCodecTicks, elapsedTicks);
+        Interlocked.Increment(ref _dictionaryCodecTrials);
+        Interlocked.Add(ref _dictionaryTargetInputBytes, targetBytes);
+        Interlocked.Add(ref _dictionaryInputBytes, dictionaryBytes);
+    }
+
+    internal void RecordDictionaryRead(long elapsedTicks, int bytes)
+    {
+        Interlocked.Add(ref _dictionaryReadTicks, elapsedTicks);
+        Interlocked.Increment(ref _dictionaryReadCalls);
+        Interlocked.Add(ref _dictionaryReadBytes, bytes);
+    }
+
     private static double Seconds(long stopwatchTicks) =>
         stopwatchTicks / (double)Stopwatch.Frequency;
 }
