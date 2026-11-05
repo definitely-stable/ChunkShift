@@ -138,6 +138,18 @@ internal static class PatchMetaG1AAttribution
             metaCandidateStarts = metaProbe?.CandidateStarts,
             metaBaseRecords = metaProbe?.BaseRecords,
             metaUniqueBaseIds = metaProbe?.UniqueBaseIds,
+            // G1B2B: observed consumed zstd/dictionary work, null when disabled.
+            // Sum of parallel worker elapsed seconds is NOT exclusive wall time.
+            metaPlainZstdWorkerSeconds = metaProbe?.PlainZstdWorkerSeconds,
+            metaDictionaryZstdWorkerSeconds = metaProbe?.DictionaryZstdWorkerSeconds,
+            metaDictionaryReadWorkerSeconds = metaProbe?.DictionaryReadWorkerSeconds,
+            metaPlainZstdTrials = metaProbe?.PlainZstdTrials,
+            metaDictionaryZstdTrials = metaProbe?.DictionaryZstdTrials,
+            metaDictionaryReadCalls = metaProbe?.DictionaryReadCalls,
+            metaPlainInputBytes = metaProbe?.PlainInputBytes,
+            metaDictionaryTargetInputBytes = metaProbe?.DictionaryTargetInputBytes,
+            metaDictionaryInputBytes = metaProbe?.DictionaryInputBytes,
+            metaDictionaryReadBytes = metaProbe?.DictionaryReadBytes,
             outputPatchBytes = new FileInfo(patchPath).Length,
             patchPhysicalBytes = patchInfo.PhysicalLength,
             patchSha256,
