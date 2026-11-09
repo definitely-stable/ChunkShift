@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Numerics;
 using System.Security.Cryptography;
 using ChunkShift.Benchmarks.PatchLab.PatchGap;
@@ -291,7 +292,7 @@ internal static class PatchDictD1b0
             }
 
             TrialChoice? trial = EncodeChoice(
-                "composite:" + string.Join(",", indices.Select(i => i.ToString("D2"))),
+                "composite:" + string.Join(",", indices.Select(i => i.ToString("D2", CultureInfo.InvariantCulture))),
                 indices, baseChunks, focusTarget, encoder, decoder, t.Info.HashSuite, b.Records);
             if (trial is null)
             {
@@ -317,7 +318,7 @@ internal static class PatchDictD1b0
             focus.Value.Index, bestComposite, cancellationToken);
 
         // Perform exactly the receiver's real CSP Apply on each physical CSP.
-        string prefix = ordinal.ToString("D2");
+        string prefix = ordinal.ToString("D2", CultureInfo.InvariantCulture);
         ApplyRow h0Applied = await ApplyAndVerifyAsync(
             h0, baseCsmPath, basePath, targetBytes, file.TargetSha256,
             Path.Combine(evidenceDirectory, prefix + "-h0.out"), cancellationToken);
