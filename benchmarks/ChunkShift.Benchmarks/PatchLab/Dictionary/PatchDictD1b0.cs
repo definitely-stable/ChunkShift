@@ -273,6 +273,10 @@ internal static class PatchDictD1b0
             }
         }
 
+        // Composite-enabled search is a superset of the FULL contiguous
+        // search, not an unrelated strategy that may regress its winner.
+        bestComposite = bestContiguous;
+
         int[] pool = Enumerable.Range(0, MaxPool)
             .Select(i => checked(i * (b.Records.Length - 1) / (MaxPool - 1)))
             .Distinct().Order().ToArray();
