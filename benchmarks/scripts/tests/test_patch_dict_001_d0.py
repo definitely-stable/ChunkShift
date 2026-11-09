@@ -158,6 +158,12 @@ class PatchDictD0Tests(unittest.TestCase):
                                 lambda p, d: 100 - len(d))
         self.assertEqual(5, beyond.best_any.referenced_chunks)
         self.assertFalse(beyond.best_any.csp_v1_compatible)
+        only_v1 = bounded_oracle(base, [Run(0, 2), Run(4, 3)],
+                                 lambda p, d: 100 - len(d), max_references=4)
+        self.assertTrue(only_v1.best_any.csp_v1_compatible)
+        self.assertEqual(1, len(only_v1.best_any.plan.runs))
+        with self.assertRaises(ValueError):
+            bounded_oracle(base, [Run(0, 1)], lambda p, d: 1, max_references=33)
 
     def test_no_false_cross_file_or_byte_range_admission(self):
         base = base_of(b"abc", b"def")
