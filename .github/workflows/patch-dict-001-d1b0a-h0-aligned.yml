@@ -55,7 +55,7 @@ jobs:
         shell: bash
         run: |
           dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj \
-            -c Release --no-build --no-restore --filter FullyQualifiedName~PatchDictD1b0Tests
+            -c Release --no-build --no-restore --filter FullyQualifiedName~PatchDictD1b0aTests
 
   original-calibration:
     name: d1b0a-locked-original-calibration
