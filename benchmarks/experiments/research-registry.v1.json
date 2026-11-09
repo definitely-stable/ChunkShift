@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-11-05",
+  "updated": "2026-11-09",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -627,7 +627,7 @@
         184
       ],
       "area": "patching-research",
-      "status": "PLANNED",
+      "status": "DEFER",
       "question": "Bounded composite dictionaries from verified base chunk runs under equal byte budgets",
       "protocol": "docs/benchmarks/PATCH-DICT-001-D0-PROTOCOL.md",
       "foundation": "benchmarks/scripts/patch_dict_001_d0.py",
@@ -643,7 +643,10 @@
       "d1b0aDisposition": "EXACT_H0_ONE_ENTRY_CALIBRATION_PREFLIGHT__NOT_FRESH_HOLDOUT_OR_PRODUCT_DECISION__NO_ADOPT",
       "d1b0bProtocol": "docs/benchmarks/PATCH-DICT-001-D1B0B-MULTIFOCUS-K-PROTOCOL.md",
       "d1b0bFoundation": "benchmarks/ChunkShift.Benchmarks/PatchLab/Dictionary/PatchDictD1b0b.cs",
-      "d1b0bDisposition": "VARIABLE_K_ALL_ENTRIES_CALIBRATION_NECESSARY_GATE__NO_HOLDOUT__NO_ADOPT"
+      "d1b0bDisposition": "ORIGINAL_2_FILE_FOUR_ARM_MULTIFOCUS_CALIBRATION_VERIFIED__4_67256_PERCENT_VARIABLE_K__ZERO_COMPOSITE_EXTRA__FIRST_RELEASE_DEFER_NO_HOLDOUT",
+      "decision": "First-release DEFER of disjoint/composite multi-run dictionaries: source-locked four-arm full CSP D1-B0B H0=11,086 B, exhaustive fixed K4=11,086 B, variable K1..4=10,568 B (4.67256% smaller H0), and composite extra=0 B after stronger contiguous K. All exact original Applies independently verified; only 2 already-opened calibration files, NOT holdout; >=10% composite and receiver CPU/RSS/I/O adoption gates not demonstrated. Preserve CSP v1 and production builder. Variable K is optional independent builder research, not ADOPT.",
+      "firstReleaseEvidence": "docs/research/results/PATCH-DICT-001-D1B0B-FIRST-RELEASE-DEFER-20261109-001.md",
+      "firstReleaseMachine": "benchmarks/experiments/patch-dict-001-d1b0b-first-release-closeout-20261109.json"
     },
     {
       "id": "PATCH-ML-001",
