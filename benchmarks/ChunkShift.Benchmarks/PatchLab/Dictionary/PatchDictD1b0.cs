@@ -510,7 +510,7 @@ internal static class PatchDictD1b0
         return output.ToArray();
     }
 
-    private static async Task<ApplyRow> ApplyAndVerifyAsync(
+    internal static async Task<ApplyRow> ApplyAndVerifyAsync(
         byte[] patch,
         string baseManifestPath,
         string basePath,
@@ -547,7 +547,7 @@ internal static class PatchDictD1b0
             clock.Elapsed.TotalSeconds, cpuSeconds, Sha256(decoded));
     }
 
-    private static async Task<CsmFile> ReadManifestAsync(
+    internal static async Task<CsmFile> ReadManifestAsync(
         string path, CancellationToken cancellationToken)
     {
         await using FileStream manifest = PatchLabFiles.OpenRead(path);
@@ -564,7 +564,7 @@ internal static class PatchDictD1b0
         return new CsmFile(result, [.. records]);
     }
 
-    private static void VerifyChunkOffsetsAndDigests(byte[] content, CsmFile csm)
+    internal static void VerifyChunkOffsetsAndDigests(byte[] content, CsmFile csm)
     {
         if ((ulong)content.Length != csm.Info.ContentLength ||
             (ulong)csm.Records.Length != csm.Info.ChunkCount)
