@@ -56,20 +56,28 @@ internal static class PatchDictD1b0b
         bool H0ReplayExact,
         bool OnlyDeclaredPayloadEntriesChanged,
         long H0WholeCspBytes,
+        long FixedK4WholeCspBytes,
         long VariableKWholeCspBytes,
         long CompositeEnabledWholeCspBytes,
         string H0WholeCspSha256,
+        string FixedK4WholeCspSha256,
         string VariableKWholeCspSha256,
         string CompositeEnabledWholeCspSha256,
+        long FixedK4SavingsVsH0,
+        long VariableKSavingsVsFixedK4,
         long VariableKSavingsVsH0,
         long CompositeExtraSavingsVsVariableK,
+        int FixedK4EligibleCandidates,
         int VariableKEligibleCandidates,
         int CompositeEligibleCandidates,
+        int FixedK4ChangedEntries,
         int VariableKChangedEntries,
         int CompositeChangedEntries,
+        EntryStep[] FixedK4Steps,
         EntryStep[] VariableKSteps,
         EntryStep[] CompositeSteps,
         PatchDictD1b0.ApplyRow H0Apply,
+        PatchDictD1b0.ApplyRow FixedK4Apply,
         PatchDictD1b0.ApplyRow VariableKApply,
         PatchDictD1b0.ApplyRow CompositeApply);
 
@@ -242,29 +250,44 @@ internal static class PatchDictD1b0b
         byte[][] baseChunks = [.. baseCsm.Records.Select(x =>
             baseBytes.AsSpan(checked((int)x.Offset), checked((int)x.Length)).ToArray())];
 
+        // Decompose separate causes before reading original calibration scores:
+        // H0 -> exhaustive fixed K=4 starts -> K=1..4 -> sparse extra.
+        StageOutcome fixedK4 = await SweepAsync(
+            "fixed-k4", h0, baseChunks, baseCsm.Records,
+            targetBytes, targetCsm.Records, compositeOnly: false,
+            fixedK4Only: true, cancellationToken);
         StageOutcome variable = await SweepAsync(
-            "variable-k", h0, baseChunks, baseCsm.Records,
-            targetBytes, targetCsm.Records, compositeOnly: false, cancellationToken);
+            "variable-k", fixedK4.WholeCsp, baseChunks, baseCsm.Records,
+            targetBytes, targetCsm.Records, compositeOnly: false,
+            fixedK4Only: false, cancellationToken);
         StageOutcome extended = await SweepAsync(
             "composite-only", variable.WholeCsp, baseChunks, baseCsm.Records,
-            targetBytes, targetCsm.Records, compositeOnly: true, cancellationToken);
+            targetBytes, targetCsm.Records, compositeOnly: true,
+            fixedK4Only: false, cancellationToken);
 
-        if (variable.WholeCsp.Length > h0.Length ||
+        if (fixedK4.WholeCsp.Length > h0.Length ||
+            variable.WholeCsp.Length > fixedK4.WholeCsp.Length ||
             extended.WholeCsp.Length > variable.WholeCsp.Length)
         {
             throw new InvalidDataException("Nested multi-focus search regressed complete physical CSP.");
         }
 
+        PatchDictD1b0a.ReplaySnapshot fixedSnapshot = await PatchDictD1b0a.LoadReplayAsync(
+            fixedK4.WholeCsp, cancellationToken);
         PatchDictD1b0a.ReplaySnapshot varSnapshot = await PatchDictD1b0a.LoadReplayAsync(
             variable.WholeCsp, cancellationToken);
         PatchDictD1b0a.ReplaySnapshot compSnapshot = await PatchDictD1b0a.LoadReplayAsync(
             extended.WholeCsp, cancellationToken);
-        VerifyOnlyDeclaredChanges(baseline, varSnapshot, variable.Steps);
+        VerifyOnlyDeclaredChanges(baseline, fixedSnapshot, fixedK4.Steps);
+        VerifyOnlyDeclaredChanges(fixedSnapshot, varSnapshot, variable.Steps);
         VerifyOnlyDeclaredChanges(varSnapshot, compSnapshot, extended.Steps);
 
         PatchDictD1b0.ApplyRow h0Apply = await PatchDictD1b0.ApplyAndVerifyAsync(
             h0, baseManifest, basePath, targetBytes, file.TargetSha256,
             Path.Combine(evidenceDirectory, prefix + "-h0.out"), cancellationToken);
+        PatchDictD1b0.ApplyRow fixedK4Apply = await PatchDictD1b0.ApplyAndVerifyAsync(
+            fixedK4.WholeCsp, baseManifest, basePath, targetBytes, file.TargetSha256,
+            Path.Combine(evidenceDirectory, prefix + "-fixed-k4.out"), cancellationToken);
         PatchDictD1b0.ApplyRow variableApply = await PatchDictD1b0.ApplyAndVerifyAsync(
             variable.WholeCsp, baseManifest, basePath, targetBytes, file.TargetSha256,
             Path.Combine(evidenceDirectory, prefix + "-variable-k.out"), cancellationToken);
@@ -274,6 +297,9 @@ internal static class PatchDictD1b0b
 
         await File.WriteAllBytesAsync(
             Path.Combine(evidenceDirectory, prefix + "-h0.csp"), h0, cancellationToken);
+        await File.WriteAllBytesAsync(
+            Path.Combine(evidenceDirectory, prefix + "-fixed-k4.csp"),
+            fixedK4.WholeCsp, cancellationToken);
         await File.WriteAllBytesAsync(
             Path.Combine(evidenceDirectory, prefix + "-variable-k.csp"),
             variable.WholeCsp, cancellationToken);
@@ -287,6 +313,7 @@ internal static class PatchDictD1b0b
             file.TargetSha256 + "\n");
 
         File.Delete(Path.Combine(evidenceDirectory, prefix + "-h0.out"));
+        File.Delete(Path.Combine(evidenceDirectory, prefix + "-fixed-k4.out"));
         File.Delete(Path.Combine(evidenceDirectory, prefix + "-variable-k.out"));
         File.Delete(Path.Combine(evidenceDirectory, prefix + "-composite.out"));
         Directory.Delete(seed, recursive: true);
@@ -300,14 +327,18 @@ internal static class PatchDictD1b0b
                 cancellationToken),
             baseline.Entries.Length, baseCsm.Records.Length,
             true, true,
-            h0.Length, variable.WholeCsp.Length, extended.WholeCsp.Length,
-            Sha256(h0), Sha256(variable.WholeCsp), Sha256(extended.WholeCsp),
+            h0.Length, fixedK4.WholeCsp.Length, variable.WholeCsp.Length,
+            extended.WholeCsp.Length,
+            Sha256(h0), Sha256(fixedK4.WholeCsp), Sha256(variable.WholeCsp),
+            Sha256(extended.WholeCsp),
+            h0.Length - fixedK4.WholeCsp.Length,
+            fixedK4.WholeCsp.Length - variable.WholeCsp.Length,
             h0.Length - variable.WholeCsp.Length,
             variable.WholeCsp.Length - extended.WholeCsp.Length,
-            variable.EligibleCandidates, extended.EligibleCandidates,
-            variable.ChangedEntries, extended.ChangedEntries,
-            variable.Steps, extended.Steps,
-            h0Apply, variableApply, compositeApply);
+            fixedK4.EligibleCandidates, variable.EligibleCandidates, extended.EligibleCandidates,
+            fixedK4.ChangedEntries, variable.ChangedEntries, extended.ChangedEntries,
+            fixedK4.Steps, variable.Steps, extended.Steps,
+            h0Apply, fixedK4Apply, variableApply, compositeApply);
     }
 
     private static async Task<StageOutcome> SweepAsync(
@@ -318,6 +349,7 @@ internal static class PatchDictD1b0b
         byte[] targetBytes,
         CsmChunkEntry[] targetRecords,
         bool compositeOnly,
+        bool fixedK4Only,
         CancellationToken cancellationToken)
     {
         byte[] current = input;
@@ -382,8 +414,9 @@ internal static class PatchDictD1b0b
             {
                 for (int start = 0; start < baseRecords.Length; start++)
                 {
-                    for (int count = 1; count <= MaxReferences &&
-                         start + count <= baseRecords.Length; count++)
+                    for (int count = fixedK4Only ? MaxReferences : 1;
+                         count <= MaxReferences && start + count <= baseRecords.Length;
+                         count++)
                     {
                         int[] indices = Enumerable.Range(start, count).ToArray();
                         PatchDictD1b0a.Candidate? candidate =
