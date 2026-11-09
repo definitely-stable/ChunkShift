@@ -20,8 +20,10 @@ public sealed class PatchDictD1b0Tests
         Assert.Equal(row.TargetSourceSha256, row.ContiguousApply.TargetSha256);
         Assert.Equal(row.TargetSourceSha256, row.CompositeApply.TargetSha256);
         Assert.InRange(row.BaseRecordCount, 5, PatchDictD1b0.MaxBaseRecords);
-        Assert.InRange(row.ContiguousCandidates, 1, int.MaxValue);
-        Assert.InRange(row.CompositeCandidates, 1, int.MaxValue);
+        // Zero eligible encoded candidates is a valid negative compression result:
+        // raw/no-dictionary fallback must still create and Apply exact full CSP.
+        Assert.InRange(row.ContiguousCandidates, 0, int.MaxValue);
+        Assert.InRange(row.CompositeCandidates, 0, int.MaxValue);
         Assert.InRange(row.ChosenContiguousReferences, 0, 4);
         Assert.InRange(row.ChosenCompositeReferences, 0, 4);
         Assert.True(row.H0WholeCspBytes > 0);
