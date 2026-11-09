@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using ChunkShift.Benchmarks.PatchLab;
 using ChunkShift.Benchmarks.PatchLab.Dictionary;
 
 namespace ChunkShift.Benchmarks.Tests.PatchLab;
