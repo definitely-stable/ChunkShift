@@ -130,21 +130,26 @@ jobs:
           assert d['pairsSha256'] == '8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd'
           assert 1 <= d['fileCount'] <= 2 and d['fileCount'] == len(d['files'])
           assert 'NOT_FRESH_HOLDOUT' in d['evidenceClass']
-          total_h0 = total_k = total_sparse = 0
+          total_h0 = total_fixed = total_k = total_sparse = 0
           for i, row in enumerate(d['files']):
               prefix = f'{i:02d}'
               assert row['family'] in ('dotnet-aspnetcore-win-x64', 'dotnet-runtime-linux-arm64')
               assert row['h0ReplayExact'] is True
               assert row['onlyDeclaredPayloadEntriesChanged'] is True
-              assert row['h0WholeCspBytes'] >= row['variableKWholeCspBytes'] >= row['compositeEnabledWholeCspBytes']
-              assert row['variableKSavingsVsH0'] == row['h0WholeCspBytes'] - row['variableKWholeCspBytes']
+              assert row['h0WholeCspBytes'] >= row['fixedK4WholeCspBytes'] >= row['variableKWholeCspBytes'] >= row['compositeEnabledWholeCspBytes']
+              assert row['fixedK4SavingsVsH0'] == row['h0WholeCspBytes'] - row['fixedK4WholeCspBytes']
+              assert row['variableKSavingsVsFixedK4'] == row['fixedK4WholeCspBytes'] - row['variableKWholeCspBytes']
+              assert row['variableKSavingsVsH0'] == row['fixedK4SavingsVsH0'] + row['variableKSavingsVsFixedK4']
               assert row['compositeExtraSavingsVsVariableK'] == row['variableKWholeCspBytes'] - row['compositeEnabledWholeCspBytes']
+              assert len(row['fixedK4Steps']) == row['payloadEntries']
               assert len(row['variableKSteps']) == row['payloadEntries']
               assert len(row['compositeSteps']) == row['payloadEntries']
+              assert row['fixedK4EligibleCandidates'] == sum(x['candidateCount'] for x in row['fixedK4Steps'])
               assert row['variableKEligibleCandidates'] == sum(x['candidateCount'] for x in row['variableKSteps'])
               assert row['compositeEligibleCandidates'] == sum(x['candidateCount'] for x in row['compositeSteps'])
               for steps,delta in (
-                  (row['variableKSteps'],row['variableKSavingsVsH0']),
+                  (row['fixedK4Steps'],row['fixedK4SavingsVsH0']),
+                  (row['variableKSteps'],row['variableKSavingsVsFixedK4']),
                   (row['compositeSteps'],row['compositeExtraSavingsVsVariableK']),
               ):
                   assert sum(x['physicalBytesSaved'] for x in steps) == delta
@@ -160,6 +165,7 @@ jobs:
               assert (root/(prefix+'.target.sha256')).read_text().strip() == row['targetSourceSha256']
               for name,sizeKey,shaKey,applyKey in (
                   ('h0','h0WholeCspBytes','h0WholeCspSha256','h0Apply'),
+                  ('fixed-k4','fixedK4WholeCspBytes','fixedK4WholeCspSha256','fixedK4Apply'),
                   ('variable-k','variableKWholeCspBytes','variableKWholeCspSha256','variableKApply'),
                   ('composite','compositeEnabledWholeCspBytes','compositeEnabledWholeCspSha256','compositeApply'),
               ):
@@ -176,15 +182,19 @@ jobs:
                   assert independent['verdict'] == 'valid', independent
                   assert independent['outputSha256'] == row['targetSourceSha256'], independent
               total_h0 += row['h0WholeCspBytes']
+              total_fixed += row['fixedK4WholeCspBytes']
               total_k += row['variableKWholeCspBytes']
               total_sparse += row['compositeEnabledWholeCspBytes']
               print(f"D1-B0B original {i}: {row['family']}/{row['path']} "
                     f"PAYL={row['payloadEntries']} H0={row['h0WholeCspBytes']} "
+                    f"fixed4={row['fixedK4WholeCspBytes']} "
                     f"K={row['variableKWholeCspBytes']} sparse={row['compositeEnabledWholeCspBytes']} "
-                    f"eligible K/sparse={row['variableKEligibleCandidates']}/{row['compositeEligibleCandidates']}")
-          print(f"D1-B0B ORIGINAL TOTAL H0={total_h0} K={total_k} COMPOSITE={total_sparse}; "
-                f"variable-K saving={total_h0-total_k} B; "
-                f"incremental sparse saving={total_k-total_sparse} B")
+                    f"eligible fixed4/K/sparse={row['fixedK4EligibleCandidates']}/{row['variableKEligibleCandidates']}/{row['compositeEligibleCandidates']}")
+          print(f"D1-B0B ORIGINAL TOTAL H0={total_h0} fixedK4={total_fixed} "
+                f"variableK={total_k} COMPOSITE={total_sparse}; "
+                f"start-search saving={total_h0-total_fixed} B; "
+                f"variable-K incremental saving={total_fixed-total_k} B; "
+                f"sparse incremental saving={total_k-total_sparse} B")
           print('D1-B0B independent original full CSP/Apply PASS; NOT HOLDOUT/ADOPT')
           PY
       - name: Archive first-attempt original calibration evidence
