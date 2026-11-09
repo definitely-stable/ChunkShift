@@ -1,6 +1,4 @@
 using ChunkShift.Benchmarks.PatchLab.Dictionary;
-using ChunkShift.Patching.Encoding;
-using ChunkShift.Patching.Format;
 
 namespace ChunkShift.Benchmarks.Tests.PatchLab;
 
@@ -100,17 +98,11 @@ public sealed class PatchDictD1aTests
     public void CorruptTruncatedFrameCannotReconstructTarget()
     {
         var f = PatchDictD1a.SyntheticFixture();
-        using var encoder = new CspPayloadEncoder(
-            19, CspDictionaryLoad.Prefix, dictionaryHashLog: 20, dictionaryChainLog: 20);
-        using var decoder = new CspPayloadDecoder();
         byte[] dictionary = f.Base[0];
-        byte[] frame = encoder.EncodeZstd(f.Target, dictionary).ToArray();
-        byte[] output = new byte[f.Target.Length];
-
-        decoder.Decode(CspFormat.EncodingZstd, frame, dictionary, output);
-        Assert.Equal(f.Target, output);
+        byte[] frame = PatchDictD1a.EncodeFrameForTests(f.Target, dictionary);
+        PatchDictD1a.VerifyFrameForTests(frame, dictionary, f.Target);
         Assert.ThrowsAny<Exception>(() =>
-            decoder.Decode(CspFormat.EncodingZstd, frame[..^1], dictionary, output));
+            PatchDictD1a.VerifyFrameForTests(frame[..^1], dictionary, f.Target));
     }
 
     [Fact]
