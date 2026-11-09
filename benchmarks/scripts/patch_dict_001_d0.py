@@ -130,6 +130,7 @@ def bounded_oracle(
     *,
     byte_budget: int = MAX_DICTIONARY_BYTES,
     max_runs: int = MAX_RUNS,
+    max_references: int = MAX_REFERENCES,
 ) -> OracleResult:
     """Exact selection over a SMALL declared pool; not whole-base/global optimality.
 
@@ -143,6 +144,8 @@ def bounded_oracle(
         raise ValueError("byte budget outside D0 limits")
     if type(max_runs) is not int or not 1 <= max_runs <= MAX_RUNS:
         raise ValueError("run limit outside D0 limits")
+    if type(max_references) is not int or not 1 <= max_references <= MAX_REFERENCES:
+        raise ValueError("reference limit outside D0 bounds")
     if not 1 <= len(candidates) <= MAX_CANDIDATES:
         raise ValueError("candidate count outside D0 limits")
     if any(type(r) is not Run for r in candidates):
@@ -161,7 +164,7 @@ def bounded_oracle(
         for subset in combinations(pool, count):
             if any(a.end >= b.start for a, b in zip(subset, subset[1:])):
                 continue  # overlap / adjacent runs cannot be canonical together
-            if sum(r.count for r in subset) > MAX_REFERENCES:
+            if sum(r.count for r in subset) > max_references:
                 continue
             plan = Plan(subset)
             try:
