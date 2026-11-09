@@ -69,7 +69,7 @@ jobs:
           idx = (root / 'docs/research/EXPERIMENT-INDEX.md').read_text(encoding='utf-8')
           matches = [line for line in idx.splitlines() if line.startswith('| PATCH-DOTNET-001 |')]
           assert len(matches) == 1
-          assert '| DEFER |' in matches[0]
+          assert matches[0].split('|')[5].strip().startswith('DEFER (first-release;')
           assert 'PATCH-DOTNET-001-D3P1-FIRST-RELEASE-DEFER-20261110-001.md' in matches[0]
           print('PASS first-release DEFER matches source-free original physical ledger on this exact HEAD')
           PY
