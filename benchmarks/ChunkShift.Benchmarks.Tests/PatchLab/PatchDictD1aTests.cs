@@ -34,6 +34,7 @@ public sealed class PatchDictD1aTests
                 40 + 24 + 32L * trial.ReferenceCount + trial.StoredBytes,
                 trial.EntryAndPidxBytes);
             Assert.Equal(64, trial.FrameSha256.Length);
+            Assert.InRange(trial.StoredBytes, 1, fixture.Target.Length);
         }
     }
 
