@@ -272,6 +272,20 @@ internal static class PatchDictD1a
             .ThenBy(o => o.RunCount)
             .ThenBy(o => o.RunOrdinals, StringComparer.Ordinal);
 
+    /// <summary>Lab-only test seam; no production library friend-assembly expansion.</summary>
+    internal static byte[] EncodeFrameForTests(byte[] target, byte[] dictionary)
+    {
+        using var encoder = new CspPayloadEncoder(
+            19, CspDictionaryLoad.Prefix, dictionaryHashLog: 20, dictionaryChainLog: 20);
+        return encoder.EncodeZstd(target, dictionary).ToArray();
+    }
+
+    internal static void VerifyFrameForTests(byte[] frame, byte[] dictionary, byte[] target)
+    {
+        using var decoder = new CspPayloadDecoder();
+        VerifyFrame(decoder, frame, dictionary, target, Sha256(target));
+    }
+
     private static void VerifyFrame(
         CspPayloadDecoder decoder,
         byte[] frame,
