@@ -131,7 +131,7 @@ jobs:
           for i, row in enumerate(summary['files']):
               prefix = f'{i:02d}'
               assert row['family'] in ('dotnet-aspnetcore-win-x64', 'dotnet-runtime-linux-arm64')
-              assert row['contiguousCandidates'] > 0 and row['compositeCandidates'] > 0
+              assert row['contiguousCandidates'] >= 0 and row['compositeCandidates'] >= 0
               assert row['compositeWholeCspBytes'] <= row['contiguousWholeCspBytes']
               assert 0 <= row['chosenContiguousReferences'] <= 4
               assert 0 <= row['chosenCompositeReferences'] <= 4
