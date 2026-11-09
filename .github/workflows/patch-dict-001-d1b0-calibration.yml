@@ -126,7 +126,7 @@ jobs:
           assert summary['datasetRole'] == 'calibration'
           assert summary['sourceCommit'] == __import__('os').environ['SOURCE_COMMIT']
           assert summary['pairsSha256'] == '8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd'
-          assert 1 <= summary['selectedFiles'] <= 2 == len(summary['files'])
+          assert 1 <= summary['selectedFiles'] <= 2 and summary['selectedFiles'] == len(summary['files'])
           assert 'NOT_DECISION' in summary['evidenceClass']
           for i, row in enumerate(summary['files']):
               prefix = f'{i:02d}'
