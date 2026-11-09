@@ -1,0 +1,89 @@
+{
+  "schema": "chunkshift.patch-dotnet-first-release-closeout.v1",
+  "evidenceId": "PATCH-DOTNET-001/D3P1-FIRST-RELEASE-DEFER-20261110-001",
+  "experimentId": "PATCH-DOTNET-001",
+  "date": "2026-11-10",
+  "firstReleaseDecision": "DEFER_DOTNET_SEMANTIC_TRANSFORMS__NO_PRODUCTION_ADOPT",
+  "scope": "D3P1 TypeRef-only physical STOP in correlated PowerShell calibration; D2/D4/D5 untested and first-release DEFER, not global rejection",
+  "defaultBuilderChanged": false,
+  "cspV1WireChanged": false,
+  "publicApiChanged": false,
+  "evaluationUnsealed": false,
+  "provenance": {
+    "sourceRepo": "definitely-stable/ChunkShift",
+    "issue": 221,
+    "experimentalPr": 281,
+    "sourceCommit": "0067f7c37eda3db2e0c6f58a001f3c99ddae09a5",
+    "hostedRun": 38123812844,
+    "artifactId": 11695974097,
+    "zipSha256": "f27a98829dc0abc3c7dac03e32cd9b383bae8e7219b78d38bb62dbffea8ce729",
+    "zipMemberCount": 126,
+    "verifiedSha256SumEntries": 125,
+    "validatedEnvelopes": 123,
+    "pairsSha256": "5ca65f09717c70913d324a3946b3b9b714c0f8f3466b0578ba9f52cb06dc89d9",
+    "baselineEvidenceSha256": "f0e4ff2e47905f22772f1642b105d6732b955070393eded3bf43c5b39ac82cee",
+    "scannerEvidenceSha256": "9c2e6beb1f1086e9cd95e37d512950e355334d78e41be11718c415bccdf95b84",
+    "originalD3PilotJsonSha256": "56ef0c2639d010aff943943446b8a1b59dec66cb1fa363be80323a303d0ec4fa",
+    "originalIndependentReplayJsonSha256": "aef549ec5838369fb19250e53f0a94eb7ce55eaa9e90b7c0f4f81c566108fcc5",
+    "all125MembersShaVerified": true,
+    "all123EnvelopeShaVerified": true,
+    "all123EnvelopeCspAndCdn1MagicVerified": true,
+    "hostedReconstructionClaim": "SUCCESS in original GitHub-hosted job, not locally rerun during source-free ZIP audit",
+    "datasetRole": "CALIBRATION_ONLY_NOT_FRESH_HOLDOUT",
+    "softwareFamilyCount": 1,
+    "upstreamProduct": "PowerShell",
+    "versionPair": "7.5.3 -> 7.5.4"
+  },
+  "families": [
+    {
+      "id": "ps-linux-fdd",
+      "changedRows": 263,
+      "h0Bytes": 1922166,
+      "selectedBytes": 1922166,
+      "verifiedCandidatePairs": 57
+    },
+    {
+      "id": "ps-win-fdd",
+      "changedRows": 282,
+      "h0Bytes": 2045059,
+      "selectedBytes": 2045059,
+      "verifiedCandidatePairs": 60
+    },
+    {
+      "id": "ps-win-sc",
+      "changedRows": 697,
+      "h0Bytes": 12062127,
+      "selectedBytes": 12062127,
+      "verifiedCandidatePairs": 6
+    }
+  ],
+  "aggregate": {
+    "changedRows": 1242,
+    "strictScannerVerifiedPairs": 123,
+    "selectedD3P1": 0,
+    "baselinePhysicalBytes": 16029352,
+    "selectedPhysicalBytes": 16029352,
+    "unconditionalPhysicalBytes": 16396830,
+    "candidateSubsetH0Bytes": 2172190,
+    "candidateNormalizedCspBytes": 2162832,
+    "candidateRawInverseBytes": 373884,
+    "candidateHeadersBytes": 2952,
+    "candidatePhysicalEnvelopeBytes": 2539668,
+    "envelopeHeaderLengthBytes": 24,
+    "measuredSavingsBytes": 0,
+    "candidateRegressBytes": 367478,
+    "observedGrossPositiveOnlyBytes": 9358,
+    "positiveNormalizedCspCandidates": 4,
+    "adoptionPopulationPhysicalSavingsThresholdPercent": 5,
+    "observedPayloadConditionedMaximumSavingPercent": 0.058380401154082835
+  },
+  "caveats": [
+    "Three correlated PowerShell deployments are not three independent product families",
+    "Source-free ZIP audit validates identities/framing/accounting, not a fresh independent CSP Apply on original binaries",
+    "123 strict TypeRef candidates only; D2 metadata, D4 RVA/relocations, D5 ReadyToRun and other IL tokens remain untested",
+    "All figures are original already-opened calibration, NOT a fresh held-out adoption decision",
+    "Observed max savings with free metadata applies only to frozen D3P1 normalized CSP payloads, not other models/codecs",
+    "No process-isolated create/apply CPU/wall/RSS gate; no general adoption claim",
+    "Source experiments remain on draft stacked PR branches; not merged as production code"
+  ]
+}
