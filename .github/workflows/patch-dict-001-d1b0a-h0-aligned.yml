@@ -3,11 +3,12 @@ name: PATCH-DICT-001 D1-B0A H0-aligned original calibration
 on:
   pull_request:
     paths:
+      - 'benchmarks/ChunkShift.Benchmarks/PatchLab/Dictionary/PatchDictD1b0a.cs'
       - 'benchmarks/ChunkShift.Benchmarks/PatchLab/Dictionary/PatchDictD1b0.cs'
       - 'benchmarks/ChunkShift.Benchmarks/PatchLab/PatchLabRunner.cs'
-      - 'benchmarks/ChunkShift.Benchmarks.Tests/PatchLab/PatchDictD1b0Tests.cs'
+      - 'benchmarks/ChunkShift.Benchmarks.Tests/PatchLab/PatchDictD1b0aTests.cs'
       - 'docs/benchmarks/PATCH-DICT-001-D1B0A-H0-ALIGNED-PROTOCOL.md'
-      - '.github/workflows/patch-dict-001-d1b0a-calibration.yml'
+      - '.github/workflows/patch-dict-001-d1b0a-h0-aligned.yml'
   workflow_dispatch:
 
 permissions:
