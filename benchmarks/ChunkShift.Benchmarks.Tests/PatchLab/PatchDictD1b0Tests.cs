@@ -30,6 +30,9 @@ public sealed class PatchDictD1b0Tests
         Assert.True(row.ContiguousWholeCspBytes > 0);
         Assert.True(row.CompositeWholeCspBytes > 0);
         Assert.True(row.CompositeWholeCspBytes <= row.ContiguousWholeCspBytes);
+        Assert.InRange(row.ChosenCompositeReferences, 2, 4);
+        Assert.True(row.CompositeWholeCspBytes < row.ContiguousWholeCspBytes,
+            $"Expected the mosaic target to benefit from two remote verified base chunks: composite={row.CompositeWholeCspBytes}, contiguous={row.ContiguousWholeCspBytes}");
         Assert.NotEqual("", row.BaseManifestId);
         Assert.NotEqual("", row.TargetManifestId);
 
@@ -50,6 +53,18 @@ public sealed class PatchDictD1b0Tests
         Assert.True(row.H0Apply.BaseReadCalls >= 0);
         Assert.True(row.ContiguousApply.BaseReadCalls >= 0);
         Assert.True(row.CompositeApply.BaseReadCalls >= 0);
+    }
+
+    [Fact]
+    public async Task RawFallbackStillProducesValidWholeCspForIncompressibleChanges()
+    {
+        using var fixture = new OriginalFixture(mosaic: false);
+        PatchDictD1b0.FileRow? row = await PatchDictD1b0.EvaluateFileAsync(
+            fixture.Corpus, fixture.Pair, fixture.File, fixture.Evidence, 0, CancellationToken.None);
+        Assert.NotNull(row);
+        Assert.Equal(row.TargetSourceSha256, row.ContiguousApply.TargetSha256);
+        Assert.Equal(row.TargetSourceSha256, row.CompositeApply.TargetSha256);
+        Assert.True(row.CompositeWholeCspBytes <= row.ContiguousWholeCspBytes);
     }
 
     [Fact]
@@ -81,7 +96,7 @@ public sealed class PatchDictD1b0Tests
         internal PatchLabChangedFile File { get; }
         internal string Evidence { get; }
 
-        internal OriginalFixture()
+        internal OriginalFixture(bool mosaic = true)
         {
             _root = Path.Combine(Path.GetTempPath(), "patch-dict-d1b0-test-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_root);
@@ -89,10 +104,23 @@ public sealed class PatchDictD1b0Tests
             Directory.CreateDirectory(Evidence);
             byte[] baseBytes = new byte[768 * 1024];
             new Random(0x2220).NextBytes(baseBytes);
-            byte[] targetBytes = (byte[])baseBytes.Clone();
-            for (int i = 300 * 1024; i < 310 * 1024; i++)
+            byte[] targetBytes;
+            if (mosaic)
             {
-                targetBytes[i] ^= (byte)(i * 17 + 3);
+                // Two disjoint, remote, original-source windows in ONE target.
+                // A single contiguous source chunk cannot cover both windows.
+                targetBytes = new byte[32 * 1024];
+                Array.Copy(baseBytes, 0, targetBytes, 0, 16 * 1024);
+                Array.Copy(baseBytes, baseBytes.Length - 16 * 1024, targetBytes, 16 * 1024, 16 * 1024);
+            }
+            else
+            {
+                // A real negative control: high-entropy base with novel bytes.
+                targetBytes = (byte[])baseBytes.Clone();
+                for (int i = 300 * 1024; i < 310 * 1024; i++)
+                {
+                    targetBytes[i] ^= (byte)(i * 17 + 3);
+                }
             }
 
             const string family = "dotnet-aspnetcore-win-x64";
