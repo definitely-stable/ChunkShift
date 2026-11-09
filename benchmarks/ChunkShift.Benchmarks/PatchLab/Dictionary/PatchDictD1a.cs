@@ -306,19 +306,19 @@ internal static class PatchDictD1a
             new(0, 2), new(3, 2),
         ];
 
-        return (chunks, [.. chunks.Select(Sha256)], target, pool, 16 * 1024);
+        return (chunks, [.. chunks.Select(chunk => Sha256(chunk))], target, pool, 16 * 1024);
     }
 
     internal static int Execute(string[] args)
     {
-        if (args is not ["--output", var output] || string.IsNullOrWhiteSpace(output))
+        if (args.Length != 2 || args[0] != "--output" || string.IsNullOrWhiteSpace(args[1]))
         {
             throw new PatchLabUsageException("patch-lab dict-d1a requires --output <json>.");
         }
 
         var f = SyntheticFixture();
         Result result = Evaluate(f.Base, f.Ids, f.Target, f.Pool, f.Budget);
-        PatchLabRunner.WriteJson(output, result);
+        PatchLabRunner.WriteJson(args[1], result);
         return 0;
     }
 }
