@@ -3,10 +3,11 @@ name: PATCH-DICT-001 D1-B0B multifocus K calibration
 on:
   pull_request:
     paths:
+      - 'benchmarks/ChunkShift.Benchmarks/PatchLab/Dictionary/PatchDictD1b0b.cs'
       - 'benchmarks/ChunkShift.Benchmarks/PatchLab/Dictionary/PatchDictD1b0a.cs'
       - 'benchmarks/ChunkShift.Benchmarks/PatchLab/Dictionary/PatchDictD1b0.cs'
       - 'benchmarks/ChunkShift.Benchmarks/PatchLab/PatchLabRunner.cs'
-      - 'benchmarks/ChunkShift.Benchmarks.Tests/PatchLab/PatchDictD1b0aTests.cs'
+      - 'benchmarks/ChunkShift.Benchmarks.Tests/PatchLab/PatchDictD1b0bTests.cs'
       - 'docs/benchmarks/PATCH-DICT-001-D1B0B-MULTIFOCUS-K-PROTOCOL.md'
       - '.github/workflows/patch-dict-001-d1b0b-multifocus.yml'
   workflow_dispatch:
@@ -55,7 +56,7 @@ jobs:
         shell: bash
         run: |
           dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj \
-            -c Release --no-build --no-restore --filter FullyQualifiedName~PatchDictD1b0aTests
+            -c Release --no-build --no-restore --filter FullyQualifiedName~PatchDictD1b0bTests
 
   original-calibration:
     name: d1b0b-locked-original-calibration
