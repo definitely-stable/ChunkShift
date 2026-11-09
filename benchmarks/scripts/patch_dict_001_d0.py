@@ -18,6 +18,7 @@ MAX_DICTIONARY_BYTES = 1 * 1024 * 1024
 MAX_CANDIDATES = 8
 MAX_RUNS = 16
 MAX_REFERENCES = 32
+CSP_V1_MAX_REFERENCES = 4  # CSP-V1-CANDIDATE section 5.2
 ZSTD_TRAINED_MAGIC = bytes.fromhex("37a430ec")
 
 
@@ -50,6 +51,11 @@ class ScoredPlan:
     score: int
     dictionary_bytes: int
     referenced_chunks: int
+
+    @property
+    def csp_v1_compatible(self) -> bool:
+        # CSP v1 stores up to four ordered base ChunkIds, not run ordinals.
+        return self.referenced_chunks <= CSP_V1_MAX_REFERENCES
 
 
 @dataclass(frozen=True)
