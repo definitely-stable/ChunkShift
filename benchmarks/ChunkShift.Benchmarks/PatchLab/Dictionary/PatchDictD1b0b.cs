@@ -435,7 +435,7 @@ internal static class PatchDictD1b0b
         EntryStep[] steps)
     {
         if (before.Entries.Length != after.Entries.Length ||
-            steps.Count != before.Entries.Length ||
+            steps.Length != before.Entries.Length ||
             !before.TargetCsm.AsSpan().SequenceEqual(after.TargetCsm) ||
             before.ExpectedBase != after.ExpectedBase ||
             before.HashSuite != after.HashSuite)
