@@ -80,6 +80,15 @@ jobs:
               assert item['dictionaryBytes'] <= d['dictionaryBudgetBytes']
               assert 0 < item['storedBytes'] <= d['targetBytes']
           print('D1-A synthetic ledger and full candidate population PASS; NOT whole-CSP evidence')
+          print('SYNTHETIC ENTRY COSTS bytes: '
+                f"raw={d['raw']['entryAndPidxBytes']} "
+                f"plain={d['plainZstd']['entryAndPidxBytes']} "
+                f"best_contiguous={d['bestContiguous']['entryAndPidxBytes']} "
+                f"best_composite={d['bestComposite']['entryAndPidxBytes']} "
+                f"best_any={d['bestAnyEntry']['entryAndPidxBytes']}")
+          print(f"candidate_count={d['eligibleCandidatePlans']} "
+                f"skipped_unstorable={d['skippedUnstorableFrames']} "
+                f"skipped_budget={d['skippedBudgetPlans']}")
           PY
       - name: Archive synthetic-only per-entry evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
