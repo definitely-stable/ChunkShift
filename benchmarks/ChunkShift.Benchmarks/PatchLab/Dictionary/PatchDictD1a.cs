@@ -44,6 +44,7 @@ internal static class PatchDictD1a
         int DictionaryBudgetBytes,
         int EligibleCandidatePlans,
         int SkippedBudgetPlans,
+        int SkippedUnstorableFrames,
         Observation Raw,
         Observation PlainZstd,
         Observation BestContiguous,
@@ -129,6 +130,7 @@ internal static class PatchDictD1a
         string targetHash = Sha256(target);
         var candidates = new List<Observation>();
         int budgetSkipped = 0;
+        int unstorable = 0;
 
         using var encoder = new CspPayloadEncoder(
             19, CspDictionaryLoad.Prefix, dictionaryHashLog: 20, dictionaryChainLog: 20);
@@ -219,6 +221,12 @@ internal static class PatchDictD1a
 
             byte[] frame = encoder.EncodeZstd(target, dictionary).ToArray();
             VerifyFrame(decoder, frame, dictionary, target, targetHash);
+            // CSP-V1-CANDIDATE: StoredLength cannot exceed target chunk length.
+            if (frame.Length > target.Length)
+            {
+                unstorable++;
+                continue;
+            }
             string canonicalRuns = string.Join(";", selected.Select(r => $"{r.Start}+{r.Count}"));
             candidates.Add(new Observation(
                 "zstd-verified-dictionary",
@@ -249,6 +257,7 @@ internal static class PatchDictD1a
             dictionaryBudgetBytes,
             candidates.Count,
             budgetSkipped,
+            unstorable,
             raw,
             plain,
             contiguous,
