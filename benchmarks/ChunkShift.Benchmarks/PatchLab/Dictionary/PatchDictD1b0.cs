@@ -303,11 +303,6 @@ internal static class PatchDictD1b0
             bestComposite = Min(bestComposite, trial);
         }
 
-        if (contiguousTrials == 0 || compositeTrials == 0)
-        {
-            throw new InvalidDataException("D1-B0 has no same-budget physical comparator universe.");
-        }
-
         byte[] h0 = await CreateH0Async(
             baseCsmPath, basePath, targetCsmPath, targetPath, cancellationToken);
         byte[] contiguous = await WriteLabPatchAsync(
