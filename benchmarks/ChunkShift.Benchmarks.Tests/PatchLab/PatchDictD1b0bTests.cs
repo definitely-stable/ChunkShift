@@ -18,10 +18,14 @@ public sealed class PatchDictD1b0bTests
         Assert.True(row.H0ReplayExact);
         Assert.True(row.OnlyDeclaredPayloadEntriesChanged);
         Assert.True(row.PayloadEntries > 0);
+        Assert.Equal(row.PayloadEntries, row.FixedK4Steps.Length);
         Assert.Equal(row.PayloadEntries, row.VariableKSteps.Length);
         Assert.Equal(row.PayloadEntries, row.CompositeSteps.Length);
-        Assert.True(row.H0WholeCspBytes >= row.VariableKWholeCspBytes);
+        Assert.True(row.H0WholeCspBytes >= row.FixedK4WholeCspBytes);
+        Assert.True(row.FixedK4WholeCspBytes >= row.VariableKWholeCspBytes);
         Assert.True(row.VariableKWholeCspBytes >= row.CompositeEnabledWholeCspBytes);
+        Assert.True(row.FixedK4SavingsVsH0 >= 0);
+        Assert.True(row.VariableKSavingsVsFixedK4 >= 0);
         Assert.True(row.VariableKSavingsVsH0 >= 0);
         Assert.True(row.CompositeExtraSavingsVsVariableK > 0);
         Assert.True(row.CompositeEligibleCandidates >= 1);
@@ -42,14 +46,20 @@ public sealed class PatchDictD1b0bTests
         Assert.NotNull(row);
         Assert.True(row.PayloadEntries > 1);
         Assert.Equal(Enumerable.Range(0, row.PayloadEntries),
+            row.FixedK4Steps.Select(x => x.PayloadOrdinal));
+        Assert.Equal(Enumerable.Range(0, row.PayloadEntries),
             row.VariableKSteps.Select(x => x.PayloadOrdinal));
         Assert.Equal(Enumerable.Range(0, row.PayloadEntries),
             row.CompositeSteps.Select(x => x.PayloadOrdinal));
+        Assert.Equal(row.FixedK4Steps.Sum(x => x.PhysicalBytesSaved),
+            row.FixedK4SavingsVsH0);
         Assert.Equal(row.VariableKSteps.Sum(x => x.PhysicalBytesSaved),
+            row.VariableKSavingsVsFixedK4);
+        Assert.Equal(row.FixedK4SavingsVsH0 + row.VariableKSavingsVsFixedK4,
             row.VariableKSavingsVsH0);
         Assert.Equal(row.CompositeSteps.Sum(x => x.PhysicalBytesSaved),
             row.CompositeExtraSavingsVsVariableK);
-        Assert.All(row.VariableKSteps.Concat(row.CompositeSteps), x =>
+        Assert.All(row.FixedK4Steps.Concat(row.VariableKSteps).Concat(row.CompositeSteps), x =>
         {
             Assert.InRange(x.ChosenReferenceCount, 0, 4);
             Assert.True(x.WholeCspBytesBefore >= x.WholeCspBytesAfter);
@@ -85,6 +95,7 @@ public sealed class PatchDictD1b0bTests
         foreach (var (suffix, expectedSize, expectedHash) in new[]
         {
             ("h0", row.H0WholeCspBytes, row.H0WholeCspSha256),
+            ("fixed-k4", row.FixedK4WholeCspBytes, row.FixedK4WholeCspSha256),
             ("variable-k", row.VariableKWholeCspBytes, row.VariableKWholeCspSha256),
             ("composite", row.CompositeEnabledWholeCspBytes, row.CompositeEnabledWholeCspSha256)
         })
