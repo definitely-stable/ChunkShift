@@ -634,7 +634,10 @@
       "foundationDisposition": "D0_SYNTHETIC_CONTRACT_ONLY__NO_PHYSICAL_PATCH_EVIDENCE__NO_ADOPT",
       "d1aProtocol": "docs/benchmarks/PATCH-DICT-001-D1A-ZSTD-ENTRY-PROTOCOL.md",
       "d1aFoundation": "benchmarks/ChunkShift.Benchmarks/PatchLab/Dictionary/PatchDictD1a.cs",
-      "d1aDisposition": "REAL_ZSTD_SYNTHETIC_PAYL_PIDX_ENTRY_ONLY__NOT_WHOLE_CSP_OR_ORIGINAL_CORPUS__NO_ADOPT"
+      "d1aDisposition": "REAL_ZSTD_SYNTHETIC_PAYL_PIDX_ENTRY_ONLY__NOT_WHOLE_CSP_OR_ORIGINAL_CORPUS__NO_ADOPT",
+      "d1b0Protocol": "docs/benchmarks/PATCH-DICT-001-D1B0-ORIGINAL-FULL-CSP-PROTOCOL.md",
+      "d1b0Foundation": "benchmarks/ChunkShift.Benchmarks/PatchLab/Dictionary/PatchDictD1b0.cs",
+      "d1b0Disposition": "ORIGINAL_CALIBRATION_FULL_CSP_SMOKE__NOT_FRESH_HOLDOUT_OR_DECISION__NO_ADOPT"
     },
     {
       "id": "PATCH-ML-001",
