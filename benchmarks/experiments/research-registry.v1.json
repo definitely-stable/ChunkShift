@@ -631,7 +631,10 @@
       "question": "Bounded composite dictionaries from verified base chunk runs under equal byte budgets",
       "protocol": "docs/benchmarks/PATCH-DICT-001-D0-PROTOCOL.md",
       "foundation": "benchmarks/scripts/patch_dict_001_d0.py",
-      "foundationDisposition": "D0_SYNTHETIC_CONTRACT_ONLY__NO_PHYSICAL_PATCH_EVIDENCE__NO_ADOPT"
+      "foundationDisposition": "D0_SYNTHETIC_CONTRACT_ONLY__NO_PHYSICAL_PATCH_EVIDENCE__NO_ADOPT",
+      "d1aProtocol": "docs/benchmarks/PATCH-DICT-001-D1A-ZSTD-ENTRY-PROTOCOL.md",
+      "d1aFoundation": "benchmarks/ChunkShift.Benchmarks/PatchLab/Dictionary/PatchDictD1a.cs",
+      "d1aDisposition": "REAL_ZSTD_SYNTHETIC_PAYL_PIDEX_ENTRY_ONLY__NOT_WHOLE_CSP_OR_ORIGINAL_CORPUS__NO_ADOPT"
     },
     {
       "id": "PATCH-ML-001",
