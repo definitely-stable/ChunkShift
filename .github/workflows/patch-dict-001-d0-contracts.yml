@@ -1,0 +1,46 @@
+name: PATCH-DICT-001 D0 structural contracts
+
+on:
+  pull_request:
+    paths:
+      - 'benchmarks/scripts/patch_dict_001_d0.py'
+      - 'benchmarks/scripts/tests/test_patch_dict_001_d0.py'
+      - 'docs/benchmarks/PATCH-DICT-001-D0-PROTOCOL.md'
+      - '.github/workflows/patch-dict-001-d0-contracts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  d0-contracts:
+    name: d0-contracts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - name: Checkout exact PR source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact checked-out commit
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Install pinned Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - name: Compile standalone D0 scripts
+        shell: bash
+        run: |
+          python -m py_compile benchmarks/scripts/patch_dict_001_d0.py benchmarks/scripts/tests/test_patch_dict_001_d0.py
+      - name: Verify bounded structural oracle contracts
+        shell: bash
+        run: |
+          python -m unittest discover -s benchmarks/scripts/tests -p 'test_patch_dict_001_d0.py' -v

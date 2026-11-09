@@ -628,7 +628,10 @@
       ],
       "area": "patching-research",
       "status": "PLANNED",
-      "question": "Bounded composite dictionaries from verified base chunk runs under equal byte budgets"
+      "question": "Bounded composite dictionaries from verified base chunk runs under equal byte budgets",
+      "protocol": "docs/benchmarks/PATCH-DICT-001-D0-PROTOCOL.md",
+      "foundation": "benchmarks/scripts/patch_dict_001_d0.py",
+      "foundationDisposition": "D0_SYNTHETIC_CONTRACT_ONLY__NO_PHYSICAL_PATCH_EVIDENCE__NO_ADOPT"
     },
     {
       "id": "PATCH-ML-001",
