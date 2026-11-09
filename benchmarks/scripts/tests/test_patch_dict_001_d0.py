@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from patch_dict_001_d0 import (  # noqa: E402
     BaseChunk, Plan, Run, VerifiedBase, bounded_oracle,
-    MAX_CANDIDATES, MAX_DICTIONARY_BYTES,
+    MAX_CANDIDATES, MAX_DICTIONARY_BYTES, CSP_V1_MAX_REFERENCES,
 )
 
 
@@ -146,6 +146,18 @@ class PatchDictD0Tests(unittest.TestCase):
             self.assertEqual(expected[0][1], result.best_any.plan)
             self.assertEqual(best_single[1], result.best_contiguous.plan)
             self.assertEqual(len(expected), result.evaluated)
+
+    def test_v1_compatibility_depends_on_refs_not_run_contiguity(self):
+        base = base_of(*(bytes([i + 1]) for i in range(9)))
+        within = bounded_oracle(base, [Run(0, 2), Run(4, 2)],
+                                lambda p, d: 100 - len(d))
+        self.assertEqual(4, CSP_V1_MAX_REFERENCES)
+        self.assertEqual(4, within.best_any.referenced_chunks)
+        self.assertTrue(within.best_any.csp_v1_compatible)
+        beyond = bounded_oracle(base, [Run(0, 2), Run(4, 3)],
+                                lambda p, d: 100 - len(d))
+        self.assertEqual(5, beyond.best_any.referenced_chunks)
+        self.assertFalse(beyond.best_any.csp_v1_compatible)
 
     def test_no_false_cross_file_or_byte_range_admission(self):
         base = base_of(b"abc", b"def")
