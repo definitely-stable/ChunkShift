@@ -122,9 +122,11 @@ public sealed class PatchDictD1b0bTests
             }
             else
             {
-                target = (byte[])old.Clone();
-                for (int i = 300 * 1024; i < 310 * 1024; i++)
-                    target[i] ^= (byte)(i * 17 + 3);
+                // Independently generated high-entropy target forces multiple
+                // novel PAYL entries without relying on CDC shifts from a
+                // single small edit.
+                target = new byte[768 * 1024];
+                new Random(0x2221).NextBytes(target);
             }
 
             const string family = "dotnet-aspnetcore-win-x64";
