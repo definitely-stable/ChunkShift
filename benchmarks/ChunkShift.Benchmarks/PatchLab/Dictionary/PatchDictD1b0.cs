@@ -3,6 +3,7 @@ using System.Numerics;
 using System.Security.Cryptography;
 using ChunkShift.Benchmarks.PatchLab.PatchGap;
 using ChunkShift.Manifest;
+using ChunkShift.Patching;
 using ChunkShift.Patching.Application;
 using ChunkShift.Patching.Creation;
 using ChunkShift.Patching.Encoding;
