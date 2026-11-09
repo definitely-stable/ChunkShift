@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-11-05",
+  "updated": "2026-11-09",
   "status_values": [
     "PLANNED",
     "RUNNING",
