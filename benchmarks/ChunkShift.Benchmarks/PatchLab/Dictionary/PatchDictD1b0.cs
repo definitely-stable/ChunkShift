@@ -182,6 +182,13 @@ internal static class PatchDictD1b0
     {
         string basePath = corpus.ContentPath(pair, pair.Base, file.Path);
         string targetPath = corpus.ContentPath(pair, pair.Target, file.Path);
+        if (new FileInfo(basePath).Length != file.BaseSize ||
+            new FileInfo(targetPath).Length != file.TargetSize ||
+            file.BaseSize > MaxBaseBytes || file.TargetSize > MaxTargetBytes)
+        {
+            throw new InvalidDataException("Original calibration file size or D1-B0 cap mismatch.");
+        }
+
         byte[] baseBytes = await File.ReadAllBytesAsync(basePath, cancellationToken);
         byte[] targetBytes = await File.ReadAllBytesAsync(targetPath, cancellationToken);
         if (baseBytes.Length != file.BaseSize ||
@@ -237,11 +244,10 @@ internal static class PatchDictD1b0
         using var encoder = new CspPayloadEncoder(
             19, CspDictionaryLoad.Prefix, dictionaryHashLog: 20, dictionaryChainLog: 20);
         using var decoder = new CspPayloadDecoder();
-        TrialChoice plain = EncodeChoice("plain", [], [], focusTarget, encoder, decoder, t.Info.HashSuite)
-            ?? throw new InvalidDataException("No-dictionary frame is not a valid D1-B0 trial.");
-
-        TrialChoice bestContiguous = Min(raw, plain);
-        TrialChoice bestComposite = Min(raw, plain);
+        TrialChoice? plain = EncodeChoice(
+            "plain", [], [], focusTarget, encoder, decoder, t.Info.HashSuite);
+        TrialChoice bestContiguous = plain is null ? raw : Min(raw, plain);
+        TrialChoice bestComposite = bestContiguous;
         int contiguousTrials = 0;
         int compositeTrials = 0;
 
