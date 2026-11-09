@@ -437,7 +437,7 @@ internal static class PatchDictD1b0a
         return destination.ToArray();
     }
 
-    private static async Task<Candidate?> EncodeAndSerializeAsync(
+    internal static async Task<Candidate?> EncodeAndSerializeAsync(
         string topology,
         int[] indices,
         int runs,
@@ -487,7 +487,7 @@ internal static class PatchDictD1b0a
             ids, frame, dictSize, runs, wholeCsp);
     }
 
-    private static Candidate Choose(Candidate first, Candidate second)
+    internal static Candidate Choose(Candidate first, Candidate second)
     {
         int result = first.WholeBytes.CompareTo(second.WholeBytes);
         if (result == 0) result = first.References.Length.CompareTo(second.References.Length);
@@ -496,7 +496,7 @@ internal static class PatchDictD1b0a
         return result <= 0 ? first : second;
     }
 
-    private static async Task RequireEntryParityAsync(
+    internal static async Task RequireEntryParityAsync(
         ReplaySnapshot baseline, byte[] candidate, int focus,
         CancellationToken cancellationToken)
     {
