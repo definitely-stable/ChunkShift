@@ -640,7 +640,10 @@
       "d1b0Disposition": "ORIGINAL_CALIBRATION_FULL_CSP_SMOKE__NOT_FRESH_HOLDOUT_OR_DECISION__NO_ADOPT",
       "d1b0aProtocol": "docs/benchmarks/PATCH-DICT-001-D1B0A-H0-ALIGNED-PROTOCOL.md",
       "d1b0aFoundation": "benchmarks/ChunkShift.Benchmarks/PatchLab/Dictionary/PatchDictD1b0a.cs",
-      "d1b0aDisposition": "EXACT_H0_ONE_ENTRY_CALIBRATION_PREFLIGHT__NOT_FRESH_HOLDOUT_OR_PRODUCT_DECISION__NO_ADOPT"
+      "d1b0aDisposition": "EXACT_H0_ONE_ENTRY_CALIBRATION_PREFLIGHT__NOT_FRESH_HOLDOUT_OR_PRODUCT_DECISION__NO_ADOPT",
+      "d1b0bProtocol": "docs/benchmarks/PATCH-DICT-001-D1B0B-MULTIFOCUS-K-PROTOCOL.md",
+      "d1b0bFoundation": "benchmarks/ChunkShift.Benchmarks/PatchLab/Dictionary/PatchDictD1b0b.cs",
+      "d1b0bDisposition": "VARIABLE_K_ALL_ENTRIES_CALIBRATION_NECESSARY_GATE__NO_HOLDOUT__NO_ADOPT"
     },
     {
       "id": "PATCH-ML-001",
