@@ -222,11 +222,12 @@ internal static class PatchDictD1b0b
 
         PatchDictD1b0a.ReplaySnapshot baseline = await PatchDictD1b0a.LoadReplayAsync(
             h0, cancellationToken);
+        byte[] verifiedTargetManifest = await File.ReadAllBytesAsync(
+            targetManifest, cancellationToken);
         if (baseline.Entries.Length is < 1 or > MaxPayloadEntries ||
             baseline.HashSuite != targetCsm.Info.HashSuite ||
             baseline.ExpectedBase != baseCsm.Info.StoredManifestId ||
-            !baseline.TargetCsm.AsSpan().SequenceEqual(
-                await File.ReadAllBytesAsync(targetManifest, cancellationToken)))
+            !baseline.TargetCsm.AsSpan().SequenceEqual(verifiedTargetManifest))
         {
             throw new InvalidDataException("D1-B0B original H0 CSM/base/entry binding mismatch.");
         }
@@ -431,7 +432,7 @@ internal static class PatchDictD1b0b
     private static void VerifyOnlyDeclaredChanges(
         PatchDictD1b0a.ReplaySnapshot before,
         PatchDictD1b0a.ReplaySnapshot after,
-        IReadOnlyList<EntryStep> steps)
+        EntryStep[] steps)
     {
         if (before.Entries.Length != after.Entries.Length ||
             steps.Count != before.Entries.Length ||
