@@ -227,7 +227,7 @@ internal static class PatchDictD1a
                 unstorable++;
                 continue;
             }
-            string canonicalRuns = string.Join(";", selected.Select(r => $"{r.Start}+{r.Count}"));
+            string canonicalRuns = string.Join(";", selected.Select(r => $"{r.Start:D2}+{r.Count:D2}"));
             candidates.Add(new Observation(
                 "zstd-verified-dictionary",
                 canonicalRuns,
