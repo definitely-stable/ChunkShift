@@ -1,0 +1,75 @@
+name: PATCH-DOTNET-001 source-free first-release DEFER contracts
+
+on:
+  pull_request:
+    paths:
+      - 'docs/research/results/PATCH-DOTNET-001-D3P1-FIRST-RELEASE-DEFER-20261110-001.md'
+      - 'benchmarks/experiments/patch-dotnet-001-d3p1-first-release-closeout-20261110.json'
+      - 'benchmarks/scripts/verify_patch_dotnet_001_closeout.py'
+      - 'benchmarks/experiments/research-registry.v1.json'
+      - 'docs/research/EXPERIMENT-INDEX.md'
+      - '.github/workflows/patch-dotnet-001-first-release-closeout.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-first-release-closeout:
+    name: original-physical-ledger-and-negative-controls (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Verify source commit and clean checkout
+        shell: bash
+        env:
+          SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          test -z "$(git status --porcelain=v1 --untracked-files=normal)"
+      - name: Python 3.14
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - name: Ledger conservation and fail-closed adversarial tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python benchmarks/scripts/verify_patch_dotnet_001_closeout.py --self-test
+          python benchmarks/scripts/verify_patch_dotnet_001_closeout.py
+      - name: Registry decision matches independently audited closeout
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('.')
+          ledger = json.loads((root / 'benchmarks/experiments/patch-dotnet-001-d3p1-first-release-closeout-20261110.json').read_text(encoding='utf-8'))
+          registry = json.loads((root / 'benchmarks/experiments/research-registry.v1.json').read_text(encoding='utf-8'))
+          rows = [x for x in registry['experiments'] if x['id'] == 'PATCH-DOTNET-001']
+          assert len(rows) == 1, len(rows)
+          row = rows[0]
+          assert row['status'] == 'DEFER'
+          assert row['firstReleaseEvidence'] == 'docs/research/results/PATCH-DOTNET-001-D3P1-FIRST-RELEASE-DEFER-20261110-001.md'
+          assert row['firstReleaseMachine'] == 'benchmarks/experiments/patch-dotnet-001-d3p1-first-release-closeout-20261110.json'
+          assert ledger['experimentId'] == 'PATCH-DOTNET-001'
+          assert ledger['defaultBuilderChanged'] is False
+          assert ledger['cspV1WireChanged'] is False
+          idx = (root / 'docs/research/EXPERIMENT-INDEX.md').read_text(encoding='utf-8')
+          matches = [line for line in idx.splitlines() if line.startswith('| PATCH-DOTNET-001 |')]
+          assert len(matches) == 1
+          assert matches[0].split('|')[5].strip().startswith('DEFER (first-release;')
+          assert 'PATCH-DOTNET-001-D3P1-FIRST-RELEASE-DEFER-20261110-001.md' in matches[0]
+          print('PASS first-release DEFER matches source-free original physical ledger on this exact HEAD')
+          PY
