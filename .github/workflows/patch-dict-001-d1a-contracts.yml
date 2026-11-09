@@ -78,6 +78,7 @@ jobs:
               assert 1 <= item['referenceCount'] <= 4
               assert item['entryAndPidxBytes'] == 64 + 32*item['referenceCount'] + item['storedBytes']
               assert item['dictionaryBytes'] <= d['dictionaryBudgetBytes']
+              assert 0 < item['storedBytes'] <= d['targetBytes']
           print('D1-A synthetic ledger and full candidate population PASS; NOT whole-CSP evidence')
           PY
       - name: Archive synthetic-only per-entry evidence
