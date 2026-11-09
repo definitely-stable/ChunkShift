@@ -274,7 +274,8 @@ internal static class PatchDictD1b0a
             {
                 int[] indices = Enumerable.Range(start, count).ToArray();
                 Candidate? trial = await EncodeAndSerializeAsync(
-                    $"contig:{start:D2}+{count:D2}",
+                    "contig:" + start.ToString("D2", CultureInfo.InvariantCulture) +
+                        "+" + count.ToString("D2", CultureInfo.InvariantCulture),
                     indices, 1, baseChunks, b.Records, snapshot, focusEntry,
                     focusBytes, encoder, decoder, cancellationToken);
                 if (trial is null) continue;
@@ -389,6 +390,17 @@ internal static class PatchDictD1b0a
             (byte[])h0.Clone(), copy.ToArray(),
             reader.TargetManifest.Manifest.HashSuite, reader.ExpectedBaseManifestId,
             [.. reader.Index], entries);
+    }
+
+    /// <summary>Test-only negative seam without exposing Patching internal types.</summary>
+    internal static async Task<byte[]> SerializeWithWrongChunkIdForTests(
+        byte[] h0, CancellationToken cancellationToken)
+    {
+        ReplaySnapshot original = await LoadReplayAsync(h0, cancellationToken);
+        CspEntry entry = original.Entries[0];
+        var invalid = new CspEntry(default, entry.Encoding,
+            entry.DictionaryChunkIds, entry.StoredBytes);
+        return await SerializeAsync(original, 0, invalid, cancellationToken);
     }
 
     internal static async Task<byte[]> SerializeAsync(
