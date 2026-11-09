@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using ChunkShift.Benchmarks.PatchLab;
 using ChunkShift.Benchmarks.PatchLab.Dictionary;
-using ChunkShift.Patching.Format;
 
 namespace ChunkShift.Benchmarks.Tests.PatchLab;
 
@@ -79,11 +78,8 @@ public sealed class PatchDictD1b0aTests
         await Assert.ThrowsAnyAsync<Exception>(async () =>
             await PatchDictD1b0a.LoadReplayAsync(bad, CancellationToken.None));
 
-        CspEntry original = snapshot.Entries[0];
-        var invalidChoice = new CspEntry(default, original.Encoding,
-            original.DictionaryChunkIds, original.StoredBytes);
         await Assert.ThrowsAsync<InvalidDataException>(async () =>
-            await PatchDictD1b0a.SerializeAsync(snapshot, 0, invalidChoice, CancellationToken.None));
+            await PatchDictD1b0a.SerializeWithWrongChunkIdForTests(valid, CancellationToken.None));
     }
 
     [Fact]
