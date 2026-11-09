@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-11-09",
+  "updated": "2026-11-10",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -615,8 +615,13 @@
         183
       ],
       "area": "patching-research",
-      "status": "PLANNED",
-      "question": "Reversible .NET/CLR semantic normalization after generic executable evidence"
+      "status": "DEFER",
+      "question": "Reversible .NET/CLR semantic normalization after generic executable evidence",
+      "firstReleaseDisposition": "DEFER / NO_PRODUCTION_ADOPT: D3P1 TypeRef-only normalized full CSP on 1,242 PowerShell calibration pairs was physically worse for every 123 eligible candidate after raw inverse maps; 0 selected gain. Source-free original artifact independently verified; D2 metadata, D4 RVA, D5 R2R and independent product-family confirmation are untested. No fresh holdout, no compatibility change.",
+      "firstReleaseEvidence": "docs/research/results/PATCH-DOTNET-001-D3P1-FIRST-RELEASE-DEFER-20261110-001.md",
+      "firstReleaseMachine": "benchmarks/experiments/patch-dotnet-001-d3p1-first-release-closeout-20261110.json",
+      "experimentalStack": [273,275,276,278,279,280,281],
+      "experimentalStackMerged": false
     },
     {
       "id": "PATCH-DICT-001",
