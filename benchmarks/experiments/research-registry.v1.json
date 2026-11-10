@@ -620,7 +620,15 @@
       "firstReleaseDisposition": "DEFER / NO_PRODUCTION_ADOPT: D3P1 TypeRef-only normalized full CSP on 1,242 PowerShell calibration pairs was physically worse for every 123 eligible candidate after raw inverse maps; 0 selected gain. Source-free original artifact independently verified; D2 metadata, D4 RVA, D5 R2R and independent product-family confirmation are untested. No fresh holdout, no compatibility change.",
       "firstReleaseEvidence": "docs/research/results/PATCH-DOTNET-001-D3P1-FIRST-RELEASE-DEFER-20261110-001.md",
       "firstReleaseMachine": "benchmarks/experiments/patch-dotnet-001-d3p1-first-release-closeout-20261110.json",
-      "experimentalStack": [273,275,276,278,279,280,281],
+      "experimentalStack": [
+        273,
+        275,
+        276,
+        278,
+        279,
+        280,
+        281
+      ],
       "experimentalStackMerged": false
     },
     {
@@ -662,8 +670,12 @@
         183
       ],
       "area": "patching-research",
-      "status": "PLANNED",
-      "question": "Learned reference ranking as a build-side oracle / distillation experiment"
+      "status": "DEFER",
+      "question": "Learned reference ranking as a build-side oracle / distillation experiment",
+      "firstReleaseDisposition": "DEFER / NO_PRODUCTION_ADOPT: G2 whole-base single-contiguous K4 oracle saved only 174/974223 entry-cost bytes (0.0179%), 0/4 pair gates; fixed H6-O non-ML guard produced 30,248,709 vs H0 26,363,364 physical CSP bytes (+14.74%) despite faster create, frozen byte gate failed. #222 disjoint composite yielded 0 additional physical bytes over variable contiguous K on 2 already-opened calibration files. No training, ML A/B, trial-reduction ML CPU verdict, or unopened ML holdout; cannot claim universal ML REJECT. Preserve deterministic D15/CSP v1/PublicAPI/default; future independent richer-source oracle or reproducible 2x-cost opportunity required.",
+      "firstReleaseEvidence": "docs/research/results/PATCH-ML-001-FIRST-RELEASE-DEFER-20261110-001.md",
+      "firstReleaseMachine": "benchmarks/experiments/patch-ml-001-first-release-defer-20261110.json",
+      "firstReleaseRecompute": "benchmarks/scripts/verify_patch_ml_001_closeout.py"
     },
     {
       "id": "PATCH-COMPILER-001",
