@@ -1,0 +1,55 @@
+name: CORE011 CSM E3-R0 reader protocol
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/core011-csm-e3-reader.yml"
+      - "docs/benchmarks/CORE011-CSM-004-E3-READER-PROTOCOL.md"
+      - "benchmarks/experiments/core011-csm-e3-reader-contract.v1.json"
+      - "benchmarks/scripts/core011_csm_e3_guard.py"
+      - "benchmarks/scripts/test_core011_csm_e3_guard.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  r0-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout immutable PR tree
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Reject changes outside E3-R0
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only origin/main...HEAD > "$RUNNER_TEMP/e3-files.txt"
+          cat "$RUNNER_TEMP/e3-files.txt"
+          while IFS= read -r file; do
+            case "$file" in
+              .github/workflows/core011-csm-e3-reader.yml|docs/benchmarks/CORE011-CSM-004-E3-READER-PROTOCOL.md|docs/research/EXPERIMENT-INDEX.md|benchmarks/experiments/core011-csm-e3-reader-contract.v1.json|benchmarks/scripts/core011_csm_e3_guard.py|benchmarks/scripts/test_core011_csm_e3_guard.py) ;;
+              *) echo "E3-R0 unexpected modified path: $file" >&2; exit 1 ;;
+            esac
+          done < "$RUNNER_TEMP/e3-files.txt"
+          if grep -Eq '^(src/|tests/|Directory.Packages.props)' "$RUNNER_TEMP/e3-files.txt"; then
+            echo "E3-R0 may not change product code" >&2
+            exit 1
+          fi
+      - name: Python fail-closed mutation regression
+        run: |
+          set -euo pipefail
+          python3 -m py_compile benchmarks/scripts/core011_csm_e3_guard.py benchmarks/scripts/test_core011_csm_e3_guard.py
+          python3 -m unittest -v benchmarks/scripts/test_core011_csm_e3_guard.py
+      - name: Preregistration PASS, decision deliberately FAILS
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/core011_csm_e3_guard.py
+          if python3 benchmarks/scripts/core011_csm_e3_guard.py --decision-ready; then
+            echo "ERROR: decision gate unexpectedly open" >&2
+            exit 1
+          fi
+          echo "E3-R0 preregistration validated; decision runs blocked" >> "$GITHUB_STEP_SUMMARY"
