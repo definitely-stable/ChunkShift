@@ -1,0 +1,72 @@
+name: PATCH-EXEC-001 G2-A closeout contracts
+
+# Read-only validation of permanent evidence and standalone verifier.
+# Original archived ZIPs can be audited with the checked-in CLI while available.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "benchmarks/scripts/verify_patch_exec_001_g2a_closeout.py"
+      - "benchmarks/scripts/test_verify_patch_exec_001_g2a_closeout.py"
+      - "docs/research/results/PATCH-EXEC-001-G2A-EVIDENCE-20261015-001.md"
+      - "docs/research/results/data/PATCH-EXEC-001-G2A-20261015-001/**"
+      - ".github/workflows/patch-exec-001-g2a-closeout.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: permanent-evidence-contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Compile and test strict replay helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            benchmarks/scripts/verify_patch_exec_001_g2a_closeout.py \
+            benchmarks/scripts/test_verify_patch_exec_001_g2a_closeout.py
+          PYTHONPATH=benchmarks/scripts python3 -m unittest \
+            benchmarks/scripts/test_verify_patch_exec_001_g2a_closeout.py
+
+      - name: Verify exactly 60 recorded resource samples and 16 physical CSP identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import csv
+          from pathlib import Path
+          import statistics
+          root=Path("docs/research/results/data/PATCH-EXEC-001-G2A-20261015-001")
+          with (root/"samples.tsv").open(newline="", encoding="utf-8") as f:
+              records=list(csv.DictReader(f,delimiter="\t"))
+          with (root/"patch-identities.tsv").open(newline="", encoding="utf-8") as f:
+              identities=list(csv.DictReader(f,delimiter="\t"))
+          expected={"f1-h0","f1-h2w2","f2-h0","f2-h2w2","f4-h0","f4-h2w2"}
+          observed={(r["mode"],r["round"],r["allocation"]) for r in records}
+          assert len(records)==len(observed)==60
+          assert all((mode,str(i),name) in observed
+                     for mode in ("warm-csm","cold-csm") for i in range(5)
+                     for name in expected)
+          assert len(identities)==16
+          assert len({(r["family"],r["base"],r["target"],r["path"])
+                      for r in identities})==16
+          for mode in ("warm-csm","cold-csm"):
+              grouped={name:statistics.median(float(r["wall_seconds"])
+                       for r in records if r["mode"]==mode and r["allocation"]==name)
+                       for name in expected}
+              assert min(grouped,key=grouped.get)=="f4-h2w2"
+              improvement=1-grouped["f4-h2w2"]/grouped["f1-h2w2"]
+              assert 0 < improvement < 0.25
+          print("PASS: all 60 resource records, all 16 patch digests, NO_ADOPT gate")
+          PY
