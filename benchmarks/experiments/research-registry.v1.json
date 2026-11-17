@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-11-10",
+  "updated": "2026-11-17",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -699,8 +699,12 @@
         220
       ],
       "area": "patching-research",
-      "status": "PLANNED",
-      "question": "Local adaptive/cacheable deterministic patch compilation"
+      "status": "DEFER",
+      "question": "Local adaptive/cacheable deterministic patch compilation",
+      "firstReleaseDisposition": "DEFER / NO_PRODUCTION_ADOPT: source-bound G2-A original 16-file, 2-host fixed-lane calibration with all 960 CSP SHA equivalences independently re-audited; 11.76/19.53% F4-vs-F1 median wall gains with material CPU/RSS amplification, no adaptive policy, cache, isolated per-create RSS, >25% best-safe-fixed evidence or fresh G2-B. H2-W2 default/CSP v1 retained.",
+      "firstReleaseEvidence": "docs/research/results/PATCH-EXEC-001-FIRST-RELEASE-DEFER-20261117-001.md",
+      "firstReleaseLedger": "benchmarks/experiments/patch-exec-001-first-release-defer-20261117.json",
+      "firstReleaseSourceEvidence": "docs/research/results/PATCH-EXEC-001-G2A-EVIDENCE-20261015-001.md"
     }
   ]
 }
