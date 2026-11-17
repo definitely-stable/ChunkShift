@@ -605,7 +605,9 @@
       "area": "patching-research",
       "status": "PLANNED",
       "question": "Lab-only exact equal-length XOR+zstd and canonical sparse changed-run representations; oracle-first size/cost headroom",
-      "protocol": "docs/benchmarks/PATCH-RESIDUAL-001-PROTOCOL.md"
+      "protocol": "docs/benchmarks/PATCH-RESIDUAL-001-PROTOCOL.md",
+      "firstReleaseDisposition": "DEFER_NO_DECISION_GRADE_REPRESENTATION: only synthetic 85-byte RS01 reversible mechanics; no full physical CSP H0 comparison, decision-grade headroom, Phase B protocol or original holdout. Issue #262 remains OPEN and experiment remains PLANNED for future vNext research. No production format/API/default change.",
+      "firstReleaseEvidence": "docs/architecture/PATCHING-FIRST-RELEASE-RESEARCH-FREEZE-20261117.md"
     },
     {
       "id": "PATCH-DOTNET-001",

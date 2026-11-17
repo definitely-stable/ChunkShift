@@ -1,0 +1,169 @@
+{
+  "schema": "chunkshift.patching.first-release-research-freeze.v1",
+  "id": "PATCHING-RESEARCH-FREEZE-251/20261117",
+  "date": "2026-11-17",
+  "issue": 251,
+  "baselineMainSha": "3f664a0ea36634cf2a972323e3ae5a5470d44845",
+  "report": "docs/architecture/PATCHING-FIRST-RELEASE-RESEARCH-FREEZE-20261117.md",
+  "decision": "RETAIN_CSP_V1_NO_VNEXT",
+  "scope": "FIRST_RELEASE_PERSISTED_RESEARCH_ONLY",
+  "researchGateOnMergeAndGreenCi": true,
+  "sourceFormat": {
+    "cspV1": {
+      "path": "docs/architecture/CSP-V1-CANDIDATE.md",
+      "gitBlobSha": "34c7d023b88f36f58945dc7904a79969470fe3bd",
+      "status": "Frozen",
+      "major": 1,
+      "vectorCount": 125
+    },
+    "csmV1": {
+      "path": "docs/architecture/CSM-V1-CANDIDATE.md",
+      "gitBlobSha": "aaa653157a0d850d7d684492e1b362b2b3dfafe1"
+    },
+    "rfc6": {
+      "path": "docs/architecture/RFC-0006-patching-distribution-trust-boundary.md",
+      "gitBlobSha": "82bbee760b728c38f5d1a05449d5e80b85758970",
+      "status": "Accepted architecture boundary"
+    },
+    "rfc5": {
+      "path": "docs/architecture/RFC-0005-patch-compiler-architecture.md",
+      "gitBlobSha": "66d0d78467c6297025ebbf0a2ea5ac5adaa00ddd",
+      "status": "Proposed"
+    }
+  },
+  "requiredResearch": [
+    {
+      "id": "PATCH-ENC-005",
+      "issueNumber": 181,
+      "status": "REJECT",
+      "evidence": "docs/research/results/PATCH-ENC-005-H6O-EVIDENCE-20261004-001.md",
+      "gitBlobSha": "d06800c952b3b4fecbbe457a5f55011e19617f39",
+      "scope": "FIRST_RELEASE"
+    },
+    {
+      "id": "PATCH-GAP-001",
+      "issueNumber": 183,
+      "status": "DEFER",
+      "evidence": "docs/research/results/PATCH-GAP-001-FIRST-RELEASE-CLOSEOUT-20261104-001.md",
+      "gitBlobSha": "01df8cf84a5882e51f615303daefdf30ea3e01fa",
+      "scope": "FIRST_RELEASE"
+    },
+    {
+      "id": "PATCH-TREE-001",
+      "issueNumber": 184,
+      "status": "DEFER",
+      "evidence": "docs/research/results/PATCH-TREE-001-FIRST-RELEASE-CLOSEOUT-20261101-001.md",
+      "gitBlobSha": "f5f72c396ff405700fb0bf8b0bc90e620d4b0b87",
+      "scope": "FIRST_RELEASE"
+    },
+    {
+      "id": "PATCH-META-001",
+      "issueNumber": 220,
+      "status": "DEFER",
+      "evidence": "docs/research/results/PATCH-META-001-G1B2B-FIRST-RELEASE-DEFER-20261105-001.md",
+      "gitBlobSha": "5d25afc33ad417a2b47d07cee6fe9884ab06771f",
+      "scope": "FIRST_RELEASE"
+    },
+    {
+      "id": "PATCH-INCR-001",
+      "issueNumber": 150,
+      "status": "DEFER",
+      "evidence": "docs/research/results/PATCH-INCR-001-A3S0-DEFER-DECISION-20261101-001.md",
+      "gitBlobSha": "ce52877358ca88be755f0c25c2c7f3fc7d2cc348",
+      "scope": "FIRST_RELEASE"
+    },
+    {
+      "id": "PATCH-DICT-001",
+      "issueNumber": 222,
+      "status": "DEFER",
+      "evidence": "docs/research/results/PATCH-DICT-001-D1B0B-FIRST-RELEASE-DEFER-20261109-001.md",
+      "gitBlobSha": "bf26a012620ced0fb3853c566be584b717d2de72",
+      "scope": "FIRST_RELEASE"
+    },
+    {
+      "id": "PATCH-DOTNET-001",
+      "issueNumber": 221,
+      "status": "DEFER",
+      "evidence": "docs/research/results/PATCH-DOTNET-001-D3P1-FIRST-RELEASE-DEFER-20261110-001.md",
+      "gitBlobSha": "f7d63f9aeefc4b2a5eb002aeef9d4373745473ea",
+      "scope": "FIRST_RELEASE"
+    },
+    {
+      "id": "PATCH-ML-001",
+      "issueNumber": 223,
+      "status": "DEFER",
+      "evidence": "docs/research/results/PATCH-ML-001-FIRST-RELEASE-DEFER-20261110-001.md",
+      "gitBlobSha": "c4cd21f3f1ec90bc35eeb7e2fc59a9f42e038098",
+      "scope": "FIRST_RELEASE"
+    },
+    {
+      "id": "PATCH-COMPILER-001",
+      "issueNumber": 224,
+      "status": "DEFER",
+      "evidence": "docs/research/results/PATCH-COMPILER-001-FIRST-RELEASE-DEFER-20261114-001.md",
+      "gitBlobSha": "dd5c9865e0a829926ef47fbab27b6bd75fa8a519",
+      "scope": "FIRST_RELEASE"
+    },
+    {
+      "id": "PATCH-EXEC-001",
+      "issueNumber": 225,
+      "status": "DEFER",
+      "evidence": "docs/research/results/PATCH-EXEC-001-FIRST-RELEASE-DEFER-20261117-001.md",
+      "gitBlobSha": "66800c21a0291e7268584fe7d57353093835c7f4",
+      "scope": "FIRST_RELEASE"
+    },
+    {
+      "id": "TRUST-SIG-001",
+      "issueNumber": 185,
+      "status": "ADOPT",
+      "evidence": "docs/research/results/TRUST-SIG-001-R3C-ARCHITECTURE-DECISION-20261019-001.md",
+      "gitBlobSha": "c3ee662ba23e55314fb942cfcf849079419bafe1",
+      "scope": "ARCHITECTURE_ONLY_NO_PERSISTED_CHANGE"
+    }
+  ],
+  "conditionalResearch": [
+    {
+      "id": "PATCH-RESIDUAL-001",
+      "issueNumber": 262,
+      "registryStatus": "PLANNED",
+      "firstReleaseDisposition": "DEFER_NO_DECISION_GRADE_REPRESENTATION",
+      "evidence": "docs/benchmarks/PATCH-RESIDUAL-001-PROTOCOL.md",
+      "gitBlobSha": "538dee95ca551c2fcd5c30ddb9ed46d46903bd4d",
+      "phaseBOriginalHoldoutRun": false,
+      "admittedFormat": false,
+      "issueRemainsOpen": true
+    }
+  ],
+  "adoptionAudit": {
+    "newPersistedSemanticsAdoptsAfterCspV1Freeze": [],
+    "priorAdoptsCoveredByCspV1": true,
+    "trustArchitectureDoesNotChangeCspV1": true,
+    "formatMigrationRequiredNow": false,
+    "futureBreakingFormatNeedsAcceptedRfcAndNewVectors": true
+  },
+  "interactions": {
+    "eligibleNewDistinctRepresentationFamilies": 0,
+    "individuallyAdmittedInteractingFactors": 0,
+    "firstReleaseTrigger": false,
+    "reason": "No pair of viable admitted, non-composable persisted format factors; cross-file T2/T3 gated by create resources; residual lab-only; host trust external"
+  },
+  "safety": {
+    "preserveCspV1": true,
+    "preserveCsmV1": true,
+    "preserveHashAndProfileIdentities": true,
+    "preserveExistingH2W2": true,
+    "noPublicApiFreezeYet": true,
+    "noCliProductFreezeYet": true,
+    "noFirstPartyTreePublisher": true,
+    "noEmbeddedTrustMetadata": true,
+    "publicNugetPublicationAuthorizedByThisDecision": false,
+    "publicationRepoPortAuthorizedByThisDecision": false,
+    "retainedOriginalResearchNoNewRunId": true
+  },
+  "nextOwnerGates": [
+    "#140 CLI compatibility schema, stdout/stderr/exit codes and safety",
+    "Patching PublicAPI.Unshipped independent review",
+    "Consumer/smoke/fuzz/vectors/NativeAOT and product release checks",
+    "Publication repository separate owner PR/release"
+  ]
+}

@@ -1,0 +1,77 @@
+name: Patching research freeze #251 source-bound synthesis
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/architecture/PATCHING-FIRST-RELEASE-RESEARCH-FREEZE-20261117.md"
+      - "benchmarks/experiments/patching-research-freeze-251-20261117.json"
+      - "benchmarks/experiments/research-registry.v1.json"
+      - "benchmarks/scripts/verify_patching_research_freeze_251.py"
+      - "docs/research/EXPERIMENT-INDEX.md"
+      - "docs/research/results/**"
+      - "docs/architecture/CSP-V1-CANDIDATE.md"
+      - "docs/architecture/CSM-V1-CANDIDATE.md"
+      - "docs/architecture/RFC-0005-patch-compiler-architecture.md"
+      - "docs/architecture/RFC-0006-patching-distribution-trust-boundary.md"
+      - "docs/benchmarks/PATCH-RESIDUAL-001-PROTOCOL.md"
+      - "src/ChunkShift.Cli/ChunkShift.Cli.csproj"
+      - "ROADMAP.md"
+      - "PLAN.md"
+      - ".github/workflows/patching-research-freeze-251.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/architecture/PATCHING-FIRST-RELEASE-RESEARCH-FREEZE-20261117.md"
+      - "benchmarks/experiments/patching-research-freeze-251-20261117.json"
+      - "benchmarks/experiments/research-registry.v1.json"
+      - "benchmarks/scripts/verify_patching_research_freeze_251.py"
+      - "docs/research/EXPERIMENT-INDEX.md"
+      - "ROADMAP.md"
+      - "PLAN.md"
+      - "docs/research/results/**"
+      - "docs/architecture/CSP-V1-CANDIDATE.md"
+      - "docs/architecture/CSM-V1-CANDIDATE.md"
+      - "docs/architecture/RFC-0005-patch-compiler-architecture.md"
+      - "docs/architecture/RFC-0006-patching-distribution-trust-boundary.md"
+      - "docs/benchmarks/PATCH-RESIDUAL-001-PROTOCOL.md"
+      - "src/ChunkShift.Cli/ChunkShift.Cli.csproj"
+      - ".github/workflows/patching-research-freeze-251.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  replay:
+    name: decision-source-audit (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - name: Checkout exact reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Confirm checkout HEAD and clean tree
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain=v1 --untracked-files=normal)"
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+      - name: Check retained evidence and reject twelve adversarial mutations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/scripts/verify_patching_research_freeze_251.py
+          python benchmarks/scripts/verify_patching_research_freeze_251.py --repo-root . --self-test
