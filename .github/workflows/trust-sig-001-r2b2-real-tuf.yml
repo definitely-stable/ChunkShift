@@ -1,0 +1,105 @@
+name: TRUST-SIG-001 R2B2 real TUF updater attack pilot
+
+# Research-only real python-tuf client. External upstream checkout is immutable.
+on:
+  pull_request:
+    paths:
+      - "benchmarks/TrustSigR2TufPilot/**"
+      - "docs/benchmarks/TRUST-SIG-001-R2B2-REAL-TUF-CLIENT-PROTOCOL.md"
+      - "docs/research/results/TRUST-SIG-001-R2B2-REAL-TUF-CLIENT-20261017-001.md"
+      - ".github/workflows/trust-sig-001-r2b2-real-tuf.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  tuf-adversarial:
+    name: Real TUF 7.0.1 Updater (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    steps:
+      - name: Checkout ChunkShift PR merge commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkout immutable upstream python-tuf v7.0.1 reference simulator
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: theupdateframework/python-tuf
+          ref: 49eb1da48c58cf0cbb0f2e490f7ad39fbd8c1f15
+          path: benchmarks/TrustSigR2TufPilot/upstream
+          persist-credentials: false
+      - name: Python 3.13
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.13"
+      - name: Verify upstream source identity and Python package version
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          test "$(git -C benchmarks/TrustSigR2TufPilot/upstream rev-parse HEAD)" = "49eb1da48c58cf0cbb0f2e490f7ad39fbd8c1f15"
+          python -m pip install --disable-pip-version-check "tuf==7.0.1" "securesystemslib[crypto]==1.5.1"
+          python -m pip check
+          python -m pip freeze > "$RUNNER_TEMP/r2b2-python-deps.txt"
+          python -c "import importlib.metadata; assert importlib.metadata.version('tuf') == '7.0.1'"
+          python -c "import importlib.metadata; assert importlib.metadata.version('securesystemslib') == '1.5.1'"
+      - name: Real TUF updater and hostile metadata/target/root scenarios
+        shell: bash
+        run: |
+          set -euo pipefail
+          python benchmarks/TrustSigR2TufPilot/real_tuf_client.py \
+            --upstream benchmarks/TrustSigR2TufPilot/upstream \
+            --output "$RUNNER_TEMP/r2b2-results.json"
+      - name: Independently validate evidence contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - "$RUNNER_TEMP/r2b2-results.json" <<'PY'
+          import json,sys
+          obj=json.load(open(sys.argv[1],encoding='utf-8'))
+          expected=["happy_verified_target","timestamp_rollback","expired_timestamp",
+            "forged_targets","snapshot_mix_and_match","corrupted_target_download",
+            "root_new_keys_without_old_threshold","valid_dual_signed_root_rotation",
+            "nonconsecutive_root_version","local_cache_rollback_limit"]
+          assert obj["schema"]=="chunkshift.trust-sig-001.r2b2.real-tuf-updater.v0"
+          assert obj["decision"]=="REAL_TUF_NGCLIENT_LAB_ONLY_NOT_DISTRIBUTION_ADOPT"
+          assert obj["client"]=="tuf.ngclient.Updater" and obj["clientVersion"]=="7.0.1"
+          assert obj["upstreamSimulatorCommit"]=="49eb1da48c58cf0cbb0f2e490f7ad39fbd8c1f15"
+          assert [c["case"] for c in obj["cases"]]==expected
+          assert all(c["verdict"]=="pass" for c in obj["cases"])
+          assert obj["cases"][0]["observation"]["targetBytes"] > 0
+          assert obj["cases"][7]["observation"]["trustedRootVersion"] == 2
+          assert obj["cases"][9]["observation"] == {"trustedBeforeAttack":2,"trustedAfterLocalAndRemoteRollback":1,"requiresExternalProtectedHighWater":True}
+          assert obj["networkDownloads"] is False
+          assert obj["localRollbackProtectedStore"] is False
+          assert obj["trustedClockHardening"] is False
+          assert obj["actualDiskCrash"] is False
+          assert obj["sourceKeysArchived"] is False
+          print("REAL_TUF_CLIENT_LAB_CONTRACT_PASS",obj["os"],len(expected))
+          PY
+      - name: Capture runtime provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "Python-TUF upstream source commit 49eb1da48c58cf0cbb0f2e490f7ad39fbd8c1f15"
+            python --version
+            python -m pip show tuf securesystemslib cryptography urllib3
+          } > "$RUNNER_TEMP/r2b2-toolchain.txt"
+          echo "R2B2 TUF Updater real verification lab. NO ChunkShift production update authorization or rollback-safe trusted local cursor." >> "$GITHUB_STEP_SUMMARY"
+      - name: Archive JSON and dependency provenance ONLY
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trust-sig-r2b2-tuf-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/r2b2-results.json
+            ${{ runner.temp }}/r2b2-python-deps.txt
+            ${{ runner.temp }}/r2b2-toolchain.txt
+          retention-days: 90
+          if-no-files-found: warn

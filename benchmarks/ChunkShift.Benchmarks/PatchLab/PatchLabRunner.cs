@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using ChunkShift.Benchmarks.Lab;
 using ChunkShift.Benchmarks.PatchLab.PatchGap;
+using ChunkShift.Benchmarks.PatchLab.Dictionary;
 using ChunkShift.Benchmarks.PatchLab.Tree;
 
 namespace ChunkShift.Benchmarks.PatchLab;
@@ -29,7 +30,7 @@ internal static class PatchLabRunner
     {
         if (args.Length == 0)
         {
-            Console.Error.WriteLine("patch-lab needs a mode: run, memory, one, apply-check, enc005-g2, gap or tree-calibration.");
+            Console.Error.WriteLine("patch-lab needs a mode: run, memory, one, apply-check, enc005-g2, dict-d1a, dict-d1b0, dict-d1b0a, dict-d1b0b, gap or tree-calibration, tree-boundary, tree-physical-f0 or tree-t3b1 or tree-t3b2b or tree-t3b2c0 or tree-t3b2c1 or tree-t3b2d0 or tree-t2a1, tree-t2a2 or tree-t2a3a.");
             return 2;
         }
 
@@ -42,8 +43,22 @@ internal static class PatchLabRunner
                 "one" => PatchLabOne.Execute(args[1..]),
                 "apply-check" => PatchLabApplyCheck.Execute(args[1..]),
                 "enc005-g2" => PatchEnc005G2Runner.Execute(args[1..]),
+                "dict-d1a" => PatchDictD1a.Execute(args[1..]),
+                "dict-d1b0" => PatchDictD1b0.Execute(args[1..]),
+                "dict-d1b0a" => PatchDictD1b0a.Execute(args[1..]),
+                "dict-d1b0b" => PatchDictD1b0b.Execute(args[1..]),
                 "gap" => PatchGapRunner.Execute(args[1..]),
                 "tree-calibration" => PatchTreeCalibration.Execute(args[1..]),
+                "tree-boundary" => PatchTreeBoundaryAttribution.Execute(args[1..]),
+                "tree-physical-f0" => PatchTreePhysicalAttribution.Execute(args[1..]),
+                "tree-t3b1" => PatchTreeT3B1.Execute(args[1..]),
+                "tree-t3b2b" => PatchTreeT3B2B.Execute(args[1..]),
+                "tree-t3b2c0" => PatchTreeT3B2C0.Execute(args[1..]),
+                "tree-t3b2c1" => PatchTreeT3B2C1.Execute(args[1..]),
+                "tree-t3b2d0" => PatchTreeT3B2D0.Execute(args[1..]),
+                "tree-t2a1" => PatchTreeT2A1.Execute(args[1..]),
+                "tree-t2a2" => PatchTreeT2A2.Execute(args[1..]),
+                "tree-t2a3a" => PatchTreeT2A3A.Execute(args[1..]),
                 _ => UnknownMode(args[0]),
             };
         }
@@ -119,7 +134,7 @@ internal static class PatchLabRunner
 
     private static int UnknownMode(string mode)
     {
-        Console.Error.WriteLine($"Unknown patch-lab mode '{mode}'; expected run, memory, one, apply-check, enc005-g2 or gap.");
+        Console.Error.WriteLine($"Unknown patch-lab mode '{mode}'; expected run, memory, one, apply-check, enc005-g2, dict-d1a, dict-d1b0, dict-d1b0a, dict-d1b0b, gap, tree-calibration, tree-boundary, tree-t3b1, tree-t2a1, tree-t2a2 or tree-t2a3a.");
         return 2;
     }
 }

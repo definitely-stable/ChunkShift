@@ -139,11 +139,17 @@ internal static class ScenarioRunner
         passed.Add("request-decompression-enforces-decompressed-size-limit");
 
         const long requestLimit = 1024 * 1024;
-        using (HttpResponseMessage response = await client.PostAsync(
-            new Uri(baseUri, $"/scan?limit={requestLimit}"),
-            new GeneratedContent(requestLimit + 1, 0x17A11002u),
-            cancellationToken).ConfigureAwait(false))
+        // Kestrel can reject a known oversized Content-Length before it reads
+        // any body bytes. Expect: 100-continue lets the client observe HTTP 413
+        // without racing its upload against the server's early connection close
+        // (a broken pipe is not a trustworthy assertion of HTTP status).
+        using (var request = new HttpRequestMessage(
+            HttpMethod.Post, new Uri(baseUri, $"/scan?limit={requestLimit}")))
         {
+            request.Headers.ExpectContinue = true;
+            request.Content = new GeneratedContent(requestLimit + 1, 0x17A11002u);
+            using HttpResponseMessage response =
+                await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
             ValidationAssert.Equal(
                 HttpStatusCode.RequestEntityTooLarge,
                 response.StatusCode,

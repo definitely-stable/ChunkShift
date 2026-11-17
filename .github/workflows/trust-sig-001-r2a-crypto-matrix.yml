@@ -1,0 +1,99 @@
+name: TRUST-SIG-001 R2-A crypto matrix .NET 10
+
+# Standalone research-only C# consumer: no production code, dependencies or publishing.
+on:
+  pull_request:
+    paths:
+      - "benchmarks/TrustSigR2Matrix/**"
+      - "docs/benchmarks/TRUST-SIG-001-R2A-CRYPTO-MATRIX-PROTOCOL.md"
+      - ".github/workflows/trust-sig-001-r2a-crypto-matrix.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  cryptographic-matrix:
+    name: R2A JIT/AOT crypto (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rid: linux-x64
+            exe: ""
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+            exe: ""
+          - os: windows-2025
+            rid: win-x64
+            exe: ".exe"
+          - os: macos-15
+            rid: osx-arm64
+            exe: ""
+    steps:
+      - name: Checkout exact PR merge
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup pinned .NET 10 SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: JIT build warnings-as-errors
+        run: dotnet build benchmarks/TrustSigR2Matrix/TrustSigR2Matrix.csproj -c Release -warnaserror
+      - name: JIT host proof and measurements
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          dotnet run --project benchmarks/TrustSigR2Matrix/TrustSigR2Matrix.csproj \
+            -c Release --no-build --no-restore -- --output "$RUNNER_TEMP/r2-jit.json"
+      - name: Publish actual NativeAOT with warnings-as-errors
+        shell: bash
+        run: |
+          set -euo pipefail
+          # RID-specific ILCompiler packs require NuGet. Retry only package
+          # restore on transient hosted DNS/outage; publish itself is fail-fast.
+          for attempt in 1 2 3; do
+            if dotnet restore benchmarks/TrustSigR2Matrix/TrustSigR2Matrix.csproj \
+              --runtime "${{ matrix.rid }}" -p:PublishAot=true -p:TreatWarningsAsErrors=true; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "NativeAOT package restore did not succeed after 3 attempts" >&2
+              exit 1
+            fi
+            echo "NativeAOT RID-pack restore retry $attempt/3" >&2
+            sleep 15
+          done
+          dotnet publish benchmarks/TrustSigR2Matrix/TrustSigR2Matrix.csproj \
+            -c Release -r "${{ matrix.rid }}" -p:PublishAot=true \
+            -p:TreatWarningsAsErrors=true --no-restore -o "$RUNNER_TEMP/r2-aot"
+      - name: Run actual NativeAOT executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/r2-aot/TrustSigR2Matrix${{ matrix.exe }}" --output "$RUNNER_TEMP/r2-aot.json"
+          python benchmarks/TrustSigR2Matrix/validate.py \
+            "$RUNNER_TEMP/r2-jit.json" "$RUNNER_TEMP/r2-aot.json"
+      - name: Record toolchain metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "R2-A lab: experimental algorithm provider matrix, NOT a shipping signing contract"
+            dotnet --info
+            if command -v openssl >/dev/null 2>&1; then openssl version -a; fi
+          } > "$RUNNER_TEMP/r2-toolchain.txt"
+          cat "$RUNNER_TEMP/r2-toolchain.txt" >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trust-sig-001-r2a-${{ matrix.rid }}
+          path: |
+            ${{ runner.temp }}/r2-jit.json
+            ${{ runner.temp }}/r2-aot.json
+            ${{ runner.temp }}/r2-toolchain.txt
+          if-no-files-found: warn
+          retention-days: 90

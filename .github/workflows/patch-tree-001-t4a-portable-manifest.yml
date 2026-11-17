@@ -1,0 +1,45 @@
+name: PATCH-TREE-001 T4-A portable tree identity contracts
+
+# PR-only, metadata-only synthetic contracts. No original corpus or FS mutation.
+on:
+  pull_request:
+    paths:
+      - "benchmarks/ChunkShift.Benchmarks/PatchLab/Tree/PatchTreeManifestCandidate.cs"
+      - "benchmarks/ChunkShift.Benchmarks.Tests/PatchLab/PatchTreeManifestCandidateTests.cs"
+      - "docs/benchmarks/PATCH-TREE-001-T4A-TREE-MANIFEST-PROTOCOL.md"
+      - ".github/workflows/patch-tree-001-t4a-portable-manifest.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  portable-contract:
+    name: T4-A deterministic candidate identity and adversarial paths
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 22
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore benchmark solution
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+
+      - name: Build Release benchmark and test projects
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+
+      - name: Run T4-A identity, path-safety, and fixture contracts
+        run: dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj -c Release --no-build --no-restore --filter FullyQualifiedName~PatchTreeManifestCandidateTests
+
+      - name: Record research-only limitation
+        shell: bash
+        run: |
+          echo "T4-A synthetic candidate PASS only. No persisted format, actual filesystem publication, trust or crash durability verified." >> "$GITHUB_STEP_SUMMARY"

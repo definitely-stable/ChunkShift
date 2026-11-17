@@ -1,0 +1,228 @@
+{
+  "schema": "chunkshift.patch-tree-f1-original-evidence.v1",
+  "experimentId": "PATCH-TREE-001",
+  "evidenceId": "PATCH-TREE-001/F1-EVIDENCE-20261016-001",
+  "status": "ORIGINAL_ARCHIVES_INDEPENDENTLY_REPLAYED_CALIBRATION_ONLY_NO_ADOPT",
+  "f1": {
+    "runId": 38773779715,
+    "artifactId": 11993992185,
+    "commit": "2565a2cf0af9959e53c9d245e353337a8be9c91e",
+    "runAttempt": 1,
+    "runner": "github-hosted ubuntu-24.04 Linux/X64",
+    "dotnetSdk": "10.0.402",
+    "zipSha256": "a3b994d94121efaaa7b4915877c007c63744b065d629d7d02e6991b7628e4a9c",
+    "zipMembers": 2107,
+    "archiveFileSha256": {
+      "original-pairs.json": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537bfb910fd22dd",
+      "layouts.json": "6deb37fd4cb778fab1ad67a1da8d187ed0205ac2c89c4fa391e5507169da389a",
+      "calibration.json": "6dc7b2afab66dc1ad0eb5cc632c9ecd581726a0bc8997de6ec3f1e4f6eaa65e0",
+      "f1-summary.json": "d5524c3ace1f16fb2c78fd78b72beff73012db03e94e55e9a2aa465ee5153ec3",
+      "provenance.json": "0c80486d252816bb01aaa6734f11af8b427fe12f920002f3d74f826f01616307",
+      "F1-SHA256SUMS": "3b430578de114dbb73d3000e18f892e964393a272755ba1eb98cb94dd9643cad"
+    }
+  },
+  "originalPairsRunId": 38136336025,
+  "priorOriginalPhysical": {
+    "runId": 38142160679,
+    "artifactId": 11703153269,
+    "zipSha256": "e5707a7334ebc909486945edaf3eed8832a121b715ba5e9cd1354e2447865812"
+  },
+  "priorOriginalBoundary": {
+    "runId": 38736641373,
+    "artifactId": 11974666607,
+    "zipSha256": "2918c70f03bf87e2e3351c52399debfa61c54887a3b9c48b8473c362606a4002"
+  },
+  "audit": {
+    "zipCrc": "PASS_ALL_THREE",
+    "rootAndSidecarSha256": "PASS_ALL",
+    "identicalFrozenOriginalPairsAndFullLayouts": true,
+    "pairs": 4,
+    "changedFiles": 1049,
+    "addedFiles": 2,
+    "fullLaneRows": 2102,
+    "observedRealCspSidecars": 2100,
+    "publicVersusTracedShaParity": 2100,
+    "sourceLockedPerFilePatchIdentityMatchesPreviousPhysicalRun": 2100,
+    "oldTreeManifestIdsMatch": 4,
+    "sidecarByteConservation": "PASS_2100",
+    "holdoutUsed": false
+  },
+  "totals": {
+    "t0PayloadBytes": 14573546,
+    "t1PayloadBytes": 83408386,
+    "t0WarmBytes": 14758982,
+    "t1WarmBytes": 83593822,
+    "commonTreeMetadataBytes": 185436,
+    "t0RawAddedControlBytes": 2713272,
+    "actualCspObservedPhysicalBytes": 95268660,
+    "t1MinusT0WarmBytes": 68834840
+  },
+  "physicalComponentDeltaCspOnly": {
+    "storedRawBytes": 0,
+    "storedZstdBytes": 71500296,
+    "payloadMetadataBytes": 42232,
+    "indexBytes": 2864,
+    "otherPhysicalBytes": 2720
+  },
+  "t0RawAddedControlAdjustmentBytes": -2713272,
+  "cohorts": [
+    {
+      "cohort": "same",
+      "files": 981,
+      "targetBytes": 293057043,
+      "t0ExactBytes": 105340649,
+      "t1ExactBytes": 105340649,
+      "t0PhysicalBytes": 11514584,
+      "t1PhysicalBytes": 73518267,
+      "deltaBytes": 62003683,
+      "t0": {
+        "storedRawBytes": 1254,
+        "storedZstdBytes": 10294232,
+        "payloadMetadataBytes": 351732,
+        "indexBytes": 91836,
+        "otherPhysicalBytes": 775530,
+        "payloadEntries": 2682,
+        "selectedDictionaryEntries": 2663,
+        "candidateTrials": 13352,
+        "dictRefs": 7026,
+        "rawEntries": 11,
+        "zstdNoDictEntries": 8,
+        "zstdDictEntries": 2663
+      },
+      "t1": {
+        "storedRawBytes": 1254,
+        "storedZstdBytes": 72275891,
+        "payloadMetadataBytes": 373724,
+        "indexBytes": 91836,
+        "otherPhysicalBytes": 775562,
+        "payloadEntries": 2682,
+        "selectedDictionaryEntries": 1928,
+        "candidateTrials": 16570,
+        "dictRefs": 7712,
+        "rawEntries": 11,
+        "zstdNoDictEntries": 743,
+        "zstdDictEntries": 1928
+      }
+    },
+    {
+      "cohort": "loss",
+      "files": 68,
+      "targetBytes": 100066792,
+      "t0ExactBytes": 82065822,
+      "t1ExactBytes": 75429329,
+      "t0PhysicalBytes": 345690,
+      "t1PhysicalBytes": 9085396,
+      "deltaBytes": 8739706,
+      "t0": {
+        "storedRawBytes": 351,
+        "storedZstdBytes": 215715,
+        "payloadMetadataBytes": 32896,
+        "indexBytes": 7712,
+        "otherPhysicalBytes": 89016,
+        "payloadEntries": 242,
+        "selectedDictionaryEntries": 241,
+        "candidateTrials": 1396,
+        "dictRefs": 683,
+        "rawEntries": 1,
+        "zstdNoDictEntries": 0,
+        "zstdDictEntries": 241
+      },
+      "t1": {
+        "storedRawBytes": 351,
+        "storedZstdBytes": 8936957,
+        "payloadMetadataBytes": 49248,
+        "indexBytes": 9824,
+        "otherPhysicalBytes": 89016,
+        "payloadEntries": 330,
+        "selectedDictionaryEntries": 271,
+        "candidateTrials": 2133,
+        "dictRefs": 1084,
+        "rawEntries": 1,
+        "zstdNoDictEntries": 58,
+        "zstdDictEntries": 271
+      }
+    },
+    {
+      "cohort": "added",
+      "files": 2,
+      "targetBytes": 2713272,
+      "t0ExactBytes": 0,
+      "t1ExactBytes": 682844,
+      "t0PhysicalBytes": 2713272,
+      "t1PhysicalBytes": 804723,
+      "deltaBytes": -1908549,
+      "t0RawControlBytes": 2713272,
+      "t1": {
+        "storedRawBytes": 0,
+        "storedZstdBytes": 797395,
+        "payloadMetadataBytes": 3888,
+        "indexBytes": 752,
+        "otherPhysicalBytes": 2688,
+        "payloadEntries": 29,
+        "selectedDictionaryEntries": 21,
+        "candidateTrials": 188,
+        "dictRefs": 84,
+        "rawEntries": 0,
+        "zstdNoDictEntries": 8,
+        "zstdDictEntries": 21
+      }
+    }
+  ],
+  "cohortSamePairedTransitions": {
+    "raw -> raw": {
+      "entries": 11,
+      "storedDeltaBytes": 0
+    },
+    "zstd -> zstd": {
+      "entries": 7,
+      "storedDeltaBytes": 0
+    },
+    "zstd -> zstd-dictionary": {
+      "entries": 1,
+      "storedDeltaBytes": -4924
+    },
+    "zstd-dictionary -> zstd": {
+      "entries": 736,
+      "storedDeltaBytes": 16379287
+    },
+    "zstd-dictionary -> zstd-dictionary": {
+      "entries": 1927,
+      "storedDeltaBytes": 45607296,
+      "allDifferentSelectedFirstDictionaryChunkId": true
+    }
+  },
+  "t1SelectedDictionaryFirstSource": {
+    "sameTargetPath": 18,
+    "differentTargetPath": 2202
+  },
+  "topRegressions": [
+    {
+      "family": "dotnet-aspnetcore-win-x64",
+      "base": "10.0.10",
+      "target": "10.0.11",
+      "path": "shared/Microsoft.NETCore.App/{version}/System.Private.CoreLib.dll",
+      "deltaBytes": 4136499
+    },
+    {
+      "family": "dotnet-runtime-linux-arm64",
+      "base": "10.0.10",
+      "target": "10.0.11",
+      "path": "shared/Microsoft.NETCore.App/{version}/System.Private.CoreLib.dll",
+      "deltaBytes": 3778128
+    },
+    {
+      "family": "dotnet-runtime-linux-arm64",
+      "base": "10.0.10",
+      "target": "10.0.11",
+      "path": "shared/Microsoft.NETCore.App/{version}/libcoreclr.so",
+      "deltaBytes": 2013025
+    }
+  ],
+  "evidenceLimits": [
+    "Read-only replay validates original artifact structure, SHA, exact byte arithmetic, file identity and producer-declared public-vs-traced CSP SHA; CSP bytes themselves were not archived.",
+    "Actual zstd dictionary/frame encoding is checked by producing .NET evaluator, not independently decoded in the artifact replay.",
+    "Same original files and identical CSP SHA across F1 and historical physical run; boundary CSM cut observations remain a separate earlier run.",
+    "Encoding differences are descriptive, not causal counterfactual, not T2/T3/holdout decision.",
+    "firstSourceFile refers to the FIRST selected dictionary base chunk and does not prove entire dictionary lies within that file."
+  ]
+}

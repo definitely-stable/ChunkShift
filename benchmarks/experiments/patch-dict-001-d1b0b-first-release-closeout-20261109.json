@@ -1,0 +1,270 @@
+{
+  "schema": "chunkshift.patch-dict-001-first-release-closeout.v1",
+  "evidenceId": "PATCH-DICT-001/D1B0B-FIRST-RELEASE-DEFER-20261109-001",
+  "experimentId": "PATCH-DICT-001",
+  "date": "2026-11-09",
+  "firstReleaseDecision": "DEFER_COMPOSITE_DISJOINT_RUN__NO_PRODUCTION_ADOPT",
+  "defaultBuilderChanged": false,
+  "cspV1WireChanged": false,
+  "physicalCspImprovementClaimsNotHoldout": true,
+  "source": {
+    "repository": "definitely-stable/ChunkShift",
+    "sourcePr": 452,
+    "originalRunId": 42653923507,
+    "originalBranchHeadSha": "5dc50dcc25465423afb0b24f474a8d39a1c6f511",
+    "mergedCommitSha": "0e53525ca78c61a284949adaf15b4ca967f27579",
+    "originalArtifactId": 13692115104,
+    "originalZipSha256": "6e594c8cf60a2c95881cc3a35e5cb34da479f1447405032dd76333b1d8fb6860",
+    "originalZipMemberCount": 17,
+    "frozenPairsSha256": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+    "datasetRole": "already-opened-original-calibration-NOT-holdout",
+    "sourceFamily": "dotnet-aspnetcore-win-x64",
+    "baseVersion": "10.0.10",
+    "targetVersion": "10.0.11",
+    "hostedContracts": {
+      "ubuntuPassed": 4,
+      "windowsPassed": 4
+    },
+    "independentPythonWholeCspApply": "PASS",
+    "exactH0Replay": "PASS",
+    "independentArchiveDigestAndSourceParity": "PASS"
+  },
+  "protocol": {
+    "fixedK4": "exhaustive starts with fixed K=4 whole verified base ChunkIds",
+    "variableK": "same complete start population with K=1,2,3,4",
+    "compositeExtra": "bounded nonadjacent 2..4 references from at most eight deterministic source ordinals",
+    "maximumDictionaryBytes": 1048576,
+    "maximumReferencedChunkIds": 4,
+    "encoding": "zstd level19 Prefix dictionary hashLog20 chainLog20",
+    "choose": "minimum physically serialized whole CSP; then references, runs, ordinal topology",
+    "otherPayloadEntries": "retained verbatim and verified after every replacement",
+    "output": "production CspWriter and CspApplier, independent Python decoder"
+  },
+  "files": [
+    {
+      "path": "host/fxr/{version}/hostfxr.dll",
+      "payloadEntries": 5,
+      "baseRecords": 5,
+      "originalBaseSha256": "d1012d5b8ff1329d5baa6d58aa02c4277acbe58cfd1dc5f10d7e6bb8e9a0d94a",
+      "originalTargetSha256": "44f97e946b36415176dbc56a4426565a5e9b3e722c0ad579e20a749e3c0c7bcd",
+      "baseCsmSha256": "62810966e0bb9c0876548c9683bce131dfb1b6496d60f6bd4ad8f7f2e78a9982",
+      "targetCsmSha256": "57b8d19e1c2b59e39785c0c2015fe64fd8f6144df306dba95c1ebe0dcc46c1e4",
+      "fullPhysicalBytes": {
+        "H0": 5566,
+        "fixedK4": 5566,
+        "variableK": 5274,
+        "composite": 5274
+      },
+      "fullCspSha256": {
+        "H0": "d37d7a8ec77c21e9061e86e4715176f6079bcfb5fc96bde35ba15adca4b6385c",
+        "fixedK4": "d37d7a8ec77c21e9061e86e4715176f6079bcfb5fc96bde35ba15adca4b6385c",
+        "variableK": "d4d1d75fc10eb66962c226a5275100ab55e4c28de4b46bd91f5a5a739391a7c2",
+        "composite": "d4d1d75fc10eb66962c226a5275100ab55e4c28de4b46bd91f5a5a739391a7c2"
+      },
+      "eligibleCandidates": {
+        "fixedK4": 10,
+        "variableK": 70,
+        "composite": 35
+      },
+      "changedPayloadEntries": {
+        "fixedK4": 0,
+        "variableK": 4,
+        "composite": 0
+      },
+      "variableKEntryLedger": [
+        {
+          "payloadOrdinal": 0,
+          "winner": "contig:00+01",
+          "referencesBefore": 4,
+          "referencesAfter": 1,
+          "frameBytesBefore": 144,
+          "frameBytesAfter": 143,
+          "physicalBytesSaved": 97
+        },
+        {
+          "payloadOrdinal": 1,
+          "winner": "contig:01+01",
+          "referencesBefore": 4,
+          "referencesAfter": 1,
+          "frameBytesBefore": 43,
+          "frameBytesAfter": 42,
+          "physicalBytesSaved": 97
+        },
+        {
+          "payloadOrdinal": 2,
+          "winner": "contig:02+01",
+          "referencesBefore": 3,
+          "referencesAfter": 1,
+          "frameBytesBefore": 89,
+          "frameBytesAfter": 87,
+          "physicalBytesSaved": 66
+        },
+        {
+          "payloadOrdinal": 3,
+          "winner": "contig:03+01",
+          "referencesBefore": 2,
+          "referencesAfter": 1,
+          "frameBytesBefore": 146,
+          "frameBytesAfter": 146,
+          "physicalBytesSaved": 32
+        },
+        {
+          "payloadOrdinal": 4,
+          "winner": "incumbent",
+          "referencesBefore": 1,
+          "referencesAfter": 1,
+          "frameBytesBefore": 3506,
+          "frameBytesAfter": 3506,
+          "physicalBytesSaved": 0
+        }
+      ],
+      "applyBaseStream": {
+        "H0": {
+          "calls": 14,
+          "bytesRead": 1034481,
+          "seeks": 14
+        },
+        "fixedK4": {
+          "calls": 14,
+          "bytesRead": 1034481,
+          "seeks": 14
+        },
+        "variableK": {
+          "calls": 5,
+          "bytesRead": 379688,
+          "seeks": 5
+        },
+        "composite": {
+          "calls": 5,
+          "bytesRead": 379688,
+          "seeks": 5
+        }
+      }
+    },
+    {
+      "path": "shared/Microsoft.AspNetCore.App/{version}/Microsoft.AspNetCore.Components.Endpoints.dll",
+      "payloadEntries": 4,
+      "baseRecords": 8,
+      "originalBaseSha256": "1c06c558ed4368450c4469320d65521b45bbcccb3256cc81aaf0f5d876c66fe2",
+      "originalTargetSha256": "b663100637071f50af003206b8fc102af6dbbc8a2f965ed67fcbe841623bbef2",
+      "baseCsmSha256": "0fd4f1c49d8d068f91ca961cbbe7490dba8bee41ed0198bc73d7529bdae953af",
+      "targetCsmSha256": "ff3245ba4e1a50ff68adf95d0413e129029abad49d7a0840d5f29b1f34138d85",
+      "fullPhysicalBytes": {
+        "H0": 5520,
+        "fixedK4": 5520,
+        "variableK": 5294,
+        "composite": 5294
+      },
+      "fullCspSha256": {
+        "H0": "d093f0990004090aabcaf1b3464ec1a23e12df957035e57e40db5e8baf347ab4",
+        "fixedK4": "d093f0990004090aabcaf1b3464ec1a23e12df957035e57e40db5e8baf347ab4",
+        "variableK": "f7f9157c962d9df39751b8e3e977a15a214232c61b4f112ccf131cbd63ed584c",
+        "composite": "f7f9157c962d9df39751b8e3e977a15a214232c61b4f112ccf131cbd63ed584c"
+      },
+      "eligibleCandidates": {
+        "fixedK4": 20,
+        "variableK": 104,
+        "composite": 184
+      },
+      "changedPayloadEntries": {
+        "fixedK4": 0,
+        "variableK": 3,
+        "composite": 0
+      },
+      "variableKEntryLedger": [
+        {
+          "payloadOrdinal": 0,
+          "winner": "contig:00+01",
+          "referencesBefore": 4,
+          "referencesAfter": 1,
+          "frameBytesBefore": 199,
+          "frameBytesAfter": 198,
+          "physicalBytesSaved": 97
+        },
+        {
+          "payloadOrdinal": 1,
+          "winner": "contig:01+01",
+          "referencesBefore": 4,
+          "referencesAfter": 1,
+          "frameBytesBefore": 29,
+          "frameBytesAfter": 29,
+          "physicalBytesSaved": 96
+        },
+        {
+          "payloadOrdinal": 2,
+          "winner": "contig:06+01",
+          "referencesBefore": 2,
+          "referencesAfter": 1,
+          "frameBytesBefore": 306,
+          "frameBytesAfter": 305,
+          "physicalBytesSaved": 33
+        },
+        {
+          "payloadOrdinal": 3,
+          "winner": "incumbent",
+          "referencesBefore": 1,
+          "referencesAfter": 1,
+          "frameBytesBefore": 3400,
+          "frameBytesAfter": 3400,
+          "physicalBytesSaved": 0
+        }
+      ],
+      "applyBaseStream": {
+        "H0": {
+          "calls": 15,
+          "bytesRead": 1014940,
+          "seeks": 15
+        },
+        "fixedK4": {
+          "calls": 15,
+          "bytesRead": 1014940,
+          "seeks": 15
+        },
+        "variableK": {
+          "calls": 8,
+          "bytesRead": 706384,
+          "seeks": 8
+        },
+        "composite": {
+          "calls": 8,
+          "bytesRead": 706384,
+          "seeks": 8
+        }
+      }
+    }
+  ],
+  "total": {
+    "originalFiles": 2,
+    "payloadEntries": 9,
+    "fullPhysicalBytes": {
+      "H0": 11086,
+      "fixedK4": 11086,
+      "variableK": 10568,
+      "composite": 10568
+    },
+    "fixedK4SavingsVsH0Bytes": 0,
+    "variableKSavingsVsFixedK4Bytes": 518,
+    "variableKSavingsVsH0Percent": 4.672559985567382,
+    "compositeExtraSavingsVsVariableKBytes": 0,
+    "compositeExtraSavingsVsVariableKPercent": 0,
+    "variableKSavedReferenceBytes": 512,
+    "variableKSavedFrameBytes": 6,
+    "eligibleCandidates": {
+      "fixedK4": 30,
+      "variableK": 174,
+      "composite": 219
+    },
+    "changedPayloadEntries": {
+      "fixedK4": 0,
+      "variableK": 7,
+      "composite": 0
+    }
+  },
+  "caveats": [
+    "Original data from one previously opened calibration family and two files only; not sealed holdout",
+    "No paired process-isolated create CPU/RSS budget; single-pass Apply timing is not a performance decision",
+    "Base stream counters are not physical disk-sector or seek-amplification measurements",
+    "No test of arbitrary byte-range representation, cross-file dictionaries, >4 references or fresh families",
+    "DEFER first release is not a universal REJECT of composite or ADOPT of variable-K"
+  ]
+}

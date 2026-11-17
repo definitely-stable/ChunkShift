@@ -1,0 +1,214 @@
+{
+  "schema": "chunkshift.patch-tree-t1-boundary-evidence.v1",
+  "experimentId": "PATCH-TREE-001",
+  "evidenceId": "PATCH-TREE-001/EVIDENCE-20261015-T1B-001",
+  "status": "CALIBRATION_DIAGNOSTIC_PASS_NOT_DECISION",
+  "resultRunId": "PATCH-TREE-001/T1-BOUNDARY-20261015-38736641373",
+  "githubRunId": 38736641373,
+  "originalArtifactId": 11974666607,
+  "originalArtifactUrl": "https://github.com/definitely-stable/ChunkShift/actions/runs/38736641373/artifacts/11974666607",
+  "originalZipSha256": "2918c70f03bf87e2e3351c52399debfa61c54887a3b9c48b8473c362606a4002",
+  "sha256": {
+    "boundary.json": "926a3a83dae334cbc068bed70c04510007c9b880e60b93535f902d729a830ae3",
+    "layouts.json": "6deb37fd4cb778fab1ad67a1da8d187ed0205ac2c89c4fa391e5507169da389a",
+    "original-pairs.json": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+    "provenance.json": "a92690c91e7e614f5b2896594e36d2a1e283e2fa5264c86c49025cc07eb12fd6",
+    "SHA256SUMS": "5b4141a2f862177cae9257d3c8c598889d5c61544efa67423378ab75264e6da4"
+  },
+  "source": {
+    "frozenOriginalPairsRecoveryRunId": 38136336025,
+    "calibrationFamilies": [
+      "dotnet-aspnetcore-win-x64",
+      "dotnet-runtime-linux-arm64"
+    ],
+    "independentFullSourceTreePreflight": true,
+    "calibrationOnly": true,
+    "sealedHoldoutOpened": false
+  },
+  "runner": {
+    "sha": "e55fb069f383c5589a66769e8675ce8e3b71df21",
+    "ref": "refs/heads/main",
+    "os": "Linux",
+    "arch": "X64",
+    "environment": "github-hosted",
+    "attempt": 1,
+    "dotnetSdk": "10.0.402"
+  },
+  "population": {
+    "pairs": 4,
+    "changed": 1049,
+    "added": 2,
+    "removed": 2,
+    "unchanged": 13,
+    "rowCount": 1066
+  },
+  "totals": {
+    "oldFileBytes": 398185191,
+    "standaloneOldChunks": 5373,
+    "standaloneOldChunkBytes": 398185191,
+    "preservedSameOffsetChunks": 3709,
+    "preservedSameOffsetBytes": 300579261,
+    "oldAvailableAnywhereChunks": 3709,
+    "oldAvailableAnywhereBytes": 300579261,
+    "virtualContainedChunks": 4036,
+    "virtualContainedBytes": 325258728,
+    "virtualCrossBoundaryOverlapChunkOccurrences": 1655,
+    "virtualCrossBoundaryOverlapBytes": 72926463,
+    "targetChunks": 5347,
+    "targetBytes": 395837107,
+    "targetT0ExactChunks": 2384,
+    "targetT0ExactBytes": 187406471,
+    "targetT1ExactChunks": 2306,
+    "targetT1ExactBytes": 181452822,
+    "changedFilesT0Better": 68,
+    "changedFilesT1Better": 0,
+    "changedFilesEqual": 981,
+    "addedFilesT1Better": 1
+  },
+  "pairs": [
+    {
+      "family": "dotnet-aspnetcore-win-x64",
+      "baseVersion": "10.0.10",
+      "targetVersion": "10.0.11",
+      "oldTreeManifestId": "f19fa9976a5c9310f1727b58a5e5a8c64d31c28a2f3abae23ce8f6e546b62f57",
+      "oldTreeChunks": 1266,
+      "oldTreeBytes": 110294985,
+      "standaloneOldBytes": 110294985,
+      "preservedSameOffsetBytes": 77196998,
+      "availableAnywhereBytes": 77196998,
+      "crossBoundaryOverlapBytes": 24562121,
+      "virtualContainedBytes": 85732864,
+      "targetChunksBytes": 108026236,
+      "targetExactT0Bytes": 39581763,
+      "targetExactT1Bytes": 36933847,
+      "changedFilesWithT1LessReuse": 24
+    },
+    {
+      "family": "dotnet-aspnetcore-win-x64",
+      "baseVersion": "10.0.11",
+      "targetVersion": "10.0.12",
+      "oldTreeManifestId": "01d09866d01d9eeec558ce07d4c238f6c46ff12c9634c9f0ce53fa963fac9d4d",
+      "oldTreeChunks": 1262,
+      "oldTreeBytes": 110310200,
+      "standaloneOldBytes": 110310200,
+      "preservedSameOffsetBytes": 77493031,
+      "availableAnywhereBytes": 77493031,
+      "crossBoundaryOverlapBytes": 24566022,
+      "virtualContainedBytes": 85744178,
+      "targetChunksBytes": 110409533,
+      "targetExactT0Bytes": 56779252,
+      "targetExactT1Bytes": 54775296,
+      "changedFilesWithT1LessReuse": 25
+    },
+    {
+      "family": "dotnet-runtime-linux-arm64",
+      "baseVersion": "10.0.10",
+      "targetVersion": "10.0.11",
+      "oldTreeManifestId": "8e6f5860c46cb9442540bef876fc49106cfaf84659c5e4b4d326cdb6074325ea",
+      "oldTreeChunks": 1058,
+      "oldTreeBytes": 88803979,
+      "standaloneOldBytes": 88803979,
+      "preservedSameOffsetBytes": 72852064,
+      "availableAnywhereBytes": 72852064,
+      "crossBoundaryOverlapBytes": 11944600,
+      "virtualContainedBytes": 76859379,
+      "targetChunksBytes": 88697425,
+      "targetExactT0Bytes": 38849123,
+      "targetExactT1Bytes": 38257427,
+      "changedFilesWithT1LessReuse": 9
+    },
+    {
+      "family": "dotnet-runtime-linux-arm64",
+      "baseVersion": "10.0.11",
+      "targetVersion": "10.0.12",
+      "oldTreeManifestId": "cd7279d62d2d131f3379f6865162338c745abead8c03df21a493c100403436d9",
+      "oldTreeChunks": 1045,
+      "oldTreeBytes": 88776027,
+      "standaloneOldBytes": 88776027,
+      "preservedSameOffsetBytes": 73037168,
+      "availableAnywhereBytes": 73037168,
+      "crossBoundaryOverlapBytes": 11853720,
+      "virtualContainedBytes": 76922307,
+      "targetChunksBytes": 88703913,
+      "targetExactT0Bytes": 52196333,
+      "targetExactT1Bytes": 51486252,
+      "changedFilesWithT1LessReuse": 10
+    }
+  ],
+  "interpretation": {
+    "preservedSameOffsetShare": 0.7548730284145599,
+    "oldCrossBoundaryByteShare": 0.18314710001357132,
+    "t0TargetExactByteShare": 0.4734434131765216,
+    "t1TargetExactByteShare": 0.4584027590925173,
+    "lossInExactTargetAvailabilityBytes": 5953649,
+    "physicalT1MinusT0WarmBytes": 68834840,
+    "conclusion": "Boundary disruption is observed, but exact-match loss is not a causally matched accounting explanation for the much larger physical CSP regression; follow-on physical PAYL/dictionary/candidate attribution is required."
+  },
+  "limits": [
+    "Source CSM is generated by canonical SDK; offline replay checks structure, source SHA and conservation, not independent FastCDC implementation.",
+    "No physically matched per-file payload/frame attribution in this diagnostic.",
+    "Source materialization is preregistered calibration only, not a sealed holdout.",
+    "Byte counts are occurrence-based, not independently selected transmitted payload savings.",
+    "No CSP, CSM, SDK, public API or default changes; no ADOPT."
+  ],
+  "originalPhysicalCalibration": {
+    "runId": 38142160679,
+    "t0WarmBytes": 14758982,
+    "t0SBytes": 13143287,
+    "t1WarmBytes": 83593822,
+    "t1ColdBytes": 83966486,
+    "disposition": "ACCEPTED_CALIBRATION_ONLY_NOT_HOLDOUT",
+    "originalArtifactId": 11703153269,
+    "originalArtifactUrl": "https://github.com/definitely-stable/ChunkShift/actions/runs/38142160679/artifacts/11703153269",
+    "originalZipSha256": "e5707a7334ebc909486945edaf3eed8832a121b715ba5e9cd1354e2447865812",
+    "physicalCalibrationJsonSha256": "d0de7fb182cc15bd590b1335c92705d464764fab0cdfc021ad9f31928e2d5b5c",
+    "identicalFrozenPairsAndLayoutsBytesAcrossRuns": true,
+    "rowJoinKeys": [
+      "family",
+      "baseVersion",
+      "targetVersion",
+      "path",
+      "kind"
+    ],
+    "pairManifestIdsEqualAcrossRuns": true,
+    "allPerFilePhysicalDeltaBytesReconcile": true
+  },
+  "matchedPhysicalAttribution": {
+    "description": "Post-hoc source-locked observational join of prior original physical T0/T1 calibration and new original boundary diagnostic, not an isolated codec mechanism/causal experiment.",
+    "populations": [
+      {
+        "kind": "changed_exact_equal",
+        "files": 981,
+        "targetBytes": 293057043,
+        "t0ExactBytes": 105340649,
+        "t1ExactBytes": 105340649,
+        "t0PhysicalBytes": 11514584,
+        "t1PhysicalBytes": 73518267,
+        "t1MinusT0PhysicalBytes": 62003683
+      },
+      {
+        "kind": "changed_exact_loss",
+        "files": 68,
+        "targetBytes": 100066792,
+        "t0ExactBytes": 82065822,
+        "t1ExactBytes": 75429329,
+        "t0PhysicalBytes": 345690,
+        "t1PhysicalBytes": 9085396,
+        "t1MinusT0PhysicalBytes": 8739706
+      },
+      {
+        "kind": "added",
+        "files": 2,
+        "targetBytes": 2713272,
+        "t0ExactBytes": 0,
+        "t1ExactBytes": 682844,
+        "t0PhysicalBytes": 2713272,
+        "t1PhysicalBytes": 804723,
+        "t1MinusT0PhysicalBytes": -1908549
+      }
+    ],
+    "totalPhysicalDeltaBytes": 68834840,
+    "changedEqualExactContributionShareOfNetPhysicalDelta": 0.9007601819078827,
+    "interpretation": "The 981 changed files whose exact chunk availability is identical account for +62,003,683 physical bytes, or 90.08% of the net T1-vs-T0 regression. Equal exact availability is not equal actual reference selection or compressed PAYL effectiveness; isolate physical frame/dictionary selection next."
+  }
+}

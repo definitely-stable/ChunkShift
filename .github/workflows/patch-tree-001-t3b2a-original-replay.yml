@@ -1,0 +1,40 @@
+name: PATCH-TREE-001 T3B2A independent original ZIP replay
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/research/results/PATCH-TREE-001-T3B2A-ORIGINAL-STRUCTURAL-EVIDENCE-20261023-001.md'
+      - 'docs/research/results/data/PATCH-TREE-001-T3B2A-EVIDENCE-20261023-001/recompute.py'
+      - '.github/workflows/patch-tree-001-t3b2a-original-replay.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  original-archive-replay:
+    name: Independent T3B2A original source-selector and SHA audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Fetch original ZIP by fixed id, verify digest and replay independently
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/12511608541/zip" \
+            -o "$RUNNER_TEMP/t3b2a-original.zip"
+          echo "7270b0425f923204c7f9021d6e9df1194d32fc36a94f64607ce7ecfefdc3971b  $RUNNER_TEMP/t3b2a-original.zip" | sha256sum --check
+          python3 docs/research/results/data/PATCH-TREE-001-T3B2A-EVIDENCE-20261023-001/recompute.py \
+            "$RUNNER_TEMP/t3b2a-original.zip"
+          echo 'T3B2A independent original source-selection replay PASS / NO_PRODUCTION_ADOPT' >> "$GITHUB_STEP_SUMMARY"

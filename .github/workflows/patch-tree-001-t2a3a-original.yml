@@ -1,0 +1,240 @@
+name: PATCH-TREE-001 T2A3A original paired T0/T2 create CPU gate
+
+# Frozen calibration only, after review on first main push. NO PR-original runs.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'benchmarks/ChunkShift.Benchmarks/PatchLab/Tree/PatchTreeT2A3A.cs'
+      - '.github/workflows/patch-tree-001-t2a3a-original.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: patch-tree-001-t2a3a-original-first-main
+  cancel-in-progress: false
+
+jobs:
+  paired-original:
+    name: Real four .NET tree pairs, same-host T0/T2 create ABBA (Ubuntu x64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - name: Enforce first GitHub-hosted main push, never rerun
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$RUNNER_OS" = Linux
+          test "$RUNNER_ARCH" = X64
+          test "$GITHUB_REPOSITORY" = definitely-stable/ChunkShift
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_RUN_ATTEMPT" = 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-tree-001-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Independently lock previous original A1/A2 run provenance and artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/t2a3a-a1" "$RUNNER_TEMP/t2a3a-a2" "$RUNNER_TEMP/t2a3a-results"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/40204580308" > "$RUNNER_TEMP/t2a3a-parent-a1.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/40281148160" > "$RUNNER_TEMP/t2a3a-parent-a2.json"
+          python3 - "$RUNNER_TEMP" <<'PY'
+          import json,os,pathlib,sys
+          d=pathlib.Path(sys.argv[1]);repo=os.environ['GITHUB_REPOSITORY']
+          for run,head,path in (
+            (40204580308,'555c992f30473c373f1efd0d6d8b3d18bf87a090',
+             '.github/workflows/patch-tree-001-t2a1-real-preflight.yml'),
+            (40281148160,'fe26c8556c34c0c6f105038733023b1d00cafd49',
+             '.github/workflows/patch-tree-001-t2a2-real-pilot.yml')):
+            label='a1' if run==40204580308 else 'a2'
+            x=json.loads((d/f't2a3a-parent-{label}.json').read_text())
+            assert x['id']==run and x['repository']['full_name']==repo
+            assert x['event']=='push' and x['head_branch']=='main'
+            assert x['run_attempt']==1 and x['conclusion']=='success'
+            assert x['status']=='completed' and x['head_sha']==head
+            assert x['path'].split('@')[0]==path
+          PY
+          gh run download 40204580308 -R "$GITHUB_REPOSITORY" \
+            -n patch-tree-t2a1-original-CSM-only-NO-ADOPT -D "$RUNNER_TEMP/t2a3a-a1"
+          gh run download 40281148160 -R "$GITHUB_REPOSITORY" \
+            -n patch-tree-t2a2-original-CSP-pilot-NO-ADOPT -D "$RUNNER_TEMP/t2a3a-a2"
+          ( cd "$RUNNER_TEMP/t2a3a-a1" && sha256sum --check SHA256SUMS )
+          ( cd "$RUNNER_TEMP/t2a3a-a2" && sha256sum --check SHA256SUMS )
+          echo '823820571d3534b302e2acb8f0501ac4dbe4c6030093e6e27b3a066945d65fb6  '"$RUNNER_TEMP/t2a3a-a1/t2a1-preflight.json" | sha256sum --check
+          echo '9d7de74a2bd44f10a2c299909a2b16e40a8f394ff3afcf8fbf319e6d19b97939  '"$RUNNER_TEMP/t2a3a-a2/t2a2-original-pilot.json" | sha256sum --check
+          for file in original-pairs.json layouts.json prior-t0-calibration.json prior-t2a1-preflight.json; do
+            if test -f "$RUNNER_TEMP/t2a3a-a1/$file" && test -f "$RUNNER_TEMP/t2a3a-a2/$file"; then
+              cmp "$RUNNER_TEMP/t2a3a-a1/$file" "$RUNNER_TEMP/t2a3a-a2/$file"
+            fi
+          done
+          echo '8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd  '"$RUNNER_TEMP/t2a3a-a2/original-pairs.json" | sha256sum --check
+          echo '6deb37fd4cb778fab1ad67a1da8d187ed0205ac2c89c4fa391e5507169da389a  '"$RUNNER_TEMP/t2a3a-a2/layouts.json" | sha256sum --check
+          echo 'd0de7fb182cc15bd590b1335c92705d464764fab0cdfc021ad9f31928e2d5b5c  '"$RUNNER_TEMP/t2a3a-a2/prior-t0-calibration.json" | sha256sum --check
+          echo '823820571d3534b302e2acb8f0501ac4dbe4c6030093e6e27b3a066945d65fb6  '"$RUNNER_TEMP/t2a3a-a2/prior-t2a1-preflight.json" | sha256sum --check
+
+      - name: Rebuild four original immutable .NET trees without sealed holdouts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$RUNNER_TEMP/t2a3a-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download --lock --calibration-only \
+            --pairs-reference "$RUNNER_TEMP/t2a3a-a2/original-pairs.json"
+          python3 benchmarks/scripts/patch_tree_001_inventory.py \
+            --root "$RUNNER_TEMP/t2a3a-corpus" \
+            --output "$RUNNER_TEMP/t2a3a-results/layouts.json" --calibration-only
+          cmp "$RUNNER_TEMP/t2a3a-results/layouts.json" "$RUNNER_TEMP/t2a3a-a2/layouts.json"
+          cp "$RUNNER_TEMP/t2a3a-a2/original-pairs.json" "$RUNNER_TEMP/t2a3a-results/original-pairs.json"
+          cp "$RUNNER_TEMP/t2a3a-a2/prior-t0-calibration.json" "$RUNNER_TEMP/t2a3a-results/prior-t0-calibration.json"
+          cp "$RUNNER_TEMP/t2a3a-a2/prior-t2a1-preflight.json" "$RUNNER_TEMP/t2a3a-results/prior-t2a1-preflight.json"
+          cp "$RUNNER_TEMP/t2a3a-a2/t2a2-original-pilot.json" "$RUNNER_TEMP/t2a3a-results/prior-t2a2-pilot.json"
+
+      - name: Build unchanged SDK CSP v1 and source-free paired contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+          dotnet test benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-build --no-restore \
+            --filter FullyQualifiedName~PatchTreeT2A3A
+
+      - name: Execute four original pairs in counterbalanced T0/T2 ABBA schedule
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --no-build --project benchmarks/ChunkShift.Benchmarks -c Release -- \
+            patch-lab tree-t2a3a \
+            --corpus "$RUNNER_TEMP/t2a3a-corpus" \
+            --inventory "$RUNNER_TEMP/t2a3a-results/layouts.json" \
+            --baseline "$RUNNER_TEMP/t2a3a-results/prior-t0-calibration.json" \
+            --preflight "$RUNNER_TEMP/t2a3a-results/prior-t2a1-preflight.json" \
+            --physical "$RUNNER_TEMP/t2a3a-results/prior-t2a2-pilot.json" \
+            --scratch "$RUNNER_TEMP/t2a3a-temporary-csp" \
+            --output "$RUNNER_TEMP/t2a3a-results/t2a3a-paired-create.json"
+          test ! -e "$RUNNER_TEMP/t2a3a-temporary-csp"
+
+      - name: Independently validate raw paired samples and preserve provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/t2a3a-results" <<'PY'
+          import hashlib,json,math,os,pathlib,statistics,subprocess,sys
+          d=pathlib.Path(sys.argv[1]);v=json.loads((d/'t2a3a-paired-create.json').read_text())
+          t0=json.loads((d/'prior-t0-calibration.json').read_text())
+          a2=json.loads((d/'prior-t2a2-pilot.json').read_text())
+          assert v['schema']=='chunkshift.patch-tree-t2a3a-paired-create.v1'
+          assert v['status']=='PAIRED_ORIGINAL_CREATE_ONLY_NO_RSS_OR_PRODUCTION_ADOPT'
+          assert v['warmupsPerLane']==1 and v['measuredRoundsPerLane']==4
+          assert v['cpuRatioGate']==3 and v['wallRatioGate']==3
+          assert v['t2AbsoluteWallMillisecondsGate']==60000
+          assert v['t0FullWarmBytes']==t0['pairs'][0]['t0WarmPhysicalBytes']+sum(
+            p['t0WarmPhysicalBytes'] for p in t0['pairs'][1:])
+          assert v['t0FullWarmBytes']==14758982 and v['t2FullWarmBytes']==10828279
+          assert len(v['pairs'])==4
+          totals=[]
+          for p,prior,ref in zip(v['pairs'],t0['pairs'],a2['pairs']):
+            assert (p['family'],p['baseVersion'],p['targetVersion'])==(
+              prior['family'],prior['baseVersion'],prior['targetVersion'])
+            assert p['t0WarmBytes']==prior['t0WarmPhysicalBytes']
+            assert p['t2WarmBytes']==ref['t2WarmPhysicalBytes']
+            assert p['t2CspSha256']==ref['t2CspSha256']
+            assert len(p['samples'])==10
+            expected=[(-1,'T0'),(-1,'T2'),(0,'T0'),(0,'T2'),
+                      (1,'T2'),(1,'T0'),(2,'T2'),(2,'T0'),
+                      (3,'T0'),(3,'T2')]
+            assert [(x['round'],x['lane']) for x in p['samples']]==expected
+            for lane in ('T0','T2'):
+              x=[s for s in p['samples'] if s['lane']==lane]
+              assert len(x)==5 and sum(s['warmup'] for s in x)==1
+              assert len({s['digest'] for s in x})==1
+              for s in x:
+                assert s['physicalIdentityVerified'] is True
+                assert s['payloadBytes']==(
+                    prior['t0PayloadBytes'] if lane=='T0' else ref['t2CspBytes'])
+                assert s['logicalBaseReadBytes']>=0
+                assert all(math.isfinite(s[k]) and s[k]>=0 for k in (
+                    'cpuMilliseconds','wallMilliseconds'))
+              measured=[s for s in x if not s['warmup']]
+              assert len(measured)==4
+              for key,outkey in [('cpuMilliseconds',f'median{lane}CpuMs'),
+                                 ('wallMilliseconds',f'median{lane}WallMs')]:
+                assert math.isclose(statistics.median(y[key] for y in measured),
+                                    p[outkey],rel_tol=1e-12,abs_tol=1e-8)
+            tc=p['medianT0CpuMs']; tw=p['medianT0WallMs']
+            expected_cpu=p['medianT2CpuMs']/tc if tc>0 else None
+            expected_wall=p['medianT2WallMs']/tw if tw>0 else None
+            assert p['t2OverT0Cpu']==expected_cpu
+            assert p['t2OverT0Wall']==expected_wall
+            yes=expected_cpu is not None and expected_wall is not None and (
+              expected_cpu<=3 and expected_wall<=3 and p['medianT2WallMs']<=60000)
+            assert p['createCostGate']==(
+              'PASS_A3A_CREATE_GUARD' if yes else 'FAIL_A3A_CREATE_GUARD')
+            totals.append(yes)
+            print(p['family'],p['baseVersion'],p['targetVersion'],
+              'CPU ratio',expected_cpu,'wall ratio',expected_wall,
+              'T2 ms',p['medianT2WallMs'],'gate',p['createCostGate'])
+          assert sum(p['t0WarmBytes'] for p in v['pairs'])==14758982
+          assert sum(p['t2WarmBytes'] for p in v['pairs'])==10828279
+          assert v['aggregateCreateCostGate']==(
+            'A3A_PAIRED_CREATE_FEASIBLE_ONLY__RSS_AND_TRUST_UNQUALIFIED'
+            if all(totals) else 'A3A_CREATE_COST_GATE_FAIL__T2_DEFER')
+          sha=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+          assert sha==os.environ['GITHUB_SHA']
+          metadata={
+            'schema':'chunkshift.patch-tree-t2a3a-original-provenance.v1',
+            'sourceSha':sha,'runId':os.environ['GITHUB_RUN_ID'],
+            'runAttempt':os.environ['GITHUB_RUN_ATTEMPT'],'ref':os.environ['GITHUB_REF'],
+            'runnerEnvironment':os.environ['RUNNER_ENVIRONMENT'],
+            'runnerOS':os.environ['RUNNER_OS'],'runnerArch':os.environ['RUNNER_ARCH'],
+            'originalA1Run':40204580308,'originalA2Run':40281148160,
+            'privateRssObserved':False,'sealedHoldoutOpened':False,
+            'matchedCompletePipeline':False,'productionAdopt':False}
+          (d/'provenance.json').write_text(json.dumps(metadata,indent=2,sort_keys=True)+'\n')
+          names=('original-pairs.json','layouts.json','prior-t0-calibration.json',
+                 'prior-t2a1-preflight.json','prior-t2a2-pilot.json',
+                 't2a3a-paired-create.json','provenance.json')
+          with (d/'SHA256SUMS').open('w') as out:
+            for name in names:
+              out.write(hashlib.sha256((d/name).read_bytes()).hexdigest()+'  '+name+'\n')
+          PY
+          ( cd "$RUNNER_TEMP/t2a3a-results" && sha256sum --check SHA256SUMS )
+          echo 'T2A3A same-host paired real T0/T2 create-only; no private RSS, no production adoption' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Label failed original evidence UNVERIFIED
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/t2a3a-results"
+          printf 'UNVERIFIED_NOT_DECISION\nRun=%s\nSource=%s\n' "$GITHUB_RUN_ID" "$GITHUB_SHA" > "$RUNNER_TEMP/t2a3a-results/UNVERIFIED_NOT_DECISION.txt"
+      - name: Archive failed diagnostics without promotion
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-t2a3a-UNVERIFIED-NOT-DECISION
+          path: ${{ runner.temp }}/t2a3a-results/
+          retention-days: 14
+      - name: Archive first original paired samples only, no source or raw CSP
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-t2a3a-original-paired-create-NO-ADOPT
+          path: ${{ runner.temp }}/t2a3a-results/
+          retention-days: 90
+          if-no-files-found: error

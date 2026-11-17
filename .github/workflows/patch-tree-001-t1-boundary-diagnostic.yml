@@ -1,0 +1,245 @@
+name: PATCH-TREE-001 T1 boundary diagnostic
+
+# Only explicit main-branch dispatch; PR jobs exercise synthetic tests through
+# Benchmark lab. No holdout files, no CSP measurements, no production changes.
+on:
+  workflow_dispatch:
+    inputs:
+      run-date:
+        description: "UTC date YYYYMMDD, for calibration-only provenance"
+        required: true
+        type: string
+      pairs-run-id:
+        description: "Successful first-attempt PATCH-TREE original-pairs recovery workflow run ID"
+        required: true
+        type: string
+      source-sha:
+        description: "Owner authorized main SHA"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: patch-tree-001-t1-boundary-diagnostic
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+  PAIRS_SHA256: 8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd
+
+jobs:
+  calibration:
+    name: real-boundary-calibration-only-linux-x64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - name: Enforce original authorized main dispatch before any checkout
+        shell: bash
+        env:
+          RUN_DATE: ${{ inputs['run-date'] }}
+          PAIRS_RUN_ID: ${{ inputs['pairs-run-id'] }}
+          SOURCE_SHA: ${{ inputs['source-sha'] }}
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          test "$RUNNER_OS" = "Linux"
+          test "$RUNNER_ARCH" = "X64"
+          test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$GITHUB_RUN_ATTEMPT" = "1"
+          python3 - "$RUN_DATE" <<'PY'
+          import datetime
+          import os
+          import re
+          import sys
+          value = sys.argv[1]
+          if not re.fullmatch(r"[0-9]{8}", value):
+              raise SystemExit("run-date must be YYYYMMDD")
+          datetime.datetime.strptime(value, "%Y%m%d")
+          if not re.fullmatch(r"[0-9a-f]{64}", os.environ["PAIRS_SHA256"]):
+              raise SystemExit("PAIRS_SHA256 must be a full lowercase SHA-256 hex digest")
+          if not re.fullmatch(r"[1-9][0-9]{5,18}", os.environ["PAIRS_RUN_ID"]):
+              raise SystemExit("pairs-run-id must be an existing numeric workflow run ID")
+          PY
+          python3 - <<'PY'
+          import os
+          import re
+          if not re.fullmatch(r"[0-9a-f]{40}", os.environ["SOURCE_SHA"]) or os.environ["SOURCE_SHA"] != os.environ["GITHUB_SHA"]:
+              raise SystemExit("Authorized source SHA differs from GitHub checkout")
+          PY
+          echo "RUN_DATE=$RUN_DATE" >> "$GITHUB_ENV"
+          echo "PAIRS_REFERENCE_RUN_ID=$PAIRS_RUN_ID" >> "$GITHUB_ENV"
+
+      - name: Checkout source, including frozen Git history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: One-success-only source and run history proof
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/patch-tree-001-t1-boundary-diagnostic.yml/runs?event=workflow_dispatch&per_page=100" > "$RUNNER_TEMP/boundary-history.json"
+          python3 - "$RUNNER_TEMP/boundary-history.json" <<'PY'
+          import json, os, sys, subprocess
+          history = json.load(open(sys.argv[1], encoding="utf-8"))
+          if int(history.get("total_count", 0)) > 100:
+              raise SystemExit("history enumeration exceeds bound")
+          for run in history.get("workflow_runs", []):
+              if str(run.get("id")) != os.environ["GITHUB_RUN_ID"] and (
+                  run.get("status") != "completed" or run.get("conclusion") == "success"):
+                  raise SystemExit("prior active or successful diagnostic")
+          source = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          if source != os.environ["GITHUB_SHA"]:
+              raise SystemExit("unexpected checkout drift")
+          PY
+
+      - name: Setup pinned .NET from global.json
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Cache checksummed original source releases
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-tree-001-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Fetch original locked pairs metadata from separate hosted recovery
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PAIRS_REFERENCE_RUN_ID" \
+            > "$RUNNER_TEMP/pairs-run.json"
+          python3 - "$RUNNER_TEMP/pairs-run.json" "$PAIRS_REFERENCE_RUN_ID" <<'PY'
+          import json
+          import os
+          import sys
+          run = json.load(open(sys.argv[1], encoding="utf-8"))
+          expected = int(sys.argv[2])
+          path = run.get("path", "").split("@")[0]
+          if (run.get("id") != expected or
+              run.get("repository", {}).get("full_name") != os.environ["GITHUB_REPOSITORY"] or
+              path != ".github/workflows/patch-tree-001-pairs-reference.yml" or
+              run.get("event") != "workflow_dispatch" or
+              run.get("head_branch") != "main" or
+              run.get("run_attempt") != 1 or
+              run.get("status") != "completed" or run.get("conclusion") != "success"):
+              raise SystemExit("Original pairs recovery provenance rejected")
+          PY
+          mkdir -p "$RUNNER_TEMP/pairs-reference"
+          gh run download "$PAIRS_REFERENCE_RUN_ID" \
+            -R "$GITHUB_REPOSITORY" -n patch-tree-001-original-pairs \
+            -D "$RUNNER_TEMP/pairs-reference"
+          (
+            cd "$RUNNER_TEMP/pairs-reference"
+            sha256sum --check SHA256SUMS
+            echo "$PAIRS_SHA256  pairs.json" | sha256sum --check
+          )
+
+      - name: Materialize calibration families only and verify locked tree inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "CORPUS_ROOT=$RUNNER_TEMP/patch-corpus" >> "$GITHUB_ENV"
+          echo "EVIDENCE_DIR=$RUNNER_TEMP/patch-tree-evidence" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/patch-tree-evidence"
+          python3 benchmarks/scripts/materialize_patch_corpus.py \
+            --root "$RUNNER_TEMP/patch-corpus" \
+            --sources "$HOME/patch-corpus/sources" \
+            --download --lock --calibration-only \
+            --pairs-reference "$RUNNER_TEMP/pairs-reference/pairs.json"
+          echo "$PAIRS_SHA256  $RUNNER_TEMP/patch-corpus/pairs.json" | sha256sum --check
+          cp "$RUNNER_TEMP/patch-corpus/pairs.json" \
+            "$RUNNER_TEMP/patch-tree-evidence/original-pairs.json"
+          python3 benchmarks/scripts/patch_tree_001_inventory.py \
+            --root "$RUNNER_TEMP/patch-corpus" \
+            --output "$RUNNER_TEMP/patch-tree-evidence/layouts.json" \
+            --calibration-only
+
+      - name: Build Release production SDK and calibration evaluator
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+          dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+          dotnet test benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-build --no-restore \
+            --filter 'FullyQualifiedName~PatchTree'
+
+      - name: Real calibration-only boundary attribution and independent verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest benchmarks/scripts/test_verify_patch_tree_001_boundary.py -v
+          dotnet run --no-build --project benchmarks/ChunkShift.Benchmarks -c Release -- \
+            patch-lab tree-boundary --corpus "$CORPUS_ROOT" \
+            --inventory "$EVIDENCE_DIR/layouts.json" \
+            --output "$EVIDENCE_DIR/boundary.json" \
+            --run-id "PATCH-TREE-001/T1-BOUNDARY-$RUN_DATE-$GITHUB_RUN_ID"
+          python3 benchmarks/scripts/verify_patch_tree_001_boundary.py \
+            --result "$EVIDENCE_DIR/boundary.json" \
+            --pairs "$CORPUS_ROOT/pairs.json" --inventory "$EVIDENCE_DIR/layouts.json"
+          python3 - "$EVIDENCE_DIR" <<'PY'
+          import json, os, pathlib, subprocess, sys
+          evidence = pathlib.Path(sys.argv[1])
+          result = json.loads((evidence / "boundary.json").read_text(encoding="utf-8"))
+          provenance = {
+              "schema": "chunkshift.patch-tree-boundary-provenance.v1",
+              "status": "CALIBRATION_DIAGNOSTIC_NOT_DECISION",
+              "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+              "runId": os.environ["GITHUB_RUN_ID"],
+              "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "gitRef": os.environ["GITHUB_REF"],
+              "runnerEnvironment": os.environ["RUNNER_ENVIRONMENT"],
+              "runnerOS": os.environ["RUNNER_OS"],
+              "runnerArch": os.environ["RUNNER_ARCH"],
+              "dotnetSdk": subprocess.check_output(["dotnet", "--version"], text=True).strip(),
+              "pairsSha256": os.environ["PAIRS_SHA256"],
+              "pairsReferenceRunId": os.environ["PAIRS_REFERENCE_RUN_ID"],
+              "resultRunId": result["runId"],
+          }
+          (evidence / "provenance.json").write_text(
+              json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+          (
+            cd "$EVIDENCE_DIR"
+            sha256sum original-pairs.json layouts.json boundary.json provenance.json > SHA256SUMS
+            sha256sum --check SHA256SUMS
+          )
+
+      # Preserve post-failure raw evidence for diagnosis only, even when a
+      # structural verifier rejects it. Never relabel this as accepted evidence.
+      - name: Mark failed boundary diagnostic as UNVERIFIED
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/patch-tree-evidence"
+          printf 'UNVERIFIED_NOT_DECISION\nGitHubRunId=%s\nGitRef=%s\nGitSha=%s\n' "$GITHUB_RUN_ID" "$GITHUB_REF" "$GITHUB_SHA" > "$RUNNER_TEMP/patch-tree-evidence/UNVERIFIED-NOT-DECISION.txt"
+
+      - name: Archive failed boundary diagnostic (never decision evidence)
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-001-boundary-UNVERIFIED-diagnostics
+          path: ${{ runner.temp }}/patch-tree-evidence/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Archive verified boundary diagnostic only
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: patch-tree-001-t1-boundary-diagnostic
+          path: ${{ runner.temp }}/patch-tree-evidence/
+          if-no-files-found: error
+          retention-days: 90

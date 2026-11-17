@@ -1,0 +1,38 @@
+name: PATCH-TREE-001 T2A3A paired real CSP create contracts
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'benchmarks/ChunkShift.Benchmarks/PatchLab/Tree/PatchTreeT2A3A.cs'
+      - 'benchmarks/ChunkShift.Benchmarks/PatchLab/Tree/PatchTreeT2A2.cs'
+      - 'benchmarks/ChunkShift.Benchmarks/PatchLab/PatchLabRunner.cs'
+      - 'benchmarks/ChunkShift.Benchmarks.Tests/PatchLab/PatchTreeT2A3ATests.cs'
+      - '.github/workflows/patch-tree-001-t2a3a-*.yml'
+      - 'docs/benchmarks/PATCH-TREE-001-T2A3A-PAIRED-CREATE-PROTOCOL.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paired-contracts:
+    name: ABBA physical CSP controls (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Source-locked A3A pair/cost/round order and fail-closed synthetic control
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj \
+            -c Release --filter FullyQualifiedName~PatchTreeT2A3A
+          echo 'T2A3A synthetic paired exact CSP only; NOT original CPU result' >> "$GITHUB_STEP_SUMMARY"

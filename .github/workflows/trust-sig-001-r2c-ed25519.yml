@@ -1,0 +1,125 @@
+name: TRUST-SIG-001 R2C NSec Ed25519 OpenSSL NativeAOT interop
+
+on:
+  pull_request:
+    paths:
+      - "benchmarks/TrustSigR2CEd25519/**"
+      - "docs/benchmarks/TRUST-SIG-001-R2C-ED25519-INTEROP-PROTOCOL.md"
+      - ".github/workflows/trust-sig-001-r2c-ed25519.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  ed25519-interop:
+    name: R2C NSec/OpenSSL JIT/AOT (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rid: linux-x64
+            exe: ""
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+            exe: ""
+          - os: windows-2025
+            rid: win-x64
+            exe: ".exe"
+          - os: macos-15
+            rid: osx-arm64
+            exe: ""
+    steps:
+      - name: Checkout PR merge commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup repository-pinned .NET 10 SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Select real external OpenSSL 3
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            prefix="$(brew --prefix openssl@3)"
+            echo "$prefix/bin" >> "$GITHUB_PATH"
+            export PATH="$prefix/bin:$PATH"
+          fi
+          command -v openssl
+          openssl version
+          openssl version | grep -q '^OpenSSL 3'
+      - name: Restore pinned R2C dependencies and build Release JIT
+        shell: bash
+        run: |
+          set -euo pipefail
+          project=benchmarks/TrustSigR2CEd25519/TrustSigR2CEd25519.csproj
+          for attempt in 1 2 3; do
+            if dotnet restore "$project" -p:TreatWarningsAsErrors=true; then break; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep 15
+          done
+          dotnet build "$project" -c Release --no-restore -warnaserror
+          dotnet list "$project" package --include-transitive > "$RUNNER_TEMP/r2c-packages.txt"
+          cat "$RUNNER_TEMP/r2c-packages.txt"
+          grep -F 'NSec.Cryptography' "$RUNNER_TEMP/r2c-packages.txt" | grep -F '26.4.0'
+          grep -i 'libsodium' "$RUNNER_TEMP/r2c-packages.txt"
+      - name: JIT cross-implementation real signature checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python benchmarks/TrustSigR2CEd25519/interop.py \
+            --app benchmarks/TrustSigR2CEd25519/bin/Release/net10.0/TrustSigR2CEd25519.dll \
+            --output "$RUNNER_TEMP/r2c-jit.json"
+      - name: Restore NativeAOT RID and publish warnings-as-errors
+        shell: bash
+        run: |
+          set -euo pipefail
+          project=benchmarks/TrustSigR2CEd25519/TrustSigR2CEd25519.csproj
+          for attempt in 1 2 3; do
+            if dotnet restore "$project" -r "${{ matrix.rid }}" -p:PublishAot=true -p:TreatWarningsAsErrors=true; then break; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep 15
+          done
+          dotnet publish "$project" -c Release -r "${{ matrix.rid }}" \
+            -p:PublishAot=true -p:TreatWarningsAsErrors=true \
+            --no-restore -o "$RUNNER_TEMP/r2c-aot"
+      - name: Execute NativeAOT with actual native crypto dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          python benchmarks/TrustSigR2CEd25519/interop.py \
+            --native-aot --app "$RUNNER_TEMP/r2c-aot/TrustSigR2CEd25519${{ matrix.exe }}" \
+            --output "$RUNNER_TEMP/r2c-aot.json"
+      - name: Independently validate JIT/AOT contract and artifact isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python benchmarks/TrustSigR2CEd25519/validate.py \
+            "$RUNNER_TEMP/r2c-jit.json" "$RUNNER_TEMP/r2c-aot.json"
+          {
+            echo "RID ${{ matrix.rid }} / OS $RUNNER_OS / hosted runner"
+            dotnet --info
+            openssl version -a
+            echo "Published NativeAOT output (paths and sizes only, no secret keys):"
+            ls -la "$RUNNER_TEMP/r2c-aot"
+            echo "Restored package audit:"
+            cat "$RUNNER_TEMP/r2c-packages.txt"
+          } > "$RUNNER_TEMP/r2c-toolchain.txt"
+          echo "R2C: OpenSSL ↔ NSec Ed25519 lab passed JIT & NativeAOT, NOT minisign/TUF integration or production signing." >> "$GITHUB_STEP_SUMMARY"
+      - name: Archive ONLY public measurements/dependency inventory
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trust-sig-r2c-${{ matrix.rid }}
+          path: |
+            ${{ runner.temp }}/r2c-jit.json
+            ${{ runner.temp }}/r2c-aot.json
+            ${{ runner.temp }}/r2c-packages.txt
+            ${{ runner.temp }}/r2c-toolchain.txt
+          retention-days: 90
+          if-no-files-found: warn

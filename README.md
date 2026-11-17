@@ -91,6 +91,7 @@ The current architecture sources of truth are:
 - [RFC-0002 — Embedded Chunk Stream API and ASP.NET Core Integration](docs/architecture/RFC-0002-embedded-sdk-aspnet-core.md)
 - [RFC-0003 — Core-first Public Release](docs/architecture/RFC-0003-core-first-release.md)
 - [RFC-0004 — Product concerns deliberately outside Core 0.1.0](docs/architecture/RFC-0004-core-0.1-deferred-product-concerns.md) (progress, compression, authenticity, anti-rollback)
+- [RFC-0006 — Patching distribution trust and update-policy boundary](docs/architecture/RFC-0006-patching-distribution-trust-boundary.md) (external host-owned trust; NOT a bundled updater)
 - [ROADMAP.md](ROADMAP.md) — program sequence, release gates and current critical path
 - [PLAN.md](PLAN.md) — milestone deliverables, tests, benchmarks and exit criteria
 

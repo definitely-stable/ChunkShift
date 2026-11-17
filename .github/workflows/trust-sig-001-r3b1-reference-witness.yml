@@ -1,0 +1,36 @@
+name: TRUST-SIG-001 R3B1 signed witness reference
+on:
+  pull_request:
+    paths:
+      - "benchmarks/ChunkShift.Benchmarks/PatchLab/Tree/PatchTreeTrustR3BReferenceWitness.cs"
+      - "benchmarks/ChunkShift.Benchmarks.Tests/PatchLab/PatchTreeTrustR3BReferenceWitnessTests.cs"
+      - "docs/benchmarks/TRUST-SIG-001-R3B1-REFERENCE-WITNESS-PROTOCOL.md"
+      - ".github/workflows/trust-sig-001-r3b1-reference-witness.yml"
+permissions:
+  contents: read
+jobs:
+  reference-witness:
+    name: R3B1 reference witness (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - name: Checkout exact PR synthetic merge
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup .NET SDK per global.json
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Restore benchmark solution
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+      - name: Build benchmark solution in Release
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+      - name: Run authenticated readback/CAS adversarial suite
+        run: dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj -c Release --no-build --no-restore --filter FullyQualifiedName~PatchTreeTrustR3BReferenceWitnessTests
+      - name: Scope notice
+        shell: bash
+        run: |
+          echo "LAB ONLY: ephemeral in-process signer/CAS; no secure durable witness, authenticated remote service, OS publisher or production ADOPT." >> "$GITHUB_STEP_SUMMARY"

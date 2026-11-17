@@ -1,0 +1,73 @@
+{
+  "schema": "chunkshift.patch-ml-001-first-release-defer.v1",
+  "evidenceId": "PATCH-ML-001/FIRST-RELEASE-DEFER-20261110-001",
+  "experimentId": "PATCH-ML-001",
+  "date": "2026-11-10",
+  "firstReleaseDecision": "DEFER_LEARNED_REFERENCE_RANKING__NO_PRODUCTION_ADOPT",
+  "modelTrained": false,
+  "modelWeightsAvailable": false,
+  "learnedCandidateA_BMeasured": false,
+  "freshMLHoldoutOpened": false,
+  "preserveCspV1": true,
+  "defaultBuilderChanged": false,
+  "publicApiChanged": false,
+  "gateInterpretation": "NO_POSITIVE_FIRST_RELEASE_ENTRY_EVIDENCE__NOT_ML_REJECT__NOT_PROOF_NO_HEADROOM_IN_RICHER_UNIVERSES",
+  "sources": {
+    "g2Oracle": "docs/research/results/data/PATCH-ENC-005-G2-EVIDENCE-20261003-001/oracle.json",
+    "g2Verdict": "docs/research/results/data/PATCH-ENC-005-G2-EVIDENCE-20261003-001/verdict.json",
+    "h6Compact": "docs/research/results/data/PATCH-ENC-005-H6O-EVIDENCE-20261004-001/compact.json",
+    "h6Verdict": "docs/research/results/data/PATCH-ENC-005-H6O-EVIDENCE-20261004-001/verdict.json",
+    "dictCloseout": "benchmarks/experiments/patch-dict-001-d1b0b-first-release-closeout-20261109.json",
+    "g2OriginalRun": 37150436770,
+    "h6OriginalRun": 37187615407,
+    "dictOriginalRun": 42653923507,
+    "lockedCorpusSha256": "8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd",
+    "lockedG2SampleSha256": "54061f4efe0969af0d772ddbc6d026fdf58bd4f2776514a9fb098753d062001d"
+  },
+  "g2": {
+    "role": "calibration",
+    "unit": "per-entry encoded cost with 32B per dictionary reference, not whole CSP",
+    "sampledEntries": 256,
+    "pairs": 4,
+    "candidateStartsEnumerated": 10311,
+    "baselineCostBytes": 974223,
+    "exactWholeBaseOracleCostBytes": 974049,
+    "savedBytes": 174,
+    "improvedRows": 11,
+    "outsideRadiusWinners": 11,
+    "threePercentPairPasses": 0,
+    "fivePercentAggregateGatePassed": false,
+    "verdict": "MISS",
+    "nextAction": "H6_O_GUARD_ONLY"
+  },
+  "h6": {
+    "role": "fixed evaluation",
+    "unit": "complete physically encoded CSP",
+    "evaluatedFiles": 844,
+    "baselinePhysicalCspBytes": 26363364,
+    "h6PhysicalCspBytes": 30248709,
+    "physicalCspIncreaseBytes": 3885345,
+    "medianWallRatio": 0.4233778064174532,
+    "createWallGatePassed": true,
+    "physicalByteGatePassed": false,
+    "allAppliesVerified": true,
+    "verdict": "MISS",
+    "nextAction": "STOP_RESEMBLANCE"
+  },
+  "dictContext": {
+    "role": "already-opened original calibration (not fresh ML confirmation)",
+    "fileCount": 2,
+    "paylEntries": 9,
+    "baselineWholeCspBytes": 11086,
+    "variableKWholeCspBytes": 10568,
+    "variableKSavingsBytes": 518,
+    "compositeExtraSavingsBytes": 0,
+    "newMLCandidateUniverseDemonstrated": false
+  },
+  "adoptionAlternativesNotTested": {
+    "physicalBytesAtLeastTenPercentWithLearnedRanking": true,
+    "candidateTrialsAtLeastTwofoldFewerWithinOnePercentBytes": true,
+    "reason": "No trained scorer, no fixed-budget ML/non-ML trial-count A/B, no fresh confirmation."
+  },
+  "futureReopenCondition": "Independent locked richer source/representation candidate set with positive same-budget oracle headroom OR measured candidate-trial/CPU gap resistant to simpler deterministic ranking; pre-register before opening fresh family holdout."
+}

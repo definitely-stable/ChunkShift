@@ -290,3 +290,13 @@ Persisted-format choices are not recorded here: they are owner decisions in CSP-
 - **Scope:** the `patch` group follows the grouped shape #140 proposes; #140 still owns the final taxonomy, machine-readable output and exit-code contract, and nothing existing is renamed here.
 - **Evidence:** *test* — the CI CLI round trip creates and applies a base-dependent and a self-contained patch, applies over a wrong base (`BaseMismatch`, no output) and a corrupt patch (exit 1, no output), updates the base in place, and finds no temporary file afterwards.
 - **Status:** confirmed for the engineering CLI; provisional as a product surface until #140.
+
+### D24. Detached distribution trust is owned by the application (#185)
+
+- **Question:** whether to implement signing, key roots, TUF, anti-rollback state or update-set publisher in `ChunkShift.Patching` for the first public package.
+- **Options:** embedded proprietary updater/signing subsystem; optional first-party signing NuGet; detached application-owned trust policy with maintained TUF-compatible clients where authenticated distribution is required.
+- **Decision:** **detached host-owned policy ADOPT**, no public trust abstractions and no transitive signing/TUF/witness dependencies. CSP v1, Core CSM v1 and their content identities remain unchanged. A consuming application binds authenticated artifact bytes, source/target manifest identities, channel/release authority and (when defined) canonical tree identity before invoking Patching. The host owns initial root provisioning, key roles/rotation, freshness/time, release policy, staging/publishing and protection of installed state against its named attacker model.
+- **Evidence:** *spec* — accepted [RFC-0006](RFC-0006-patching-distribution-trust-boundary.md) and RFC-0004 §4–5; *research* — [TRUST-SIG-001 R3-C decision](../research/results/TRUST-SIG-001-R3C-ARCHITECTURE-DECISION-20261019-001.md), TUF reference R2-B2, crypto interop R2A/B1/C1, witness R3-A/B1/B2. R3-B2 shows process/restart transaction integrity but **reproducible same-service DB rollback with a valid MAC**.
+- **Non-adoptions:** first-party signer/TUF updater/secure witness = DEFER; local SQLite + MAC as strong local-rollback protection = REJECT. No production crypto/updater adoption is implied by RFC-0006.
+- **Reopen if:** a concrete authenticated-distribution consumer demonstrates a necessary public abstraction or a new persisted format makes exact trusted artifact binding impossible without an additional versioned API/RFC and negative security tests.
+- **Status:** confirmed architecture only. #184 publisher and #251 Patching freeze still block #140 final API/release.

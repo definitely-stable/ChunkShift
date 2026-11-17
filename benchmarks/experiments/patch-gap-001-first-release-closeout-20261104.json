@@ -1,0 +1,115 @@
+{
+  "schema": "chunkshift.patch-gap-001-first-release-disposition.v1",
+  "experimentId": "PATCH-GAP-001",
+  "evidenceId": "PATCH-GAP-001/FIRST-RELEASE-CLOSEOUT-20261104-001",
+  "date": "2026-11-04",
+  "status": "DEFER",
+  "scope": "FIRST_PUBLIC_PATCHING_API_RELEASE_ONLY",
+  "firstReleaseCsp": "CSP_V1_UNCHANGED_NO_VNEXT_RFC_FROM_TESTED_FACTORS",
+  "requiredRfcGateFraction": 0.15,
+  "singleFactor": {
+    "G1": {
+      "status": "REJECT",
+      "source": "docs/research/results/data/PATCH-GAP-001-G1-EVALUATION-EVIDENCE-20261006-001/evaluation.json",
+      "bestLane": "G1-B8-R512",
+      "h0Bytes": 26363364,
+      "factorBytes": 25763908,
+      "improvementBytes": 599456,
+      "improvementFraction": 0.02273822111624298
+    },
+    "G2": {
+      "status": "STOP",
+      "source": "docs/research/results/PATCH-GAP-001-FACTOR-LEDGER-20261101-001.md",
+      "reason": "calibration-only 174-byte oracle headroom/failed entry, independently measured H6-O evaluation overhead"
+    },
+    "G3": {
+      "status": "REJECT",
+      "source": "docs/research/results/data/PATCH-GAP-001-G3-EVALUATION-EVIDENCE-20261007-001/evaluation.json",
+      "h0Bytes": 26363364,
+      "runBytes": 75922335,
+      "fileBytes": 79825697
+    },
+    "G4_BCJ": {
+      "status": "REJECT",
+      "source": "docs/research/results/data/PATCH-GAP-001-G4-EVIDENCE-20261008-001/summary.json",
+      "h0Bytes": 26363364,
+      "factorBytes": 26111524,
+      "improvementBytes": 251840,
+      "improvementFraction": 0.00955265041289875
+    },
+    "G5_PUFFIN": {
+      "status": "NOT_PRESENT",
+      "source": "docs/research/results/data/PATCH-GAP-001-20261003-001/aggregates.json",
+      "calibrationSupportedRows": 0,
+      "evaluationSupportedRows": 0
+    }
+  },
+  "externalReferences": {
+    "HDiffPatch": {
+      "status": "MEASURED_REFERENCE_ONLY",
+      "source": "benchmarks/experiments/patch-gap-001-hdiff-evaluation-20261104.json",
+      "calibrationRows": 1049,
+      "evaluationRows": 844,
+      "evaluationH0CspBytes": 26363364,
+      "evaluationMemoryBytes": 11005397,
+      "evaluationMemorySavingBytes": 15357967,
+      "evaluationMemorySavingFraction": 0.5825495942020146,
+      "evaluationStreamBytes": 33207126,
+      "evaluationStreamDeltaBytes": 6843762,
+      "rfcSizeGate": "NOT_APPLICABLE"
+    },
+    "ZUCCHINI": {
+      "status": "DEFER_RESOURCE_UNVERIFIED__REFERENCE_NOT_MEASURED",
+      "sourcePin": "docs/research/results/data/PATCH-GAP-001-G4-ZUCCHINI-SOURCE-PIN-20261009-001.json",
+      "buildSourceCommit": "26ec7d02bd81e5dc8c48f974d536a3f5fb043dc0",
+      "sourcePinSha256": "5a67ee77e61e86c5bef6e9559c43744ce66bf1e57fd4fc495b015376c740ab3c",
+      "binaryBuilt": false,
+      "calibrationRun": false,
+      "evaluationRun": false,
+      "patchBytes": null,
+      "matchedSupportedSubsetPatchBytes": null,
+      "measurementGate": "CANNOT_ENTER_PINNED_BUILD_ON_MEASURED_STANDARD_HOST",
+      "resourceEvidence": {
+        "workflowRunId": 41876675201,
+        "workflowRunAttempt": 1,
+        "workflowConclusion": "success",
+        "sourceCommit": "7e110d0d9d02e517f0b3766cd5b725e2247f1fea",
+        "job": "probe",
+        "artifactId": 13347391067,
+        "artifactZipBytes": 1205,
+        "artifactZipSha256": "9e3e5b88ec6203d198466f5f2fd5df5e382f561c3a2175b64b4af205c3909c40",
+        "standardRunnerLabel": "ubuntu-24.04",
+        "runnerProvider": "github-hosted",
+        "cpuCount": 4,
+        "volumeTotalBytes": 154894188544,
+        "freeDiskBytes": 91750961152,
+        "physicalMemoryBytes": 16760344576,
+        "requiredFreeDiskGiB": 100,
+        "requiredRamGiB": 8,
+        "diskPass": false,
+        "ramPass": true,
+        "canBuild": false,
+        "freeDiskDeficitBytes": 15623221248
+      },
+      "organizationLargerRunnerInventory": "NOT_VERIFIED",
+      "organizationPlanAndBilling": "NOT_VERIFIED__NO_PAID_RUNNER_PROVISIONED_BY_THIS_WORK",
+      "capabilityCaveat": "A standard runner cannot pass the declared disk gate; this does not prove a configured paid larger runner is unavailable."
+    }
+  },
+  "interactionDecision": {
+    "status": "NOT_TRIGGERED_FOR_FIRST_RELEASE",
+    "criterion": "No pair of tested CSP factors has independently demonstrated a material, safely bounded interaction that requires a separate compound study before v1 release.",
+    "proofOfAbsence": false,
+    "newInteractionExperimentOpened": false
+  },
+  "projectGate251RemainsOpen": true,
+  "allowedFirstReleaseAction": "Continue other #251 research and final Patching compatibility synthesis; do not freeze or publish yet.",
+  "limits": [
+    "The fixed evaluation population was previously observed, not a fresh sealed statistical holdout.",
+    "Whole-file HDiffPatch is a distinct external matcher, not a one-factor CSP vNext counterfactual.",
+    "Zucchini has no authentic pinned binary or original measured patch-byte ratios; never infer zero gain.",
+    "The resource observation applies to one standard hosted runner only. Paid larger runner inventory/plan/funding were not verified.",
+    "No claim is made that two-factor interactions are impossible; the current release entry gate is not triggered.",
+    "This is a first-release research disposition, not an across-algorithms optimality theorem or Patching release approval."
+  ]
+}

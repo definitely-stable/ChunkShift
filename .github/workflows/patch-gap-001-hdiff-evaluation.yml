@@ -1,0 +1,234 @@
+name: PATCH-GAP-001 HDiffPatch original evaluation
+
+# The fixed evaluation is single-shot, from an exact authorized issue comment.
+# Pull requests test the provenance and report contracts only.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/patch-gap-001-hdiff-evaluation.yml"
+      - "benchmarks/scripts/verify_patch_gap_hdiff_evaluation.py"
+      - "benchmarks/scripts/test_verify_patch_gap_hdiff_evaluation.py"
+      - "docs/benchmarks/PATCH-GAP-001-HDIFF-EVALUATION-RUNBOOK.md"
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: patch-gap-001-hdiff-evaluation
+  cancel-in-progress: false
+
+jobs:
+  contracts:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Audit evaluation preflight and negative tests (fixtures only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile benchmarks/scripts/patch_gap_hdiff_reference.py benchmarks/scripts/verify_patch_gap_hdiff_evaluation.py benchmarks/scripts/test_verify_patch_gap_hdiff_evaluation.py
+          python3 -m unittest benchmarks/scripts/test_verify_patch_gap_hdiff_evaluation.py -v
+          echo "Fixture tests ONLY: no actual evaluation or CSP RFC claim." >> "$GITHUB_STEP_SUMMARY"
+
+  evaluation:
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.number == 183 &&
+      github.event.issue.pull_request == null &&
+      github.event.comment.user.id == 271974079 &&
+      startsWith(github.event.comment.body, '/hdiff-evaluation ')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OPERATOR_COMMAND: ${{ github.event.comment.body }}
+      PAIRS_SHA: 8b3b92a9d0fba4bee80602aeafbdd443e5c612ff94889621537b8fb910fd22dd
+      HDIFF_ARCHIVE_SHA: 628963bf2ee9108a97260fa5eef44acd9ec94369b76090a957c9182b3abbb558
+      H0_ORIGINAL_ZIP_SHA: dc2a725f1612556f711d07b819f3de17d3b887bcd2e38a598eb557f9ae3ed2b0
+      H0_INDEX_SHA: 73be4009cda2e8f4af6a302f4863be04039b2ae327379bfb582eed91fe66a953
+    steps:
+      - name: Checkout exact current main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Authorize one-shot original evaluation and actual calibration origin
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=normal)"
+          python3 - <<'PY'
+          import datetime,json,os,re,subprocess
+          cmd=os.environ["OPERATOR_COMMAND"]
+          match=re.fullmatch(r"/hdiff-evaluation (20[0-9]{6})",cmd)
+          if not match:
+              raise SystemExit("exact authorized /hdiff-evaluation YYYYMMDD only")
+          date=match.group(1)
+          datetime.datetime.strptime(date,"%Y%m%d")
+          repo=os.environ["GITHUB_REPOSITORY"]
+          def api(path):
+              return json.loads(subprocess.check_output(
+                  ["gh","api","repos/"+repo+"/"+path],text=True))
+          main=api("branches/main")["commit"]["sha"]
+          if main!=os.environ["GITHUB_SHA"]:
+              raise SystemExit("evaluation must run on current main")
+          history=api("actions/workflows/patch-gap-001-hdiff-evaluation.yml/runs?event=issue_comment&per_page=100")
+          if history.get("total_count",0)>100:
+              raise SystemExit("evaluation run history exceeds audited bound")
+          for run in history.get("workflow_runs",[]):
+              if str(run["id"])==os.environ["GITHUB_RUN_ID"]:
+                  continue
+              if run.get("status")!="completed":
+                  raise SystemExit("another original evaluation is active")
+              jobs=api("actions/runs/"+str(run["id"])+"/jobs?per_page=100")
+              if any(j.get("name")=="evaluation" and j.get("conclusion")!="skipped"
+                     for j in jobs.get("jobs",[])):
+                  raise SystemExit("original evaluation already attempted; no repeated decision measurement")
+          archived=api("actions/runs/41333408342")
+          if archived.get("head_sha")!="f0224c252503c09174093031650ea2ca1c86ee04" or archived.get("run_attempt")!=1:
+              raise SystemExit("original calibration run SHA/attempt substitution")
+          steps=api("actions/runs/41333408342/jobs?per_page=100")
+          calibration_jobs=[j for j in steps.get("jobs",[]) if j.get("name")=="calibration"]
+          if len(calibration_jobs)!=1:
+              raise SystemExit("original calibration job missing")
+          mapping={s["name"]:s.get("conclusion") for s in calibration_jobs[0].get("steps",[])}
+          for name in (
+              "Materialize complete original corpus with pre/post locks",
+              "Measure and reconstruct all 1049 original calibration files in both frozen lanes",
+              "Independently recompute original calibration report identity and physical totals",
+              "Upload source-pinned original calibration report (not final scientific verdict)",
+          ):
+              if mapping.get(name)!="success":
+                  raise SystemExit("original calibration scientific step not successful: "+name)
+          if mapping.get("Record provenance; do not imply evaluation or adoption")!="failure":
+              raise SystemExit("unexpected original calibration final-step disposition")
+          art=api("actions/artifacts/13094063839")
+          if (art.get("digest")!="sha256:e42db34baf9e5bb1c5374ac151d6d2ebf2a9862377d2964e6d1d0a058411548b"
+              or art.get("size_in_bytes")!=244427 or art.get("expired") is True):
+              raise SystemExit("missing/substituted original calibration evidence")
+          if api("branches/main")["commit"]["sha"]!=os.environ["GITHUB_SHA"]:
+              raise SystemExit("main advanced during evaluation authorization")
+          with open(os.environ["GITHUB_ENV"],"a",encoding="utf-8") as output:
+              output.write("RUN_ID=PATCH-GAP-001/RUN-"+date+"-"+os.environ["GITHUB_RUN_NUMBER"]+"-"+os.environ["GITHUB_SHA"][:7]+"-linux-x64-hdiff-evaluation\n")
+              output.write("OUT="+os.environ["RUNNER_TEMP"]+"/hdiff-original-evaluation\n")
+              output.write("CORPUS_ROOT="+os.environ["HOME"]+"/patch-corpus\n")
+              output.write("HDIFF_WORK="+os.environ["RUNNER_TEMP"]+"/hdiff-eval-work\n")
+          PY
+
+      - name: Run evaluation verifier tamper/coverage contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest benchmarks/scripts/test_verify_patch_gap_hdiff_evaluation.py -v
+
+      - name: Obtain exact original H0 evaluation ZIP, not a regenerated baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT/origin" "$OUT/bin" "$HDIFF_WORK"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/11409716915" > "$OUT/origin/h0-artifact-metadata.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/37432365043" > "$OUT/origin/h0-run-metadata.json"
+          python3 - "$OUT/origin/h0-artifact-metadata.json" "$OUT/origin/h0-run-metadata.json" <<'PY'
+          import json,sys
+          a,b=(json.load(open(x,encoding="utf-8")) for x in sys.argv[1:])
+          assert a["id"]==11409716915 and a["expired"] is False
+          assert a["digest"]=="sha256:dc2a725f1612556f711d07b819f3de17d3b887bcd2e38a598eb557f9ae3ed2b0"
+          assert b["id"]==37432365043 and b["conclusion"]=="success"
+          assert b["head_sha"]=="8983eb11faa3e7c2df17b74d201249a19dd3dc13"
+          PY
+          curl --fail --location --silent --show-error --retry 3             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/11409716915/zip"             --output "$OUT/origin/h0-original-evaluation.zip"
+          echo "$H0_ORIGINAL_ZIP_SHA  $OUT/origin/h0-original-evaluation.zip" | sha256sum --check
+          unzip -p "$OUT/origin/h0-original-evaluation.zip" g1-index.json > "$OUT/origin/h0-index.json"
+          echo "$H0_INDEX_SHA  $OUT/origin/h0-index.json" | sha256sum --check
+
+      - name: Fetch source-locked HDiffPatch v5.1.3 release binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 3             https://github.com/sisong/HDiffPatch/releases/download/v5.1.3/hdiffpatch_v5.1.3_bin_linux64.zip             --output "$OUT/origin/hdiffpatch_v5.1.3_bin_linux64.zip"
+          echo "$HDIFF_ARCHIVE_SHA  $OUT/origin/hdiffpatch_v5.1.3_bin_linux64.zip" | sha256sum --check
+          unzip -q "$OUT/origin/hdiffpatch_v5.1.3_bin_linux64.zip" -d "$OUT/bin"
+          mapfile -t d < <(find "$OUT/bin" -type f -name hdiffz)
+          mapfile -t p < <(find "$OUT/bin" -type f -name hpatchz)
+          test "${#d[@]}" -eq 1
+          test "${#p[@]}" -eq 1
+          chmod +x "${d[0]}" "${p[0]}"
+          echo "HDIFFZ=${d[0]}" >> "$GITHUB_ENV"
+          echo "HPATCHZ=${p[0]}" >> "$GITHUB_ENV"
+
+      - name: Restore original frozen corpus sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/patch-corpus/sources
+          key: patch-corpus-sources-${{ hashFiles('docs/benchmarks/patch-corpus/source-assets.sha256') }}
+
+      - name: Materialize exact original corpus and require full immutable SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/materialize_patch_corpus.py             --root "$CORPUS_ROOT" --sources "$HOME/patch-corpus/sources" --download --lock
+          echo "$PAIRS_SHA  $CORPUS_ROOT/pairs.json" | sha256sum --check
+
+      - name: Measure/apply both original HDiffPatch modes for all 844 evaluation files
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/patch_gap_hdiff_reference.py             --mode measure --role evaluation --corpus "$CORPUS_ROOT"             --hdiffz "$HDIFFZ" --hpatchz "$HPATCHZ"             --archive "$OUT/origin/hdiffpatch_v5.1.3_bin_linux64.zip"             --work "$HDIFF_WORK" --output "$OUT/evaluation-reference.json"             --run-id "$RUN_ID"
+          echo "$PAIRS_SHA  $CORPUS_ROOT/pairs.json" | sha256sum --check
+
+      - name: Independently match all 844 reference rows to original H0 and SHA oracles
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 benchmarks/scripts/verify_patch_gap_hdiff_evaluation.py             --report "$OUT/evaluation-reference.json" --pairs "$CORPUS_ROOT/pairs.json"             --h0-index "$OUT/origin/h0-index.json"             --calibration-ledger benchmarks/experiments/patch-gap-001-hdiff-calibration-20261101.json             --output "$OUT/evaluation-audit.json" | tee "$OUT/evaluation-audit.txt"
+          python3 - "$OUT/evaluation-audit.json" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert x["fileCount"]==844 and x["role"]=="evaluation"
+          assert x["h0CspBytes"]==26363364 and x["rfcSizeGate"]=="NOT_APPLICABLE"
+          assert x["readyToCloseIssue183"] is False and x["independentBinaryApplyReplayed"] is False
+          print("HDIFF_FIXED_ORIGINAL_EVALUATION_AUDIT_PASS")
+          PY
+          cat "$OUT/evaluation-audit.txt" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload complete original evaluation per-file evidence and origin fingerprints
+        if: always()
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patch-gap-hdiff-original-evaluation-${{ github.run_id }}-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/hdiff-original-evaluation/evaluation-reference.json
+            ${{ runner.temp }}/hdiff-original-evaluation/evaluation-audit.json
+            ${{ runner.temp }}/hdiff-original-evaluation/evaluation-audit.txt
+            ${{ runner.temp }}/hdiff-original-evaluation/origin/h0-artifact-metadata.json
+            ${{ runner.temp }}/hdiff-original-evaluation/origin/h0-run-metadata.json
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Record artifact provenance without rerunning frozen evaluation
+        shell: bash
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
+        run: |
+          set -euo pipefail
+          test -n "$ARTIFACT_ID"
+          [[ "$ARTIFACT_DIGEST" =~ ^(sha256:)?[0-9a-f]{64}$ ]]
+          ARTIFACT_DIGEST="sha256:${ARTIFACT_DIGEST#sha256:}"
+          {
+            echo "Evaluation RunId: $RUN_ID"
+            echo "Source main SHA: $GITHUB_SHA"
+            echo "Artifact ID: $ARTIFACT_ID"
+            echo "Artifact digest: $ARTIFACT_DIGEST"
+            echo "Reference-only fixed evaluation, not a CSP one-factor RFC verdict."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,40 @@
+name: TRUST-SIG-001 R3A protected witness recovery model
+
+# PR-only logical crash/recovery gate. No real protected storage or publisher.
+on:
+  pull_request:
+    paths:
+      - "benchmarks/ChunkShift.Benchmarks/PatchLab/Tree/PatchTreeTrustR3WitnessModel.cs"
+      - "benchmarks/ChunkShift.Benchmarks.Tests/PatchLab/PatchTreeTrustR3WitnessModelTests.cs"
+      - "docs/benchmarks/TRUST-SIG-001-R3A-WITNESS-FIRST-PROTOCOL.md"
+      - ".github/workflows/trust-sig-001-r3a-witness-recovery.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  witness-recovery:
+    name: R3A witness/recovery contract (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - name: Checkout exact PR merge
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Restore benchmark solution
+        run: dotnet restore benchmarks/ChunkShift.Benchmarks.slnx
+      - name: Build benchmark solution Release
+        run: dotnet build benchmarks/ChunkShift.Benchmarks.slnx -c Release --no-restore
+      - name: Exercise witness-first adversarial and crash cases
+        run: dotnet test benchmarks/ChunkShift.Benchmarks.Tests/ChunkShift.Benchmarks.Tests.csproj -c Release --no-build --no-restore --filter FullyQualifiedName~PatchTreeTrustR3WitnessModelTests
+      - name: Scope limitations
+        shell: bash
+        run: |
+          echo "R3A pure logical model; no authenticated persistent witness, trusted OS publication or power-cut guarantee." >> "$GITHUB_STEP_SUMMARY"
