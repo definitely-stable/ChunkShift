@@ -1,0 +1,57 @@
+{
+  "schema": "chunkshift.patch-compiler-001.first-release-defer.v1",
+  "experimentId": "PATCH-COMPILER-001",
+  "evidenceId": "PATCH-COMPILER-001/FIRST-RELEASE-DEFER-20261114-001",
+  "date": "2026-11-14",
+  "sourceMainSha": "1e1d75871d1eda896a4c58852e6e2ac3b9634079",
+  "decision": "DEFER",
+  "releaseScope": "one-file CSP v1",
+  "phaseA": "NOT_RUN_ENTRY_GATE_NOT_MET",
+  "phaseB": "NOT_AUTHORIZED",
+  "entryGate": {
+    "requiredDistinctDecisionGradeFamilies": 2,
+    "qualifiedFirstReleasePersistedFamilies": 1,
+    "qualifiedAdditionalFamilies": 0,
+    "met": false
+  },
+  "sourceCloseouts": [
+    {
+      "experimentId": "PATCH-GAP-001",
+      "path": "docs/research/results/PATCH-GAP-001-FIRST-RELEASE-CLOSEOUT-20261104-001.md",
+      "disposition": "DEFER/REJECT_TESTED_FACTORS",
+      "note": "HDiff reference only; Zucchini not run"
+    },
+    {
+      "experimentId": "PATCH-TREE-001",
+      "path": "docs/research/results/PATCH-TREE-001-FIRST-RELEASE-CLOSEOUT-20261101-001.md",
+      "disposition": "DEFER"
+    },
+    {
+      "experimentId": "PATCH-DICT-001",
+      "path": "docs/research/results/PATCH-DICT-001-D1B0B-FIRST-RELEASE-DEFER-20261109-001.md",
+      "disposition": "DEFER"
+    },
+    {
+      "experimentId": "PATCH-DOTNET-001",
+      "path": "docs/research/results/PATCH-DOTNET-001-D3P1-FIRST-RELEASE-DEFER-20261110-001.md",
+      "disposition": "DEFER"
+    },
+    {
+      "experimentId": "PATCH-ML-001",
+      "path": "docs/research/results/PATCH-ML-001-FIRST-RELEASE-DEFER-20261110-001.md",
+      "disposition": "DEFER"
+    },
+    {
+      "experimentId": "PATCH-META-001",
+      "path": "docs/research/results/PATCH-META-001-G1B2B-FIRST-RELEASE-DEFER-20261105-001.md",
+      "disposition": "DEFER"
+    }
+  ],
+  "limitations": [
+    "No new original run or fresh sealed holdout",
+    "Different source populations and denominators not pooled",
+    "External HDiffPatch is not an admitted CSP representation",
+    "Unmeasured future representation families remain possible",
+    "No scored offline Pareto replay or online compiler trial"
+  ]
+}

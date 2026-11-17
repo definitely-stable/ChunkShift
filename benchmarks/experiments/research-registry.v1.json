@@ -684,8 +684,11 @@
         7
       ],
       "area": "patching-research",
-      "status": "PLANNED",
-      "question": "Deterministic multi-objective representation compiler"
+      "status": "DEFER",
+      "question": "Deterministic multi-objective representation compiler",
+      "firstReleaseDisposition": "DEFER: two distinct decision-grade and first-release-admissible representation families not demonstrated. CSP v1 remains the only qualified persisted family; offline Phase A and online Phase B not executed; no BuildPolicy or CSP/API change.",
+      "firstReleaseEvidence": "docs/research/results/PATCH-COMPILER-001-FIRST-RELEASE-DEFER-20261114-001.md",
+      "firstReleaseLedger": "benchmarks/experiments/patch-compiler-001-first-release-defer-20261114.json"
     },
     {
       "id": "PATCH-EXEC-001",
