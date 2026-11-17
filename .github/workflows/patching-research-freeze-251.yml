@@ -1,6 +1,24 @@
 name: Patching research freeze #251 source-bound synthesis
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/architecture/PATCHING-FIRST-RELEASE-RESEARCH-FREEZE-20261117.md"
+      - "benchmarks/experiments/patching-research-freeze-251-20261117.json"
+      - "benchmarks/experiments/research-registry.v1.json"
+      - "benchmarks/scripts/verify_patching_research_freeze_251.py"
+      - "docs/research/EXPERIMENT-INDEX.md"
+      - "docs/research/results/**"
+      - "docs/architecture/CSP-V1-CANDIDATE.md"
+      - "docs/architecture/CSM-V1-CANDIDATE.md"
+      - "docs/architecture/RFC-0005-patch-compiler-architecture.md"
+      - "docs/architecture/RFC-0006-patching-distribution-trust-boundary.md"
+      - "docs/benchmarks/PATCH-RESIDUAL-001-PROTOCOL.md"
+      - "src/ChunkShift.Cli/ChunkShift.Cli.csproj"
+      - "ROADMAP.md"
+      - "PLAN.md"
+      - ".github/workflows/patching-research-freeze-251.yml"
   pull_request:
     branches: [main]
     paths:
@@ -11,7 +29,7 @@ on:
       - "docs/research/EXPERIMENT-INDEX.md"
       - "ROADMAP.md"
       - "PLAN.md"
-      - "docs/research/results/PATCH-*-FIRST-RELEASE-*.md"
+      - "docs/research/results/**"
       - "docs/architecture/CSP-V1-CANDIDATE.md"
       - "docs/architecture/CSM-V1-CANDIDATE.md"
       - "docs/architecture/RFC-0005-patch-compiler-architecture.md"
