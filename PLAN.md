@@ -333,7 +333,7 @@ Evidence:
 
 Experiment map for the remaining work (ROADMAP "Patching gate" lists the exit items):
 
-Current Patching order (2026-10-04): `PATCH-ENC-005` is complete with a final REJECT / `STOP_RESEMBLANCE` result. Before #140, Patching public-API freeze or any publication-repository port, complete the formal [Patching Research Freeze](https://github.com/definitely-stable/ChunkShift/issues/251): close the representation/source/update-set research that can still justify a breaking first public Patching contract, run required interaction studies, and record a final CSP v1 vs CSP vNext synthesis. Core 0.1.1 remains a separate non-blocking maintenance track.
+Current Patching order (2026-11-17): the required research owners have first-release ADOPT/DEFER/REJECT decisions; the source-bound [#251 architecture synthesis](docs/architecture/PATCHING-FIRST-RELEASE-RESEARCH-FREEZE-20261117.md) selects **CSP v1 / no first-release vNext** and records conditional #262 residual **DEFER** without closing its future research. Complete #251 on a clean synthesis PR and GitHub CI before starting [#140](https://github.com/definitely-stable/ChunkShift/issues/140) CLI product contract and independent Patching PublicAPI review. No NuGet/CLI release or publication-repository port is authorized by research alone. Core 0.1.1 remains a non-blocking maintenance track.
 
 | ExperimentId | Issue | Question | Exit item |
 | --- | --- | --- | --- |
@@ -350,7 +350,7 @@ Current Patching order (2026-10-04): `PATCH-ENC-005` is complete with a final RE
 
 The first public Patching compatibility contract is intentionally blocked until the research set capable of changing persisted/build/update-set architecture has a durable disposition. Required owners include #183, #184, #220, #150, #222, #221, #223, #224, #225 and #185. A candidate may complete as ADOPT, DEFER or REJECT; success is not required. If two individually useful representation factors interact, a separately frozen interaction ExperimentId is required before synthesis.
 
-The freeze exits only after repository evidence answers whether CSP v1 remains sufficient or a versioned CSP vNext/new representation is justified. Only after that synthesis may #140, `ChunkShift.Patching/PublicAPI.Unshipped.txt` freeze and publication become release-critical.
+The [source-bound synthesis](docs/architecture/PATCHING-FIRST-RELEASE-RESEARCH-FREEZE-20261117.md) answers the research question: **retain CSP v1 for the scoped first Patching release; no decision-grade additional family warrants vNext.** Accept this decision on a passing GitHub-hosted PR, then close #251. That closure only **unblocks** separate #140 CLI and PublicAPI compatibility work; neither surface is frozen or published by this research gate.
 
 ### Parallel Core 0.1.1 maintenance track — [#152](https://github.com/definitely-stable/ChunkShift/issues/152)
 
