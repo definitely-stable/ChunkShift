@@ -50,7 +50,18 @@ internal static class CliProcess
             Task<string> stdout = ReadBoundedAsync(process.StandardOutput, deadline.Token);
             Task<string> stderr = ReadBoundedAsync(process.StandardError, deadline.Token);
             Task exited = process.WaitForExitAsync(deadline.Token);
-            await Task.WhenAll(stdout, stderr, exited).ConfigureAwait(false);
+            // Observe failures as each task completes. Task.WhenAll alone would
+            // wait for process exit after an output-limit failure, potentially
+            // leaving the child blocked on an unread full pipe.
+            Task[] pending = [stdout, stderr, exited];
+            while (pending.Length != 0)
+            {
+                Task completed = await Task.WhenAny(pending)
+                    .WaitAsync(deadline.Token).ConfigureAwait(false);
+                await completed.ConfigureAwait(false);
+                pending = pending.Where(task => task != completed).ToArray();
+            }
+
             return new CliResult(process.ExitCode, stdout.Result, stderr.Result);
         }
         catch
