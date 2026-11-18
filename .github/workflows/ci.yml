@@ -392,11 +392,11 @@ jobs:
           ! grep -q '^base-manifest-id=' artifacts/cli-smoke/create-patch-self.txt
 
           dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
-            patch apply artifacts/cli-smoke/self.csp -o artifacts/cli-smoke/self.bin \
+            patch apply artifacts/cli-smoke/self.csp -o artifacts/cli-smoke/self-applied.bin \
             > artifacts/cli-smoke/apply-self.txt
 
           grep -q '^applied=true$' artifacts/cli-smoke/apply-self.txt
-          cmp artifacts/cli-smoke/self.bin artifacts/cli-smoke/edited.bin
+          cmp artifacts/cli-smoke/self-applied.bin artifacts/cli-smoke/edited.bin
 
           # The output may be the base content itself (an in-place update).
           cp artifacts/cli-smoke/content.bin artifacts/cli-smoke/inplace.bin
