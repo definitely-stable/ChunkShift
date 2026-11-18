@@ -513,8 +513,10 @@ internal static class CliApp
     {
         var options = NewOptions("-o", "--base-manifest", "--base");
         var positionals = new List<string>();
+        var flags = new HashSet<string>(StringComparer.Ordinal);
 
-        if (ParseOptions("patch apply", args, options, positionals) is string error)
+        if (ParseOptions(
+            "patch apply", args, options, positionals, flags, "--overwrite", "--in-place") is string error)
         {
             return UsageError(error);
         }
@@ -527,6 +529,8 @@ internal static class CliApp
         string? outputPath = options["-o"];
         string? baseManifestPath = options["--base-manifest"];
         string? basePath = options["--base"];
+        bool overwrite = flags.Contains("--overwrite");
+        bool inPlace = flags.Contains("--in-place");
 
         if (positionals.Count == 0 || outputPath is null)
         {
@@ -548,31 +552,89 @@ internal static class CliApp
                 "patch apply: -o must not be the same file as <patch.csp>.");
         }
 
-        PatchApplyResult result;
-
-        await using FileStream patch = OpenRead(patchFullPath);
-
-        if (baseManifestPath is not null && basePath is not null)
+        if (baseManifestPath is not null &&
+            PathsReferToSameFile(outputFullPath, Path.GetFullPath(baseManifestPath)))
         {
-            await using FileStream baseManifest = OpenRead(Path.GetFullPath(baseManifestPath));
-
-            // An in-place update replaces the base content, so Windows needs
-            // the open base to allow deletion.
-            await using FileStream baseContent = OpenReadShared(Path.GetFullPath(basePath));
-
-            result = await ChunkPatch.ApplyAsync(
-                patch,
-                baseManifest,
-                baseContent,
-                outputFullPath,
-                cancellationToken).ConfigureAwait(false);
+            return UsageError("patch apply: -o must not be the same file as --base-manifest.");
         }
-        else
+
+        if (overwrite && inPlace)
         {
-            result = await ChunkPatch.ApplyAsync(
-                patch,
-                outputFullPath,
-                cancellationToken).ConfigureAwait(false);
+            return UsageError("patch apply: --overwrite and --in-place are mutually exclusive.");
+        }
+
+        bool matchesBase = basePath is not null &&
+            PathsReferToSameFile(outputFullPath, Path.GetFullPath(basePath));
+        if (matchesBase && !inPlace)
+        {
+            return UsageError("patch apply: updating the base requires --in-place.");
+        }
+
+        if (inPlace && (basePath is null ||
+            !PathsHaveSameSpelling(outputFullPath, Path.GetFullPath(basePath))))
+        {
+            return UsageError(
+                "patch apply: --in-place requires -o to name exactly the --base path.");
+        }
+
+        bool mayReplace = overwrite || inPlace;
+        if (CheckDestination(outputFullPath, mayReplace, "patch apply") is string destinationError)
+        {
+            return UsageError(destinationError);
+        }
+
+        // ApplyAsync always replaces its destination on success. In the
+        // no-clobber case the SDK writes to a private sibling path; only
+        // after successful verification do we atomically move that file to
+        // the user-visible destination with overwrite:false.
+        string? stagedOutput = mayReplace
+            ? null
+            : Path.Combine(
+                Path.GetDirectoryName(outputFullPath)!,
+                $".{Path.GetFileName(outputFullPath)}.{Guid.NewGuid():N}.cli-stage");
+        string sdkOutput = stagedOutput ?? outputFullPath;
+
+        PatchApplyResult result;
+        try
+        {
+            await using FileStream patch = OpenRead(patchFullPath);
+
+            if (baseManifestPath is not null && basePath is not null)
+            {
+                await using FileStream baseManifest = OpenRead(Path.GetFullPath(baseManifestPath));
+
+                // Explicit in-place publication requires delete sharing on Windows.
+                await using FileStream baseContent = OpenReadShared(Path.GetFullPath(basePath));
+
+                result = await ChunkPatch.ApplyAsync(
+                    patch,
+                    baseManifest,
+                    baseContent,
+                    sdkOutput,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                result = await ChunkPatch.ApplyAsync(
+                    patch,
+                    sdkOutput,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (result.IsApplied && stagedOutput is not null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                // The final move, not a prior File.Exists check, enforces
+                // the no-clobber rule if another file appears meanwhile.
+                File.Move(stagedOutput, outputFullPath, overwrite: false);
+            }
+        }
+        finally
+        {
+            if (stagedOutput is not null)
+            {
+                TryDelete(stagedOutput);
+            }
         }
 
         if (!result.IsApplied)
@@ -651,41 +713,82 @@ internal static class CliApp
         return null;
     }
 
+    private static StringComparison FilePathComparison =>
+        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+    private static bool PathsHaveSameSpelling(string first, string second) =>
+        string.Equals(first, second, FilePathComparison);
+
     private static bool PathsReferToSameFile(string first, string second)
     {
-        // Windows and default macOS volumes are case-insensitive. Hard links are
-        // not detected; symbolic links are resolved to their final target.
-        StringComparison comparison =
-            OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
-                ? StringComparison.OrdinalIgnoreCase
-                : StringComparison.Ordinal;
-
+        // Resolve existing file links and symlinked parent directories. Hard
+        // links still require platform-specific file IDs and are not detected.
         return string.Equals(
             ResolveFinalPath(first),
             ResolveFinalPath(second),
-            comparison);
+            FilePathComparison);
     }
 
     private static string ResolveFinalPath(string path)
     {
+        string fullPath = Path.GetFullPath(path);
+
         try
         {
-            FileSystemInfo? target = File.ResolveLinkTarget(
-                path,
-                returnFinalTarget: true);
-
-            return target is null
-                ? path
-                : Path.GetFullPath(target.FullName);
+            string resolvedParent = ResolveDirectoryPath(Path.GetDirectoryName(fullPath)!);
+            string candidate = Path.Combine(resolvedParent, Path.GetFileName(fullPath));
+            FileSystemInfo? target = File.ResolveLinkTarget(candidate, returnFinalTarget: true);
+            return target is null ? candidate : Path.GetFullPath(target.FullName);
         }
         catch (IOException)
         {
-            return path;
+            return fullPath;
         }
         catch (UnauthorizedAccessException)
         {
+            return fullPath;
+        }
+    }
+
+    private static string ResolveDirectoryPath(string path)
+    {
+        string? parent = Path.GetDirectoryName(path);
+        if (parent is null || parent == path)
+        {
             return path;
         }
+
+        string candidate = Path.Combine(
+            ResolveDirectoryPath(parent),
+            Path.GetFileName(path));
+        FileSystemInfo? target = Directory.ResolveLinkTarget(
+            candidate, returnFinalTarget: true);
+        return target is null ? candidate : Path.GetFullPath(target.FullName);
+    }
+
+    private static string? CheckDestination(
+        string outputPath, bool mayReplace, string command)
+    {
+        // LinkTarget also identifies dangling symlinks: File.Exists does not.
+        // Never replace through a destination symlink, even with --overwrite.
+        if (new FileInfo(outputPath).LinkTarget is not null)
+        {
+            return $"{command}: destination must not be a symbolic link.";
+        }
+
+        if (Directory.Exists(outputPath))
+        {
+            return $"{command}: destination is a directory.";
+        }
+
+        if (!mayReplace && File.Exists(outputPath))
+        {
+            return $"{command}: destination exists; pass --overwrite to replace it.";
+        }
+
+        return null;
     }
 
     internal static FileStream OpenRead(string path) =>
