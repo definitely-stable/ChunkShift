@@ -342,17 +342,18 @@ public sealed class CliContractTests
     }
 
     [Fact]
-    public async Task ExistingInPlaceApplyIsAnExplicitFutureContractDecision()
+    public async Task ExplicitInPlaceApply_ReconstructsVerifiedTarget()
     {
         using var work = new CliWorkspace();
         PatchInputs inputs = await PreparePairAsync(work);
         string patch = await CreatePatchAsync(work, inputs, withBase: true);
 
-        // Existing engineering CLI permits this; CLI140-A1 will decide its
-        // explicit user-facing spelling without modifying the Patching SDK.
+        // The destructive update now needs explicit user intent; the SDK
+        // still verifies all target bytes before publishing.
         CliResult result = await CliProcess.RunAsync(
             work.Root, "patch", "apply", patch, "-o", inputs.Base,
-            "--base-manifest", inputs.BaseManifest, "--base", inputs.Base);
+            "--base-manifest", inputs.BaseManifest, "--base", inputs.Base,
+            "--in-place");
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal(

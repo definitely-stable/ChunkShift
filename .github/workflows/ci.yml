@@ -406,7 +406,7 @@ jobs:
 
           dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
             patch apply artifacts/cli-smoke/edited.csp -o artifacts/cli-smoke/inplace.bin \
-            --base-manifest artifacts/cli-smoke/inplace.csm --base artifacts/cli-smoke/inplace.bin \
+            --base-manifest artifacts/cli-smoke/inplace.csm --base artifacts/cli-smoke/inplace.bin --in-place \
             > artifacts/cli-smoke/apply-inplace.txt
 
           grep -q '^applied=true$' artifacts/cli-smoke/apply-inplace.txt
@@ -430,7 +430,7 @@ jobs:
 
           set +e
           dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
-            patch apply artifacts/cli-smoke/edited.csp -o "$full/target.bin" \
+            patch apply artifacts/cli-smoke/edited.csp -o "$full/target.bin" --overwrite \
             --base-manifest artifacts/cli-smoke/content.csm --base artifacts/cli-smoke/content.bin \
             > artifacts/cli-smoke/apply-full.txt 2>&1
           status=$?

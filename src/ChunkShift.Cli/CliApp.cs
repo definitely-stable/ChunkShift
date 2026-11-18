@@ -959,13 +959,15 @@ internal static class CliApp
             ChunkShift CSM utility
 
             Usage:
-              chunkshift create <content> <manifest> [--bidx] [--sha256|--blake3]
+              chunkshift create <content> <manifest> [--bidx] [--sha256|--blake3] [--overwrite]
               chunkshift inspect <manifest>
               chunkshift patch create --target-manifest <target.csm>
                                       --target <target> -o <patch.csp>
                                       [--base-manifest <base.csm> --base <base>]
+                                      [--overwrite]
               chunkshift patch apply <patch.csp> -o <output>
                                      [--base-manifest <base.csm> --base <base>]
+                                     [--overwrite|--in-place]
               chunkshift plan --base <base.csm> --target <target.csm>
               chunkshift verify <manifest> [content]
 
@@ -976,7 +978,10 @@ internal static class CliApp
             patch create writes a CSP patch that reconstructs the target over
             the base; without --base-manifest and --base the patch is
             self-contained. patch apply verifies the patch and replaces
-            <output> with the reconstructed target.
+            <output> with the reconstructed target. Creating files refuses
+            existing destinations unless --overwrite is given. --in-place
+            explicitly permits patch apply to replace the --base file when
+            -o names that same path. Destination symlinks are refused.
 
             Exit codes:
               0  success / verification valid
