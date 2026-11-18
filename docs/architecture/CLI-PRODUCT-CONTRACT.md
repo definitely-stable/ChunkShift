@@ -1,8 +1,8 @@
 # CLI140 — first-release CLI contract and acceptance plan
 
-**Status:** A0 engineering decision; CLI behavior is not yet a published compatibility promise.  
+**Status:** A0 accepted; A1 safety contract implemented in the engineering CLI (subject to CI acceptance); CLI remains unpublished.  
 **Scope:** issue [#140](https://github.com/definitely-stable/ChunkShift/issues/140), after [#251](https://github.com/definitely-stable/ChunkShift/issues/251) first-release research freeze.  
-**Runtime boundary:** no production CLI, Core or Patching code changes in A0; no new public API, CSM/CSP v1 changes or package publication.  
+**Runtime boundary:** A0 made no runtime changes; A1 changes the CLI filesystem wrapper only. No Core/Patching public API, CSM/CSP v1 or package publication changes.  
 **Package:** `<IsPackable>false</IsPackable>` stays in this engineering repository.
 
 ## 1. Scope and existing behavior
@@ -18,7 +18,7 @@ The engineering CLI currently supports:
 | `patch create ... -o <csp>` | `ChunkPatch.CreateAsync` | Stages a CSP, then **overwrites** the destination |
 | `patch apply ... -o <target>` | `ChunkPatch.ApplyAsync` | Stages verified target inside SDK, then replaces destination |
 
-Current human output is `key=value`. There is no JSON mode, and mismatch/operational failure both return `1`. The current CLI is **unpublished**. A0 tests lock down the observed behavior for migration, **not** its desirability; especially, implicit overwrite must be replaced in A1.
+Current human output is `key=value`. There is no JSON mode, and mismatch/operational failure both return `1`. The CLI is **unpublished**. A0 tests recorded initial behavior; A1 replaces implicit overwrites with explicit no-clobber/overwrite/in-place semantics.
 
 Existing Linux CI contains one Bash-based CSM/CSP smoke and cross-language decoders. A0 adds a process-level .NET test project to Linux **and** Windows; it does not remove the independent smoke.
 
@@ -72,9 +72,11 @@ The same typed result must render human and machine output. Command handlers mus
 
 Unexpected errors must not leak a success-looking stdout summary. Preserve structured failure details. Explicitly test malformed CSM/CSP exception classification in B1; an invalid serialized representation may be mapped to `3` only under an approved error taxonomy, not by blanket-catching unrelated errors. A0 tests expect the existing code `1` for mismatch.
 
-## 4. File publication and trust model (A1; never imply implemented in A0)
+## 4. File publication and trust model (A1 engineering implementation)
 
-**Target default:** never overwrite an existing file without explicit `--overwrite`; no implicit replacement. A base-content in-place update must require an unambiguous opt-in (`--in-place` or an equivalently explicit design), preserving the SDK's verified-apply path. Source-to-destination collision is forbidden unless that explicitly selected in-place mode applies.
+**A1 behavior:** `create`, `patch create` and `patch apply` refuse existing destinations by default (usage exit 2); `--overwrite` explicitly permits replacement. `patch apply --in-place` is a separate opt-in that requires `-o` to name exactly the normalized `--base` path; it cannot be combined with `--overwrite`. The destination must not equal the input patch or base manifest, and all commands refuse destination symlinks (including dangling symlinks). Parent-directory symlinks are resolved for best-effort input/output collision checks. Hardlinks remain undetectable via the current portable managed-file APIs; replacing a destination hardlink replaces that path entry rather than mutating another hardlink's original content. This is **not** a strong adversarial concurrent-FS defense.
+
+`patch apply` in no-clobber mode first asks the existing verified SDK to write to a unique staging path beside the final destination, then executes `File.Move(staged, final, overwrite: false)`. An existing destination, including one created after the initial preflight, is not intentionally replaced. `--overwrite` and `--in-place` keep the SDK's existing verified stage/commit path. Normal exceptions and cancellation clean CLI staging. Hard process termination can leave an orphaned CLI staging file, but never a partially written *final* output under this model.
 
 Create/apply must document three distinct properties:
 
@@ -99,7 +101,7 @@ A0 adds `tests/ChunkShift.Cli.Tests`, process-level xUnit tests targeting `net10
 - Retain the existing Bash CLI smoke and independent CSP/CSM fixtures; A0 does not change persisted vectors.
 - Windows: the solution-wide `dotnet test` picks up the new project. Linux: add an explicit invocation because its CI coverage script currently tests only Core and Patching projects.
 
-Future A1 tests must establish no-clobber, `--overwrite`, symlink/hardlink/parent alias policy, cancellation/permissions/locked files, failure before commit and no orphaned temp files. Future A2/B1 tests must establish new taxonomy, duplicate option rejection, nested help, JSON/schema, exit `3`, culture invariance, closed stdout/broken pipe and bounded output. Do not mark future tests as passing in A0.
+A1 acceptance includes no-clobber, `--overwrite`, explicit in-place, symlink/parent alias policy, preserving existing targets on wrong-base/corruption and cleanup of normal failures. Deterministic fault injection for cancellation/permissions/locked files and adversarial filesystem races remain the next safety-hardening checks before final #140 closure; do not confuse this A1 slice with their completion. Future A2/B1 tests must establish new taxonomy, duplicate option rejection, nested help, JSON/schema, exit `3`, culture invariance, closed stdout/broken pipe and bounded output. Do not mark future tests as passing in A0.
 
 Microsoft references: [ProcessStartInfo.ArgumentList](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.processstartinfo.argumentlist?view=net-10.0), [RedirectStandardError / deadlocks](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.processstartinfo.redirectstandarderror?view=net-10.0), [System.Text.Json source generation](https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/source-generation). UX references: [CLI Guidelines](https://clig.dev/), [pip UX guidance](https://pip.pypa.io/en/stable/ux-research-design/guidance/).
 
