@@ -83,6 +83,7 @@ internal static class CliApp
         }
 
         bool includeBlockIndex = false;
+        bool overwrite = false;
         HashSuiteId? hashSuite = null;
 
         for (int index = 2; index < args.Length; index++)
@@ -91,6 +92,14 @@ internal static class CliApp
             {
                 case "--bidx":
                     includeBlockIndex = true;
+                    break;
+                case "--overwrite":
+                    if (overwrite)
+                    {
+                        return UsageError("create: --overwrite may be given only once.");
+                    }
+
+                    overwrite = true;
                     break;
                 case "--sha256":
                     SetHashSuite(
@@ -106,6 +115,11 @@ internal static class CliApp
                     return UsageError(
                         $"Unknown create option '{args[index]}'.");
             }
+        }
+
+        if (CheckDestination(manifestPath, overwrite, "create") is string destinationError)
+        {
+            return UsageError(destinationError);
         }
 
         string? directory = Path.GetDirectoryName(manifestPath);
@@ -157,10 +171,13 @@ internal static class CliApp
 
             // Report only after the manifest is published, so a failed move is
             // never preceded by a success-looking summary.
-            File.Move(
-                temporaryPath,
-                manifestPath,
-                overwrite: true);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (CheckDestination(manifestPath, overwrite, "create") is string finalError)
+            {
+                return UsageError(finalError);
+            }
+
+            File.Move(temporaryPath, manifestPath, overwrite);
 
             PrintManifest(info);
             Console.WriteLine(
@@ -362,8 +379,9 @@ internal static class CliApp
     {
         var options = NewOptions("--base-manifest", "--base", "--target-manifest", "--target", "-o");
         var positionals = new List<string>();
+        var flags = new HashSet<string>(StringComparer.Ordinal);
 
-        if (ParseOptions("patch create", args, options, positionals) is string error)
+        if (ParseOptions("patch create", args, options, positionals, flags, "--overwrite") is string error)
         {
             return UsageError(error);
         }
@@ -378,6 +396,7 @@ internal static class CliApp
         string? targetManifestPath = options["--target-manifest"];
         string? targetPath = options["--target"];
         string? outputPath = options["-o"];
+        bool overwrite = flags.Contains("--overwrite");
 
         if (targetManifestPath is null || targetPath is null || outputPath is null)
         {
@@ -408,6 +427,11 @@ internal static class CliApp
                 return UsageError(
                     $"patch create: -o must not be the same file as {option}.");
             }
+        }
+
+        if (CheckDestination(outputFullPath, overwrite, "patch create") is string destinationError)
+        {
+            return UsageError(destinationError);
         }
 
         string? directory = Path.GetDirectoryName(outputFullPath);
@@ -466,7 +490,13 @@ internal static class CliApp
 
             // Report only after the patch is published, so a failed move is
             // never preceded by a success-looking summary.
-            File.Move(temporaryPath, outputFullPath, overwrite: true);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (CheckDestination(outputFullPath, overwrite, "patch create") is string finalError)
+            {
+                return UsageError(finalError);
+            }
+
+            File.Move(temporaryPath, outputFullPath, overwrite);
 
             PrintPatch(info);
             return 0;
@@ -576,11 +606,23 @@ internal static class CliApp
         string command,
         string[] args,
         Dictionary<string, string?> options,
-        List<string> positionals)
+        List<string> positionals,
+        HashSet<string> flags,
+        params string[] supportedFlags)
     {
         for (int index = 0; index < args.Length; index++)
         {
             string argument = args[index];
+
+            if (supportedFlags.Contains(argument, StringComparer.Ordinal))
+            {
+                if (!flags.Add(argument))
+                {
+                    return $"{command}: {argument} may be given only once.";
+                }
+
+                continue;
+            }
 
             if (!options.TryGetValue(argument, out string? value))
             {
