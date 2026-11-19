@@ -387,7 +387,7 @@ jobs:
           grep -Eq '^(applied=false|error:)' artifacts/cli-smoke/apply-corrupt.txt
           test ! -e artifacts/cli-smoke/corrupt.bin
 
-                    # A deterministic TRAILER FileDigest mutation is an integrity
+          # A deterministic TRAILER FileDigest mutation is an integrity
           # mismatch, not an unknown-encoding path.
           cp artifacts/cli-smoke/edited.csp artifacts/cli-smoke/bad-digest.csp
           python3 - <<'PY'
@@ -411,7 +411,7 @@ jobs:
           grep -q 'failures=.*PatchFileDigest' artifacts/cli-smoke/apply-bad-digest.txt
           test ! -e artifacts/cli-smoke/bad-digest.bin
 
-# A patch created without a base is self-contained.
+          # A patch created without a base is self-contained.
           dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
             patch create --target-manifest artifacts/cli-smoke/edited.csm --target artifacts/cli-smoke/edited.bin \
             -o artifacts/cli-smoke/self.csp \
