@@ -12,9 +12,22 @@ internal static class CliProcess
     private const int MaximumCapturedCharactersPerStream = 256 * 1024;
     private static readonly TimeSpan ProcessTimeout = TimeSpan.FromSeconds(90);
 
-    internal static async Task<CliResult> RunAsync(
-        string workingDirectory,
-        params string[] arguments)
+    internal static Task<CliResult> RunAsync(
+        string workingDirectory, params string[] arguments) =>
+        RunCoreAsync(workingDirectory, ResolveCliAssembly(), false, arguments);
+
+    internal static Task<CliResult> RunFaultHostAsync(
+        string workingDirectory, bool failAfterPrefix, params string[] arguments) =>
+        RunCoreAsync(workingDirectory, ResolveFaultHostAssembly(), false,
+            [failAfterPrefix ? "--fail-after-prefix" : "--fail-first", .. arguments]);
+
+    internal static Task<CliResult> RunWithClosedStdoutAsync(
+        string workingDirectory, params string[] arguments) =>
+        RunCoreAsync(workingDirectory, ResolveCliAssembly(), true, arguments);
+
+    private static async Task<CliResult> RunCoreAsync(
+        string workingDirectory, string assemblyPath,
+        bool closeStdoutReader, params string[] arguments)
     {
         var start = new ProcessStartInfo("dotnet")
         {
@@ -26,7 +39,7 @@ internal static class CliProcess
             RedirectStandardInput = true,
         };
 
-        start.ArgumentList.Add(ResolveCliAssembly());
+        start.ArgumentList.Add(assemblyPath);
         foreach (string argument in arguments)
         {
             start.ArgumentList.Add(argument);
@@ -42,12 +55,21 @@ internal static class CliProcess
         }
 
         process.StandardInput.Close();
+        if (closeStdoutReader)
+        {
+            // Close the only parent reader before the CLI begins expensive
+            // processing. The real OS pipe, not a simulated text writer,
+            // must fail when the post-commit result is reported.
+            process.StandardOutput.Close();
+        }
 
         using var deadline = new CancellationTokenSource(ProcessTimeout);
         try
         {
             // Always drain both pipes concurrently, including on nonzero exit.
-            Task<string> stdout = ReadBoundedAsync(process.StandardOutput, deadline.Token);
+            Task<string> stdout = closeStdoutReader
+                ? Task.FromResult(string.Empty)
+                : ReadBoundedAsync(process.StandardOutput, deadline.Token);
             Task<string> stderr = ReadBoundedAsync(process.StandardError, deadline.Token);
             Task exited = process.WaitForExitAsync(deadline.Token);
             // Observe failures as each task completes. Task.WhenAll alone would
@@ -120,7 +142,13 @@ internal static class CliProcess
         }
     }
 
-    private static string ResolveCliAssembly()
+    private static string ResolveCliAssembly() =>
+        ResolveAssembly("src", "ChunkShift.Cli");
+
+    private static string ResolveFaultHostAssembly() =>
+        ResolveAssembly("tests", "ChunkShift.Cli.FaultHost");
+
+    private static string ResolveAssembly(string folder, string project)
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
         string? configuration = directory.Parent?.Name;
@@ -144,17 +172,17 @@ internal static class CliProcess
 
         string cliAssembly = Path.Combine(
             directory.FullName,
-            "src",
-            "ChunkShift.Cli",
+            folder,
+            project,
             "bin",
             configuration,
             "net10.0",
-            "ChunkShift.Cli.dll");
+            project + ".dll");
 
         if (!File.Exists(cliAssembly))
         {
             throw new FileNotFoundException(
-                "The CLI must be built before process-level tests run.",
+                "The target CLI/test host must be built before process-level tests run.",
                 cliAssembly);
         }
 

@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ChunkShift.Patching;
@@ -164,7 +166,11 @@ internal sealed record CliPlanData
 
 internal sealed record CliPublicationData(string Path, bool Committed);
 internal sealed record CliHelpData(string Scope, string Usage);
-internal sealed record CliErrorData(string Code, string Message);
+internal sealed record CliErrorData(
+    string Code,
+    string Message,
+    bool? PublicationCommitted = null,
+    string? PublicationPath = null);
 
 // Source-generated JSON: deterministic camelCase, nullable omitted, no
 // reflection dependency in the shipped CLI or when NativeAOT is used later.
@@ -186,26 +192,87 @@ internal static class CliExitPolicy
             : (failures & PatchApplyFailure.ResourceLimit) != 0 ? 1 : 3;
 }
 
-internal static class CliOutput
+// A report can fail after a verified artifact has been committed. Preserve
+// that fact for the CLI's machine-readable error, rather than pretending the
+// underlying patch/create operation failed or rolling back the destination.
+internal sealed class CliReportWriteException : IOException
+{
+    internal CliReportWriteException(CliPublicationData? publication, IOException inner)
+        : base("The CLI could not write its result to stdout.", inner)
+    {
+        Publication = publication;
+    }
+
+    internal CliPublicationData? Publication { get; }
+}
+
+internal static partial class CliOutput
 {
     private static bool s_json;
     private static string s_operation = "cli";
+    private static TextWriter s_stdout = Console.Out;
 
     internal static bool IsJson => s_json;
 
-    // Exactly one CLI operation executes per OS process; never shared with SDK
-    // callers, and not an application-wide logging or rendering service.
-    internal static void Configure(bool json, string operation)
+    // Each CLI process executes one operation. A raw, auto-flushed writer for
+    // redirected stdout is essential: Console output streams may suppress EPIPE.
+    // The override is an internal writer seam used by a separate test-only
+    // process. No environment-controlled fault injection ships in the CLI.
+    internal static void Configure(
+        bool json, string operation, TextWriter? stdoutOverride = null)
     {
         s_json = json;
         s_operation = operation;
+        s_stdout = stdoutOverride ?? CreateOutputWriter();
     }
+
+    private static TextWriter CreateOutputWriter()
+    {
+        if (!Console.IsOutputRedirected)
+        {
+            // Preserve the .NET console writer for interactive terminals.
+            return Console.Out;
+        }
+
+        // .NET Console.OpenStandardOutput() intentionally swallows broken
+        // pipes on some platforms. A non-owning raw FileStream preserves
+        // EPIPE/ERROR_BROKEN_PIPE for redirected stdout without closing the
+        // process-level handle. Matches the tested approach used by .NET
+        // Aspire's TrayProtocolOutput.
+        nint handle = OperatingSystem.IsWindows() ? GetStdHandle(-11) : (nint)1;
+        var file = new FileStream(
+            new SafeFileHandle(handle, ownsHandle: false),
+            FileAccess.Write,
+            bufferSize: 4096,
+            isAsync: false);
+        return new StreamWriter(
+            file,
+            new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false))
+        {
+            AutoFlush = true,
+        };
+    }
+
+    [LibraryImport("kernel32.dll")]
+    private static partial nint GetStdHandle(int standardHandle);
 
     internal static void Write(CliReply response)
     {
+        try
+        {
+            WriteCore(response);
+        }
+        catch (IOException exception)
+        {
+            throw new CliReportWriteException(response.Publication, exception);
+        }
+    }
+
+    private static void WriteCore(CliReply response)
+    {
         if (s_json)
         {
-            WriteJson(Console.Out, response);
+            WriteJson(s_stdout, response);
             return;
         }
 
@@ -213,7 +280,7 @@ internal static class CliOutput
         {
             case "manifest.create":
                 PrintManifest(response.Manifest!);
-                Console.WriteLine($"written={response.Publication!.Path}");
+                s_stdout.WriteLine($"written={response.Publication!.Path}");
                 break;
             case "manifest.inspect":
             case "manifest.verify":
@@ -234,13 +301,15 @@ internal static class CliOutput
         }
     }
 
-    internal static void WriteError(string code, string message)
+    internal static void WriteError(
+        string code, string message, CliPublicationData? publication = null)
     {
         if (s_json)
         {
             WriteJson(Console.Error, new CliReply(s_operation)
             {
-                Error = new CliErrorData(code, message),
+                Error = new CliErrorData(code, message,
+                    publication?.Committed, publication?.Path),
             });
         }
         else if (code == "cancelled")
@@ -268,7 +337,7 @@ internal static class CliOutput
         }
         else
         {
-            Console.WriteLine(usage);
+            s_stdout.WriteLine(usage);
         }
     }
 
@@ -277,50 +346,50 @@ internal static class CliOutput
 
     private static void PrintManifest(CliManifestData value)
     {
-        Console.WriteLine($"hash-suite={value.HashSuite}");
-        Console.WriteLine($"profile={value.Profile}");
-        Console.WriteLine($"profile-fingerprint={value.ProfileFingerprint}");
-        Console.WriteLine($"manifest-id={value.ManifestId}");
-        Console.WriteLine($"file-digest={value.FileDigest}");
-        Console.WriteLine($"chunks={N(value.Chunks)}");
-        Console.WriteLine($"content-bytes={N(value.ContentBytes)}");
-        Console.WriteLine($"physical-bytes={N(value.PhysicalBytes)}");
-        Console.WriteLine($"cblk-count={N(value.CblkCount)}");
-        Console.WriteLine($"bidx={value.Bidx.ToString().ToLowerInvariant()}");
+        s_stdout.WriteLine($"hash-suite={value.HashSuite}");
+        s_stdout.WriteLine($"profile={value.Profile}");
+        s_stdout.WriteLine($"profile-fingerprint={value.ProfileFingerprint}");
+        s_stdout.WriteLine($"manifest-id={value.ManifestId}");
+        s_stdout.WriteLine($"file-digest={value.FileDigest}");
+        s_stdout.WriteLine($"chunks={N(value.Chunks)}");
+        s_stdout.WriteLine($"content-bytes={N(value.ContentBytes)}");
+        s_stdout.WriteLine($"physical-bytes={N(value.PhysicalBytes)}");
+        s_stdout.WriteLine($"cblk-count={N(value.CblkCount)}");
+        s_stdout.WriteLine($"bidx={value.Bidx.ToString().ToLowerInvariant()}");
     }
 
     private static void PrintVerification(CliVerificationData value)
     {
-        Console.WriteLine($"valid={value.Valid.ToString().ToLowerInvariant()}");
-        Console.WriteLine($"failures={value.Failures}");
+        s_stdout.WriteLine($"valid={value.Valid.ToString().ToLowerInvariant()}");
+        s_stdout.WriteLine($"failures={value.Failures}");
     }
 
     private static void PrintPatch(CliPatchData value)
     {
-        Console.WriteLine($"target-manifest-id={value.TargetManifestId}");
+        s_stdout.WriteLine($"target-manifest-id={value.TargetManifestId}");
         if (value.BaseManifestId is not null)
         {
-            Console.WriteLine($"base-manifest-id={value.BaseManifestId}");
+            s_stdout.WriteLine($"base-manifest-id={value.BaseManifestId}");
         }
 
-        Console.WriteLine($"hash-suite={value.HashSuite}");
-        Console.WriteLine($"payload-entries={N(value.PayloadEntries)}");
-        Console.WriteLine($"payload-bytes={N(value.PayloadBytes)}");
-        Console.WriteLine($"patch-bytes={N(value.PatchBytes)}");
-        Console.WriteLine($"file-digest={value.FileDigest}");
+        s_stdout.WriteLine($"hash-suite={value.HashSuite}");
+        s_stdout.WriteLine($"payload-entries={N(value.PayloadEntries)}");
+        s_stdout.WriteLine($"payload-bytes={N(value.PayloadBytes)}");
+        s_stdout.WriteLine($"patch-bytes={N(value.PatchBytes)}");
+        s_stdout.WriteLine($"file-digest={value.FileDigest}");
     }
 
     private static void PrintApply(CliApplyData value)
     {
-        Console.WriteLine($"applied={value.Applied.ToString().ToLowerInvariant()}");
+        s_stdout.WriteLine($"applied={value.Applied.ToString().ToLowerInvariant()}");
         if (!value.Applied)
         {
-            Console.WriteLine($"failures={value.Failures}");
+            s_stdout.WriteLine($"failures={value.Failures}");
             return;
         }
 
-        Console.WriteLine($"target-manifest-id={value.TargetManifestId}");
-        Console.WriteLine($"output-bytes={N(value.OutputBytes!.Value)}");
+        s_stdout.WriteLine($"target-manifest-id={value.TargetManifestId}");
+        s_stdout.WriteLine($"output-bytes={N(value.OutputBytes!.Value)}");
     }
 
     private static void PrintPlan(CliPlanData value)
@@ -336,33 +405,33 @@ internal static class CliOutput
                 return;
             }
 
-            Console.WriteLine("valid=false");
+            s_stdout.WriteLine("valid=false");
             if (value.BaseFailures is not null)
             {
-                Console.WriteLine($"base-failures={value.BaseFailures}");
+                s_stdout.WriteLine($"base-failures={value.BaseFailures}");
             }
             if (value.TargetFailures is not null)
             {
-                Console.WriteLine($"target-failures={value.TargetFailures}");
+                s_stdout.WriteLine($"target-failures={value.TargetFailures}");
             }
             return;
         }
 
-        Console.WriteLine("valid=true");
-        Console.WriteLine($"hash-suite={value.HashSuite}");
-        Console.WriteLine($"same-profile={value.SameProfile!.Value.ToString().ToLowerInvariant()}");
-        Console.WriteLine($"base-manifest-id={value.BaseManifestId}");
-        Console.WriteLine($"target-manifest-id={value.TargetManifestId}");
-        Console.WriteLine($"base-chunks={N(value.BaseChunks!.Value)}");
-        Console.WriteLine($"base-bytes={N(value.BaseBytes!.Value)}");
-        Console.WriteLine($"target-chunks={N(value.TargetChunks!.Value)}");
-        Console.WriteLine($"target-bytes={N(value.TargetBytes!.Value)}");
-        Console.WriteLine($"reused-chunks={N(value.ReusedChunks!.Value)}");
-        Console.WriteLine($"reused-bytes={N(value.ReusedBytes!.Value)}");
-        Console.WriteLine($"missing-chunks={N(value.MissingChunks!.Value)}");
-        Console.WriteLine($"missing-bytes={N(value.MissingBytes!.Value)}");
-        Console.WriteLine($"unique-missing-chunks={N(value.UniqueMissingChunks!.Value)}");
-        Console.WriteLine($"unique-missing-bytes={N(value.UniqueMissingBytes!.Value)}");
+        s_stdout.WriteLine("valid=true");
+        s_stdout.WriteLine($"hash-suite={value.HashSuite}");
+        s_stdout.WriteLine($"same-profile={value.SameProfile!.Value.ToString().ToLowerInvariant()}");
+        s_stdout.WriteLine($"base-manifest-id={value.BaseManifestId}");
+        s_stdout.WriteLine($"target-manifest-id={value.TargetManifestId}");
+        s_stdout.WriteLine($"base-chunks={N(value.BaseChunks!.Value)}");
+        s_stdout.WriteLine($"base-bytes={N(value.BaseBytes!.Value)}");
+        s_stdout.WriteLine($"target-chunks={N(value.TargetChunks!.Value)}");
+        s_stdout.WriteLine($"target-bytes={N(value.TargetBytes!.Value)}");
+        s_stdout.WriteLine($"reused-chunks={N(value.ReusedChunks!.Value)}");
+        s_stdout.WriteLine($"reused-bytes={N(value.ReusedBytes!.Value)}");
+        s_stdout.WriteLine($"missing-chunks={N(value.MissingChunks!.Value)}");
+        s_stdout.WriteLine($"missing-bytes={N(value.MissingBytes!.Value)}");
+        s_stdout.WriteLine($"unique-missing-chunks={N(value.UniqueMissingChunks!.Value)}");
+        s_stdout.WriteLine($"unique-missing-bytes={N(value.UniqueMissingBytes!.Value)}");
     }
 
     private static string N(long value) => value.ToString(CultureInfo.InvariantCulture);

@@ -9,11 +9,14 @@
     <!-- Pure policy and JSON-contract tests; CLI command handlers remain
          exercised exclusively as real child processes. -->
     <InternalsVisibleTo Include="ChunkShift.Cli.Tests" />
+    <InternalsVisibleTo Include="ChunkShift.Cli.FaultHost" />
   </ItemGroup>
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <!-- Required only by generated LibraryImport stubs for Windows stdout handle. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!--
       Not a package yet. Packing it would produce ChunkShift.Cli 1.0.0,
       outside the 0.1.Z release train (docs/RELEASES.md). Enable packing
