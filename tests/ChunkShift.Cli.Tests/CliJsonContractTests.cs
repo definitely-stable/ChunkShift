@@ -26,7 +26,7 @@ public sealed class CliJsonContractTests
         Assert.Equal("help", root.GetProperty("operation").GetString());
         Assert.Equal(1, root.GetProperty("schemaVersion").GetInt32());
         Assert.Contains("chunkshift ", root.GetProperty("help").GetProperty("usage").GetString());
-        Assert.False(result.Stdout.Contains("\u001b", StringComparison.Ordinal));
+        Assert.False(result.Stdout.Contains('\u001b'));
     }
 
     [Theory]
