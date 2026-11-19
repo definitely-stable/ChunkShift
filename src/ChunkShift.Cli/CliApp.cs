@@ -23,6 +23,9 @@ internal static class CliApp
         {
             return args[0] switch
             {
+                "manifest" => await RunManifestAsync(
+                    args[1..],
+                    cancellationToken).ConfigureAwait(false),
                 "create" => await RunCreateAsync(
                     args[1..],
                     cancellationToken).ConfigureAwait(false),
@@ -350,6 +353,173 @@ internal static class CliApp
         return result.IsValid ? 0 : 1;
     }
 
+
+    // A2 canonical grouped commands are thin adapters to the exact existing
+    // SDK-backed handlers. In particular, they do not duplicate file staging,
+    // alias checks or CSP/CSM validation and cannot relax A1 publication.
+    private static async Task<int> RunManifestAsync(
+        string[] args,
+        CancellationToken cancellationToken)
+    {
+        if (args.Length == 0)
+        {
+            return UsageError("manifest requires 'create', 'inspect' or 'verify'.");
+        }
+
+        if (args.Length == 1 && IsHelpArgument(args[0]))
+        {
+            PrintManifestUsage();
+            return 0;
+        }
+
+        if (args.Length == 2 && IsHelpArgument(args[1]) &&
+            args[0] is "create" or "inspect" or "verify")
+        {
+            PrintManifestUsage();
+            return 0;
+        }
+
+        return args[0] switch
+        {
+            "create" => await RunManifestCreateAsync(
+                args[1..], cancellationToken).ConfigureAwait(false),
+            "inspect" => await RunInspectAsync(
+                args[1..], cancellationToken).ConfigureAwait(false),
+            "verify" => await RunManifestVerifyAsync(
+                args[1..], cancellationToken).ConfigureAwait(false),
+            _ => UsageError($"Unknown manifest command '{args[0]}'."),
+        };
+    }
+
+    private static async Task<int> RunManifestCreateAsync(
+        string[] args,
+        CancellationToken cancellationToken)
+    {
+        var options = NewOptions("-o");
+        var positionals = new List<string>();
+        var flags = new HashSet<string>(StringComparer.Ordinal);
+
+        if (ParseOptions(
+            "manifest create", args, options, positionals, flags,
+            "--bidx", "--sha256", "--blake3", "--overwrite") is string error)
+        {
+            return UsageError(error);
+        }
+
+        if (positionals.Count != 1 || options["-o"] is not string output)
+        {
+            return UsageError("manifest create requires <content> and -o <manifest>.");
+        }
+
+        if (flags.Contains("--sha256") && flags.Contains("--blake3"))
+        {
+            return UsageError("manifest create: --sha256 and --blake3 are mutually exclusive.");
+        }
+
+        var forwarded = new List<string> { positionals[0], output };
+        foreach (string flag in new[] { "--bidx", "--sha256", "--blake3", "--overwrite" })
+        {
+            if (flags.Contains(flag))
+            {
+                forwarded.Add(flag);
+            }
+        }
+
+        return await RunCreateAsync(
+            forwarded.ToArray(), cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<int> RunManifestVerifyAsync(
+        string[] args,
+        CancellationToken cancellationToken)
+    {
+        var options = NewOptions("--content");
+        var positionals = new List<string>();
+        var flags = new HashSet<string>(StringComparer.Ordinal);
+
+        if (ParseOptions(
+            "manifest verify", args, options, positionals, flags) is string error)
+        {
+            return UsageError(error);
+        }
+
+        if (positionals.Count != 1)
+        {
+            return UsageError("manifest verify requires exactly <manifest> [--content <content>].");
+        }
+
+        string[] forwarded = options["--content"] is string content
+            ? [positionals[0], content]
+            : [positionals[0]];
+
+        return await RunVerifyAsync(
+            forwarded, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<int> RunPatchPlanAsync(
+        string[] args,
+        CancellationToken cancellationToken)
+    {
+        var options = NewOptions("--base-manifest", "--target-manifest");
+        var positionals = new List<string>();
+        var flags = new HashSet<string>(StringComparer.Ordinal);
+
+        if (ParseOptions(
+            "patch plan", args, options, positionals, flags) is string error)
+        {
+            return UsageError(error);
+        }
+
+        if (positionals.Count != 0 ||
+            options["--base-manifest"] is not string baseManifest ||
+            options["--target-manifest"] is not string targetManifest)
+        {
+            return UsageError(
+                "patch plan requires --base-manifest <base.csm> and " +
+                "--target-manifest <target.csm> with no positional arguments.");
+        }
+
+        return await RunPlanAsync(
+            ["--base", baseManifest, "--target", targetManifest],
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static bool IsHelpArgument(string argument) =>
+        argument is "-h" or "--help" or "help";
+
+    private static void PrintManifestUsage()
+    {
+        Console.WriteLine(
+            """
+            ChunkShift manifest commands
+
+            Usage:
+              chunkshift manifest create <content> -o <manifest>
+                                         [--bidx] [--sha256|--blake3] [--overwrite]
+              chunkshift manifest inspect <manifest>
+              chunkshift manifest verify <manifest> [--content <content>]
+            """);
+    }
+
+    private static void PrintPatchUsage()
+    {
+        Console.WriteLine(
+            """
+            ChunkShift patch commands
+
+            Usage:
+              chunkshift patch plan --base-manifest <base.csm>
+                                    --target-manifest <target.csm>
+              chunkshift patch create --target-manifest <target.csm>
+                                      --target <target> -o <patch.csp>
+                                      [--base-manifest <base.csm> --base <base>]
+                                      [--overwrite]
+              chunkshift patch apply <patch.csp> -o <output>
+                                     [--base-manifest <base.csm> --base <base>]
+                                     [--overwrite|--in-place]
+            """);
+    }
+
     private static async Task<int> RunPatchAsync(
         string[] args,
         CancellationToken cancellationToken)
@@ -357,11 +527,22 @@ internal static class CliApp
         if (args.Length == 0)
         {
             return UsageError(
-                "patch requires 'create' or 'apply'.");
+                "patch requires 'plan', 'create' or 'apply'.");
+        }
+
+        if ((args.Length == 1 && IsHelpArgument(args[0])) ||
+            (args.Length == 2 && IsHelpArgument(args[1]) &&
+             args[0] is "plan" or "create" or "apply"))
+        {
+            PrintPatchUsage();
+            return 0;
         }
 
         return args[0] switch
         {
+            "plan" => await RunPatchPlanAsync(
+                args[1..],
+                cancellationToken).ConfigureAwait(false),
             "create" => await RunPatchCreateAsync(
                 args[1..],
                 cancellationToken).ConfigureAwait(false),
@@ -707,6 +888,13 @@ internal static class CliApp
                 return $"{command}: {argument} requires a value.";
             }
 
+            if (args[index + 1].StartsWith('-'))
+            {
+                // Paths beginning with '-' can be spelled "./-name". Do not
+                // consume another option as the value of this option.
+                return $"{command}: {argument} requires a value.";
+            }
+
             options[argument] = args[++index];
         }
 
@@ -956,11 +1144,14 @@ internal static class CliApp
     {
         Console.WriteLine(
             """
-            ChunkShift CSM utility
+            ChunkShift — manifest and binary patch utility
 
             Usage:
-              chunkshift create <content> <manifest> [--bidx] [--sha256|--blake3] [--overwrite]
-              chunkshift inspect <manifest>
+              chunkshift manifest create <content> -o <manifest>
+                                         [--bidx] [--sha256|--blake3] [--overwrite]
+              chunkshift manifest inspect <manifest>
+              chunkshift manifest verify <manifest> [--content <content>]
+              chunkshift patch plan --base-manifest <base.csm> --target-manifest <target.csm>
               chunkshift patch create --target-manifest <target.csm>
                                       --target <target> -o <patch.csp>
                                       [--base-manifest <base.csm> --base <base>]
@@ -968,8 +1159,16 @@ internal static class CliApp
               chunkshift patch apply <patch.csp> -o <output>
                                      [--base-manifest <base.csm> --base <base>]
                                      [--overwrite|--in-place]
+
+            Internal legacy aliases (unpublished, retained for CI migration):
+              chunkshift create <content> <manifest> [--bidx] [--sha256|--blake3] [--overwrite]
+              chunkshift inspect <manifest>
               chunkshift plan --base <base.csm> --target <target.csm>
               chunkshift verify <manifest> [content]
+
+            Use 'chunkshift manifest --help' or 'chunkshift patch --help'
+            for command-group help. JSON and distinct mismatch exit code
+            are planned for CLI140-B1 and are not available in A2.
 
             plan prints a read-only chunk reuse report for a base and a target
             manifest. unique-missing-bytes is the lower bound of the payload a
