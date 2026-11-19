@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ChunkShift.Patching;
@@ -204,7 +206,7 @@ internal sealed class CliReportWriteException : IOException
     internal CliPublicationData? Publication { get; }
 }
 
-internal static class CliOutput
+internal static partial class CliOutput
 {
     private static bool s_json;
     private static string s_operation = "cli";
@@ -212,8 +214,8 @@ internal static class CliOutput
 
     internal static bool IsJson => s_json;
 
-    // Each CLI process executes one operation. A strict, auto-flushed stdout
-    // stream is essential: Console.Out may suppress errors from a broken pipe.
+    // Each CLI process executes one operation. A raw, auto-flushed writer for
+    // redirected stdout is essential: Console output streams may suppress EPIPE.
     // The override is an internal writer seam used by a separate test-only
     // process. No environment-controlled fault injection ships in the CLI.
     internal static void Configure(
@@ -221,15 +223,38 @@ internal static class CliOutput
     {
         s_json = json;
         s_operation = operation;
-        s_stdout = stdoutOverride ?? new StreamWriter(
-            Console.OpenStandardOutput(),
-            new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
-            bufferSize: 1024,
-            leaveOpen: true)
+        s_stdout = stdoutOverride ?? CreateOutputWriter();
+    }
+
+    private static TextWriter CreateOutputWriter()
+    {
+        if (!Console.IsOutputRedirected)
+        {
+            // Preserve the .NET console writer for interactive terminals.
+            return Console.Out;
+        }
+
+        // .NET Console.OpenStandardOutput() intentionally swallows broken
+        // pipes on some platforms. A non-owning raw FileStream preserves
+        // EPIPE/ERROR_BROKEN_PIPE for redirected stdout without closing the
+        // process-level handle. Matches the tested approach used by .NET
+        // Aspire's TrayProtocolOutput.
+        nint handle = OperatingSystem.IsWindows() ? GetStdHandle(-11) : (nint)1;
+        var file = new FileStream(
+            new SafeFileHandle(handle, ownsHandle: false),
+            FileAccess.Write,
+            bufferSize: 4096,
+            isAsync: false);
+        return new StreamWriter(
+            file,
+            new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false))
         {
             AutoFlush = true,
         };
     }
+
+    [LibraryImport("kernel32.dll")]
+    private static partial nint GetStdHandle(int standardHandle);
 
     internal static void Write(CliReply response)
     {
