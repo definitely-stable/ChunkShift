@@ -380,11 +380,38 @@ jobs:
           status=$?
           set -e
 
-          test "$status" -eq 1
+          # A random byte flip can violate an implemented digest (exit 3) or
+          # mutate an encoding into unsupported future semantics (exit 1).
+          # Both must refuse publication; a controlled digest test below pins 3.
+          test "$status" -eq 1 || test "$status" -eq 3
           grep -Eq '^(applied=false|error:)' artifacts/cli-smoke/apply-corrupt.txt
           test ! -e artifacts/cli-smoke/corrupt.bin
 
-          # A patch created without a base is self-contained.
+                    # A deterministic TRAILER FileDigest mutation is an integrity
+          # mismatch, not an unknown-encoding path.
+          cp artifacts/cli-smoke/edited.csp artifacts/cli-smoke/bad-digest.csp
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("artifacts/cli-smoke/bad-digest.csp")
+          raw = bytearray(path.read_bytes())
+          raw[len(raw) - 64 + 24] ^= 0x80
+          path.write_bytes(raw)
+          PY
+
+          set +e
+          dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
+            patch apply artifacts/cli-smoke/bad-digest.csp -o artifacts/cli-smoke/bad-digest.bin \
+            --base-manifest artifacts/cli-smoke/content.csm --base artifacts/cli-smoke/content.bin \
+            > artifacts/cli-smoke/apply-bad-digest.txt 2>&1
+          status=$?
+          set -e
+
+          test "$status" -eq 3
+          grep -q '^applied=false$' artifacts/cli-smoke/apply-bad-digest.txt
+          grep -q 'failures=.*PatchFileDigest' artifacts/cli-smoke/apply-bad-digest.txt
+          test ! -e artifacts/cli-smoke/bad-digest.bin
+
+# A patch created without a base is self-contained.
           dotnet run --project src/ChunkShift.Cli/ChunkShift.Cli.csproj -c Release --no-build -- \
             patch create --target-manifest artifacts/cli-smoke/edited.csm --target artifacts/cli-smoke/edited.bin \
             -o artifacts/cli-smoke/self.csp \
