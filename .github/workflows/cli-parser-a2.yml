@@ -4,8 +4,6 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "src/ChunkShift.Cli/**"
-      - "tests/ChunkShift.Cli.Tests/**"
       - "tools/cli-parser-a2/**"
       - ".github/workflows/cli-parser-a2.yml"
   workflow_dispatch:

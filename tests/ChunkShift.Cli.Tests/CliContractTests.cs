@@ -33,8 +33,9 @@ public sealed class CliContractTests
         using var work = new CliWorkspace();
         CliResult result = await CliProcess.RunAsync(work.Root, "not-a-command");
         Assert.Equal(2, result.ExitCode);
+        Assert.Empty(result.Stdout);
         Assert.Contains("Unknown command", result.Stderr);
-        Assert.Contains("Usage:", result.Stdout);
+        Assert.Contains("Usage:", result.Stderr);
     }
 
     [Theory]

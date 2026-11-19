@@ -15,8 +15,9 @@ public sealed class CliGroupedCommandsTests
         CliResult result = await CliProcess.RunAsync(work.Root, group);
 
         Assert.Equal(2, result.ExitCode);
+        Assert.Empty(result.Stdout);
         Assert.Contains("requires", result.Stderr);
-        Assert.Contains("Usage:", result.Stdout);
+        Assert.Contains("Usage:", result.Stderr);
     }
 
     [Theory]
