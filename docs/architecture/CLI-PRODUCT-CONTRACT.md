@@ -1,6 +1,6 @@
 # CLI140 — first-release CLI contract and acceptance plan
 
-**Status:** A0 accepted; A1 safety contract implemented in the engineering CLI (subject to CI acceptance); CLI remains unpublished.  
+**Status:** A0 + A1 ACCEPTED and merged; CLI140-A2 grouped-taxonomy implementation is under PR/CI review; CLI remains unpublished.  
 **Scope:** issue [#140](https://github.com/definitely-stable/ChunkShift/issues/140), after [#251](https://github.com/definitely-stable/ChunkShift/issues/251) first-release research freeze.  
 **Runtime boundary:** A0 made no runtime changes; A1 changes the CLI filesystem wrapper only. No Core/Patching public API, CSM/CSP v1 or package publication changes.  
 **Package:** `<IsPackable>false</IsPackable>` stays in this engineering repository.
@@ -22,7 +22,7 @@ Current human output is `key=value`. There is no JSON mode, and mismatch/operati
 
 Existing Linux CI contains one Bash-based CSM/CSP smoke and cross-language decoders. A0 adds a process-level .NET test project to Linux **and** Windows; it does not remove the independent smoke.
 
-## 2. Target taxonomy (A2), not implemented by A0
+## 2. Target taxonomy (A2 canonical names; A0/A1 predate this implementation)
 
 ```text
 chunkshift manifest create <content> -o <manifest> [--bidx] [--sha256|--blake3]
@@ -37,7 +37,7 @@ chunkshift patch apply <patch.csp> -o <output>
 
 Use `manifest` for CSM operations and `patch` for CSP/reuse. `plan` is a read-only, evidence-bearing patch planning operation. Preserve the old flat commands during internal CI migration; they were never a published compatibility guarantee. Explicitly defer `scan`, `analyze`, `repo`, and `patch verify`; no justified, narrow and nonduplicated first-release contract exists for them.
 
-Do not introduce a command-framework dependency in A0. A2 must evaluate `System.CommandLine` 3.x vs the existing implementation with a concrete prototype, error-code/duplicate-option tests, CLI startup and trimming/AOT evidence before selecting it. A command parser must not determine domain result types or publication semantics.
+A2 adds canonical grouped routing while keeping the existing production parser. The isolated `tools/cli-parser-a2` project prototypes `System.CommandLine` 3.0.0 without adding it to production dependencies. The `cli-parser-a2.yml` hosted workflow exercises nested syntax, duplicate options, JIT and NativeAOT/trimming. This supplies evidence before considering any dependency switch; it does not assert that the miniature prototype shares full CLI startup/runtime costs. A command parser must not determine domain result types or publication semantics.
 
 ## 3. Request, execution and output boundaries
 
@@ -117,3 +117,46 @@ Microsoft references: [ProcessStartInfo.ArgumentList](https://learn.microsoft.co
 | **C** | Release-facing acceptance | Full CI and independent fixtures; NativeAOT measurement **only if proposed**; `IsPackable=false` retained |
 
 No CLI release, tag, or publication-repository port is authorized by A0. #140 stays open until its own acceptance checklist is demonstrably complete. The subsequent Patching public API compatibility review is a separate gate.
+
+## 7. CLI140-A2 implementation and parser decision (2026-11-19)
+
+**Status at proposal:** A2 changes are pending GitHub-hosted CI and review; not yet ACCEPTED. No public API, CSP/CSM format, encoder policy, output JSON, exit-code mapping or packaging change.
+
+### Canonical product-facing command taxonomy
+
+- `manifest create <content> -o <manifest> [--bidx] [--sha256|--blake3] [--overwrite]`;
+- `manifest inspect <manifest>`;
+- `manifest verify <manifest> [--content <content>]`;
+- `patch plan --base-manifest <base.csm> --target-manifest <target.csm>`;
+- existing `patch create` / `patch apply` remain under the existing group.
+
+The old flat `create/inspect/verify/plan` commands remain **unpublished internal aliases** for existing CI/process scripts. The help clearly favors canonical names. No `scan`, `analyze`, `repo` or `patch verify` surface is introduced. Grouped commands delegate to exactly the existing SDK-backed handlers. This deliberately avoids copy/pasting staging and security-sensitive path logic from A1. B1, not A2, owns the typed human/JSON result renderer and mismatch exit `3`.
+
+### Parser evaluation
+
+`System.CommandLine 3.0.0` is a stable package as of 2026-11-10; official docs describe nested commands and trim/NativeAOT support. References:
+
+- https://www.nuget.org/packages/System.CommandLine/3.0.0
+- https://learn.microsoft.com/en-us/dotnet/standard/commandline/
+
+| Criterion | Current hand parser / grouped adapter | System.CommandLine 3.0.0 |
+|---|---|---|
+| Canonical nested syntax | Explicit deterministic routes | Native command tree |
+| Duplicate options | Fail-closed via current `ParseOptions`; A2 process tests | Probe reports parser behavior; parity would need explicit validators |
+| UX/error/exit compatibility | Inherited exactly from A0/A1 | Would require full compatibility adaptation |
+| Core/Patching dependency | None | Research-only NuGet dependency, not in shipped CLI |
+| Help/completion/response files | Explicit help, no completions/response files | Integrated help and completion support |
+| Startup/trim/AOT | Existing product graph unchanged; validated through regular Heavy CI | Separate native/trimmed Linux x64 prototype; **not** proof of complete product CLI compatibility |
+| Publication safety | Reuses A1 implementation | Must still delegate to A1; parser library provides no filesystem integrity |
+
+**Proposed A2 decision: RETAIN the existing small production parser for this first-release scope.** A full parser replacement would expand the runtime dependency and observable error/help/exit behavior at the same time as the B1 contract. There is no user-facing need for completions/response files yet. This is a bounded engineering choice, **not** a measured claim that hand parsing is faster or inherently safer than System.CommandLine. An eventual adoption requires measured full-CLI cold startup, parity on A0/A1/B1 tests, trimming/AOT validation of the actual CLI graph and justification for the new dependency.
+
+The isolated prototype is evidence only. The benchmark's parse timing is descriptive and not a cross-implementation comparable full-CLI speedup. Do not compare raw parse time of this miniature command tree to SDK-loaded real CLI wall time and claim a parser advantage. The probe workflow fails if compilation, nested-command parsing or NativeAOT/trimming fail; output is archived so the observed duplicate-option semantics can be reviewed.
+
+### A2 acceptance gates
+
+1. Linux/Windows hosted real-process group tests: canonical and legacy byte/verdict equivalence; nested help; duplicate/conflicting flags; malformed/missing values; no-clobber/in-place preservation.
+2. Original A0/A1 tests + CSM/CSP cross-language vectors + package smoke unchanged; full project CI and Heavy validation green on the exact PR HEAD.
+3. Isolated `System.CommandLine 3.0.0` parser prototype compiles, runs and trims/publishes with NativeAOT on GitHub-hosted Linux x64; results archived with RunId.
+4. No new runtime dependency under `src/ChunkShift.Cli`; `IsPackable=false`.
+5. After acceptance, **only** A2 is marked complete in #140; next is B1, no publication or Patching PublicAPI freeze in this PR.
