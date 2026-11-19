@@ -87,7 +87,7 @@ public sealed class CliContractTests
     }
 
     [Fact]
-    public async Task VerifyContentMismatch_ReturnsExistingIntegrityCode()
+    public async Task VerifyContentMismatch_ReturnsSemanticMismatchCode()
     {
         using var work = new CliWorkspace();
         string content = await work.WriteContentAsync("source.bin");
@@ -100,7 +100,7 @@ public sealed class CliContractTests
         CliResult result = await CliProcess.RunAsync(
             work.Root, "verify", manifest, wrong);
 
-        Assert.Equal(1, result.ExitCode); // Legacy behavior; CLI140-B1 will split codes.
+        Assert.Equal(3, result.ExitCode); // CLI140-B1 semantic mismatch.
         Assert.Contains("valid=false", result.Stdout);
     }
 
@@ -115,7 +115,7 @@ public sealed class CliContractTests
 
         CliResult result = await CliProcess.RunAsync(work.Root, "verify", manifest);
 
-        Assert.Equal(1, result.ExitCode);
+        Assert.Equal(3, result.ExitCode);
         Assert.False(result.Stdout.Contains("valid=true", StringComparison.Ordinal));
     }
 
@@ -201,7 +201,7 @@ public sealed class CliContractTests
         CliResult result = await CliProcess.RunAsync(
             work.Root, "plan", "--base", sha, "--target", blake);
 
-        Assert.Equal(1, result.ExitCode);
+        Assert.Equal(3, result.ExitCode);
         Assert.Empty(result.Stdout);
         Assert.Contains("different hash suites", result.Stderr);
     }
@@ -314,7 +314,7 @@ public sealed class CliContractTests
             work.Root, "patch", "apply", patch, "-o", output,
             "--base-manifest", otherManifest, "--base", other);
 
-        Assert.Equal(1, result.ExitCode);
+        Assert.Equal(3, result.ExitCode);
         Assert.Contains("applied=false", result.Stdout);
         Assert.Contains("BaseMismatch", result.Stdout);
         Assert.False(File.Exists(output));
@@ -336,7 +336,7 @@ public sealed class CliContractTests
             work.Root, "patch", "apply", patch, "-o", output,
             "--base-manifest", inputs.BaseManifest, "--base", inputs.Base);
 
-        Assert.Equal(1, result.ExitCode);
+        Assert.Equal(3, result.ExitCode);
         Assert.False(File.Exists(output));
         Assert.Empty(Directory.GetFiles(work.Root, "*.tmp"));
     }

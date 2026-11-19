@@ -1,4 +1,3 @@
-using System.Globalization;
 using ChunkShift.Patching;
 using ChunkShift.Primitives;
 
@@ -12,57 +11,125 @@ internal static class CliApp
         string[] args,
         CancellationToken cancellationToken)
     {
-        if (args.Length == 0 ||
-            args[0] is "-h" or "--help" or "help")
+        // The renderer owns --json; handlers never need to parse the flag.
+        int jsonCount = args.Count(static arg => arg == "--json");
+        string[] commandArgs = args.Where(static arg => arg != "--json").ToArray();
+        CliOutput.Configure(jsonCount != 0, OperationFor(commandArgs));
+        if (jsonCount != 0)
+        {
+            Console.OutputEncoding = new System.Text.UTF8Encoding(false);
+        }
+
+        if (jsonCount > 1)
+        {
+            return UsageError("--json may be given only once.");
+        }
+
+        if (commandArgs.Length == 0)
+        {
+            if (jsonCount != 0)
+            {
+                return UsageError("--json requires a command or --help.");
+            }
+
+            PrintUsage();
+            return 2;
+        }
+
+        if (commandArgs[0] is "-h" or "--help" or "help")
         {
             PrintUsage();
-            return args.Length == 0 ? 2 : 0;
+            return 0;
         }
 
         try
         {
-            return args[0] switch
+            return commandArgs[0] switch
             {
                 "manifest" => await RunManifestAsync(
-                    args[1..],
-                    cancellationToken).ConfigureAwait(false),
+                    commandArgs[1..], cancellationToken).ConfigureAwait(false),
                 "create" => await RunCreateAsync(
-                    args[1..],
-                    cancellationToken).ConfigureAwait(false),
+                    commandArgs[1..], cancellationToken).ConfigureAwait(false),
                 "inspect" => await RunInspectAsync(
-                    args[1..],
-                    cancellationToken).ConfigureAwait(false),
+                    commandArgs[1..], cancellationToken).ConfigureAwait(false),
                 "patch" => await RunPatchAsync(
-                    args[1..],
-                    cancellationToken).ConfigureAwait(false),
+                    commandArgs[1..], cancellationToken).ConfigureAwait(false),
                 "plan" => await RunPlanAsync(
-                    args[1..],
-                    cancellationToken).ConfigureAwait(false),
+                    commandArgs[1..], cancellationToken).ConfigureAwait(false),
                 "verify" => await RunVerifyAsync(
-                    args[1..],
-                    cancellationToken).ConfigureAwait(false),
-                _ => UsageError(
-                    $"Unknown command '{args[0]}'."),
+                    commandArgs[1..], cancellationToken).ConfigureAwait(false),
+                _ => UsageError($"Unknown command '{commandArgs[0]}'."),
             };
         }
         catch (OperationCanceledException)
             when (cancellationToken.IsCancellationRequested)
         {
-            Console.Error.WriteLine("Cancelled.");
+            CliOutput.WriteError("cancelled", "Operation cancelled by user.");
             return 130;
         }
-        catch (Exception exception)
-            when (exception is IOException
-                or UnauthorizedAccessException
-                or InvalidDataException
-                or NotSupportedException
-                or ArgumentException)
+        catch (CliUsageException exception)
         {
-            Console.Error.WriteLine(
-                $"error: {exception.Message}");
+            return UsageError(exception.Message);
+        }
+        catch (InvalidDataException exception)
+        {
+            CliOutput.WriteError("invalid_data", exception.Message);
+            return 3;
+        }
+        catch (EndOfStreamException exception)
+        {
+            CliOutput.WriteError("invalid_data", exception.Message);
+            return 3;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            CliOutput.WriteError("access_denied", exception.Message);
+            return 1;
+        }
+        catch (IOException exception)
+        {
+            CliOutput.WriteError("io_failure", exception.Message);
+            return 1;
+        }
+        catch (NotSupportedException exception)
+        {
+            CliOutput.WriteError("unsupported", exception.Message);
+            return 1;
+        }
+        catch (ArgumentException exception)
+        {
+            CliOutput.WriteError("invalid_input", exception.Message);
+            return 1;
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            // Never print an unstructured exception trace in machine mode.
+            CliOutput.WriteError("internal_error",
+                "Unexpected CLI failure: " + exception.Message);
             return 1;
         }
     }
+
+    private static string OperationFor(string[] args)
+    {
+        if (args.Length == 0 || args[0] is "help" or "--help" or "-h")
+        {
+            return "cli";
+        }
+
+        return args[0] switch
+        {
+            "manifest" when args.Length > 1 => "manifest." + args[1],
+            "patch" when args.Length > 1 => "patch." + args[1],
+            "create" => "manifest.create",
+            "inspect" => "manifest.inspect",
+            "verify" => "manifest.verify",
+            "plan" => "patch.plan",
+            _ => "cli",
+        };
+    }
+
+    private sealed class CliUsageException(string message) : Exception(message);
 
     private static async Task<int> RunCreateAsync(
         string[] args,
@@ -182,9 +249,11 @@ internal static class CliApp
 
             File.Move(temporaryPath, manifestPath, overwrite);
 
-            PrintManifest(info);
-            Console.WriteLine(
-                $"written={manifestPath}");
+            CliOutput.Write(new CliReply("manifest.create")
+            {
+                Manifest = CliManifestData.From(info),
+                Publication = new CliPublicationData(manifestPath, true),
+            });
             return 0;
         }
         finally
@@ -222,10 +291,12 @@ internal static class CliApp
             ?? throw new InvalidOperationException(
                 "ManifestReader completed without a verification result.");
 
-        PrintManifest(result.Manifest);
-        PrintVerification(result);
-
-        return result.IsValid ? 0 : 1;
+        CliOutput.Write(new CliReply("manifest.inspect")
+        {
+            Manifest = CliManifestData.From(result.Manifest),
+            Verification = CliVerificationData.From(result),
+        });
+        return result.IsValid ? 0 : 3;
     }
 
     private static async Task<int> RunPlanAsync(
@@ -294,25 +365,9 @@ internal static class CliApp
                 cancellationToken).ConfigureAwait(false);
         }
 
-        if (!plan.IsValid)
-        {
-            PrintReuseFailures(plan);
-            return 1;
-        }
-
-        if (plan.Base.Manifest.HashSuite !=
-            plan.Target.Manifest.HashSuite)
-        {
-            Console.Error.WriteLine(
-                $"error: base and target manifests use different hash suites " +
-                $"('{plan.Base.Manifest.HashSuite}' vs " +
-                $"'{plan.Target.Manifest.HashSuite}'); " +
-                "chunk ids are not comparable.");
-            return 1;
-        }
-
-        PrintReuseReport(plan);
-        return 0;
+        CliPlanData report = CliPlanData.From(plan);
+        CliOutput.Write(new CliReply("patch.plan") { Plan = report });
+        return report.Valid ? 0 : 3;
     }
 
     private static async Task<int> RunVerifyAsync(
@@ -347,10 +402,12 @@ internal static class CliApp
                 cancellationToken).ConfigureAwait(false);
         }
 
-        PrintManifest(result.Manifest);
-        PrintVerification(result);
-
-        return result.IsValid ? 0 : 1;
+        CliOutput.Write(new CliReply("manifest.verify")
+        {
+            Manifest = CliManifestData.From(result.Manifest),
+            Verification = CliVerificationData.From(result),
+        });
+        return result.IsValid ? 0 : 3;
     }
 
 
@@ -489,7 +546,7 @@ internal static class CliApp
 
     private static void PrintManifestUsage()
     {
-        Console.WriteLine(
+        CliOutput.WriteHelp("manifest",
             """
             ChunkShift manifest commands
 
@@ -503,7 +560,7 @@ internal static class CliApp
 
     private static void PrintPatchUsage()
     {
-        Console.WriteLine(
+        CliOutput.WriteHelp("patch",
             """
             ChunkShift patch commands
 
@@ -679,7 +736,11 @@ internal static class CliApp
 
             File.Move(temporaryPath, outputFullPath, overwrite);
 
-            PrintPatch(info);
+            CliOutput.Write(new CliReply("patch.create")
+            {
+                Patch = CliPatchData.From(info),
+                Publication = new CliPublicationData(outputFullPath, true),
+            });
             return 0;
         }
         finally
@@ -818,22 +879,14 @@ internal static class CliApp
             }
         }
 
-        if (!result.IsApplied)
+        CliOutput.Write(new CliReply("patch.apply")
         {
-            Console.WriteLine("applied=false");
-            Console.WriteLine($"failures={result.Failures}");
-            return 1;
-        }
-
-        ManifestInfo target = result.Target
-            ?? throw new InvalidOperationException(
-                "An applied patch result must carry the target manifest.");
-
-        Console.WriteLine("applied=true");
-        Console.WriteLine($"target-manifest-id={target.ManifestId}");
-        Console.WriteLine(
-            $"output-bytes={target.ContentLength.ToString(CultureInfo.InvariantCulture)}");
-        return 0;
+            Apply = CliApplyData.From(result),
+            Publication = result.IsApplied
+                ? new CliPublicationData(outputFullPath, true)
+                : null,
+        });
+        return result.IsApplied ? 0 : 3;
     }
 
     private static Dictionary<string, string?> NewOptions(params string[] names) =>
@@ -1007,118 +1060,6 @@ internal static class CliApp
                 BufferSize = IoBufferSize,
             });
 
-    private static void PrintManifest(ManifestInfo info)
-    {
-        Console.WriteLine(
-            $"hash-suite={info.HashSuite}");
-        Console.WriteLine(
-            $"profile={info.ProfileId}");
-        Console.WriteLine(
-            $"profile-fingerprint={info.ProfileFingerprint}");
-        Console.WriteLine(
-            $"manifest-id={info.ManifestId}");
-        Console.WriteLine(
-            $"file-digest={info.FileDigest.ToHexLower()}");
-        Console.WriteLine(
-            $"chunks={info.ChunkCount.ToString(CultureInfo.InvariantCulture)}");
-        Console.WriteLine(
-            $"content-bytes={info.ContentLength.ToString(CultureInfo.InvariantCulture)}");
-        Console.WriteLine(
-            $"physical-bytes={info.PhysicalLength.ToString(CultureInfo.InvariantCulture)}");
-        Console.WriteLine(
-            $"cblk-count={info.ChunkBlockCount.ToString(CultureInfo.InvariantCulture)}");
-        Console.WriteLine(
-            $"bidx={info.HasBlockIndex.ToString().ToLowerInvariant()}");
-    }
-
-    private static void PrintVerification(
-        ManifestVerificationResult result)
-    {
-        Console.WriteLine(
-            $"valid={result.IsValid.ToString().ToLowerInvariant()}");
-        Console.WriteLine(
-            $"failures={result.Failures}");
-    }
-
-    private static void PrintPatch(PatchInfo info)
-    {
-        Console.WriteLine(
-            $"target-manifest-id={info.TargetManifestId}");
-
-        if (info.BaseManifestId is { } baseManifestId)
-        {
-            Console.WriteLine(
-                $"base-manifest-id={baseManifestId}");
-        }
-
-        Console.WriteLine(
-            $"hash-suite={info.HashSuite}");
-        Console.WriteLine(
-            $"payload-entries={info.PayloadEntryCount.ToString(CultureInfo.InvariantCulture)}");
-        Console.WriteLine(
-            $"payload-bytes={info.PayloadBytes.ToString(CultureInfo.InvariantCulture)}");
-        Console.WriteLine(
-            $"patch-bytes={info.PhysicalLength.ToString(CultureInfo.InvariantCulture)}");
-        Console.WriteLine(
-            $"file-digest={info.FileDigest.ToHexLower()}");
-    }
-
-    private static void PrintReuseFailures(PatchPlan plan)
-    {
-        Console.WriteLine("valid=false");
-
-        if (!plan.Base.IsValid)
-        {
-            Console.WriteLine(
-                $"base-failures={plan.Base.Failures}");
-        }
-
-        if (!plan.Target.IsValid)
-        {
-            Console.WriteLine(
-                $"target-failures={plan.Target.Failures}");
-        }
-    }
-
-    private static void PrintReuseReport(PatchPlan plan)
-    {
-        ManifestInfo baseManifest = plan.Base.Manifest;
-        ManifestInfo targetManifest = plan.Target.Manifest;
-        bool sameProfile =
-            baseManifest.ProfileFingerprint ==
-            targetManifest.ProfileFingerprint;
-
-        Console.WriteLine("valid=true");
-        Console.WriteLine(
-            $"hash-suite={baseManifest.HashSuite}");
-        Console.WriteLine(
-            $"same-profile={sameProfile.ToString().ToLowerInvariant()}");
-        Console.WriteLine(
-            $"base-manifest-id={baseManifest.ManifestId}");
-        Console.WriteLine(
-            $"target-manifest-id={targetManifest.ManifestId}");
-        Console.WriteLine(
-            $"base-chunks={baseManifest.ChunkCount.ToString(CultureInfo.InvariantCulture)}");
-        Console.WriteLine(
-            $"base-bytes={baseManifest.ContentLength.ToString(CultureInfo.InvariantCulture)}");
-        Console.WriteLine(
-            $"target-chunks={targetManifest.ChunkCount.ToString(CultureInfo.InvariantCulture)}");
-        Console.WriteLine(
-            $"target-bytes={targetManifest.ContentLength.ToString(CultureInfo.InvariantCulture)}");
-        Console.WriteLine(
-            $"reused-chunks={plan.ReusedChunks.ToString(CultureInfo.InvariantCulture)}");
-        Console.WriteLine(
-            $"reused-bytes={plan.ReusedBytes.ToString(CultureInfo.InvariantCulture)}");
-        Console.WriteLine(
-            $"missing-chunks={plan.MissingChunks.ToString(CultureInfo.InvariantCulture)}");
-        Console.WriteLine(
-            $"missing-bytes={plan.MissingBytes.ToString(CultureInfo.InvariantCulture)}");
-        Console.WriteLine(
-            $"unique-missing-chunks={plan.UniqueMissingChunks.ToString(CultureInfo.InvariantCulture)}");
-        Console.WriteLine(
-            $"unique-missing-bytes={plan.UniqueMissingBytes.ToString(CultureInfo.InvariantCulture)}");
-    }
-
     private static void SetHashSuite(
         ref HashSuiteId? current,
         HashSuiteId requested)
@@ -1126,7 +1067,7 @@ internal static class CliApp
         if (current is not null &&
             current != requested)
         {
-            throw new ArgumentException(
+            throw new CliUsageException(
                 "Choose only one of --sha256 or --blake3.");
         }
 
@@ -1135,14 +1076,17 @@ internal static class CliApp
 
     private static int UsageError(string message)
     {
-        Console.Error.WriteLine($"error: {message}");
-        PrintUsage();
+        CliOutput.WriteError("usage", message);
+        if (!CliOutput.IsJson)
+        {
+            PrintUsage();
+        }
         return 2;
     }
 
     private static void PrintUsage()
     {
-        Console.WriteLine(
+        CliOutput.WriteHelp("root",
             """
             ChunkShift — manifest and binary patch utility
 
@@ -1167,8 +1111,8 @@ internal static class CliApp
               chunkshift verify <manifest> [content]
 
             Use 'chunkshift manifest --help' or 'chunkshift patch --help'
-            for command-group help. JSON and distinct mismatch exit code
-            are planned for CLI140-B1 and are not available in A2.
+            for command-group help. --json emits a versioned UTF-8
+            result on stdout or a versioned error on stderr.
 
             plan prints a read-only chunk reuse report for a base and a target
             manifest. unique-missing-bytes is the lower bound of the payload a
@@ -1184,8 +1128,9 @@ internal static class CliApp
 
             Exit codes:
               0  success / verification valid
-              1  verification mismatch or operational error
+              1  operational error
               2  command-line usage error
+              3  verification/integrity mismatch
               130 cancelled
             """);
     }

@@ -201,7 +201,7 @@ jobs:
           status=$?
           set -e
 
-          test "$status" -eq 1
+          test "$status" -eq 3
           grep -q '^valid=false$' artifacts/cli-smoke/mismatch.txt
           grep -q 'Content' artifacts/cli-smoke/mismatch.txt
 
@@ -280,7 +280,7 @@ jobs:
           status=$?
           set -e
 
-          test "$status" -eq 1
+          test "$status" -eq 3
           test ! -s artifacts/cli-smoke/plan-suite.txt
           grep -q 'different hash suites' artifacts/cli-smoke/plan-suite.err
 
@@ -354,7 +354,7 @@ jobs:
           status=$?
           set -e
 
-          test "$status" -eq 1
+          test "$status" -eq 3
           grep -q '^applied=false$' artifacts/cli-smoke/apply-wrong-base.txt
           grep -q 'failures=.*BaseMismatch' artifacts/cli-smoke/apply-wrong-base.txt
           test ! -e artifacts/cli-smoke/wrong.bin
@@ -379,7 +379,7 @@ jobs:
           status=$?
           set -e
 
-          test "$status" -eq 1
+          test "$status" -eq 3
           grep -Eq '^(applied=false|error:)' artifacts/cli-smoke/apply-corrupt.txt
           test ! -e artifacts/cli-smoke/corrupt.bin
 

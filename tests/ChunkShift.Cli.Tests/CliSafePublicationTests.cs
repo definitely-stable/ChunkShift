@@ -307,7 +307,7 @@ public sealed class CliSafePublicationTests
             work.Root, "patch", "apply", patch, "-o", destination,
             "--base-manifest", wrongManifest, "--base", wrong, "--overwrite");
 
-        Assert.Equal(1, result.ExitCode);
+        Assert.Equal(3, result.ExitCode);
         Assert.Contains("BaseMismatch", result.Stdout);
         Assert.Equal(marker, await File.ReadAllBytesAsync(destination));
         AssertNoStaging(work);
@@ -330,7 +330,7 @@ public sealed class CliSafePublicationTests
         CliResult result = await CliProcess.RunAsync(
             work.Root, PatchApplyArgs(inputs, patch, destination, "--overwrite"));
 
-        Assert.Equal(1, result.ExitCode);
+        Assert.Equal(3, result.ExitCode);
         Assert.Equal(marker, await File.ReadAllBytesAsync(destination));
         AssertNoStaging(work);
     }
