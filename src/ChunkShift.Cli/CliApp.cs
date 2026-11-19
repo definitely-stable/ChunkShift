@@ -27,13 +27,9 @@ internal static class CliApp
 
         if (commandArgs.Length == 0)
         {
-            if (jsonCount != 0)
-            {
-                return UsageError("--json requires a command or --help.");
-            }
-
-            PrintUsage();
-            return 2;
+            return UsageError(jsonCount != 0
+                ? "--json requires a command or --help."
+                : "A command is required.");
         }
 
         if (commandArgs[0] is "-h" or "--help" or "help")
@@ -110,17 +106,31 @@ internal static class CliApp
         }
     }
 
+    // Error envelopes use only the v1 canonical operation vocabulary. In
+    // particular, an unknown subcommand must not manufacture a new value.
     private static string OperationFor(string[] args)
     {
-        if (args.Length == 0 || args[0] is "help" or "--help" or "-h")
+        if (args.Length == 0)
         {
             return "cli";
         }
 
         return args[0] switch
         {
-            "manifest" when args.Length > 1 => "manifest." + args[1],
-            "patch" when args.Length > 1 => "patch." + args[1],
+            "manifest" when args.Length > 1 => args[1] switch
+            {
+                "create" => "manifest.create",
+                "inspect" => "manifest.inspect",
+                "verify" => "manifest.verify",
+                _ => "cli",
+            },
+            "patch" when args.Length > 1 => args[1] switch
+            {
+                "create" => "patch.create",
+                "apply" => "patch.apply",
+                "plan" => "patch.plan",
+                _ => "cli",
+            },
             "create" => "manifest.create",
             "inspect" => "manifest.inspect",
             "verify" => "manifest.verify",
@@ -130,6 +140,21 @@ internal static class CliApp
     }
 
     private sealed class CliUsageException(string message) : Exception(message);
+
+    // Invalid user path syntax is an argument error (2), not an I/O failure
+    // (1). Keep SDK ArgumentException handling separate: SDK may reject a
+    // semantically invalid input after argument validation.
+    private static string UserPath(string path)
+    {
+        try
+        {
+            return Path.GetFullPath(path);
+        }
+        catch (ArgumentException exception)
+        {
+            throw new CliUsageException("Invalid path: " + exception.Message);
+        }
+    }
 
     private static async Task<int> RunCreateAsync(
         string[] args,
@@ -141,8 +166,8 @@ internal static class CliApp
                 "create requires <content> and <manifest>.");
         }
 
-        string contentPath = Path.GetFullPath(args[0]);
-        string manifestPath = Path.GetFullPath(args[1]);
+        string contentPath = UserPath(args[0]);
+        string manifestPath = UserPath(args[1]);
 
         // Publishing replaces <manifest>. If it named the source, a POSIX rename
         // would silently replace the content with its own manifest.
@@ -161,6 +186,11 @@ internal static class CliApp
             switch (args[index])
             {
                 case "--bidx":
+                    if (includeBlockIndex)
+                    {
+                        return UsageError("create: --bidx may be given only once.");
+                    }
+
                     includeBlockIndex = true;
                     break;
                 case "--overwrite":
@@ -273,7 +303,7 @@ internal static class CliApp
         }
 
         await using FileStream manifest =
-            OpenRead(Path.GetFullPath(args[0]));
+            OpenRead(UserPath(args[0]));
         await using ManifestReader reader =
             await ManifestReader.OpenAsync(
                 manifest,
@@ -355,9 +385,9 @@ internal static class CliApp
         PatchPlan plan;
 
         await using (FileStream baseManifest =
-            OpenRead(Path.GetFullPath(basePath)))
+            OpenRead(UserPath(basePath)))
         await using (FileStream targetManifest =
-            OpenRead(Path.GetFullPath(targetPath)))
+            OpenRead(UserPath(targetPath)))
         {
             plan = await ChunkPatch.PlanAsync(
                 baseManifest,
@@ -381,7 +411,7 @@ internal static class CliApp
         }
 
         await using FileStream manifest =
-            OpenRead(Path.GetFullPath(args[0]));
+            OpenRead(UserPath(args[0]));
 
         ManifestVerificationResult result;
 
@@ -394,7 +424,7 @@ internal static class CliApp
         else
         {
             await using FileStream content =
-                OpenRead(Path.GetFullPath(args[1]));
+                OpenRead(UserPath(args[1]));
 
             result = await ChunkManifest.VerifyAsync(
                 content,
@@ -649,7 +679,7 @@ internal static class CliApp
                 "patch create: --base-manifest and --base must be given together.");
         }
 
-        string outputFullPath = Path.GetFullPath(outputPath);
+        string outputFullPath = UserPath(outputPath);
 
         foreach ((string option, string? input) in new[]
         {
@@ -660,7 +690,7 @@ internal static class CliApp
         })
         {
             if (input is not null &&
-                PathsReferToSameFile(outputFullPath, Path.GetFullPath(input)))
+                PathsReferToSameFile(outputFullPath, UserPath(input)))
             {
                 return UsageError(
                     $"patch create: -o must not be the same file as {option}.");
@@ -688,8 +718,8 @@ internal static class CliApp
         {
             PatchInfo info;
 
-            await using (FileStream targetManifest = OpenRead(Path.GetFullPath(targetManifestPath)))
-            await using (FileStream targetContent = OpenRead(Path.GetFullPath(targetPath)))
+            await using (FileStream targetManifest = OpenRead(UserPath(targetManifestPath)))
+            await using (FileStream targetContent = OpenRead(UserPath(targetPath)))
             await using (FileStream destination = new(
                 temporaryPath,
                 new FileStreamOptions
@@ -703,8 +733,8 @@ internal static class CliApp
             {
                 if (baseManifestPath is not null && basePath is not null)
                 {
-                    await using FileStream baseManifest = OpenRead(Path.GetFullPath(baseManifestPath));
-                    await using FileStream baseContent = OpenRead(Path.GetFullPath(basePath));
+                    await using FileStream baseManifest = OpenRead(UserPath(baseManifestPath));
+                    await using FileStream baseContent = OpenRead(UserPath(basePath));
 
                     info = await ChunkPatch.CreateAsync(
                         baseManifest,
@@ -785,8 +815,8 @@ internal static class CliApp
                 "patch apply: --base-manifest and --base must be given together.");
         }
 
-        string patchFullPath = Path.GetFullPath(positionals[0]);
-        string outputFullPath = Path.GetFullPath(outputPath);
+        string patchFullPath = UserPath(positionals[0]);
+        string outputFullPath = UserPath(outputPath);
 
         if (PathsReferToSameFile(outputFullPath, patchFullPath))
         {
@@ -795,7 +825,7 @@ internal static class CliApp
         }
 
         if (baseManifestPath is not null &&
-            PathsReferToSameFile(outputFullPath, Path.GetFullPath(baseManifestPath)))
+            PathsReferToSameFile(outputFullPath, UserPath(baseManifestPath)))
         {
             return UsageError("patch apply: -o must not be the same file as --base-manifest.");
         }
@@ -806,14 +836,14 @@ internal static class CliApp
         }
 
         bool matchesBase = basePath is not null &&
-            PathsReferToSameFile(outputFullPath, Path.GetFullPath(basePath));
+            PathsReferToSameFile(outputFullPath, UserPath(basePath));
         if (matchesBase && !inPlace)
         {
             return UsageError("patch apply: updating the base requires --in-place.");
         }
 
         if (inPlace && (basePath is null ||
-            !PathsHaveSameSpelling(outputFullPath, Path.GetFullPath(basePath))))
+            !PathsHaveSameSpelling(outputFullPath, UserPath(basePath))))
         {
             return UsageError(
                 "patch apply: --in-place requires -o to name exactly the --base path.");
@@ -843,10 +873,10 @@ internal static class CliApp
 
             if (baseManifestPath is not null && basePath is not null)
             {
-                await using FileStream baseManifest = OpenRead(Path.GetFullPath(baseManifestPath));
+                await using FileStream baseManifest = OpenRead(UserPath(baseManifestPath));
 
                 // Explicit in-place publication requires delete sharing on Windows.
-                await using FileStream baseContent = OpenReadShared(Path.GetFullPath(basePath));
+                await using FileStream baseContent = OpenReadShared(UserPath(basePath));
 
                 result = await ChunkPatch.ApplyAsync(
                     patch,
@@ -879,6 +909,16 @@ internal static class CliApp
             }
         }
 
+        int exitCode = CliExitPolicy.ApplyExitCode(result.Failures);
+        if (exitCode == 1)
+        {
+            // The SDK reports ResourceLimit as a result flag. Exceeding an
+            // operational bound is not evidence that CSP integrity failed.
+            CliOutput.WriteError("resource_limit",
+                "The patch exceeds a configured operational resource limit.");
+            return 1;
+        }
+
         CliOutput.Write(new CliReply("patch.apply")
         {
             Apply = CliApplyData.From(result),
@@ -886,7 +926,7 @@ internal static class CliApp
                 ? new CliPublicationData(outputFullPath, true)
                 : null,
         });
-        return result.IsApplied ? 0 : 3;
+        return exitCode;
     }
 
     private static Dictionary<string, string?> NewOptions(params string[] names) =>
@@ -1064,11 +1104,10 @@ internal static class CliApp
         ref HashSuiteId? current,
         HashSuiteId requested)
     {
-        if (current is not null &&
-            current != requested)
+        if (current is not null)
         {
             throw new CliUsageException(
-                "Choose only one of --sha256 or --blake3.");
+                "Choose only one of --sha256 or --blake3; repeated hash flags are not allowed.");
         }
 
         current = requested;
@@ -1079,12 +1118,12 @@ internal static class CliApp
         CliOutput.WriteError("usage", message);
         if (!CliOutput.IsJson)
         {
-            PrintUsage();
+            PrintUsage(diagnostic: true);
         }
         return 2;
     }
 
-    private static void PrintUsage()
+    private static void PrintUsage(bool diagnostic = false)
     {
         CliOutput.WriteHelp("root",
             """
@@ -1132,7 +1171,7 @@ internal static class CliApp
               2  command-line usage error
               3  verification/integrity mismatch
               130 cancelled
-            """);
+            """, diagnostic);
     }
 
     private static void TryDelete(string path)

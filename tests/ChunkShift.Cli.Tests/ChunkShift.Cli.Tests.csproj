@@ -16,8 +16,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Builds the actual executable; tests communicate only through processes. -->
+    <!-- Builds the actual executable. Command scenarios use child processes;
+         only pure exit-policy and DTO serialization tests access internals. -->
     <ProjectReference Include="..\..\src\ChunkShift.Cli\ChunkShift.Cli.csproj"
-                      ReferenceOutputAssembly="false" />
+                      ReferenceOutputAssembly="true" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,6 @@
 # CLI140 — first-release CLI contract and acceptance plan
 
-**Status:** A0/A1/A2 ACCEPTED and merged; CLI140-B1 machine-output/exit-code implementation is under PR/CI review. CLI remains unpublished.  
+**Status:** A0/A1/A2/B1 ACCEPTED and merged; CLI140-B1R correctness follow-up is under review. CLI remains unpublished.  
 **Scope:** issue [#140](https://github.com/definitely-stable/ChunkShift/issues/140), after [#251](https://github.com/definitely-stable/ChunkShift/issues/251) first-release research freeze.  
 **Runtime boundary:** A0 made no runtime changes; A1 changes the CLI filesystem wrapper only. No Core/Patching public API, CSM/CSP v1 or package publication changes.  
 **Package:** `<IsPackable>false</IsPackable>` stays in this engineering repository.
@@ -51,7 +51,7 @@ arguments -> parse/validate -> typed internal request
 
 The same typed result must render human and machine output. Command handlers must not write ad-hoc data directly to stdout once B1 is implemented. Do not add DI or convenience-only public Core methods.
 
-### Machine-output contract (CLI140-B1; acceptance pending)
+### Machine-output contract (CLI140-B1; accepted)
 
 - Explicit `--json`, accepted consistently across supported commands, no automatic JSON on pipe.
 - One UTF-8 JSON value on stdout for a completed operation, including a verification mismatch if a structured verdict is available. Use `schemaVersion: 1`, stable camelCase field names, JSON booleans/numbers (not printed `key=value` strings), explicit operation discriminator such as `patch.plan`.
@@ -60,7 +60,7 @@ The same typed result must render human and machine output. Command handlers mus
 - Summary is the default. Detailed records, if ever introduced, must be opt-in and streamed; do not build an unbounded in-memory JSON array. The `plan` library's bounded ID sets are independent of the output streaming rule.
 - A broken stdout pipe **after commit** cannot undo a successfully published file. A nonzero exit caused by output failure must never imply that no change occurred. Caller can check destination identity to reconcile.
 
-### Exit codes (CLI140-B1; acceptance pending)
+### Exit codes (CLI140-B1; accepted; B1R clarification pending)
 
 | Code | First-release meaning |
 |---|---|
@@ -70,7 +70,7 @@ The same typed result must render human and machine output. Command handlers mus
 | 3 | Semantic verification/integrity mismatch; wrong base/corrupt content when represented as a verdict |
 | 130 | User-requested cancellation (Ctrl+C) |
 
-Unexpected errors must not leak a success-looking stdout summary. Preserve structured failure details. Explicitly test malformed CSM/CSP exception classification in B1; an invalid serialized representation may be mapped to `3` only under an approved error taxonomy, not by blanket-catching unrelated errors. A0 tests expect the existing code `1` for mismatch.
+Unexpected errors must not leak a success-looking stdout summary. Preserve structured failure details. Explicitly test malformed CSM/CSP exception classification in B1; an invalid serialized representation may be mapped to `3` only under an approved error taxonomy, not by blanket-catching unrelated errors. Historical A0 tests used exit `1` for mismatch; accepted B1 uses exit `3`.
 
 ## 4. File publication and trust model (A1 engineering implementation)
 
@@ -120,7 +120,7 @@ No CLI release, tag, or publication-repository port is authorized by A0. #140 st
 
 ## 7. CLI140-A2 implementation and parser decision (2026-11-19)
 
-**Status at proposal:** A2 changes are pending GitHub-hosted CI and review; not yet ACCEPTED. No public API, CSP/CSM format, encoder policy, output JSON, exit-code mapping or packaging change.
+**Historical status at A2 proposal:** A2 was subsequently ACCEPTED and merged in PR #462. No public API, CSP/CSM format, encoder policy, output JSON, exit-code mapping or packaging change.
 
 ### Canonical product-facing command taxonomy
 
@@ -163,7 +163,7 @@ The isolated prototype is evidence only. The benchmark's parse timing is descrip
 
 ## 8. CLI140-B1 typed machine output, errors and exit codes (2026-11-19)
 
-**Status:** proposed for real-process Linux/Windows + Heavy validation CI acceptance, not a release/publication authorization.
+**Status:** B1 ACCEPTED and merged in PR #463 with Linux/Windows CI, Heavy x64/ARM64 and CodeQL SUCCESS. This does not authorize CLI publication.
 
 ### Renderer architecture
 
@@ -216,8 +216,36 @@ The root `--json` flag is accepted before/after the command; duplicate instances
 ### Required acceptance
 
 1. The child-process JSON suite passes on Linux and Windows: valid CSM create/inspect/verify and CSP create/apply, base-dependent wrong-base rejection, incompatible-suites plan, corrupt CSM, I/O errors, usage errors, nested help, unicode paths, typed numeric/boolean fields, absent optional fields and legacy alias parity.
-2. Existing A0/A1/A2 text output, no-clobber, in-place and staging tests continue to pass; **only the documented mismatch exit transitions 1→3** are expected. CI Bash smoke is updated to assert 3 for mismatch/invalid CSP, but retains 1 for disk-full.
+2. Existing A0/A1/A2 text output, no-clobber, in-place and staging tests continue to pass; **only the documented mismatch exit transitions 1→3** are expected. CI Bash smoke asserts exit 3 for confirmed integrity mismatches and exit 1 for disk-full or unsupported CSP semantics; random CSP mutations can reach either classification.
 3. All original independent CSM/CSP vectors, package smoke, Heavy x64/ARM64 and cross-architecture determinism, CodeQL and dependency review remain successful.
 4. `IsPackable=false`, no runtime dependency additions or Patching public API/format changes; #140 stays OPEN pending B2/C.
 
-Do not claim first-release CLI acceptance or NuGet publication from B1 alone.
+Do not claim first-release CLI acceptance or NuGet publication from B1 alone. B1R follows up on audit of the accepted B1 contract.
+
+## 9. CLI140-B1R pre-B2 contract-correctness follow-up (2026-11-19)
+
+**Status at proposal:** review/fix slice pending GitHub-hosted CI and merge. This section must not be treated as accepted until the linked PR passes its own exact-head checks. It changes CLI behavior only, not Core/Patching SDK, CSM/CSP formats, default patch policy or package publication.
+
+### Precise resource-limit policy
+
+`PatchApplyFailure.ResourceLimit` is an operational failure, not proof of patch corruption. `patch apply` returns **1**, with `error.code = "resource_limit"` in its single stderr JSON error envelope and empty stdout. A true integrity mismatch without the resource-limit bit continues to return **3**, a typed `apply.applied=false` result on stdout, and empty stderr. If future SDK implementations combine both families of failure flags, the resource-limit bit takes precedence: return 1 without claiming an integrity mismatch. This policy is checked with exhaustive pure flag-combination unit tests; synthesizing an ordinary public-CLI CSP containing more than 1,048,576 valid payload entries is not claimed or needed for the focused B1R test. B2 may add higher-scale budgeted tests.
+
+### Strict machine error vocabulary
+
+For supported subcommands, `error.operation` is one of `manifest.create`, `manifest.inspect`, `manifest.verify`, `patch.plan`, `patch.create` or `patch.apply`. For an unknown subcommand or root-level usage failure it is the reserved value **`cli`**. A help success uses `operation="help"`. Invalid commands must never inject arbitrary user-supplied strings into the versioned operation discriminator. The `schemaVersion` remains 1; no new required fields are added.
+
+### Argument vs SDK failures
+
+`Path.GetFullPath` is validated at CLI command boundaries: an invalid user-supplied path throws the CLI-local usage exception and returns **2**. SDK `ArgumentException` is **not** globally reclassified as usage; an SDK rejection after parsing remains an operational error unless separately mapped by a reviewed domain policy. Semantic CSP/CSM verification mismatch remains exit 3. This avoids accidentally concealing genuine SDK failures with blanket exception mapping.
+
+Human-mode usage errors write both the short diagnostic and the root usage help to **stderr only**, preserving empty stdout. Explicit `--help` remains successful and writes help to **stdout only**. Machine-mode errors already write one versioned envelope to stderr only. The existing unpublished flat `create` alias now rejects repeated `--bidx` and same-suite `--sha256`/`--blake3` flags, matching canonical `manifest create` without changing handler semantics.
+
+### Verification
+
+- Real-child-process tests for unknown command vocabulary, missing known command arguments, invalid empty path syntax, duplicate legacy flags, human stdout/stderr separation, explicit help and JSON envelopes.
+- Pure policy tests for no failure, integrity failure, operational ResourceLimit and combined flags; no expensive or nondeterministic million-entry corpus is falsely called a process test.
+- Source-generated JSON tests check optional fields, unknown failure bits, invariant serialization under `ru-RU`, `de-DE`, `tr-TR`, exact JSON long counters around `2^53` and `Int64.MaxValue`.
+- Linux/Windows process suite + full CI, Heavy x64/ARM64/cross-architecture validation, CodeQL and dependency review on the exact proposed PR HEAD before merging.
+- The A2 `System.CommandLine` prototype remains available through manual `workflow_dispatch` and when its own source/workflow changes, but no longer re-runs on unrelated CLI source/tests, because the first-release parser decision was accepted in A2.
+
+Next after acceptance: CLI140-B2, then CLI140-C, a **separate** Patching PublicAPI acceptance, and only then publication-repository work. Keep `IsPackable=false`.

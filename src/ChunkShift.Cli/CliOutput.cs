@@ -176,6 +176,16 @@ internal sealed partial class CliJsonContext : JsonSerializerContext
 {
 }
 
+// One authoritative exit-classification policy for PatchApplyResult.Failures.
+ // ResourceLimit takes precedence even if future SDK versions combine flags.
+internal static class CliExitPolicy
+{
+    internal static int ApplyExitCode(PatchApplyFailure failures) =>
+        failures == PatchApplyFailure.None
+            ? 0
+            : (failures & PatchApplyFailure.ResourceLimit) != 0 ? 1 : 3;
+}
+
 internal static class CliOutput
 {
     private static bool s_json;
@@ -243,7 +253,7 @@ internal static class CliOutput
         }
     }
 
-    internal static void WriteHelp(string scope, string usage)
+    internal static void WriteHelp(string scope, string usage, bool diagnostic = false)
     {
         if (s_json)
         {
@@ -251,6 +261,10 @@ internal static class CliOutput
             {
                 Help = new CliHelpData(scope, usage),
             });
+        }
+        else if (diagnostic)
+        {
+            Console.Error.WriteLine(usage);
         }
         else
         {
