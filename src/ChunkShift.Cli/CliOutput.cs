@@ -172,7 +172,7 @@ internal sealed record CliErrorData(string Code, string Message);
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(CliReply))]
-internal partial class CliJsonContext : JsonSerializerContext
+internal sealed partial class CliJsonContext : JsonSerializerContext
 {
 }
 
