@@ -149,6 +149,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          trap 'echo "CLI smoke failed at script line $LINENO: $BASH_COMMAND" >&2' ERR
           mkdir -p artifacts/cli-smoke
 
           python3 - <<'PY'
