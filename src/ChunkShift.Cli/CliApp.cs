@@ -27,13 +27,9 @@ internal static class CliApp
 
         if (commandArgs.Length == 0)
         {
-            if (jsonCount != 0)
-            {
-                return UsageError("--json requires a command or --help.");
-            }
-
-            PrintUsage();
-            return 2;
+            return UsageError(jsonCount != 0
+                ? "--json requires a command or --help."
+                : "A command is required.");
         }
 
         if (commandArgs[0] is "-h" or "--help" or "help")
