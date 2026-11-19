@@ -224,7 +224,7 @@ Do not claim first-release CLI acceptance or NuGet publication from B1 alone. B1
 
 ## 9. CLI140-B1R pre-B2 contract-correctness follow-up (2026-11-19)
 
-**Status at proposal:** review/fix slice pending GitHub-hosted CI and merge. This section must not be treated as accepted until the linked PR passes its own exact-head checks. It changes CLI behavior only, not Core/Patching SDK, CSM/CSP formats, default patch policy or package publication.
+**Status:** B1R ACCEPTED and merged in PR #464 (main `674cf0a7f419ebd2ff9ffc9d9715cb6e26716f92`); CI/Heavy/CodeQL successful. Historical proposal and acceptance criteria below are retained for provenance. It changes CLI behavior only, not Core/Patching SDK, CSM/CSP formats, default patch policy or package publication.
 
 ### Precise resource-limit policy
 
@@ -249,3 +249,34 @@ Human-mode usage errors write both the short diagnostic and the root usage help 
 - The A2 `System.CommandLine` prototype remains available through manual `workflow_dispatch` and when its own source/workflow changes, but no longer re-runs on unrelated CLI source/tests, because the first-release parser decision was accepted in A2.
 
 Next after acceptance: CLI140-B2, then CLI140-C, a **separate** Patching PublicAPI acceptance, and only then publication-repository work. Keep `IsPackable=false`.
+
+## 10. CLI140-B2A — stdout failure after verified publication (2026-11-20)
+
+**Status at proposal:** this focused B2A slice is pending PR validation. Only PR CI + review can establish ACCEPT; do not mark all of B2 or #140 complete.
+
+### Problem and failure-state contract
+
+After a successful SDK operation and final publication/rename, the CLI still needs to write a textual or JSON report. The OS pipe can be closed, full or disconnected **after** the verified file was committed. This is a reporting failure, **not** evidence that the destination is absent or corrupt. No rollback is safe or promised.
+
+A dedicated `CliReportWriteException` captures `IOException` from the stdout renderer, carrying the already-known `CliPublicationData` when present. The CLI reports `output_failure`, with **exit 1** and an explicit reconciliation message, on stderr. In JSON mode:
+
+```json
+{"schemaVersion":1,"operation":"manifest.create","error":{"code":"output_failure","message":"The destination was committed, but stdout reporting failed. Verify the destination identity before retrying.","publicationCommitted":true,"publicationPath":"/absolute/path/to/manifest.csm"}}
+```
+
+- `error.publicationCommitted: true` and `error.publicationPath` are added **only when a verified publication result is known**; they are never inferred merely from a nonzero exit. For read-only results that could not be reported, those fields are absent.
+- The `error` object is emitted on stderr, with one versioned JSON record. The stdout bytes may be **empty or a truncated prefix**; a broken pipe cannot promise atomic delivery of a JSON line. A consumer must check process exit + complete JSON parse and treat any partial stdout as an incomplete report, not as a successful transaction.
+- The publication field describes that the file was committed, **not** crash/power-loss durability, cross-process exclusion or a guarantee that an unrelated actor has not changed it afterward. A client can reconcile using manifest identity, patch digest or exact target content.
+- No user-visible `--test` option, environment-controlled fault hook, public SDK overload, new format or package is introduced.
+
+The renderer uses a strict, auto-flushed, unowned stdout stream opened by `Console.OpenStandardOutput()`; this avoids relying on `Console.Out` behavior for broken-pipe propagation. Its result summary remains bounded and uses the existing source-generated JSON context. No unbounded detail list or eager per-chunk array is added. A separate *test-only executable* `ChunkShift.Cli.FaultHost` injects deterministic first-write and partial-write `IOException` through an internal writer seam. Each fault injection runs as a separate OS process; xUnit never changes the parent runner's global `Console.Out`.
+
+### B2A acceptance criteria
+
+1. Linux and Windows process tests prove `manifest create`, `patch create`, `patch apply` no-clobber and explicit in-place publish the **exact verified bytes** even when stdout fails after commit; the CLI returns 1 and stderr JSON records `output_failure` and `publicationCommitted: true`. No false successful JSON is emitted.
+2. A *real closed OS stdout pipe* test uses the unmodified CLI assembly (not the injected FaultHost) on Linux/Windows, checks nonzero operational failure and reconciles persisted CSM and reconstructed target.
+3. A read-only `manifest inspect` output failure must return 1 with `output_failure` **without** any `publicationCommitted` or path claim. A deterministic partial-prefix fault proves that stderr machine reconciliation remains possible even when stdout is not parseable JSON.
+4. Preserve old human/JSON success output, wrong-base and corruption verdicts, A1 atomic visibility/no-clobber/in-place rules and cleanup; no changes to Core/Patching APIs or CSM/CSP identity. Full CI Linux/Windows, Heavy x64/ARM64 + cross-arch determinism, CodeQL and dependency review must succeed against the exact PR HEAD.
+5. `IsPackable=false` remains; B2-B cancellation/fault-injection before commit, B2-C bounded resources and B2-D path/lock matrix remain OPEN. No release approval.
+
+Scope deliberately excludes OS process hard-kill and power-loss durability. Fault host intentionally exercises a reporting failure **after** normal, verified commit; it does not claim to model every kernel pipe interruption or concurrent filesystem race.

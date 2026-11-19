@@ -20,5 +20,8 @@
          only pure exit-policy and DTO serialization tests access internals. -->
     <ProjectReference Include="..\..\src\ChunkShift.Cli\ChunkShift.Cli.csproj"
                       ReferenceOutputAssembly="true" />
+    <!-- Separate test executable for post-commit stdout fault injection. -->
+    <ProjectReference Include="../ChunkShift.Cli.FaultHost/ChunkShift.Cli.FaultHost.csproj"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

@@ -9,16 +9,18 @@ internal static class CliApp
 
     internal static async Task<int> RunAsync(
         string[] args,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TextWriter? stdoutOverride = null)
     {
         // The renderer owns --json; handlers never need to parse the flag.
         int jsonCount = args.Count(static arg => arg == "--json");
         string[] commandArgs = args.Where(static arg => arg != "--json").ToArray();
-        CliOutput.Configure(jsonCount != 0, OperationFor(commandArgs));
         if (jsonCount != 0)
         {
             Console.OutputEncoding = new System.Text.UTF8Encoding(false);
         }
+
+        CliOutput.Configure(jsonCount != 0, OperationFor(commandArgs), stdoutOverride);
 
         if (jsonCount > 1)
         {
@@ -67,6 +69,22 @@ internal static class CliApp
         {
             return UsageError(exception.Message);
         }
+        catch (CliReportWriteException exception)
+        {
+            // Reaching the output renderer is after the SDK/CLI commit point
+            // for publication-capable operations. Reporting failure does not
+            // roll back a verified file and must never claim the file is absent.
+            bool committed = exception.Publication?.Committed == true;
+            CliOutput.WriteError(
+                "output_failure",
+                committed
+                    ? "The destination was committed, but stdout reporting failed. " +
+                      "Verify the destination identity before retrying."
+                    : "The CLI could not write its result to stdout.",
+                exception.Publication);
+            return 1;
+        }
+
         catch (InvalidDataException exception)
         {
             CliOutput.WriteError("invalid_data", exception.Message);

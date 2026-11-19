@@ -9,6 +9,7 @@
     <!-- Pure policy and JSON-contract tests; CLI command handlers remain
          exercised exclusively as real child processes. -->
     <InternalsVisibleTo Include="ChunkShift.Cli.Tests" />
+    <InternalsVisibleTo Include="ChunkShift.Cli.FaultHost" />
   </ItemGroup>
 
   <PropertyGroup>
