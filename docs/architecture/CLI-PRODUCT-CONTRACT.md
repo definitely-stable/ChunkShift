@@ -1,6 +1,6 @@
 # CLI140 — first-release CLI contract and acceptance plan
 
-**Status:** A0 + A1 ACCEPTED and merged; CLI140-A2 grouped-taxonomy implementation is under PR/CI review; CLI remains unpublished.  
+**Status:** A0/A1/A2 ACCEPTED and merged; CLI140-B1 machine-output/exit-code implementation is under PR/CI review. CLI remains unpublished.  
 **Scope:** issue [#140](https://github.com/definitely-stable/ChunkShift/issues/140), after [#251](https://github.com/definitely-stable/ChunkShift/issues/251) first-release research freeze.  
 **Runtime boundary:** A0 made no runtime changes; A1 changes the CLI filesystem wrapper only. No Core/Patching public API, CSM/CSP v1 or package publication changes.  
 **Package:** `<IsPackable>false</IsPackable>` stays in this engineering repository.
@@ -51,7 +51,7 @@ arguments -> parse/validate -> typed internal request
 
 The same typed result must render human and machine output. Command handlers must not write ad-hoc data directly to stdout once B1 is implemented. Do not add DI or convenience-only public Core methods.
 
-### Machine-output proposal (B1; no JSON implementation in A0)
+### Machine-output contract (CLI140-B1; acceptance pending)
 
 - Explicit `--json`, accepted consistently across supported commands, no automatic JSON on pipe.
 - One UTF-8 JSON value on stdout for a completed operation, including a verification mismatch if a structured verdict is available. Use `schemaVersion: 1`, stable camelCase field names, JSON booleans/numbers (not printed `key=value` strings), explicit operation discriminator such as `patch.plan`.
@@ -60,7 +60,7 @@ The same typed result must render human and machine output. Command handlers mus
 - Summary is the default. Detailed records, if ever introduced, must be opt-in and streamed; do not build an unbounded in-memory JSON array. The `plan` library's bounded ID sets are independent of the output streaming rule.
 - A broken stdout pipe **after commit** cannot undo a successfully published file. A nonzero exit caused by output failure must never imply that no change occurred. Caller can check destination identity to reconcile.
 
-### Exit codes (B1; A0 records current values)
+### Exit codes (CLI140-B1; acceptance pending)
 
 | Code | First-release meaning |
 |---|---|
@@ -160,3 +160,64 @@ The isolated prototype is evidence only. The benchmark's parse timing is descrip
 3. Isolated `System.CommandLine 3.0.0` parser prototype compiles, runs and trims/publishes with NativeAOT on GitHub-hosted Linux x64; results archived with RunId.
 4. No new runtime dependency under `src/ChunkShift.Cli`; `IsPackable=false`.
 5. After acceptance, **only** A2 is marked complete in #140; next is B1, no publication or Patching PublicAPI freeze in this PR.
+
+## 8. CLI140-B1 typed machine output, errors and exit codes (2026-11-19)
+
+**Status:** proposed for real-process Linux/Windows + Heavy validation CI acceptance, not a release/publication authorization.
+
+### Renderer architecture
+
+The CLI now routes all success and semantic mismatch results through an internal typed `CliReply` / `CliOutput` renderer. SDK operations return strongly typed `CliManifestData`, `CliVerificationData`, `CliPlanData`, `CliPatchData` and `CliApplyData`. The same typed data feed human `key=value` and JSON output; no parsing or mirroring human text to JSON. Json serialization uses a source-generated `CliJsonContext` and `System.Text.Json` already in the .NET runtime. No new NuGet runtime dependency, no public API, no changes to CSP/CSM/encoder/defaults/format or A1 publication logic.
+
+Explicit `--json` is valid once at any argument position. The CLI does not silently switch to JSON when stdout is redirected. Canonical grouped and legacy unpublished aliases have the same JSON operation discriminator and stable fields. Root/group/subcommand help is represented as an explicit JSON help document if `--json` is supplied.
+
+### JSON envelope and schema 1
+
+- Every completed operation writes **exactly one JSON object and a terminating newline on stdout**. No ANSI, no text prefacing, no progress or freeform diagnostics on stdout.
+- All documents have required `schemaVersion: 1` (JSON integer) and required `operation` (canonical string: `manifest.create`, `manifest.inspect`, `manifest.verify`, `patch.plan`, `patch.create`, `patch.apply`, or `help`).
+- Top-level operation sections are `manifest`, `verification`, `plan`, `patch`, `apply`, `publication` and `help`. Only applicable sections appear; all names are stable camelCase.
+- Typed long counters such as `chunks`, `contentBytes`, `patchBytes`, `missingBytes` and `outputBytes` use JSON integer numbers, not localized/quoted digit strings. IDs/digests and failure flags use existing canonical text values. Unknown failure bits must survive as strings (never silently accepted as success). Absence is represented by omitted optional fields, not by a misleading 0 or empty ID.
+- JSON permits Int64 counters greater than the IEEE 754 JavaScript exact-integer threshold `2^53 - 1`. JS consumers **must use a lossless JSON/int64 parser or reject out-of-safe-range values**; `JSON.parse` + `Number` is not an exact representation of such values. No new stringified-number compatibility contract is implied.
+- For publication-capable commands, `publication: { path: "...", committed: true }` only appears **after** verified SDK completion and final rename/commit. Absence of the publication field on an unsuccessful apply means the CLI did not report a successful commit. Neither this field nor exit 0 asserts filesystem power-loss durability.
+- Semantic verification mismatches emit a normal result with `verification.valid: false`, `plan.valid: false`, or `apply.applied: false` **on stdout** and return 3; no conflicting JSON error is written on stderr. Hash-suite mismatch is a `patch.plan` verdict with `failureCode: "different_hash_suites"`.
+
+Example success:
+
+```json
+{"operation":"patch.plan","schemaVersion":1,"plan":{"valid":true,"hashSuite":"chunkshift.sha256.v1","sameProfile":true,"baseManifestId":"...","targetManifestId":"...","baseChunks":12,"baseBytes":102400,"targetChunks":12,"targetBytes":102400,"reusedChunks":12,"reusedBytes":102400,"missingChunks":0,"missingBytes":0,"uniqueMissingChunks":0,"uniqueMissingBytes":0}}
+```
+
+The ellipses in this **illustrative example** are placeholders, not valid manifest identity encodings.
+
+### Errors and exit taxonomy
+
+| Exit | Meaning | stdout with `--json` | stderr with `--json` |
+|---|---|---|---|
+| 0 | Success / valid / requested help | one typed result or help | empty |
+| 1 | Operational failure (disk full, permission, not found, unsupported environment, unexpected exception) | empty, unless output fails **after** commit | one `error` envelope |
+| 2 | Usage, missing/duplicate/conflicting arguments, unsafe output target | empty | one `error` envelope |
+| 3 | Semantic verification or integrity mismatch (including malformed/truncated CSM/CSP reported as invalid data) | structured verdict if available, else empty | empty for verdict, one `invalid_data` error if SDK throws |
+| 130 | Cooperative Ctrl+C cancellation | empty | one `cancelled` error if handled before process termination |
+
+The Patching SDK explicitly distinguishes *malformed CSP* (InvalidDataException) from *unsupported future/unknown physical semantics* (NotSupportedException). The latter is exit `1` (`unsupported`), even when random corruption happens to mutate an encoding identifier into an unsupported value; the CLI must not assert an integrity verdict it did not obtain. A controlled mutation of the CSP v1 TRAILER FileDigest is a genuine integrity verdict (`PatchFileDigest`, exit `3`) and has an independent real-process regression test. Never blanket-map all exceptions from `patch apply` to exit `3`.
+
+The error envelope also contains `schemaVersion` and canonical `operation`:
+
+```json
+{"operation":"manifest.verify","schemaVersion":1,"error":{"code":"io_failure","message":"..."}}
+```
+
+`error.code` is stable v1 vocabulary: `usage`, `invalid_data`, `io_failure`, `access_denied`, `unsupported`, `invalid_input`, `internal_error`, `cancelled`. `error.message` is descriptive and **not stable for machine matching**. There is no blanket mapping from an unrelated I/O exception to integrity exit 3. An exact content mismatch remains a verdict, not an exception.
+
+The root `--json` flag is accepted before/after the command; duplicate instances are usage errors. `Console.OutputEncoding` is explicitly UTF-8 without a BOM in machine mode. Program Ctrl+C progress text is suppressed in JSON mode so it cannot corrupt the stderr error document.
+
+**Post-commit output failure:** if a successful `File.Move` is followed by broken stdout, the file remains published even if the final process exit is nonzero. The caller must reconcile the destination identity (CSM ManifestId/CSP digest/target content). B2 will exercise broken pipe, fault injection and arbitrary concurrent changes. No rollback promise is made on reporting failure.
+
+### Required acceptance
+
+1. The child-process JSON suite passes on Linux and Windows: valid CSM create/inspect/verify and CSP create/apply, base-dependent wrong-base rejection, incompatible-suites plan, corrupt CSM, I/O errors, usage errors, nested help, unicode paths, typed numeric/boolean fields, absent optional fields and legacy alias parity.
+2. Existing A0/A1/A2 text output, no-clobber, in-place and staging tests continue to pass; **only the documented mismatch exit transitions 1→3** are expected. CI Bash smoke is updated to assert 3 for mismatch/invalid CSP, but retains 1 for disk-full.
+3. All original independent CSM/CSP vectors, package smoke, Heavy x64/ARM64 and cross-architecture determinism, CodeQL and dependency review remain successful.
+4. `IsPackable=false`, no runtime dependency additions or Patching public API/format changes; #140 stays OPEN pending B2/C.
+
+Do not claim first-release CLI acceptance or NuGet publication from B1 alone.

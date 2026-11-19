@@ -14,7 +14,10 @@ Console.CancelKeyPress += (_, eventArgs) =>
     }
 
     eventArgs.Cancel = true;
-    Console.Error.WriteLine("Cancelling... press Ctrl+C again to terminate.");
+    if (!args.Contains("--json", StringComparer.Ordinal))
+    {
+        Console.Error.WriteLine("Cancelling... press Ctrl+C again to terminate.");
+    }
     cancellation.Cancel();
 };
 

@@ -157,7 +157,7 @@ public sealed class CliGroupedCommandsTests
     }
 
     [Fact]
-    public async Task GroupedVerifyMismatch_KeepsLegacyExitCodeUntilB1()
+    public async Task GroupedVerifyMismatch_UsesB1IntegrityExitCode()
     {
         using var work = new CliWorkspace();
         string content = await work.WriteContentAsync("source.bin", length: 128 * 1024);
@@ -172,7 +172,7 @@ public sealed class CliGroupedCommandsTests
 
         CliResult result = await CliProcess.RunAsync(
             work.Root, "manifest", "verify", manifest, "--content", wrongPath);
-        Assert.Equal(1, result.ExitCode);
+        Assert.Equal(3, result.ExitCode);
         Assert.Contains("valid=false", result.Stdout);
     }
 
