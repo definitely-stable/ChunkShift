@@ -330,7 +330,7 @@ public sealed class CliSafePublicationTests
         CliResult result = await CliProcess.RunAsync(
             work.Root, PatchApplyArgs(inputs, patch, destination, "--overwrite"));
 
-        Assert.Equal(3, result.ExitCode);
+        Assert.Equal(1, result.ExitCode); // Unsupported CSP semantics are operational, not a mismatch verdict.
         Assert.Equal(marker, await File.ReadAllBytesAsync(destination));
         AssertNoStaging(work);
     }

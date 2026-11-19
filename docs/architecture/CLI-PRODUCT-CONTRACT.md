@@ -199,6 +199,8 @@ The ellipses in this **illustrative example** are placeholders, not valid manife
 | 3 | Semantic verification or integrity mismatch (including malformed/truncated CSM/CSP reported as invalid data) | structured verdict if available, else empty | empty for verdict, one `invalid_data` error if SDK throws |
 | 130 | Cooperative Ctrl+C cancellation | empty | one `cancelled` error if handled before process termination |
 
+The Patching SDK explicitly distinguishes *malformed CSP* (InvalidDataException) from *unsupported future/unknown physical semantics* (NotSupportedException). The latter is exit `1` (`unsupported`), even when random corruption happens to mutate an encoding identifier into an unsupported value; the CLI must not assert an integrity verdict it did not obtain. A controlled mutation of the CSP v1 TRAILER FileDigest is a genuine integrity verdict (`PatchFileDigest`, exit `3`) and has an independent real-process regression test. Never blanket-map all exceptions from `patch apply` to exit `3`.
+
 The error envelope also contains `schemaVersion` and canonical `operation`:
 
 ```json

@@ -379,7 +379,7 @@ jobs:
           status=$?
           set -e
 
-          test "$status" -eq 3
+          test "$status" -eq 1
           grep -Eq '^(applied=false|error:)' artifacts/cli-smoke/apply-corrupt.txt
           test ! -e artifacts/cli-smoke/corrupt.bin
 

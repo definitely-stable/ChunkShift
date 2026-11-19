@@ -282,6 +282,39 @@ public sealed class CliJsonContractTests
     }
 
     [Fact]
+    public async Task PatchJson_TamperedTrailerDigest_ReturnsIntegrityVerdict()
+    {
+        using var work = new CliWorkspace();
+        string target = await work.WriteContentAsync("target.bin", length: 256 * 1024);
+        string manifest = await CreateManifestAsync(work, target, "target.csm");
+        string patch = work.PathFor("target.csp");
+        string output = work.PathFor("must-not-exist.bin");
+
+        CliResult created = await CliProcess.RunAsync(
+            work.Root, "patch", "create", "--target-manifest", manifest,
+            "--target", target, "-o", patch);
+        Assert.Equal(0, created.ExitCode);
+
+        // CSP v1 TRAILER is exactly 64 bytes; FileDigest occupies bytes
+        // [24, 56) inside it. Mutate the digest, not the version/codec tag:
+        // this isolates an integrity verdict from an unsupported encoding.
+        byte[] bytes = await File.ReadAllBytesAsync(patch);
+        bytes[bytes.Length - 64 + 24] ^= 0x80;
+        await File.WriteAllBytesAsync(patch, bytes);
+
+        CliResult applied = await CliProcess.RunAsync(
+            work.Root, "patch", "apply", patch, "-o", output, "--json");
+        Assert.Equal(3, applied.ExitCode);
+        Assert.Empty(applied.Stderr);
+        using JsonDocument doc = ParseSingle(applied.Stdout);
+        Assert.False(doc.RootElement.GetProperty("apply").GetProperty("applied").GetBoolean());
+        Assert.Contains("PatchFileDigest",
+            doc.RootElement.GetProperty("apply").GetProperty("failures").GetString()!);
+        Assert.False(doc.RootElement.TryGetProperty("publication", out _));
+        Assert.False(File.Exists(output));
+    }
+
+    [Fact]
     public async Task WrongBasePatchJson_NeverPublishesOutput()
     {
         using var work = new CliWorkspace();
@@ -325,7 +358,7 @@ public sealed class CliJsonContractTests
     private static JsonDocument ParseSingle(string value)
     {
         Assert.False(string.IsNullOrWhiteSpace(value));
-        Assert.DoesNotContain("\u001b", value);
+        Assert.False(value.Contains('\u001b'));
         using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(value));
         // JsonDocument.Parse rejects a second JSON document or trailing text.
         JsonDocument doc = JsonDocument.Parse(stream);

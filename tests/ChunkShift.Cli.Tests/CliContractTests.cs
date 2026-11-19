@@ -336,7 +336,7 @@ public sealed class CliContractTests
             work.Root, "patch", "apply", patch, "-o", output,
             "--base-manifest", inputs.BaseManifest, "--base", inputs.Base);
 
-        Assert.Equal(3, result.ExitCode);
+        Assert.Equal(1, result.ExitCode); // Unsupported CSP semantics are operational, not a mismatch verdict.
         Assert.False(File.Exists(output));
         Assert.Empty(Directory.GetFiles(work.Root, "*.tmp"));
     }
