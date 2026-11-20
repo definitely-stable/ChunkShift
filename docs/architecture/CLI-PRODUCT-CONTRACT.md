@@ -315,3 +315,13 @@ The observer calls `cancellationToken.ThrowIfCancellationRequested()` after the 
 - Required gates: full GitHub-hosted solution Linux/Windows tests + independent CSM/CSP decoders, package smoke, Heavy Linux x64/ARM64 and cross-arch determinism, CodeQL and dependency review on the exact tested PR SHA; no Core/Patching SDK, CSM/CSP, encoder or package changes. Keep `IsPackable=false`.
 
 After focused B2B acceptance, continue **B2C** bounded resources/large outputs and **B2D** path/lock matrix, then CLI140-C and separate Patching PublicAPI freeze. Issue #140 remains OPEN.
+
+## 12. CLI140-B2C — bounded CLI process resources and output (2026-11-21)
+
+**Status at proposal:** source-backed implementation and real CI measurements are pending. The independent numerical acceptance limits were **preregistered before measurements** in [CLI140-B2C-RESOURCE-GATE.md](CLI140-B2C-RESOURCE-GATE.md), commit `bf0509e8ca49a9b9aaee2e46d9f5cfdfb46a97ad`. They must not be loosened after a failed measurement without a separately justified and reviewed recalibration.
+
+The shipped CLI uses source-generated, bounded summary DTOs, but previous test assertions covered schema and field types rather than full-process resident high-water across large inputs. An isolated .NET 10 resource probe runs the **built product CLI** on GitHub-hosted Ubuntu and Windows and records one JSON evidence file per OS. It generates a deterministic 384 MiB file with a fixed 64 KiB staging buffer (above the child process's 256 MiB managed GC hard limit), then tests manifest create/inspect/verify, a high-chunk-count self-plan, and a 64 MiB self-contained CSP create/apply roundtrip. It checks exact reconstructed SHA-256, committed destination existence, no orphan staging files, exit 0, and bounded one-object JSON outputs.
+
+The gate observes process RSS (Windows/Linux `Process.PeakWorkingSet64`, with live sampling), **not** the GC heap alone. The GC hard limit controls managed allocations; resident bounds independently cover the process's native memory. Linux package-smoke's existing 4-GiB-under-128-MiB-cgroup scenario remains a **separate SDK consumer result** and cannot be substituted for CLI evidence. The probe does not claim full end-to-end testing of the SDK's default 1,048,576-entry CSP resource-limit branch. This remains a documented limitation, with the B1R pure classification tests retained.
+
+B2C accepts only the declared resource and summary-output envelope. B2D cross-platform filesystem/path final safety, C release-facing acceptance and separate Patching PublicAPI freeze remain open. Keep `IsPackable=false` and #140 OPEN.
