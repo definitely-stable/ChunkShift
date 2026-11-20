@@ -1,0 +1,80 @@
+name: CLI140-B2C bounded resources
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/ChunkShift.Cli/**"
+      - "src/ChunkShift.Patching/**"
+      - "src/ChunkShift/**"
+      - "tools/cli140-b2c/**"
+      - "docs/architecture/CLI140-B2C-RESOURCE-GATE.md"
+      - ".github/workflows/cli140-b2c.yml"
+      - "global.json"
+      - "Directory.Build.props"
+      - "Directory.Packages.props"
+      - "ChunkShift.slnx"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cli140-b2c-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+
+jobs:
+  memory-and-output:
+    name: large-cli (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact PR tree
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore built CLI and isolated resource probe
+        shell: pwsh
+        run: |
+          dotnet restore ChunkShift.slnx
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet restore tools/cli140-b2c/CliResourceProbe.csproj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build exact CLI and resource probe
+        shell: pwsh
+        run: |
+          dotnet build ChunkShift.slnx -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build tools/cli140-b2c/CliResourceProbe.csproj -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Measure CLI under preregistered GC/RSS and JSON limits
+        shell: pwsh
+        run: |
+          $cli = Join-Path $env:GITHUB_WORKSPACE 'src/ChunkShift.Cli/bin/Release/net10.0/ChunkShift.Cli.dll'
+          $evidence = Join-Path $env:RUNNER_TEMP 'cli140-b2c-report.json'
+          dotnet tools/cli140-b2c/bin/Release/net10.0/CliResourceProbe.dll $cli $evidence
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Archive exact-head measurement report (including failure)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cli140-b2c-${{ matrix.os }}
+          path: ${{ runner.temp }}/cli140-b2c-report.json
+          if-no-files-found: warn
+          retention-days: 30
