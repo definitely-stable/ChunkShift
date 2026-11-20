@@ -3,9 +3,30 @@ using ChunkShift.Primitives;
 
 namespace ChunkShift.Cli;
 
+// Internal, process-isolated test checkpoints. Product CLI never assigns this
+// observer and exposes no flags or environment switches to activate faults.
+internal enum CliCheckpoint
+{
+    ManifestBeforeFlush,
+    ManifestBeforePublish,
+    PatchBeforeFlush,
+    PatchBeforePublish,
+    ApplyBeforeSdk,
+    ApplyBeforePublish,
+}
+
 internal static class CliApp
 {
     private const int IoBufferSize = 64 * 1024;
+
+    internal static Action<CliCheckpoint, CancellationToken>? CheckpointObserver { get; set; }
+
+    private static void Checkpoint(CliCheckpoint point, CancellationToken cancellationToken)
+    {
+        CheckpointObserver?.Invoke(point, cancellationToken);
+        // Always observe cancellation after a hook and before committing.
+        cancellationToken.ThrowIfCancellationRequested();
+    }
 
     internal static async Task<int> RunAsync(
         string[] args,
@@ -283,13 +304,16 @@ internal static class CliApp
                         },
                         cancellationToken).ConfigureAwait(false);
 
+                Checkpoint(CliCheckpoint.ManifestBeforeFlush, cancellationToken);
                 await destination.FlushAsync(
                     cancellationToken).ConfigureAwait(false);
             }
 
+            // The test checkpoint runs after staging is flushed/disposed but
+            // before the atomic same-directory publication.
+            Checkpoint(CliCheckpoint.ManifestBeforePublish, cancellationToken);
             // Report only after the manifest is published, so a failed move is
             // never preceded by a success-looking summary.
-            cancellationToken.ThrowIfCancellationRequested();
             if (CheckDestination(manifestPath, overwrite, "create") is string finalError)
             {
                 return UsageError(finalError);
@@ -771,12 +795,13 @@ internal static class CliApp
                         cancellationToken).ConfigureAwait(false);
                 }
 
+                Checkpoint(CliCheckpoint.PatchBeforeFlush, cancellationToken);
                 await destination.FlushAsync(cancellationToken).ConfigureAwait(false);
             }
 
+            Checkpoint(CliCheckpoint.PatchBeforePublish, cancellationToken);
             // Report only after the patch is published, so a failed move is
             // never preceded by a success-looking summary.
-            cancellationToken.ThrowIfCancellationRequested();
             if (CheckDestination(outputFullPath, overwrite, "patch create") is string finalError)
             {
                 return UsageError(finalError);
@@ -887,6 +912,7 @@ internal static class CliApp
         PatchApplyResult result;
         try
         {
+            Checkpoint(CliCheckpoint.ApplyBeforeSdk, cancellationToken);
             await using FileStream patch = OpenRead(patchFullPath);
 
             if (baseManifestPath is not null && basePath is not null)
@@ -913,7 +939,7 @@ internal static class CliApp
 
             if (result.IsApplied && stagedOutput is not null)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                Checkpoint(CliCheckpoint.ApplyBeforePublish, cancellationToken);
                 // The final move, not a prior File.Exists check, enforces
                 // the no-clobber rule if another file appears meanwhile.
                 File.Move(stagedOutput, outputFullPath, overwrite: false);

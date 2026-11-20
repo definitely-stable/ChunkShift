@@ -25,6 +25,22 @@ internal static class CliProcess
         string workingDirectory, params string[] arguments) =>
         RunCoreAsync(workingDirectory, ResolveCliAssembly(), true, arguments);
 
+    internal static Task<CliResult> RunCheckpointAsync(
+        string workingDirectory, string faultMode, string checkpoint,
+        string? raceDestination, params string[] arguments)
+    {
+        if (faultMode is not ("cancel" or "io" or "permission" or "race"))
+        {
+            throw new ArgumentOutOfRangeException(nameof(faultMode));
+        }
+
+        string[] prefix = raceDestination is null
+            ? ["--checkpoint-" + faultMode, checkpoint]
+            : ["--checkpoint-" + faultMode, checkpoint, raceDestination];
+        return RunCoreAsync(workingDirectory, ResolveFaultHostAssembly(), false,
+            [.. prefix, .. arguments]);
+    }
+
     private static async Task<CliResult> RunCoreAsync(
         string workingDirectory, string assemblyPath,
         bool closeStdoutReader, params string[] arguments)
