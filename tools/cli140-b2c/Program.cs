@@ -13,7 +13,6 @@ const long HeapCap = 256 * MiB;
 const long RssCap = 640 * MiB;
 const long GrowthCap = 128 * MiB;
 const int MaximumOutputBytes = 4096;
-const int BufferBytes = 64 * 1024;
 const string HeapHardLimitHex = "10000000";
 
 if (args is not [string cliAssembly, string evidencePath] ||
