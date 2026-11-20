@@ -252,7 +252,7 @@ Next after acceptance: CLI140-B2, then CLI140-C, a **separate** Patching PublicA
 
 ## 10. CLI140-B2A — stdout failure after verified publication (2026-11-20)
 
-**Status at proposal:** this focused B2A slice is pending PR validation. Only PR CI + review can establish ACCEPT; do not mark all of B2 or #140 complete.
+**Status:** B2A ACCEPTED in PR #465, merged at `main@c0c4bcc1362908f5c8a41760b23af517d104852c`. Linux/Windows 135/135 CLI tests, Heavy x64/ARM64, cross-arch determinism and 21/21 PR checks succeeded. This does not accept the remainder of B2 or close #140.
 
 ### Problem and failure-state contract
 
@@ -280,3 +280,38 @@ The renderer uses a strict, auto-flushed UTF-8 `StreamWriter` around a non-ownin
 5. `IsPackable=false` remains; B2-B cancellation/fault-injection before commit, B2-C bounded resources and B2-D path/lock matrix remain OPEN. No release approval.
 
 Scope deliberately excludes OS process hard-kill and power-loss durability. Fault host intentionally exercises a reporting failure **after** normal, verified commit; it does not claim to model every kernel pipe interruption or concurrent filesystem race.
+
+## 11. CLI140-B2B — deterministic pre-commit cancellation/fault matrix (2026-11-20)
+
+**Status at proposal:** implementation/test slice under PR and GitHub-hosted validation; do not mark ACCEPT until the exact PR HEAD passes its checks.
+
+### Why a separate B2B slice
+
+A committed file cannot be rolled back merely because stdout reporting failed (B2A). The opposite pre-commit boundary needs distinct evidence: a cooperative cancellation, failed flush, access denial or failed final move must **not** publish a partial CSM/CSP or erase a pre-existing destination. The SDK-managed `patch apply --overwrite` and `--in-place` already provide verified-before-publish semantics; do not reimplement or weaken SDK publication within CLI.
+
+The .NET `CancellationToken.ThrowIfCancellationRequested` contract throws `OperationCanceledException` only for a requested token. The CLI maps that to exit **130** only if the active token was cancelled. Ordinary `IOException` and `UnauthorizedAccessException` map to exit **1**. Each produces one versioned `error` envelope on stderr, with empty stdout and **no** `publicationCommitted` claim. See official [cancellation](https://learn.microsoft.com/en-us/dotnet/api/system.threading.cancellationtoken.throwifcancellationrequested?view=net-10.0) and [File.Move](https://learn.microsoft.com/en-us/dotnet/api/system.io.file.move?view=net-10.0) contracts.
+
+### Instrumentation and scope
+
+An internal, null-by-default `CliApp.CheckpointObserver` is consulted only at six fixed boundaries, never exposed by the product CLI's command line, environment or public Patching API:
+
+| Checkpoint | Actual transition reached | Required result on failure |
+|---|---|---|
+| `ManifestBeforeFlush` | CSM writer returned, before final temp flush | Delete temporary; never replace final |
+| `ManifestBeforePublish` | CSM staging disposed, before `File.Move` | Preserve old/new final; delete staging |
+| `PatchBeforeFlush` | CSP writer returned, before final temp flush | Delete temporary; never replace final |
+| `PatchBeforePublish` | CSP staging disposed, before `File.Move` | Preserve old/new final; delete staging |
+| `ApplyBeforeSdk` | Destination checks passed, before invoking SDK apply | Existing destination/base unchanged |
+| `ApplyBeforePublish` | SDK verified output published **to private .cli-stage**, before CLI no-clobber `File.Move` | Delete .cli-stage; preserve competing final |
+
+The observer calls `cancellationToken.ThrowIfCancellationRequested()` after the injected callback. In production the callback is null; the cancellation check still runs at the same checkpoints. A **separate CI-only FaultHost process** injects cancellation by cancelling the same token, or `IOException` / `UnauthorizedAccessException`. It can also create a competing destination at `ApplyBeforePublish`, proving that the actual no-clobber `File.Move(..., overwrite:false)` refuses it without deleting the contender. The fault host rejects checkpoints that are not reached, preventing false-positive tests.
+
+### Verification and limits
+
+- Real process tests inspect JSON `operation` / `error.code`, exact exit 130 vs 1, empty stdout, no false publication, deletion of `*.tmp` and `*.cli-stage`, byte-identical pre-existing destinations, and successful retries after cooperative cancellation.
+- Verify `--overwrite` and `--in-place` on pre-SDK cancellation/error; use the existing SDK's safe publication on actual reconstruction. The CLI does not insert a fault hook **inside the SDK** and therefore must not claim deterministic cancellation of the SDK's internal final rename.
+- On Windows, a separate real `FileShare.Read` handle without `FileShare.Delete` is held while attempting overwrite/in-place application. Accept the documented operating-system `io_failure` or `access_denied` family, but require byte-for-byte preservation and stage cleanup. Linux/POSIX may rename open files; this Windows sharing contract is not extrapolated to Linux.
+- Explicitly out of scope: forcibly killing the process, power loss, adversarial directory replacement, arbitrary kernel I/O failures deep inside SDK. These cannot be proven by the cooperative checkpoint tests and must not be described as crash-durable or TOCTOU-safe.
+- Required gates: full GitHub-hosted solution Linux/Windows tests + independent CSM/CSP decoders, package smoke, Heavy Linux x64/ARM64 and cross-arch determinism, CodeQL and dependency review on the exact tested PR SHA; no Core/Patching SDK, CSM/CSP, encoder or package changes. Keep `IsPackable=false`.
+
+After focused B2B acceptance, continue **B2C** bounded resources/large outputs and **B2D** path/lock matrix, then CLI140-C and separate Patching PublicAPI freeze. Issue #140 remains OPEN.
