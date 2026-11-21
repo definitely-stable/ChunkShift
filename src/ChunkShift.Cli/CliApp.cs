@@ -898,59 +898,76 @@ internal static class CliApp
             return UsageError(destinationError);
         }
 
-        // ApplyAsync always replaces its destination on success. In the
-        // no-clobber case the SDK writes to a private sibling path; only
-        // after successful verification do we atomically move that file to
-        // the user-visible destination with overwrite:false.
-        string? stagedOutput = mayReplace
-            ? null
-            : Path.Combine(
-                Path.GetDirectoryName(outputFullPath)!,
-                $".{Path.GetFileName(outputFullPath)}.{Guid.NewGuid():N}.cli-stage");
-        string sdkOutput = stagedOutput ?? outputFullPath;
+        // All publication modes use a private sibling. The SDK verifies the
+        // content and commits only to that path; the CLI owns the final
+        // user-visible rename and can recheck destination policy immediately
+        // before it. No second copy or reconstruction is needed.
+        string stagedOutput = Path.Combine(
+            Path.GetDirectoryName(outputFullPath)!,
+            $".{Path.GetFileName(outputFullPath)}.{Guid.NewGuid():N}.cli-stage");
 
         PatchApplyResult result;
         try
         {
             Checkpoint(CliCheckpoint.ApplyBeforeSdk, cancellationToken);
+            if (CheckDestination(outputFullPath, mayReplace, "patch apply") is string preSdkError)
+            {
+                return UsageError(preSdkError);
+            }
+
             await using FileStream patch = OpenRead(patchFullPath);
 
             if (baseManifestPath is not null && basePath is not null)
             {
                 await using FileStream baseManifest = OpenRead(UserPath(baseManifestPath));
 
-                // Explicit in-place publication requires delete sharing on Windows.
+                // Keep the existing base read/delete-share policy. The base
+                // stream is disposed before the final CLI publication.
                 await using FileStream baseContent = OpenReadShared(UserPath(basePath));
 
                 result = await ChunkPatch.ApplyAsync(
                     patch,
                     baseManifest,
                     baseContent,
-                    sdkOutput,
+                    stagedOutput,
                     cancellationToken).ConfigureAwait(false);
             }
             else
             {
                 result = await ChunkPatch.ApplyAsync(
                     patch,
-                    sdkOutput,
+                    stagedOutput,
                     cancellationToken).ConfigureAwait(false);
             }
 
-            if (result.IsApplied && stagedOutput is not null)
+            if (result.IsApplied)
             {
                 Checkpoint(CliCheckpoint.ApplyBeforePublish, cancellationToken);
-                // The final move, not a prior File.Exists check, enforces
-                // the no-clobber rule if another file appears meanwhile.
-                File.Move(stagedOutput, outputFullPath, overwrite: false);
+                // Repeat the type/alias policy after verification, including
+                // for overwrite and in-place. A regular-file contender in
+                // no-clobber mode is still rejected by the actual OS move,
+                // not by a separate File.Exists/rename race.
+                if (CheckDestination(outputFullPath, mayReplace: true, "patch apply") is string finalError)
+                {
+                    return UsageError(finalError);
+                }
+
+                if (PathsReferToSameFile(outputFullPath, patchFullPath) ||
+                    (baseManifestPath is not null &&
+                        PathsReferToSameFile(outputFullPath, UserPath(baseManifestPath))) ||
+                    (!inPlace && basePath is not null &&
+                        PathsReferToSameFile(outputFullPath, UserPath(basePath))))
+                {
+                    return UsageError("patch apply: destination aliases an input.");
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                File.Move(stagedOutput, outputFullPath, overwrite: mayReplace);
             }
         }
         finally
         {
-            if (stagedOutput is not null)
-            {
-                TryDelete(stagedOutput);
-            }
+            TryDelete(stagedOutput);
         }
 
         int exitCode = CliExitPolicy.ApplyExitCode(result.Failures);

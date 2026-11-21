@@ -29,7 +29,7 @@ internal static class CliProcess
         string workingDirectory, string faultMode, string checkpoint,
         string? raceDestination, params string[] arguments)
     {
-        if (faultMode is not ("cancel" or "io" or "permission" or "race"))
+        if (faultMode is not ("cancel" or "io" or "permission" or "race" or "link"))
         {
             throw new ArgumentOutOfRangeException(nameof(faultMode));
         }
