@@ -76,7 +76,7 @@ Unexpected errors must not leak a success-looking stdout summary. Preserve struc
 
 **A1 behavior:** `create`, `patch create` and `patch apply` refuse existing destinations by default (usage exit 2); `--overwrite` explicitly permits replacement. `patch apply --in-place` is a separate opt-in that requires `-o` to name exactly the normalized `--base` path; it cannot be combined with `--overwrite`. The destination must not equal the input patch or base manifest, and all commands refuse destination symlinks (including dangling symlinks). Parent-directory symlinks are resolved for best-effort input/output collision checks. Hardlinks remain undetectable via the current portable managed-file APIs; replacing a destination hardlink replaces that path entry rather than mutating another hardlink's original content. This is **not** a strong adversarial concurrent-FS defense.
 
-`patch apply` in no-clobber mode first asks the existing verified SDK to write to a unique staging path beside the final destination, then executes `File.Move(staged, final, overwrite: false)`. An existing destination, including one created after the initial preflight, is not intentionally replaced. `--overwrite` and `--in-place` keep the SDK's existing verified stage/commit path. Normal exceptions and cancellation clean CLI staging. Hard process termination can leave an orphaned CLI staging file, but never a partially written *final* output under this model.
+`patch apply` (A1 through B2C) used a unique staging path only in no-clobber mode; `--overwrite` and `--in-place` used the SDK's verified publication directly. **B2D supersedes that implementation:** in all three modes the SDK now writes verified output to a unique sibling `.cli-stage`; CLI rechecks destination type/known aliases and cancellation, then performs `File.Move(staged, final, overwrite: mayReplace)`. The no-clobber mode still relies on the move itself to reject an intervening regular file. Normal exceptions and cancellation clean CLI staging. Hard process termination may leave orphaned staging, and no power-loss durability or hostile-directory guarantee is made.
 
 Create/apply must document three distinct properties:
 
@@ -283,7 +283,7 @@ Scope deliberately excludes OS process hard-kill and power-loss durability. Faul
 
 ## 11. CLI140-B2B — deterministic pre-commit cancellation/fault matrix (2026-11-20)
 
-**Status at proposal:** implementation/test slice under PR and GitHub-hosted validation; do not mark ACCEPT until the exact PR HEAD passes its checks.
+**Status:** B2B ACCEPT / merged in PR #466 (main `1ed3d523cfb54652b46b8076909235795d6892c4`); 164/164 CLI tests on Linux and Windows, 19/19 applicable PR checks completed without failure. The historical implementation below is superseded by B2D only where explicitly stated.
 
 ### Why a separate B2B slice
 
@@ -318,10 +318,43 @@ After focused B2B acceptance, continue **B2C** bounded resources/large outputs a
 
 ## 12. CLI140-B2C — bounded CLI process resources and output (2026-11-21)
 
-**Status at proposal:** source-backed implementation and real CI measurements are pending. The independent numerical acceptance limits were **preregistered before measurements** in [CLI140-B2C-RESOURCE-GATE.md](CLI140-B2C-RESOURCE-GATE.md), commit `bf0509e8ca49a9b9aaee2e46d9f5cfdfb46a97ad`. They must not be loosened after a failed measurement without a separately justified and reviewed recalibration.
+**Status:** B2C ACCEPT / merged in PR #467 (main `759ad9416508db5ab13310691b7cd3d6fcd3392b`); resource probe #44830717191 and full regression CI/Heavy passed. The independent numerical acceptance limits were **preregistered before measurements** in [CLI140-B2C-RESOURCE-GATE.md](CLI140-B2C-RESOURCE-GATE.md), commit `bf0509e8ca49a9b9aaee2e46d9f5cfdfb46a97ad`. They must not be loosened after a failed measurement without a separately justified and reviewed recalibration.
 
 The shipped CLI uses source-generated, bounded summary DTOs, but previous test assertions covered schema and field types rather than full-process resident high-water across large inputs. An isolated .NET 10 resource probe runs the **built product CLI** on GitHub-hosted Ubuntu and Windows and records one JSON evidence file per OS. It generates a deterministic 384 MiB file with a fixed 64 KiB staging buffer (above the child process's 256 MiB managed GC hard limit), then tests manifest create/inspect/verify, a high-chunk-count self-plan, and a 64 MiB self-contained CSP create/apply roundtrip. It checks exact reconstructed SHA-256, committed destination existence, no orphan staging files, exit 0, and bounded one-object JSON outputs.
 
 The gate observes process RSS (Windows/Linux `Process.PeakWorkingSet64`, with live sampling), **not** the GC heap alone. The GC hard limit controls managed allocations; resident bounds independently cover the process's native memory. Linux package-smoke's existing 4-GiB-under-128-MiB-cgroup scenario remains a **separate SDK consumer result** and cannot be substituted for CLI evidence. The probe does not claim full end-to-end testing of the SDK's default 1,048,576-entry CSP resource-limit branch. This remains a documented limitation, with the B1R pure classification tests retained.
 
 B2C accepts only the declared resource and summary-output envelope. B2D cross-platform filesystem/path final safety, C release-facing acceptance and separate Patching PublicAPI freeze remain open. Keep `IsPackable=false` and #140 OPEN.
+
+## 13. CLI140-B2D — unified final apply publication and cross-platform path matrix (2026-11-21)
+
+**Status at proposal:** pending exact-head CI acceptance; do not promote this section to ACCEPT before both hosted OSes, cross-architecture validation and the existing B2C resource gate pass.
+
+### Identified gap and narrow design
+
+A1/B2B used SDK-managed final publication for `patch apply --overwrite` and `--in-place`. That left no CLI-owned destination-type check after SDK verification: a destination symlink introduced during verification could be silently replaced, contrary to the A1 refusal policy. The SDK's own verified-before-commit guarantee is still essential and is not changed.
+
+Use the same verified sibling `.cli-stage` for all apply modes. The SDK commits there only after verification, then the CLI runs the existing `ApplyBeforePublish` cancellation checkpoint, repeats destination type and known alias checks, checks cancellation again, and performs a final same-directory `File.Move` with the requested replacement policy. Also recheck destination type just before calling SDK after the pre-SDK checkpoint. No additional full-file read, full-file write, content copy, format change, new dependency, or public SDK API. The extra operation in replacement modes is one same-directory namespace move. No performance claim is made without evidence. SDK consumers outside the CLI keep their original behavior.
+
+The initial no-clobber refusal of an existing path is exit 2. A regular file introduced at the final checkpoint in no-clobber mode continues to be rejected by the actual non-overwriting move (exit 1); do not turn that into an overwrite or weaken B2B. A symlink or directory detected in the final type recheck is rejected as usage exit 2 even under `--overwrite`/`--in-place` and retained unchanged. Cancellation after successful SDK private-stage publication but before CLI final rename gives exit 130 and retains the existing final file/base. Post-commit stdout failure remains governed by B2A.
+
+### Explicit filesystem contract and test matrix
+
+Mandatory on hosted Linux and Windows (including Windows link creation, with no silent success if setup cannot create the fixture):
+
+- Existing and dangling destination symlinks for all three publication commands; unchanged referent, no publication and no staging.
+- Parent directory symlink alias to a protected input for create, patch create and apply.
+- Real hardlinks for all publication commands: default no-clobber preserves both entries, explicit overwrite replaces only the chosen entry and the other name's bytes remain unchanged. Manifest/CSP create exercise actual input aliases. Apply exercises a separate existing hardlinked destination, not an assertion that arbitrary hardlinked inputs are detectable.
+- In-place must name exactly the normalized base path; a distinct hardlink name is rejected even when it names the same inode.
+- Deterministic symlink introduction at pre-publish checkpoints for manifest and CSP create and all apply modes, plus pre-SDK apply. The fault host moves an existing entry aside before introducing the symbolic link; the saved preexisting contents and original link target both remain byte-identical, and the link is not removed.
+- Cooperative late cancellation for overwrite and in-place after SDK verification; pre-existing bytes, no staging, successful retry.
+- Open destination without delete sharing: the Windows move must fail operationally with unchanged old bytes, while the Linux rename succeeds and the open descriptor still reads the old inode. Existing B2B real Windows in-place lock checks remain.
+- Case-only spelling: conservative case-insensitive Windows policy rejects an alias; the hosted Linux case-sensitive directory permits a distinct name. Do not generalize to every filesystem/case-sensitivity configuration.
+
+Use actual built CLI subprocesses, the existing isolated test-only fault host, and platform hardlink fixture utilities (`fsutil hardlink create` / `ln`); no production test option. Check JSON channels/code, content equality, verification/reconstruction and staging cleanup. See [.NET File.Move](https://learn.microsoft.com/en-us/dotnet/api/system.io.file.move?view=net-10.0), [.NET CreateSymbolicLink](https://learn.microsoft.com/en-us/dotnet/api/system.io.file.createsymboliclink?view=net-10.0), and [Win32 hardlinks](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createhardlinkw).
+
+### Limit and acceptance
+
+The first-release threat boundary remains ordinary trusted local directories. Path resolution and repeated preflight checks are best-effort: they do not acquire directory-handle authority, guarantee file-ID equality, or close the last check-to-rename race. Hardlink replacement is entry replacement, not in-place mutation of a shared inode. Hostile parent-directory swaps, replacement by privileged attackers, nonstandard network filesystems, crash durability, and arbitrary concurrent mutation are outside this acceptance. Do not infer stronger guarantees from the deterministic checkpoint tests.
+
+Required: process matrix and regression CI both hosted OSes, existing B2C measured resource gate, Heavy Linux x64/ARM64 and cross-arch determinism, CodeQL, dependency review, no changed Core/Patching SDK API or wire identities, `IsPackable=false`. Once accepted, proceed to CLI140-C and a distinct Patching PublicAPI verification. #140 remains OPEN until final acceptance.

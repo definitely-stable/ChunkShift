@@ -5,7 +5,7 @@ using ChunkShift.Cli;
 // This is deliberately not an environment-variable switch in the product CLI.
 if (args.Length >= 3 &&
     args[0] is "--checkpoint-cancel" or "--checkpoint-io" or
-        "--checkpoint-permission" or "--checkpoint-race")
+        "--checkpoint-permission" or "--checkpoint-race" or "--checkpoint-link")
 {
     string mode = args[0];
     if (!Enum.TryParse(args[1], ignoreCase: false, out CliCheckpoint selected))
@@ -14,7 +14,7 @@ if (args.Length >= 3 &&
         return 2;
     }
 
-    bool createRace = mode == "--checkpoint-race";
+    bool createRace = mode is "--checkpoint-race" or "--checkpoint-link";
     if (createRace && args.Length < 5)
     {
         Console.Error.WriteLine("Race mode requires a destination and command.");
@@ -46,6 +46,19 @@ if (args.Length >= 3 &&
             case "--checkpoint-race":
                 File.WriteAllBytes(raceDestination!,
                     [0xC1, 0x1E, 0xB2, 0xA1]);
+                break;
+            case "--checkpoint-link":
+                // Fixture-only path in the isolated working directory.
+                // For an existing output (including in-place), move that
+                // entry aside without touching its contents, then place a
+                // new symlink. The caller checks the saved entry as well.
+                if (File.Exists(raceDestination!))
+                {
+                    File.Move(raceDestination!, raceDestination! + ".saved");
+                }
+
+                File.CreateSymbolicLink(raceDestination!,
+                    Path.Combine(Environment.CurrentDirectory, "link-target.bin"));
                 break;
         }
     };
