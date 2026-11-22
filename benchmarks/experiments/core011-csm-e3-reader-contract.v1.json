@@ -1,0 +1,162 @@
+{
+  "schema": "chunkshift.core011.csm-e3-reader-contract.v1",
+  "experimentId": "CORE011-CSM-004",
+  "ownerIssue": 154,
+  "parentIssue": 152,
+  "protocol": "docs/benchmarks/CORE011-CSM-004-E3-READER-PROTOCOL.md",
+  "stage": "preregistration",
+  "status": "NO_VERDICT_EXPLORATORY",
+  "decisionRunsAllowed": false,
+  "budgetsLocked": false,
+  "historicalReleaseDisposition": "DEFER",
+  "baseline": {
+    "mainCommitSha": "b085e12edb288137c505d6ed43ad7251ec19b928",
+    "readerPath": "src/ChunkShift/Manifest/CsmReader.cs",
+    "readerGitBlobSha1": "ff56ccddaa0efc9970fd0b019e20523d6c2933d6",
+    "maxCblkRecordBytes": 147500,
+    "smallCblkThresholdBytes": 81920,
+    "readAheadBytes": 4096
+  },
+  "candidates": [
+    "eager",
+    "lazy",
+    "hybrid1",
+    "hybrid2",
+    "hybrid4"
+  ],
+  "primaryCandidates": [
+    "lazy",
+    "hybrid2"
+  ],
+  "diagnosticCandidates": [
+    "hybrid1",
+    "hybrid4"
+  ],
+  "poolCaps": {
+    "eager": null,
+    "lazy": null,
+    "hybrid1": 1,
+    "hybrid2": 2,
+    "hybrid4": 4
+  },
+  "chunkCounts": [
+    0,
+    1,
+    11,
+    102,
+    2274,
+    2275,
+    4095,
+    4096,
+    4097,
+    5052,
+    8193
+  ],
+  "hashSuites": [
+    "chunkshift.blake3-256.v1",
+    "chunkshift.sha256.v1"
+  ],
+  "blockIndexModes": [
+    false,
+    true
+  ],
+  "manifestStreamModes": [
+    "memory",
+    "file",
+    "fragmented-short-read",
+    "nonseekable"
+  ],
+  "publicPaths": [
+    "verify-manifest",
+    "manifest-reader-full",
+    "patch-plan"
+  ],
+  "concurrency": [
+    1,
+    4,
+    16
+  ],
+  "stressConcurrency": 64,
+  "processIsolation": {
+    "externalFixtureBuilder": true,
+    "freshConsumerPerCell": true,
+    "consumerGeneratesContent": false,
+    "pinPhysicalCsmSha256": true,
+    "recordConsumerPid": true,
+    "contentPathReadForbiddenForManifestOnly": true
+  },
+  "correctness": {
+    "exactCsmBytes": true,
+    "manifestId": true,
+    "fileDigest": true,
+    "chunkSequences": true,
+    "crcFailureFlags": true,
+    "wholeBlockPreExposure": true,
+    "secondBlockCrcStopsAt4096": true,
+    "exceptionClassAndOrdering": true,
+    "bidx": true,
+    "cancellationAndDispose": true,
+    "fullCapacityClearOnReturn": true,
+    "sourceStreamCallerOwned": true
+  },
+  "metrics": [
+    "allocatedBytesPerCall",
+    "gcLohAllocationBytes",
+    "gen2Collections",
+    "gcPauseMilliseconds",
+    "perCallLatencyP50Ms",
+    "perCallLatencyP95Ms",
+    "batchCpuMs",
+    "batchWallMs",
+    "throughputCallsPerSec",
+    "peakWorkingSetBytes",
+    "postIdleWorkingSetBytes",
+    "peakPrivateBytes",
+    "postIdlePrivateBytes",
+    "postGcManagedHeapBytes",
+    "activeReadersMax",
+    "firstEntryLatencyMs",
+    "poolRentCount",
+    "poolReturnCount",
+    "poolMissCount"
+  ],
+  "idleObservationSeconds": [
+    0,
+    30,
+    300
+  ],
+  "baselineCalibrationEvidenceId": null,
+  "corpusFreezeSha256": null,
+  "decisionProtocolFreezeCommitSha": null,
+  "numericBudgets": {
+    "cpuRatioUpperBound": null,
+    "verifyWallRatioUpperBound": null,
+    "planWallRatioUpperBound": null,
+    "readerWallRatioUpperBound": null,
+    "throughputRatioLowerBound": null,
+    "allocatedBytesPerCallUpperBound": null,
+    "gen2IncrementUpperBound": null,
+    "gcPauseRatioUpperBound": null,
+    "peakWorkingSetIncrementBytes": null,
+    "postIdleWorkingSetIncrementBytes": null,
+    "peakPrivateBytesIncrementBytes": null,
+    "postIdlePrivateBytesIncrementBytes": null,
+    "postGcManagedHeapIncrementBytes": null,
+    "totalWorkingSetMaxBytes": null,
+    "confidenceLevel": null,
+    "minimumIndependentHostBlocks": null,
+    "minimumMeasuredCallsPerBlock": null
+  },
+  "decisionRequirements": {
+    "separateCalibration": true,
+    "realVersionedMixedReuseMultiCblk": true,
+    "linuxAndWindowsHosted": true,
+    "supportedNativeAotAndArm64": true,
+    "independentHostBlocks": true,
+    "immutableCorpusAndSourcePins": true,
+    "exactSemanticOracle": true,
+    "rawSamplesAndFailureArchive": true,
+    "immutablePriorG1J": true,
+    "productionSourceChangesAllowed": false
+  }
+}
