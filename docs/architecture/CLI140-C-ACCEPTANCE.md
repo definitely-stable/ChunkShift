@@ -1,7 +1,7 @@
 # CLI140-C — first-release CLI acceptance ledger
 
-**Status: PROPOSED / CI PENDING.** Do not mark ACCEPT, close #140, publish
-a tool, or freeze Patching PublicAPI based on this document alone.
+**Status: ACCEPTED / merged (2026-11-22).** CLI #140 is CLOSED; this
+acceptance does **not** publish a tool or freeze Patching PublicAPI.
 
 **Owner:** [#140](https://github.com/definitely-stable/ChunkShift/issues/140).
 **Prerequisite:** [#251](https://github.com/definitely-stable/ChunkShift/issues/251)
@@ -33,19 +33,19 @@ Patching SDK compatibility decision.
 
 ## Traceability against all #140 acceptance items
 
-| #140 requirement | Existing source-bound evidence | C disposition before CI |
+| #140 requirement | Existing source-bound evidence | Final C verdict |
 | --- | --- | --- |
-| Command taxonomy | A2 [PR #462](https://github.com/definitely-stable/ChunkShift/pull/462): grouped commands, help, legacy aliases | PENDING final checks |
-| Create/inspect/plan/verify preserved | A0/A2 [PR #460](https://github.com/definitely-stable/ChunkShift/pull/460), [PR #462](https://github.com/definitely-stable/ChunkShift/pull/462) | PENDING final checks |
-| scan/analyze deliberate exclusion | [CLI-PRODUCT-CONTRACT](CLI-PRODUCT-CONTRACT.md) section 2; no unbounded record dumps | PENDING final checks |
-| JSON schema | B1 [PR #463](https://github.com/definitely-stable/ChunkShift/pull/463), B1R [PR #464](https://github.com/definitely-stable/ChunkShift/pull/464): source-generated schemaVersion=1 | PENDING final checks |
-| Stdout/stderr and exit codes | B1/B1R; B2A [PR #465](https://github.com/definitely-stable/ChunkShift/pull/465) closed real stdout pipe and post-commit reporting failure | PENDING final checks |
-| Safe publication | A1, B2B, B2D [PR #468](https://github.com/definitely-stable/ChunkShift/pull/468) verified sibling stage, path/link/lock matrix | PENDING final checks |
-| Bounded output/memory | Preregistered [B2C gate](CLI140-B2C-RESOURCE-GATE.md); [run #44927002465](https://github.com/definitely-stable/ChunkShift/actions/runs/44927002465) SUCCESS on both OSes | PENDING unchanged C rerun |
-| No new Core public abstractions | Grouped CLI delegates to Core/Patching SDK; check C diff excludes all Core/Patching/CLI production sources and PublicAPI | PENDING diff audit |
-| Error/cancellation/path command tests | A0 through B2D child-process tests, [CI #44927002520](https://github.com/definitely-stable/ChunkShift/actions/runs/44927002520) Linux/Windows success | PENDING new C cross-command identity |
-| NativeAOT/tool packaging if proposed | **NOT APPLICABLE for CLI release C:** no tool or NativeAOT CLI artifact proposed here; SDK Heavy NativeAOT consumer remains mandatory | PENDING policy confirmation |
-| `IsPackable=false` | `src/ChunkShift.Cli/ChunkShift.Cli.csproj` | PENDING exact tree audit |
+| Command taxonomy | A2 [PR #462](https://github.com/definitely-stable/ChunkShift/pull/462): grouped commands, help, legacy aliases | ACCEPTED after exact-head checks |
+| Create/inspect/plan/verify preserved | A0/A2 [PR #460](https://github.com/definitely-stable/ChunkShift/pull/460), [PR #462](https://github.com/definitely-stable/ChunkShift/pull/462) | ACCEPTED after exact-head checks |
+| scan/analyze deliberate exclusion | [CLI-PRODUCT-CONTRACT](CLI-PRODUCT-CONTRACT.md) section 2; no unbounded record dumps | ACCEPTED after exact-head checks |
+| JSON schema | B1 [PR #463](https://github.com/definitely-stable/ChunkShift/pull/463), B1R [PR #464](https://github.com/definitely-stable/ChunkShift/pull/464): source-generated schemaVersion=1 | ACCEPTED after exact-head checks |
+| Stdout/stderr and exit codes | B1/B1R; B2A [PR #465](https://github.com/definitely-stable/ChunkShift/pull/465) closed real stdout pipe and post-commit reporting failure | ACCEPTED after exact-head checks |
+| Safe publication | A1, B2B, B2D [PR #468](https://github.com/definitely-stable/ChunkShift/pull/468) verified sibling stage, path/link/lock matrix | ACCEPTED after exact-head checks |
+| Bounded output/memory | Preregistered [B2C gate](CLI140-B2C-RESOURCE-GATE.md); [run #44927002465](https://github.com/definitely-stable/ChunkShift/actions/runs/44927002465) SUCCESS on both OSes | ACCEPTED: B2C #45034918458 |
+| No new Core public abstractions | Grouped CLI delegates to Core/Patching SDK; check C diff excludes all Core/Patching/CLI production sources and PublicAPI | ACCEPTED: five blobs identical at merge |
+| Error/cancellation/path command tests | A0 through B2D child-process tests, [CI #44927002520](https://github.com/definitely-stable/ChunkShift/actions/runs/44927002520) Linux/Windows success | ACCEPTED: 192/192 CLI tests per OS |
+| NativeAOT/tool packaging if proposed | **NOT APPLICABLE for CLI release C:** no tool or NativeAOT CLI artifact proposed here; SDK Heavy NativeAOT consumer remains mandatory | N/A (no CLI tool packaging proposed) |
+| `IsPackable=false` | `src/ChunkShift.Cli/ChunkShift.Cli.csproj` | ACCEPTED: `IsPackable=false` |
 
 The historical B2D [CI #44927002520](https://github.com/definitely-stable/ChunkShift/actions/runs/44927002520)
 and [Heavy #44927002624](https://github.com/definitely-stable/ChunkShift/actions/runs/44927002624)
@@ -92,3 +92,35 @@ new exact-HEAD validation.
 **Next after C ACCEPT:** independent Patching PublicAPI verification, then a
 separate publication-repository PR. No research reopen for CSP vNext is needed
 for the first release.
+
+
+## Post-merge closeout (2026-11-22)
+
+**Decision: ACCEPT.** [PR #469](https://github.com/definitely-stable/ChunkShift/pull/469)
+squash-merged at `main@234f98cdeefbef34e927893d20e921e3382982ed`
+from exact tested `246a8e9bf5ab397034eb8cfc39c718189a06f7ba`.
+The five changed file blob SHAs were independently compared and identical
+between those refs. [#140](https://github.com/definitely-stable/ChunkShift/issues/140)
+is closed with all eleven acceptance checkboxes checked and bounded claims
+recorded in its final evidence section.
+
+- [CI #45034918382](https://github.com/definitely-stable/ChunkShift/actions/runs/45034918382):
+  SUCCESS, Windows and Linux **192/192** CLI tests each, Patching
+  **1649/1649** and Core net8/net10 **826/826**, independent decoders and
+  package smoke SUCCESS.
+- [Heavy #45034918426](https://github.com/definitely-stable/ChunkShift/actions/runs/45034918426):
+  SUCCESS, linux-x64, linux-arm64, NativeAOT package consumer and
+  cross-architecture deterministic evidence.
+- [B2C #45034918458](https://github.com/definitely-stable/ChunkShift/actions/runs/45034918458):
+  SUCCESS on both hosted OSes against unchanged original thresholds.
+  Peak RSS Linux 79,769,600 bytes / Windows 59,154,432 bytes; max successful
+  stdout JSON 594/637 bytes. This proves the *tested* resource envelope,
+  not arbitrary-input bounded memory.
+- [CodeQL #45034918428](https://github.com/definitely-stable/ChunkShift/actions/runs/45034918428),
+  dependency review, PR title and research-freeze checks SUCCESS.
+  Verify lab was legitimately skipped by its path-selection policy.
+
+The current CLI remains **unpublished** and `IsPackable=false`. This
+closing decision cannot freeze Patching `PublicAPI.Unshipped.txt` or
+authorize a port, tag or publish. Continue in
+[PATCH-API-001 #470](https://github.com/definitely-stable/ChunkShift/issues/470).

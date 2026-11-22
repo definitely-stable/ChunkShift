@@ -285,11 +285,11 @@ Cross-cutting Repository rules:
 - GC/repack publishes replacements before retirement and uses bounded external-memory reachability;
 - remote reconstruction uses batch metadata lookup and transport-neutral range plans rather than per-chunk HEAD/GET.
 
-## Immediate work order (verified 2026-11-22, main@2c8b6aac)
+## Immediate work order (verified 2026-11-22, main@234f98cd)
 
 1. **Research gate #251: CLOSED.** Source-bound [first-release synthesis](docs/architecture/PATCHING-FIRST-RELEASE-RESEARCH-FREEZE-20261117.md) retains per-file CSP v1, D15 and H2-W2; #262 residual stays first-release DEFER but future research OPEN. No CSP vNext is a first-release prerequisite.
-2. **CLI #140: final slice C under review.** A0/A1/A2/B1/B1R/B2A/B2B/B2C/B2D are accepted and merged through [PR #468](https://github.com/definitely-stable/ChunkShift/pull/468) at `main@2c8b6aacbef2a8aef1a31bd612632b8c6ef906a3`. Execute the [CLI140-C source-linked acceptance ledger](docs/architecture/CLI140-C-ACCEPTANCE.md), two-mode real-process JSON identity/reconstruction smoke and all exact-HEAD GitHub-hosted checks; keep `IsPackable=false` and #140 open until accepted.
-3. **After #140 C acceptance:** independently review Patching `PublicAPI.Unshipped.txt`, stream ownership/cancellation/verification verdicts, consumer compatibility, corruption fixtures and NativeAOT evidence. The research freeze is not this separate API gate.
+2. **CLI #140: CLOSED / C ACCEPTED.** [PR #469](https://github.com/definitely-stable/ChunkShift/pull/469) merged after exact-HEAD CI, Heavy, B2C resource, CodeQL and dependency checks, into `main@234f98cdeefbef34e927893d20e921e3382982ed`. The [CLI140-C acceptance ledger](docs/architecture/CLI140-C-ACCEPTANCE.md) records the evidence and scope. CLI remains unpublished and `IsPackable=false`.
+3. **Current active:** [PATCH-API-001 #470](https://github.com/definitely-stable/ChunkShift/issues/470) — audit and qualify Patching `PublicAPI.Unshipped.txt`. First P0 slice tests stream ownership/cancellation/preconditions and existing-destination preservation through the packed NuGet consumer; then P1 explicitly reviews the API freeze decision. NativeAOT and package consumers remain required. Research freeze #251 is not a public API freeze.
 4. **Only after CLI and PublicAPI gates:** port approved source via a separate PR to [the publication repository](https://github.com/MrFr3di/ChunkShift); version, release metadata and publish approval happen there, not in this engineering repository.
 5. **No algorithmic research reopening for first-release Patching.** #262, Repository #10-#13 and Core #152 can proceed independently without changing the CSP v1 identity or the CLI acceptance scope.
 

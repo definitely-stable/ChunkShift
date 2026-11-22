@@ -381,6 +381,177 @@ internal static class PatchingSmoke
 
         evidence.Add(Invariant(
             $"suite={suite} inplace-sha256={inPlaceDigest}"));
+
+        // P0 release-facing contract: run against the *packed package* on JIT
+        // and NativeAOT, not against internals or the project reference.
+        await CheckPublicFacadeAsync(
+            suite, prefix, directory, basePath, baseManifestPath,
+            targetPath, targetManifestPath, patchPath, selfPatchPath);
+        evidence.Add(Invariant($"suite={suite} public-facade-contract=pass"));
+    }
+
+    private static async Task CheckPublicFacadeAsync(
+        HashSuiteId suite,
+        string prefix,
+        string directory,
+        string basePath,
+        string baseManifestPath,
+        string targetPath,
+        string targetManifestPath,
+        string patchPath,
+        string selfPatchPath)
+    {
+        // Public methods promise synchronous validation of malformed *roles*,
+        // before the returned Task exists. No implementation-only test hooks.
+        using (var aliased = new MemoryStream())
+        {
+            bool rejected = false;
+            try
+            {
+                _ = ChunkPatch.PlanAsync(aliased, aliased);
+            }
+            catch (ArgumentException ex) when (ex.ParamName == "targetManifest")
+            {
+                rejected = true;
+            }
+
+            Check(rejected, "PlanAsync did not synchronously reject an aliased stream");
+            Check(aliased.CanRead, "PlanAsync disposed an aliased caller stream");
+        }
+
+        bool nullRejected = false;
+        using var nullCheckTarget = new MemoryStream();
+        using var nullCheckDestination = new MemoryStream();
+        try
+        {
+            _ = ChunkPatch.CreateAsync(
+                null!, nullCheckTarget, nullCheckDestination);
+        }
+        catch (ArgumentNullException ex) when (ex.ParamName == "targetManifest")
+        {
+            nullRejected = true;
+        }
+
+        Check(nullRejected, "CreateAsync did not synchronously reject a null stream");
+
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+
+        // Plan accepts readable, forward-only manifests. A pre-cancelled
+        // token must not consume ownership of either stream.
+        await using (FileStream baseManifest = OpenRead(baseManifestPath))
+        await using (FileStream targetManifest = OpenRead(targetManifestPath))
+        {
+            await ExpectCancelledAsync(
+                async () => { await ChunkPatch.PlanAsync(
+                    baseManifest, targetManifest, cancelled.Token); },
+                "PlanAsync");
+            Check(baseManifest.CanRead && targetManifest.CanRead,
+                "PlanAsync disposed caller-owned streams on cancellation");
+        }
+
+        // Both Create overloads write to *borrowed* output streams. They may
+        // leave partial bytes on cancellation; the API promises no rollback.
+        // Assert only cancellation and retained stream ownership.
+        await using (FileStream baseManifest = OpenRead(baseManifestPath))
+        await using (FileStream baseContent = OpenRead(basePath))
+        await using (FileStream targetManifest = OpenRead(targetManifestPath))
+        await using (FileStream targetContent = OpenRead(targetPath))
+        using (var output = new MemoryStream())
+        {
+            await ExpectCancelledAsync(
+                async () => { await ChunkPatch.CreateAsync(
+                    baseManifest, baseContent, targetManifest,
+                    targetContent, output, cancelled.Token); },
+                "CreateAsync (with base)");
+            Check(baseManifest.CanRead && baseContent.CanRead &&
+                targetManifest.CanRead && targetContent.CanRead && output.CanWrite,
+                "CreateAsync (with base) disposed caller-owned streams");
+        }
+
+        await using (FileStream targetManifest = OpenRead(targetManifestPath))
+        await using (FileStream targetContent = OpenRead(targetPath))
+        using (var output = new MemoryStream())
+        {
+            await ExpectCancelledAsync(
+                async () => { await ChunkPatch.CreateAsync(
+                    targetManifest, targetContent, output, cancelled.Token); },
+                "CreateAsync (self-contained)");
+            Check(targetManifest.CanRead && targetContent.CanRead && output.CanWrite,
+                "CreateAsync (self-contained) disposed caller-owned streams");
+        }
+
+        // Unlike Create(Stream destination), Apply(path) owns a private staged
+        // target. Early cancellation must not clobber an existing file.
+        string preservedPath = Path.Combine(directory, $"{prefix}-cancelled.bin");
+        byte[] sentinel = [0x17, 0x81, 0x2d, 0xfa, 0x00, 0x55];
+        await File.WriteAllBytesAsync(preservedPath, sentinel);
+
+        await using (FileStream patch = OpenRead(patchPath))
+        await using (FileStream baseManifest = OpenRead(baseManifestPath))
+        await using (FileStream baseContent = OpenRead(basePath))
+        {
+            await ExpectCancelledAsync(
+                async () => { await ChunkPatch.ApplyAsync(
+                    patch, baseManifest, baseContent,
+                    preservedPath, cancelled.Token); },
+                "ApplyAsync (with base)");
+            Check(patch.CanRead && baseManifest.CanRead && baseContent.CanRead,
+                "ApplyAsync (with base) disposed caller-owned streams");
+        }
+
+        Check((await File.ReadAllBytesAsync(preservedPath)).SequenceEqual(sentinel),
+            "cancelled base-dependent ApplyAsync replaced an existing destination");
+
+        await using (FileStream patch = OpenRead(selfPatchPath))
+        {
+            await ExpectCancelledAsync(
+                async () => { await ChunkPatch.ApplyAsync(
+                    patch, preservedPath, cancelled.Token); },
+                "ApplyAsync (self-contained)");
+            Check(patch.CanRead,
+                "ApplyAsync (self-contained) disposed caller-owned patch stream");
+        }
+
+        Check((await File.ReadAllBytesAsync(preservedPath)).SequenceEqual(sentinel),
+            "cancelled self-contained ApplyAsync replaced an existing destination");
+        Check(!Directory.EnumerateFiles(directory, "*.tmp").Any(),
+            "cancelled public ApplyAsync left a sibling temporary file");
+
+        // Plan.IsValid signals *manifest integrity* only. Two valid CSMs in
+        // different suites cannot form a comparable base/target patch plan.
+        HashSuiteId otherSuite = suite == HashSuiteIds.Sha256V1
+            ? HashSuiteIds.Blake3256V1 : HashSuiteIds.Sha256V1;
+        string otherManifestPath = Path.Combine(
+            directory, $"{prefix}-different-suite.csm");
+        await CreateManifestAsync(basePath, otherManifestPath, otherSuite);
+        await using (FileStream baseManifest = OpenRead(baseManifestPath))
+        await using (FileStream otherManifest = OpenRead(otherManifestPath))
+        {
+            PatchPlan plan = await ChunkPatch.PlanAsync(
+                baseManifest, otherManifest);
+            Check(plan.IsValid,
+                "different hash suite manifests failed their integrity checks");
+            Check(plan.Base.Manifest.HashSuite != plan.Target.Manifest.HashSuite,
+                "different hash suite plan was treated as comparable");
+            Check(baseManifest.CanRead && otherManifest.CanRead,
+                "PlanAsync disposed streams after a successful incompatible plan");
+        }
+    }
+
+    private static async Task ExpectCancelledAsync(Func<Task> action, string operation)
+    {
+        try
+        {
+            await action();
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"Public {operation} ignored an already-cancelled token.");
     }
 
     private static byte[] CreateTargetContent(byte[] baseContent)
