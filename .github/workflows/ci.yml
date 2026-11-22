@@ -643,3 +643,83 @@ jobs:
             artifacts/package-smoke/*.txt
           if-no-files-found: error
           retention-days: 7
+
+  # PATCH-API-001/P1: a real packed NuGet Patching consumer on Windows.
+  # The existing Linux package-smoke job is intentionally Bash-specific.
+  # Keep this separate to cover Windows file-sharing/rename semantics without
+  # weakening or replacing the Linux JIT + NativeAOT x64/ARM64 gates.
+  patching-package-smoke-windows:
+    name: patching-package-smoke (windows-2025)
+    needs: build-test
+    runs-on: windows-2025
+    timeout-minutes: 20
+    env:
+      PACKAGE_VERSION: 0.0.0-ci.${{ github.run_number }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore ChunkShift.slnx
+
+      - name: Build package projects
+        shell: pwsh
+        run: |
+          dotnet build src/ChunkShift/ChunkShift.csproj -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build src/ChunkShift.Patching/ChunkShift.Patching.csproj -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Pack exact candidate and validate packages
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts/packages | Out-Null
+          dotnet pack src/ChunkShift/ChunkShift.csproj -c Release --no-build --no-restore -o artifacts/packages "-p:PackageVersion=$env:PACKAGE_VERSION"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet pack src/ChunkShift.Patching/ChunkShift.Patching.csproj -c Release --no-build --no-restore -o artifacts/packages "-p:PackageVersion=$env:PACKAGE_VERSION"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Consume Patching NuGet with packed Core and published Core 0.1.0
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $feed = Join-Path $env:GITHUB_WORKSPACE 'artifacts/packages'
+          $evidence = Join-Path $env:GITHUB_WORKSPACE 'artifacts/package-smoke'
+          New-Item -ItemType Directory -Force -Path $evidence | Out-Null
+          $packed = Join-Path $evidence 'patching-windows-packed-core.txt'
+          $released = Join-Path $evidence 'patching-windows-published-core-0.1.0.txt'
+          $project = 'tests/ChunkShift.Patching.PackageSmoke/ChunkShift.Patching.PackageSmoke.csproj'
+          dotnet run --project $project -c Release "-p:ChunkShiftPackageVersion=$env:PACKAGE_VERSION" "-p:RestoreAdditionalProjectSources=$feed" -- --evidence $packed
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet run --project $project -c Release "-p:ChunkShiftPackageVersion=$env:PACKAGE_VERSION" "-p:ChunkShiftCoreVersion=0.1.0" "-p:RestoreAdditionalProjectSources=$feed" -- --evidence $released
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($path in @($packed, $released)) {
+            $lines = Get-Content -LiteralPath $path
+            if ($lines -cnotcontains 'suite=chunkshift.sha256.v1 public-facade-contract=pass') {
+              throw "Missing SHA-256 public-facade contract evidence: $path"
+            }
+            if ($lines -cnotcontains 'suite=chunkshift.blake3-256.v1 public-facade-contract=pass') {
+              throw "Missing BLAKE3 public-facade contract evidence: $path"
+            }
+          }
+          $h1 = (Get-FileHash -LiteralPath $packed -Algorithm SHA256).Hash
+          $h2 = (Get-FileHash -LiteralPath $released -Algorithm SHA256).Hash
+          if ($h1 -ne $h2) {
+            throw 'Patching public facade evidence differs between packed and published Core'
+          }
+          Write-Host 'Windows packed Patching + published Core 0.1.0: identical public-facade evidence'
+
+      - name: Upload Windows NuGet consumer evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: patching-package-consumer-windows
+          path: artifacts/package-smoke/patching-windows-*.txt
+          if-no-files-found: warn
+          retention-days: 7
