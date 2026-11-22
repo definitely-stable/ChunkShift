@@ -24,6 +24,9 @@ on:
       - "docs/architecture/PROFILE-FINGERPRINT-V1.md"
       - "docs/architecture/FASTCDC-*.md"
       - "docs/architecture/FASTCDC-*.txt"
+      # Changes to the canonical CI package-consumer gate must also be
+      # requalified against NativeAOT and cross-architecture package consumers.
+      - ".github/workflows/ci.yml"
       - ".github/workflows/heavy-validation.yml"
   schedule:
     - cron: "17 3 * * 1"
