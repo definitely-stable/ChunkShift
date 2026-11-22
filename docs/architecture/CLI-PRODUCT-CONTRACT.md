@@ -1,6 +1,6 @@
 # CLI140 — first-release CLI contract and acceptance plan
 
-**Status (2026-11-22):** A0/A1/A2/B1/B1R/B2A/B2B/B2C/B2D ACCEPTED and merged; CLI140-C release-facing acceptance is under review. CLI remains unpublished.  
+**Status (2026-11-22):** A0/A1/A2/B1/B1R/B2A/B2B/B2C/B2D/C ACCEPTED and merged; [issue #140](https://github.com/definitely-stable/ChunkShift/issues/140) CLOSED. CLI remains unpublished; Patching PublicAPI is the next independent gate.  
 **Scope:** issue [#140](https://github.com/definitely-stable/ChunkShift/issues/140), after [#251](https://github.com/definitely-stable/ChunkShift/issues/251) first-release research freeze.  
 **Runtime boundary:** A0 made no runtime changes; A1 changes the CLI filesystem wrapper only. No Core/Patching public API, CSM/CSP v1 or package publication changes.  
 **Package:** `<IsPackable>false</IsPackable>` stays in this engineering repository.
@@ -362,7 +362,7 @@ Required: process matrix and regression CI both hosted OSes, existing B2C measur
 
 ## 14. CLI140-C — release-facing acceptance (2026-11-22)
 
-**Status: PROPOSED / awaiting exact-HEAD CI and review.** The [CLI140-C
+**Status: ACCEPTED / merged in [PR #469](https://github.com/definitely-stable/ChunkShift/pull/469).** The [CLI140-C
 acceptance ledger](CLI140-C-ACCEPTANCE.md) is the source-linked checklist
 mapping all eleven #140 gates to prior accepted evidence, the new two-mode
 cross-command real-process JSON/identity/verified-byte test, the unchanged
@@ -375,3 +375,6 @@ codec/default, trust envelope or format change. After C acceptance, the next
 **separate** gate is Patching `PublicAPI.Unshipped.txt` review, followed by
 an independent PR to the publication repository. Do not close #140 or publish
 on the strength of a proposed ledger or queued workflow.
+
+
+**Final CLI140-C evidence:** [CI #45034918382](https://github.com/definitely-stable/ChunkShift/actions/runs/45034918382) SUCCESS 192/192 CLI per OS; [Heavy #45034918426](https://github.com/definitely-stable/ChunkShift/actions/runs/45034918426) SUCCESS; [B2C #45034918458](https://github.com/definitely-stable/ChunkShift/actions/runs/45034918458) SUCCESS unchanged gates; [CodeQL #45034918428](https://github.com/definitely-stable/ChunkShift/actions/runs/45034918428), dependencies and title SUCCESS. The five changed blobs are identical between exact tested PR head and merged `main@234f98cdeefbef34e927893d20e921e3382982ed`. The [final acceptance ledger](CLI140-C-ACCEPTANCE.md) records limits. Next separate work: [PATCH-API-001](https://github.com/definitely-stable/ChunkShift/issues/470).
