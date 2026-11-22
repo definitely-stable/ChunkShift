@@ -420,10 +420,12 @@ internal static class PatchingSmoke
         }
 
         bool nullRejected = false;
+        using var nullCheckTarget = new MemoryStream();
+        using var nullCheckDestination = new MemoryStream();
         try
         {
             _ = ChunkPatch.CreateAsync(
-                null!, new MemoryStream(), new MemoryStream());
+                null!, nullCheckTarget, nullCheckDestination);
         }
         catch (ArgumentNullException ex) when (ex.ParamName == "targetManifest")
         {
@@ -498,8 +500,7 @@ internal static class PatchingSmoke
                 "ApplyAsync (with base) disposed caller-owned streams");
         }
 
-        Check((await File.ReadAllBytesAsync(preservedPath)).AsSpan()
-            .SequenceEqual(sentinel),
+        Check((await File.ReadAllBytesAsync(preservedPath)).SequenceEqual(sentinel),
             "cancelled base-dependent ApplyAsync replaced an existing destination");
 
         await using (FileStream patch = OpenRead(selfPatchPath))
@@ -512,8 +513,7 @@ internal static class PatchingSmoke
                 "ApplyAsync (self-contained) disposed caller-owned patch stream");
         }
 
-        Check((await File.ReadAllBytesAsync(preservedPath)).AsSpan()
-            .SequenceEqual(sentinel),
+        Check((await File.ReadAllBytesAsync(preservedPath)).SequenceEqual(sentinel),
             "cancelled self-contained ApplyAsync replaced an existing destination");
         Check(!Directory.EnumerateFiles(directory, "*.tmp").Any(),
             "cancelled public ApplyAsync left a sibling temporary file");
