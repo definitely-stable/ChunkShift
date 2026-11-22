@@ -29,7 +29,7 @@ Patching SDK compatibility decision.
   B2C resource gate. A workflow name or queued run is not a PASS.
 - Test-only FaultHost checkpoints are internal and inaccessible through
   product flags/environment. The CLI remains `<IsPackable>false</IsPackable>`.
-  No Core/Patching source or PublicAPI change is in scope.
+  No Core/Patching/CLI production source or PublicAPI change is in scope. The sole CI workflow change adds a trigger path for C's new test; it does not alter the B2C probe or thresholds.
 
 ## Traceability against all #140 acceptance items
 
@@ -42,7 +42,7 @@ Patching SDK compatibility decision.
 | Stdout/stderr and exit codes | B1/B1R; B2A [PR #465](https://github.com/definitely-stable/ChunkShift/pull/465) closed real stdout pipe and post-commit reporting failure | PENDING final checks |
 | Safe publication | A1, B2B, B2D [PR #468](https://github.com/definitely-stable/ChunkShift/pull/468) verified sibling stage, path/link/lock matrix | PENDING final checks |
 | Bounded output/memory | Preregistered [B2C gate](CLI140-B2C-RESOURCE-GATE.md); [run #44927002465](https://github.com/definitely-stable/ChunkShift/actions/runs/44927002465) SUCCESS on both OSes | PENDING unchanged C rerun |
-| No new Core public abstractions | Grouped CLI delegates to Core/Patching SDK; check C diff excludes all Core/Patching sources and PublicAPI | PENDING diff audit |
+| No new Core public abstractions | Grouped CLI delegates to Core/Patching SDK; check C diff excludes all Core/Patching/CLI production sources and PublicAPI | PENDING diff audit |
 | Error/cancellation/path command tests | A0 through B2D child-process tests, [CI #44927002520](https://github.com/definitely-stable/ChunkShift/actions/runs/44927002520) Linux/Windows success | PENDING new C cross-command identity |
 | NativeAOT/tool packaging if proposed | **NOT APPLICABLE for CLI release C:** no tool or NativeAOT CLI artifact proposed here; SDK Heavy NativeAOT consumer remains mandatory | PENDING policy confirmation |
 | `IsPackable=false` | `src/ChunkShift.Cli/ChunkShift.Cli.csproj` | PENDING exact tree audit |
@@ -79,7 +79,7 @@ new exact-HEAD validation.
 2. Verify all applicable **exact PR HEAD** checks have finished with success,
    including separate B2C resource evidence and Heavy cross-architecture jobs.
    Check zero failing, pending or unreviewed applicable checks.
-3. Inspect the changed-files list: only tests/docs in C. Independently compare
+3. Inspect the changed-files list: only tests/docs and the B2C workflow's additional path trigger in C. Independently compare
    CSM/CSP golden vectors, Core/Patching PublicAPI, encoder/default IDs and
    `IsPackable` with accepted B2D `main`.
 4. Squash-merge only on green evidence and an unchanged expected PR HEAD;
