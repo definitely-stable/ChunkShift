@@ -9,6 +9,9 @@ on:
       - "src/ChunkShift.Patching/**"
       - "src/ChunkShift/**"
       - "tools/cli140-b2c/**"
+      # CLI140-C release-facing child-process test changes also rerun the
+      # original B2C resource gate on the exact candidate PR HEAD.
+      - "tests/ChunkShift.Cli.Tests/CliReleaseAcceptanceTests.cs"
       - "docs/architecture/CLI140-B2C-RESOURCE-GATE.md"
       - ".github/workflows/cli140-b2c.yml"
       - "global.json"

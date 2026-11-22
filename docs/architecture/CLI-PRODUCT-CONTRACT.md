@@ -1,6 +1,6 @@
 # CLI140 — first-release CLI contract and acceptance plan
 
-**Status:** A0/A1/A2/B1 ACCEPTED and merged; CLI140-B1R correctness follow-up is under review. CLI remains unpublished.  
+**Status (2026-11-22):** A0/A1/A2/B1/B1R/B2A/B2B/B2C/B2D ACCEPTED and merged; CLI140-C release-facing acceptance is under review. CLI remains unpublished.  
 **Scope:** issue [#140](https://github.com/definitely-stable/ChunkShift/issues/140), after [#251](https://github.com/definitely-stable/ChunkShift/issues/251) first-release research freeze.  
 **Runtime boundary:** A0 made no runtime changes; A1 changes the CLI filesystem wrapper only. No Core/Patching public API, CSM/CSP v1 or package publication changes.  
 **Package:** `<IsPackable>false</IsPackable>` stays in this engineering repository.
@@ -328,7 +328,7 @@ B2C accepts only the declared resource and summary-output envelope. B2D cross-pl
 
 ## 13. CLI140-B2D — unified final apply publication and cross-platform path matrix (2026-11-21)
 
-**Status at proposal:** pending exact-head CI acceptance; do not promote this section to ACCEPT before both hosted OSes, cross-architecture validation and the existing B2C resource gate pass.
+**Historical proposal note; now ACCEPTED:** [PR #468](https://github.com/definitely-stable/ChunkShift/pull/468) merged into main at `2c8b6aacbef2a8aef1a31bd612632b8c6ef906a3` after exact-head [CI #44927002520](https://github.com/definitely-stable/ChunkShift/actions/runs/44927002520), [Heavy #44927002624](https://github.com/definitely-stable/ChunkShift/actions/runs/44927002624), and [B2C #44927002465](https://github.com/definitely-stable/ChunkShift/actions/runs/44927002465) completed SUCCESS on applicable OSes. Trust limits below remain unchanged.
 
 ### Identified gap and narrow design
 
@@ -358,3 +358,20 @@ Use actual built CLI subprocesses, the existing isolated test-only fault host, a
 The first-release threat boundary remains ordinary trusted local directories. Path resolution and repeated preflight checks are best-effort: they do not acquire directory-handle authority, guarantee file-ID equality, or close the last check-to-rename race. Hardlink replacement is entry replacement, not in-place mutation of a shared inode. Hostile parent-directory swaps, replacement by privileged attackers, nonstandard network filesystems, crash durability, and arbitrary concurrent mutation are outside this acceptance. Do not infer stronger guarantees from the deterministic checkpoint tests.
 
 Required: process matrix and regression CI both hosted OSes, existing B2C measured resource gate, Heavy Linux x64/ARM64 and cross-arch determinism, CodeQL, dependency review, no changed Core/Patching SDK API or wire identities, `IsPackable=false`. Once accepted, proceed to CLI140-C and a distinct Patching PublicAPI verification. #140 remains OPEN until final acceptance.
+
+
+## 14. CLI140-C — release-facing acceptance (2026-11-22)
+
+**Status: PROPOSED / awaiting exact-HEAD CI and review.** The [CLI140-C
+acceptance ledger](CLI140-C-ACCEPTANCE.md) is the source-linked checklist
+mapping all eleven #140 gates to prior accepted evidence, the new two-mode
+cross-command real-process JSON/identity/verified-byte test, the unchanged
+B2C resource limits, and exact-HEAD CI/Heavy/CodeQL/dependency requirements.
+
+The current CLI is *unpublished* (`IsPackable=false`). No NativeAOT CLI or
+dotnet tool package is proposed by this engineering acceptance; SDK NativeAOT
+package-consumer CI remains required. No CSP vNext, public Core/Patching API,
+codec/default, trust envelope or format change. After C acceptance, the next
+**separate** gate is Patching `PublicAPI.Unshipped.txt` review, followed by
+an independent PR to the publication repository. Do not close #140 or publish
+on the strength of a proposed ledger or queued workflow.
