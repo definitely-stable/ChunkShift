@@ -373,8 +373,8 @@ dotnet tool package is proposed by this engineering acceptance; SDK NativeAOT
 package-consumer CI remains required. No CSP vNext, public Core/Patching API,
 codec/default, trust envelope or format change. After C acceptance, the next
 **separate** gate is Patching `PublicAPI.Unshipped.txt` review, followed by
-an independent PR to the publication repository. Do not close #140 or publish
-on the strength of a proposed ledger or queued workflow.
+an independent PR to the publication repository. Issue #140 was closed only
+after the final exact-head acceptance; no engineering PR authorizes publication.
 
 
 **Final CLI140-C evidence:** [CI #45034918382](https://github.com/definitely-stable/ChunkShift/actions/runs/45034918382) SUCCESS 192/192 CLI per OS; [Heavy #45034918426](https://github.com/definitely-stable/ChunkShift/actions/runs/45034918426) SUCCESS; [B2C #45034918458](https://github.com/definitely-stable/ChunkShift/actions/runs/45034918458) SUCCESS unchanged gates; [CodeQL #45034918428](https://github.com/definitely-stable/ChunkShift/actions/runs/45034918428), dependencies and title SUCCESS. The five changed blobs are identical between exact tested PR head and merged `main@234f98cdeefbef34e927893d20e921e3382982ed`. The [final acceptance ledger](CLI140-C-ACCEPTANCE.md) records limits. Next separate work: [PATCH-API-001](https://github.com/definitely-stable/ChunkShift/issues/470).
