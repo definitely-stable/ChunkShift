@@ -18,6 +18,7 @@ This document refines the sequence without overriding accepted RFC-0001. It dist
 | Source | Decision/implication | Limits |
 | --- | --- | --- |
 | [GitHub Rubicon (2026)](https://github.blog/engineering/architecture-optimization/inside-githubs-new-git-storage-architecture/) | Separate large immutable data from small refs/commit coordination | Their scale results do not predict ChunkShift performance |
+| [SOSP 2026: Validating a high-performance cloud object store](https://www.amazon.science/publications/validating-a-high-performance-cloud-object-store-with-lightweight-formal-methods) | Use executable state models, property testing and fault scenarios to make consistency invariants reviewable | Model tests are not production linearizability or durability proof |
 | [restic repository design](https://github.com/restic/restic/blob/master/doc/design.rst) | Write packs and index data before publishing snapshots; guard repack/removal | Exact recovery/locking design is different |
 | [Kopia architecture](https://kopia.io/docs/advanced/architecture/) | Independently addressable packed content and rebuildable lookup metadata | Pack size cannot be copied without measuring our workloads |
 | [Borg 2](https://borgbackup.readthedocs.io/en/stable/internals.html) | Compact immutable index fragments and selective compaction | Verify concrete version-specific behavior before translating layouts |
@@ -50,7 +51,7 @@ stream input → bounded verification/staging
   → CompareAndSwap(named ref, expected=G, new=G+1)  ← visibility point
 ```
 
-The failed CAS writer may retain orphan packs/segments/generation. It must reread the winning generation, rebase its additions and retry conditionally with a bounded retry policy. Never overwrite winner data, silently ignore a conflict, or use directory/bucket LIST as the normal index of truth.
+The failed CAS writer may retain orphan packs/segments/generation. It must reread the winning generation, rebase its additions and retry conditionally with a bounded retry policy. **A live writer also needs a retention fence for its in-flight staging and sealed objects; GC cannot delete these before commit/abort/lease expiry.** Never overwrite winner data, silently ignore a conflict, or use directory/bucket LIST as the normal index of truth.
 
 A **recovered** index must preserve exactly the physical locations of the retained valid packs; the active logical root/ref must still be supplied by immutable transaction/ref records. The recovery utility must not guess the user's intended published root merely from an orphan pack.
 
@@ -87,7 +88,7 @@ Minimum backend tiers to specify before accepting #133:
 
 `test_publication_model.py` checks mismatch rejection, immutable physical IDs, no visibility before CAS, duplicate reuse, conflicting content, stale CAS/rebase, retained reader snapshots, multiple GC roots and deterministic crash boundaries. Seeded interleavings exercise the invariants. A dedicated cross-platform GitHub Actions job executes the Python standard-library unittest suite.
 
-The model uses **symbolic keys, lengths and fingerprints**. It has no real BLAKE3/SHA-256 operations, no pack serialization, no filesystem writes, no real process concurrency or CAS primitive. Passing its tests validates the expected logical transitions, **not** that future production implementation obeys them.
+The model uses **symbolic keys, lengths and fingerprints**. Active writer pins are simulated inside one process; no cross-process leases, lease expiry or remote fencing are implemented. It has no real BLAKE3/SHA-256 operations, no pack serialization, no filesystem writes, no real process concurrency or CAS primitive. Passing its tests validates the expected logical transitions, **not** that future production implementation obeys them.
 
 The next implementation should reuse these *scenarios* as a common implementation-vs-model trace corpus, without calling the model functions from product code.
 
