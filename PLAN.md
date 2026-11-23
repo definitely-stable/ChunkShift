@@ -309,6 +309,8 @@ CSP/Patching was not part of the publication gate.
 
 ## 12. Patching — [#7](https://github.com/definitely-stable/ChunkShift/issues/7)
 
+**Release checkpoint (2026-11-23):** `ChunkShift` and `ChunkShift.Patching` **0.1.1** have been published from the publication repository. Engineering #251 research, #140 CLI and #470 PublicAPI gates have completed; #7 remains open pending separate parent-issue reconciliation. The CLI is not published. The first-release instructions below document historical prerequisites, not current blockers to Repository R0.
+
 Started from the frozen Core source contract/evidence on `main` (#6, #8 and #17). Patching is developed here and ported to the publication repository only when its own evidence and compatibility fixtures are ready.
 
 Deliverables:
@@ -331,9 +333,9 @@ Evidence:
 - compare against full target delivery and xdelta3 on identical file pairs;
 - publish Patching only when its own compatibility fixtures are ready.
 
-Experiment map for the remaining work (ROADMAP "Patching gate" lists the exit items):
+Historical first-release experiment map (ROADMAP records the current next gate):
 
-Current Patching order (2026-11-17): the required research owners have first-release ADOPT/DEFER/REJECT decisions; the source-bound [#251 architecture synthesis](docs/architecture/PATCHING-FIRST-RELEASE-RESEARCH-FREEZE-20261117.md) selects **CSP v1 / no first-release vNext** and records conditional #262 residual **DEFER** without closing its future research. Complete #251 on a clean synthesis PR and GitHub CI before starting [#140](https://github.com/definitely-stable/ChunkShift/issues/140) CLI product contract and independent Patching PublicAPI review. No NuGet/CLI release or publication-repository port is authorized by research alone. Core 0.1.1 remains a non-blocking maintenance track.
+Historical Patching order (2026-11-17): the first-release research owners selected **CSP v1 / no first-release vNext** in the [#251 architecture synthesis](docs/architecture/PATCHING-FIRST-RELEASE-RESEARCH-FREEZE-20261117.md), with conditional #262 **DEFER** for first release. Subsequently #251, #140 and #470 were closed and Patching 0.1.1 shipped from the separate publication repository. These steps do not authorize publishing the CLI or creating a public Repository API. Core maintenance remains parallel.
 
 | ExperimentId | Issue | Question | Exit item |
 | --- | --- | --- | --- |
@@ -348,9 +350,9 @@ Current Patching order (2026-11-17): the required research owners have first-rel
 
 ### Patching Research Freeze — [#251](https://github.com/definitely-stable/ChunkShift/issues/251)
 
-The research gate #251 blocks first-release CLI/PublicAPI/publication compatibility decisions **until the source-bound synthesis PR is accepted and the issue is closed**. Required owning issues #181/#183/#184/#220/#150/#222/#221/#223/#224/#225/#185 all have durable first-release dispositions; conditional #262 is DEFER for the first release and remains PLANNED for later research. No two independently admitted, non-composable new persisted factors trigger a mandatory interaction study. A future candidate needs its own accepted RFC and evidence before modifying CSP v1 or a published contract.
+The first-release research gate #251 **was completed and closed** before CLI/PublicAPI/publication compatibility decisions. Required owning issues #181/#183/#184/#220/#150/#222/#221/#223/#224/#225/#185 all have durable first-release dispositions; conditional #262 is DEFER for the first release and remains PLANNED for later research. No two independently admitted, non-composable new persisted factors trigger a mandatory interaction study. A future candidate needs its own accepted RFC and evidence before modifying CSP v1 or a published contract.
 
-The [source-bound synthesis](docs/architecture/PATCHING-FIRST-RELEASE-RESEARCH-FREEZE-20261117.md) answers the research question: **retain CSP v1 for the scoped first Patching release; no decision-grade additional family warrants vNext.** Accept this decision on a passing GitHub-hosted PR, then close #251. That closure only **unblocks** separate #140 CLI and PublicAPI compatibility work; neither surface is frozen or published by this research gate.
+The [source-bound synthesis](docs/architecture/PATCHING-FIRST-RELEASE-RESEARCH-FREEZE-20261117.md) answers the research question: **retain CSP v1 for the scoped first Patching release; no decision-grade additional family warrants vNext.** The synthesis was accepted in PR #459 and #251 closed. It **unblocked** the separately completed #140 CLI and #470 PublicAPI gates; it did not itself publish a package.
 
 ### Parallel Core 0.1.1 maintenance track — [#152](https://github.com/definitely-stable/ChunkShift/issues/152)
 
@@ -389,6 +391,12 @@ Execution and results are indexed through [docs/research/README.md](docs/researc
 ## 13. Later tracks
 
 Repository remains downstream of the useful local Patching loop, but its implementation gates are now explicit enough to prevent an early pack/index format from hardening the wrong assumptions. Update sets ([#184](https://github.com/definitely-stable/ChunkShift/issues/184)) and the trust-envelope RFC ([#185](https://github.com/definitely-stable/ChunkShift/issues/185)) are design inputs to it.
+
+### R0 — Repository publication/correctness preflight (before M5 implementation)
+
+Proposed gate: [Repository R0 preflight](docs/architecture/REPOSITORY-R0-PREFLIGHT-20261124.md), governed by accepted RFC-0001 §12. Define logical-vs-physical identity, publication/ref CAS, reader and live-writer retention, crash/durability tiers and preregistered benchmark criteria. Run an independent-from-production abstract state-model oracle with GitHub-hosted Linux/Windows tests. Model acceptance is **not** proof of real filesystem crash safety. Do not freeze Pack v1 or publish Repository API in R0.
+
+Exit: PR exact-head model CI and architecture review pass, and operational durability gaps are tracked for #133/#144; next actual code slice is #133 bounded verified ingest.
 
 ### M5 — Repository foundation
 
