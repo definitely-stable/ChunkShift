@@ -47,6 +47,9 @@ class RepositoryModel:
         self.refs: dict[str, str] = {"main": "g0"}
         self.pins: dict[str, int] = {}
         self.next_generation = 1
+        # Active writers pin staging/sealed objects until commit or explicit abort.
+        self.active_writers: set[str] = set()
+        self.proposal_additions: dict[str, tuple[str, ...]] = {}
 
     def stage(self, pack_id: str, key: str, observed_key: str,
               expected_length: int, observed_length: int,
@@ -58,6 +61,7 @@ class RepositoryModel:
         self.packs[pack_id] = Candidate(
             key, observed_key, expected_length, observed_length, fingerprint
         )
+        self.active_writers.add(pack_id)
 
     def verify(self, pack_id: str) -> None:
         candidate = self.packs[pack_id]
@@ -97,6 +101,7 @@ class RepositoryModel:
         self.generations[generation_id] = Generation(
             parent, tuple(sorted(locations.items()))
         )
+        self.proposal_additions[generation_id] = additions
         return parent, generation_id
 
     def publish(self, ref: str, expected: str, proposed: str) -> bool:
@@ -113,7 +118,12 @@ class RepositoryModel:
             if candidate.key != key:
                 raise InvalidPublication("logical key mismatch")
         self.refs[ref] = proposed
+        self.active_writers.difference_update(self.proposal_additions[proposed])
         return True
+
+    def abandon(self, pack_id: str) -> None:
+        """Writer explicitly abandons its unpublished candidate."""
+        self.active_writers.discard(pack_id)
 
     def pin(self, ref: str) -> str:
         generation = self.refs[ref]
@@ -143,6 +153,7 @@ class RepositoryModel:
             for generation in retained_generations
             for _, pack_id in self.generations[generation].locations
         }
+        retained_packs.update(self.active_writers)
         deleted = set(self.packs) - retained_packs
         for pack_id in deleted:
             del self.packs[pack_id]
@@ -155,6 +166,7 @@ class RepositoryModel:
         This is NOT a durability simulation or a filesystem crash test.
         """
         self.pins.clear()
+        self.active_writers.clear()
         for pack_id in list(self.packs):
             if not self.packs[pack_id].sealed:
                 del self.packs[pack_id]
