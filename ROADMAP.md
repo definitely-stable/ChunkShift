@@ -1,7 +1,7 @@
 # ChunkShift roadmap
 
 Status: Active  
-Last reviewed: 2026-10-07
+Last reviewed: 2026-11-24
 
 Authority:
 
@@ -75,7 +75,7 @@ Completed lab infrastructure stage: [#67](https://github.com/definitely-stable/C
 
 Completed release-evidence stage: [#68](https://github.com/definitely-stable/ChunkShift/issues/68) — independent Python CSM decoder and committed conformance vectors (PR #73), deterministic mutational reader fuzzing with differential decoding (PR #74), cancellation on every manifest API (PR #71), coverage artifact (PR #75) and a 4 GiB source under a 128 MiB memory limit on x64/ARM64 NativeAOT (PR #76). Release hygiene (PRs #79, #91), console and ASP.NET Core package-consumer samples (PR #89) and a README quickstart (PR #90) also landed.
 
-**Where `main` is now:** ChunkShift Core `0.1.0` is published on NuGet.org (2026-09-27) from the publication repository, [MrFr3di/ChunkShift](https://github.com/MrFr3di/ChunkShift). Its source contract — deterministic chunking, bounded raw scanner, CSM create/read/verify, the stable FastCDC profile and the real-Kestrel host proof — was frozen here and ported unchanged. `main` tracks the shipped surface as its compatibility baseline (`PublicAPI.Shipped.txt`, `PackageValidationBaselineVersion=0.1.0`). Nothing is released from this repository.
+**Historical Core 0.1.0 checkpoint:** ChunkShift Core `0.1.0` is published on NuGet.org (2026-09-27) from the publication repository, [MrFr3di/ChunkShift](https://github.com/MrFr3di/ChunkShift). Its source contract — deterministic chunking, bounded raw scanner, CSM create/read/verify, the stable FastCDC profile and the real-Kestrel host proof — was frozen here and ported unchanged. `main` tracks the shipped surface as its compatibility baseline (`PublicAPI.Shipped.txt`, `PackageValidationBaselineVersion=0.1.0`). Nothing is released from this repository.
 
 - [#6](https://github.com/definitely-stable/ChunkShift/issues/6) is **closed**: API/NativeAOT freeze. The API surface decisions of [#63](https://github.com/definitely-stable/ChunkShift/issues/63) are done (PRs #95, #96). [#65](https://github.com/definitely-stable/ChunkShift/issues/65) is decided by [RFC-0004](docs/architecture/RFC-0004-core-0.1-deferred-product-concerns.md) (no progress/compression/signature/anti-rollback surface in Core 0.1.0). The audit is recorded in [CORE-0.1-API-FREEZE.md](docs/architecture/CORE-0.1-API-FREEZE.md); the frozen surface shipped as `0.1.0`;
 - [#8](https://github.com/definitely-stable/ChunkShift/issues/8) is **closed**: PR #113 froze `fastcdc.gear.chunkshift.v1.64k` and its persisted semantic identity after the real-corpus/runtime evidence;
@@ -256,6 +256,9 @@ Research execution/results are discoverable from the common [experiment index](d
 
 ## Repository sequence
 
+**2026-11-24 release checkpoint:** The publication repository released **ChunkShift 0.1.1** and **ChunkShift.Patching 0.1.1** on 2026-11-23. The engineering Patching research/CLI/PublicAPI gates (#251, #140, #470) are closed, and the CLI remains unpublished. The next engineering gate is **Repository R0 architecture/publication preflight**, documented in [REPOSITORY-R0-PREFLIGHT-20261124.md](docs/architecture/REPOSITORY-R0-PREFLIGHT-20261124.md). It establishes a cross-platform executable *abstract* state model and explicit backend durability blockers; it does **not** implement Pack v1 or prove disk crash-safety. Existing Core 0.1.1 maintenance (#152) and engineering branch governance (#24) remain independent tracks.
+
+
 Repository work follows the useful local Patching loop. It must not become a prerequisite for Core or Patching correctness. Two design inputs come from the Patching side first:
 
 - update sets ([#184](https://github.com/definitely-stable/ChunkShift/issues/184)), because a tree manifest and cross-file reuse shape what the Repository stores;
@@ -263,6 +266,7 @@ Repository work follows the useful local Patching loop. It must not become a pre
 
 Order:
 
+0. **R0 proposed preflight** — validate visibility/CAS, reader generations, failure classes and model tests before production #133/#144 code. See [R0 preflight](docs/architecture/REPOSITORY-R0-PREFLIGHT-20261124.md); acceptance requires its own GitHub CI, not just an architectural assertion.
 1. [#10](https://github.com/definitely-stable/ChunkShift/issues/10) immutable self-indexed packs:
    - [#133](https://github.com/definitely-stable/ChunkShift/issues/133) logical identity/ingest;
    - [#138](https://github.com/definitely-stable/ChunkShift/issues/138) physical compression evidence;
@@ -285,13 +289,11 @@ Cross-cutting Repository rules:
 - GC/repack publishes replacements before retirement and uses bounded external-memory reachability;
 - remote reconstruction uses batch metadata lookup and transport-neutral range plans rather than per-chunk HEAD/GET.
 
-## Immediate work order (verified 2026-11-22, main@234f98cd)
+## Immediate work order (reviewed 2026-11-24, main@da1ea6f1)
 
-1. **Research gate #251: CLOSED.** Source-bound [first-release synthesis](docs/architecture/PATCHING-FIRST-RELEASE-RESEARCH-FREEZE-20261117.md) retains per-file CSP v1, D15 and H2-W2; #262 residual stays first-release DEFER but future research OPEN. No CSP vNext is a first-release prerequisite.
-2. **CLI #140: CLOSED / C ACCEPTED.** [PR #469](https://github.com/definitely-stable/ChunkShift/pull/469) merged after exact-HEAD CI, Heavy, B2C resource, CodeQL and dependency checks, into `main@234f98cdeefbef34e927893d20e921e3382982ed`. The [CLI140-C acceptance ledger](docs/architecture/CLI140-C-ACCEPTANCE.md) records the evidence and scope. CLI remains unpublished and `IsPackable=false`.
-3. **Current active:** [PATCH-API-001 #470](https://github.com/definitely-stable/ChunkShift/issues/470) — audit and qualify Patching `PublicAPI.Unshipped.txt`. First P0 slice tests stream ownership/cancellation/preconditions and existing-destination preservation through the packed NuGet consumer; then P1 explicitly reviews the API freeze decision. NativeAOT and package consumers remain required. Research freeze #251 is not a public API freeze.
-4. **Only after CLI and PublicAPI gates:** port approved source via a separate PR to [the publication repository](https://github.com/MrFr3di/ChunkShift); version, release metadata and publish approval happen there, not in this engineering repository.
-5. **No algorithmic research reopening for first-release Patching.** #262, Repository #10-#13 and Core #152 can proceed independently without changing the CSP v1 identity or the CLI acceptance scope.
-
-6. keep [#152](https://github.com/definitely-stable/ChunkShift/issues/152) as a parallel Core 0.1.1 maintenance track; adopt/port a Core candidate only after exact-compatibility and end-to-end evidence gates pass.
-7. finish ordinary `main` governance for this repository under [#24](https://github.com/definitely-stable/ChunkShift/issues/24).
+1. **Patching release checkpoint: COMPLETE.** Published `ChunkShift` + `ChunkShift.Patching` `0.1.1` from the publication repository (2026-11-23). Research #251, CLI #140 and PublicAPI #470 were completed; the engineering repository does not publish packages. The CLI remains unpublished.
+2. **Current active: Repository R0 PRE-FLIGHT (proposed).** [R0 architecture/publication preflight](docs/architecture/REPOSITORY-R0-PREFLIGHT-20261124.md) defines the model of logical identity, immutable objects, CAS generation publication, pinned reader views, non-authoritative indexes, bounded failure/cancellation and backend-specific durability claims. The cross-platform model tests exercise the *specification*, not production crash safety. Review/accept this PR before starting production ingest.
+3. **Next production slice: [#133](https://github.com/definitely-stable/ChunkShift/issues/133).** Implement bounded, verified, pack-independent Repository ingest and deterministic failure tests, including actual SHA-256/BLAKE3 identity. No publicly frozen API and no loose-object final architecture.
+4. **Then [#144](https://github.com/definitely-stable/ChunkShift/issues/144) raw Pack v1 prototype and independent parser/rebuild**, followed by #138 compression and #146 locality comparisons **before format freeze**. GlobalIndex/catalog #145, GC #147 and remote #148 follow after corresponding gates.
+5. **P0 durability uncertainty:** verify [dotnet/runtime #135201](https://github.com/dotnet/runtime/issues/135201) against actual CI runtime and implement/test a backend-specific fsync/rename/directory protocol before claiming power-loss durability. Abstract state-machine tests alone cannot establish that guarantee.
+6. **Parallel work:** #152 Core maintenance and #24 engineering governance remain independently scoped. Existing CSM/CSP identities, Patching 0.1.1 and the publication repository are not changed by Repository preflight.
