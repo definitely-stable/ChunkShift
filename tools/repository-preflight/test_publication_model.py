@@ -91,6 +91,8 @@ class RepositoryPublicationModelTests(unittest.TestCase):
         parent_b, gen_b = m.prepare("main", ("p2",))
         self.assertTrue(m.publish("main", parent_a, gen_a))
         self.assertFalse(m.publish("main", parent_b, gen_b))
+        # A losing but still-active writer must not lose its sealed pack to GC.
+        self.assertNotIn("p2", m.gc())
         self.assertFalse(m.can_read(m.refs["main"], "sha256:b"))
         new_parent, rebased = m.prepare("main", ("p2",))
         self.assertTrue(m.publish("main", new_parent, rebased))
@@ -122,6 +124,17 @@ class RepositoryPublicationModelTests(unittest.TestCase):
         self.assertTrue(m.publish("main", parent, removed))
         self.assertNotIn("p1", m.gc())
         self.assertTrue(m.can_read(m.refs["release"], "sha256:a"))
+        m.assert_reachable_integrity()
+
+    def test_active_writer_pins_staging_and_sealed_objects_until_abort(self):
+        m = RepositoryModel()
+        m.stage("staging", "sha256:one", "sha256:one", 4, 4, "one")
+        self.assertNotIn("staging", m.gc())
+        m.verify("staging")
+        m.seal("staging")
+        self.assertNotIn("staging", m.gc())
+        m.abandon("staging")
+        self.assertIn("staging", m.gc())
         m.assert_reachable_integrity()
 
     def test_orphans_are_safe_and_restart_does_not_publish_them(self):
@@ -170,6 +183,8 @@ class RepositoryPublicationModelTests(unittest.TestCase):
                     # Some candidates are intentionally left uncommitted.
                     if rng.randrange(5) != 0:
                         self.assertTrue(m.publish("main", parent, candidate))
+                    else:
+                        m.abandon(pack)
                     if rng.randrange(7) == 0:
                         m.gc()
                     m.assert_reachable_integrity()
