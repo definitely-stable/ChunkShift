@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ChunkShift.Repository.Tests" />
+    <ProjectReference Include="..\ChunkShift\ChunkShift.csproj" />
+    <PackageReference Include="Blake3" />
+  </ItemGroup>
+</Project>
