@@ -1,6 +1,7 @@
 # REPO-133 / R1-B1 — transaction-local verified-stage reconciliation
 
-Status: **Implementation candidate; pending exact-head CI and review**
+Status: **ACCEPTED in #477; transaction-local only**
+Evidence: exact-head `fe89bef6c74a851b4c649ba3c9bc7c8e21d251ee`; [CI](https://github.com/definitely-stable/ChunkShift/actions/runs/45454224268), [Heavy](https://github.com/definitely-stable/ChunkShift/actions/runs/45454224121), [CodeQL](https://github.com/definitely-stable/ChunkShift/actions/runs/45454224089) PASS; Repository 40/40 on Windows/Linux x64/ARM64. Merge `48321d345c7d8c1b975a4997454dd3be489a9a1d`.
 Owner: #133 / #10. Prerequisite: R1-A accepted in #476.
 
 ## Contract

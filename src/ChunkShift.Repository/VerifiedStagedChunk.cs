@@ -8,14 +8,17 @@ namespace ChunkShift.Repository;
 /// </summary>
 internal sealed class VerifiedStagedChunk : IDisposable
 {
+    private readonly StagingBudget.Reservation? _reservation;
     private bool _disposeRequested;
     private bool _deleted;
 
-    internal VerifiedStagedChunk(string path, ChunkObjectKey key, long length)
+    internal VerifiedStagedChunk(string path, ChunkObjectKey key, long length,
+        StagingBudget.Reservation? reservation = null)
     {
         Path = path;
         Key = key;
         Length = length;
+        _reservation = reservation;
     }
 
     internal string Path { get; }
@@ -44,5 +47,6 @@ internal sealed class VerifiedStagedChunk : IDisposable
         _disposeRequested = true;
         File.Delete(Path);
         _deleted = true;
+        _reservation?.ReleaseStorage();
     }
 }
