@@ -55,3 +55,19 @@ R1-B2b: bounded producer scheduling and grouped ownership under partial failures
 including drain/rotation without deadlock. R1-B3: verified raw pack handoff.
 No public API, format change, cross-process quota, publication or durability claim.
 Keep #133 open.
+
+## R1-B2a-H review hardening
+
+Tracked read streams prevent deletion/credit return while a managed reader remains
+open on Linux or Windows. Close readers, then retry disposal. Direct ownership
+operations are rejected after a handle is claimed by a stage set; stage-set
+operations remain single-consumer. External handles and dirty-directory recovery
+are outside the contract. Reservations reject premature storage release and
+quarantine, and even direct construction goes through atomic admission.
+Capacity rejection has a typed primary reason (oversize, bytes, files, writers);
+this is not a retry scheduling decision or a waiter API. Quarantine retains a
+bounded in-memory diagnostic record (path, declared bytes, confirmed ownership,
+error type); it neither authorizes deletion nor survives restart. No recovery
+ledger or production quota is claimed. R1-B2b must own the entire session and
+abort on integrity errors, manage retryable cleanup, and distinguish transient
+from permanent capacity exhaustion. No direct-to-pack performance claim.

@@ -168,21 +168,23 @@ public sealed class StagingBudgetTests
     }
 
     [Fact]
-    public async Task WindowsFailedHandleDeletionKeepsCreditUntilRetry()
+    public async Task ActiveReadersKeepCreditUntilRetryOnEveryPlatform()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
         using var fixture = new Fixture();
         var budget = new StagingBudget(3, 1, 1);
         var stager = fixture.Create(budget);
         using var stage = await StageAsync(stager, "abc"u8.ToArray());
         using (Stream reader = stage.OpenRead())
         {
+            await using (Stream second = stage.OpenRead())
+            {
+                Assert.ThrowsAny<IOException>(stage.Dispose);
+                Assert.Equal(new StagingBudget.Snapshot(3, 1, 0, 0, 0), budget.Current);
+                Assert.True(File.Exists(stage.Path));
+            }
+
             Assert.ThrowsAny<IOException>(stage.Dispose);
-            Assert.Equal(new StagingBudget.Snapshot(3, 1, 0, 0, 0), budget.Current);
+            Assert.Equal(1, budget.Current.ReservedFiles);
         }
 
         stage.Dispose();
@@ -222,6 +224,10 @@ public sealed class StagingBudgetTests
 
         // No runtime reclaim from a quarantined path. Recovery is separate.
         Assert.Equal(1, budget.Current.QuarantinedFiles);
+        var orphan = Assert.Single(budget.GetQuarantineSnapshot());
+        Assert.True(orphan.OwnershipConfirmed);
+        Assert.Equal(3, orphan.ReservedBytes);
+        Assert.True(File.Exists(orphan.Path));
     }
 
     [Fact]
@@ -250,6 +256,36 @@ public sealed class StagingBudgetTests
             reservation.ReleaseStorage();
         });
         Assert.Equal(default, budget.Current);
+    }
+
+    [Fact]
+    public void StorageCannotBeReleasedOrQuarantinedWhileWriting()
+    {
+        var budget = new StagingBudget(5, 1, 1);
+        var reservation = new StagingBudget.Reservation(budget, 5);
+        Assert.Throws<InvalidOperationException>(reservation.ReleaseStorage);
+        Assert.Throws<InvalidOperationException>(() => reservation.QuarantineStorage("test", true, "test"));
+        Assert.Equal(new StagingBudget.Snapshot(5, 1, 1, 0, 0), budget.Current);
+        Assert.Equal(StagingCapacityReason.ChunkTooLarge,
+            Assert.Throws<StagingCapacityException>(() => budget.Reserve(6)).Reason);
+        Assert.Equal(StagingCapacityReason.Bytes,
+            Assert.Throws<StagingCapacityException>(() => budget.Reserve(1)).Reason);
+        Assert.Equal(StagingCapacityReason.Files,
+            Assert.Throws<StagingCapacityException>(() => budget.Reserve(0)).Reason);
+        reservation.FinishWriting();
+        reservation.ReleaseStorage();
+        Assert.Equal(default, budget.Current);
+    }
+
+    [Fact]
+    public void WriterExhaustionHasDistinctReason()
+    {
+        var budget = new StagingBudget(5, 2, 1);
+        var reservation = budget.Reserve(1);
+        Assert.Equal(StagingCapacityReason.Writers,
+            Assert.Throws<StagingCapacityException>(() => budget.Reserve(1)).Reason);
+        reservation.FinishWriting();
+        reservation.ReleaseStorage();
     }
 
     [Fact]

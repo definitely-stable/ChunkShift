@@ -66,19 +66,29 @@ internal sealed class VerifiedStageSet : IDisposable
 
         cancellationToken.ThrowIfCancellationRequested();
         _stages.Add(candidate.Key, candidate);
+        try
+        {
+            candidate.Claim(this);
+        }
+        catch
+        {
+            _stages.Remove(candidate.Key);
+            throw;
+        }
+
         return true;
     }
 
     internal Stream OpenRead(ChunkObjectKey key)
     {
         ObjectDisposedException.ThrowIf(_disposeRequested, this);
-        return _stages[key].OpenRead();
+        return _stages[key].OpenRead(this);
     }
 
-    private static async Task VerifyDuplicateAsync(
+    private async Task VerifyDuplicateAsync(
         VerifiedStagedChunk existing, VerifiedStagedChunk candidate, CancellationToken ct)
     {
-        using Stream left = existing.OpenRead();
+        using Stream left = existing.OpenRead(this);
         using Stream right = candidate.OpenRead();
         if (left.Length != existing.Length || right.Length != candidate.Length)
         {
@@ -136,7 +146,7 @@ internal sealed class VerifiedStageSet : IDisposable
         {
             try
             {
-                entry.Value.Dispose();
+                entry.Value.DisposeOwned(this);
                 _stages.Remove(entry.Key);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

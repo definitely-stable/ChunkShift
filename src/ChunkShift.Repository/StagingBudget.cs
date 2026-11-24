@@ -16,6 +16,18 @@ internal sealed class StagingBudget
     private int _writers;
     private long _quarantinedBytes;
     private int _quarantinedFiles;
+    private readonly List<QuarantinedStage> _quarantine = new();
+
+    internal QuarantinedStage[] GetQuarantineSnapshot()
+    {
+        lock (_gate)
+        {
+            return _quarantine.ToArray();
+        }
+    }
+
+    internal readonly record struct QuarantinedStage(
+        string Path, long ReservedBytes, bool OwnershipConfirmed, string ErrorType);
 
     internal StagingBudget(long maximumBytes, int maximumFiles, int maximumWriters)
     {
@@ -40,22 +52,7 @@ internal sealed class StagingBudget
 
     internal Reservation Reserve(long bytes)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(bytes);
-        lock (_gate)
-        {
-            // Subtraction avoids overflow even when the configured limit is long.MaxValue.
-            if (bytes > _maximumBytes - _bytes || _files == _maximumFiles ||
-                _writers == _maximumWriters)
-            {
-                throw new StagingCapacityException();
-            }
-
-            var reservation = new Reservation(this, bytes);
-            _bytes += bytes;
-            _files++;
-            _writers++;
-            return reservation;
-        }
+        return new Reservation(this, bytes);
     }
 
     internal readonly record struct Snapshot(
@@ -71,22 +68,50 @@ internal sealed class StagingBudget
     {
         private readonly StagingBudget _owner;
         private readonly long _bytes;
-        private bool _writing = true;
-        private bool _storageHeld = true;
+        private ReservationState _state = ReservationState.Writing;
 
         internal Reservation(StagingBudget owner, long bytes)
         {
+            ArgumentNullException.ThrowIfNull(owner);
+            ArgumentOutOfRangeException.ThrowIfNegative(bytes);
             _owner = owner;
             _bytes = bytes;
+            lock (owner._gate)
+            {
+                // One atomic decision. Subtraction avoids overflow at long.MaxValue.
+                if (bytes > owner._maximumBytes)
+                {
+                    throw new StagingCapacityException(StagingCapacityReason.ChunkTooLarge);
+                }
+
+                if (bytes > owner._maximumBytes - owner._bytes)
+                {
+                    throw new StagingCapacityException(StagingCapacityReason.Bytes);
+                }
+
+                if (owner._files == owner._maximumFiles)
+                {
+                    throw new StagingCapacityException(StagingCapacityReason.Files);
+                }
+
+                if (owner._writers == owner._maximumWriters)
+                {
+                    throw new StagingCapacityException(StagingCapacityReason.Writers);
+                }
+
+                owner._bytes += bytes;
+                owner._files++;
+                owner._writers++;
+            }
         }
 
         internal void FinishWriting()
         {
             lock (_owner._gate)
             {
-                if (_writing)
+                if (_state == ReservationState.Writing)
                 {
-                    _writing = false;
+                    _state = ReservationState.Owned;
                     _owner._writers--;
                 }
             }
@@ -96,35 +121,65 @@ internal sealed class StagingBudget
         {
             lock (_owner._gate)
             {
-                if (_storageHeld)
+                if (_state == ReservationState.Writing)
                 {
-                    _storageHeld = false;
+                    throw new InvalidOperationException("Cannot release storage while writing.");
+                }
+
+                if (_state == ReservationState.Owned)
+                {
+                    _state = ReservationState.Released;
                     _owner._bytes -= _bytes;
                     _owner._files--;
                 }
             }
         }
 
-        internal void QuarantineStorage()
+        internal void QuarantineStorage(string path, bool ownershipConfirmed, string errorType)
         {
             lock (_owner._gate)
             {
-                if (_storageHeld)
+                if (_state == ReservationState.Writing)
                 {
-                    _storageHeld = false;
+                    throw new InvalidOperationException("Cannot quarantine storage while writing.");
+                }
+
+                if (_state == ReservationState.Owned)
+                {
+                    _owner._quarantine.Add(new QuarantinedStage(path, _bytes, ownershipConfirmed, errorType));
+                    _state = ReservationState.Quarantined;
                     // Quarantined credit remains included in the reserved totals.
                     _owner._quarantinedBytes += _bytes;
                     _owner._quarantinedFiles++;
                 }
             }
         }
+
+        private enum ReservationState
+        {
+            Writing,
+            Owned,
+            Released,
+            Quarantined,
+        }
     }
+}
+
+internal enum StagingCapacityReason
+{
+    ChunkTooLarge,
+    Bytes,
+    Files,
+    Writers,
 }
 
 internal sealed class StagingCapacityException : InvalidOperationException
 {
-    internal StagingCapacityException()
-        : base("Staging session capacity exhausted; drain or resize the batch before retrying.")
+    internal StagingCapacityException(StagingCapacityReason reason)
+        : base($"Staging session capacity exhausted: {reason}.")
     {
+        Reason = reason;
     }
+
+    internal StagingCapacityReason Reason { get; }
 }

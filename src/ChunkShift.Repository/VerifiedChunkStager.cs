@@ -64,6 +64,9 @@ internal sealed class VerifiedChunkStager
         bool creationAttempted = false;
         bool created = false;
         byte[]? buffer = null;
+        bool failed = false;
+        bool removed = false;
+        string? cleanupErrorType = null;
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -135,12 +138,14 @@ internal sealed class VerifiedChunkStager
             cancellationToken.ThrowIfCancellationRequested();
             return new VerifiedStagedChunk(path, expected, expectedLength, reservation);
         }
-        catch
+        catch (Exception failure)
         {
+            failed = true;
+            cleanupErrorType = failure.GetType().Name;
             // Release storage credit only when no create was attempted or deletion succeeded.
             // An ambiguous constructor failure is conservatively quarantined: never delete a
             // path that we cannot prove we created.
-            bool removed = !creationAttempted;
+            removed = !creationAttempted;
             if (created)
             {
                 try
@@ -151,16 +156,8 @@ internal sealed class VerifiedChunkStager
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     // Preserve the original error. The unpublished orphan remains charged.
+                    cleanupErrorType = ex.GetType().Name;
                 }
-            }
-
-            if (removed)
-            {
-                reservation?.ReleaseStorage();
-            }
-            else
-            {
-                reservation?.QuarantineStorage();
             }
 
             throw;
@@ -173,6 +170,17 @@ internal sealed class VerifiedChunkStager
             }
 
             reservation?.FinishWriting();
+            if (failed && reservation is not null)
+            {
+                if (removed)
+                {
+                    reservation.ReleaseStorage();
+                }
+                else
+                {
+                    reservation.QuarantineStorage(path!, created, cleanupErrorType!);
+                }
+            }
         }
     }
 }

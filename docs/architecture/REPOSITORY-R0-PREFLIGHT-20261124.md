@@ -1,6 +1,6 @@
 # Repository R0 — architecture, publication and evidence preflight
 
-Status: **Proposed; not a Pack v1 or public API freeze**  
+Status: **R0 accepted (#475); R0.1 model corrections pending exact-head CI; not a Pack v1 or public API freeze**  
 Date: 2026-11-24  
 Owners: [#10](https://github.com/definitely-stable/ChunkShift/issues/10), [#133](https://github.com/definitely-stable/ChunkShift/issues/133), [#144](https://github.com/definitely-stable/ChunkShift/issues/144), [#145](https://github.com/definitely-stable/ChunkShift/issues/145)  
 Higher authority: [RFC-0001 §12](RFC-0001-target-architecture-2026.md), [PLAN.md](../../PLAN.md), [ROADMAP.md](../../ROADMAP.md).
@@ -117,3 +117,13 @@ All decisions use source-locked deterministic corpora, fixed environment metadat
 - [ ] PR checks pass on its exact head and findings are reviewed before merge.
 
 After R0 is accepted, **next production code**: #133 pack-independent bounded ingest and real SHA-256/BLAKE3 verification with injected failures. R0 neither closes #133 nor freezes Pack v1. No physical device, TV or phone is required: GitHub-hosted CI is the acceptance venue.
+
+## R0.1 review corrections
+
+Model-only used-PackId history rejects physical identity reuse after GC/restart.
+Same-key reconciliation compares symbolic fingerprint and declared length;
+readability checks the requested logical key. Regression tests exercise ABA,
+length conflict and a fault-injected wrong physical mapping. This is not a
+production tombstone scheme or full PackDigest binding. Independently modeled
+writer leases, reader pin/retire races, physical digest references and unknown
+remote outcomes remain required before their respective implementation gates.
