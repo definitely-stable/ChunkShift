@@ -14,10 +14,11 @@ internal sealed class VerifiedChunkStager
     private readonly string _stagingDirectory;
     private readonly long _maximumChunkBytes;
     private readonly Action<StagingBoundary>? _checkpoint;
+    private readonly StagingBudget? _budget;
 
     // Internal deterministic failure seam; the normal path has no callback.
     internal VerifiedChunkStager(string stagingDirectory, long maximumChunkBytes,
-        Action<StagingBoundary>? checkpoint = null)
+        Action<StagingBoundary>? checkpoint = null, StagingBudget? budget = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(stagingDirectory);
         ArgumentOutOfRangeException.ThrowIfNegative(maximumChunkBytes);
@@ -25,6 +26,7 @@ internal sealed class VerifiedChunkStager
         _stagingDirectory = System.IO.Path.GetFullPath(stagingDirectory);
         _maximumChunkBytes = maximumChunkBytes;
         _checkpoint = checkpoint;
+        _budget = budget;
     }
 
     /// <summary>
@@ -57,18 +59,25 @@ internal sealed class VerifiedChunkStager
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        using var digest = new ChunkDigest(expected.HashSuite);
-        Directory.CreateDirectory(_stagingDirectory);
-
-        // FileMode.CreateNew forbids overwriting an existing physical path.
-        // The path is NOT a persisted key and is never used to authorize reads.
-        string path = System.IO.Path.Combine(
-            _stagingDirectory, Guid.NewGuid().ToString("N") + ".stage");
-
+        StagingBudget.Reservation? reservation = _budget?.Reserve(expectedLength);
+        string? path = null;
+        bool creationAttempted = false;
         bool created = false;
-        byte[] buffer = ArrayPool<byte>.Shared.Rent(BufferBytes);
+        byte[]? buffer = null;
+        bool failed = false;
+        bool removed = false;
+        string? cleanupErrorType = null;
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var digest = new ChunkDigest(expected.HashSuite);
+            Directory.CreateDirectory(_stagingDirectory);
+
+            // No path is an integrity boundary. Never delete an unknown CreateNew winner.
+            path = System.IO.Path.Combine(
+                _stagingDirectory, Guid.NewGuid().ToString("N") + ".stage");
+            buffer = ArrayPool<byte>.Shared.Rent(BufferBytes);
+            creationAttempted = true;
             await using (var output = new FileStream(
                 path, FileMode.CreateNew, FileAccess.Write, FileShare.None,
                 16 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
@@ -127,23 +136,27 @@ internal sealed class VerifiedChunkStager
 
             _checkpoint?.Invoke(StagingBoundary.AfterClose);
             cancellationToken.ThrowIfCancellationRequested();
-            return new VerifiedStagedChunk(path, expected, expectedLength);
+            return new VerifiedStagedChunk(path, expected, expectedLength, reservation);
         }
-        catch
+        catch (Exception failure)
         {
+            failed = true;
+            cleanupErrorType = failure.GetType().Name;
+            // Release storage credit only when no create was attempted or deletion succeeded.
+            // An ambiguous constructor failure is conservatively quarantined: never delete a
+            // path that we cannot prove we created.
+            removed = !creationAttempted;
             if (created)
             {
                 try
                 {
-                    File.Delete(path);
+                    File.Delete(path!);
+                    removed = true;
                 }
-                catch (IOException)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    // Retained temp is an orphan, never a published chunk.
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    // Preserve original error, recovery will handle the orphan.
+                    // Preserve the original error. The unpublished orphan remains charged.
+                    cleanupErrorType = ex.GetType().Name;
                 }
             }
 
@@ -151,7 +164,23 @@ internal sealed class VerifiedChunkStager
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(buffer);
+            if (buffer is not null)
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+
+            reservation?.FinishWriting();
+            if (failed && reservation is not null)
+            {
+                if (removed)
+                {
+                    reservation.ReleaseStorage();
+                }
+                else
+                {
+                    reservation.QuarantineStorage(path!, created, cleanupErrorType!);
+                }
+            }
         }
     }
 }

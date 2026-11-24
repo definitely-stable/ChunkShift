@@ -51,6 +51,46 @@ class RepositoryPublicationModelTests(unittest.TestCase):
         with self.assertRaises(InvalidPublication):
             m.stage("p1", "sha256:b", "sha256:b", 4, 4, "b")
 
+    def test_pack_id_cannot_be_recycled_after_gc_or_crash(self):
+        for crash in (False, True):
+            with self.subTest(crash=crash):
+                m = RepositoryModel()
+                sealed(m, "p1", "sha256:a", "original")
+                parent, proposed = m.prepare("main", ("p1",))
+                if crash:
+                    m.crash()
+                else:
+                    m.abandon("p1")
+                self.assertIn("p1", m.gc())
+                with self.assertRaises(InvalidPublication):
+                    sealed(m, "p1", "sha256:a", "different")
+                with self.assertRaises(InvalidPublication):
+                    m.publish("main", parent, proposed)
+                self.assertEqual(m.refs["main"], "g0")
+
+    def test_same_fingerprint_different_length_is_conflict(self):
+        m = RepositoryModel()
+        sealed(m, "p1", "sha256:a", "same")
+        parent, proposed = m.prepare("main", ("p1",))
+        self.assertTrue(m.publish("main", parent, proposed))
+        m.stage("p2", "sha256:a", "sha256:a", 5, 5, "same")
+        m.verify("p2")
+        m.seal("p2")
+        with self.assertRaises(ConflictingContent):
+            m.prepare("main", ("p2",))
+
+    def test_read_rejects_wrong_key_even_if_physical_entry_is_sealed(self):
+        m = RepositoryModel()
+        sealed(m, "p1", "sha256:a")
+        parent, proposed = m.prepare("main", ("p1",))
+        self.assertTrue(m.publish("main", parent, proposed))
+        sealed(m, "p2", "sha256:b")
+        # Fault injection bypasses public model transitions to simulate a wrong mapping.
+        m.packs["p1"] = m.packs["p2"]
+        self.assertFalse(m.can_read(proposed, "sha256:a"))
+        with self.assertRaises(AssertionError):
+            m.assert_reachable_integrity()
+
     def test_sealed_pack_and_candidate_generation_are_not_visible_until_cas(self):
         m = RepositoryModel()
         sealed(m, "p1", "sha256:a")

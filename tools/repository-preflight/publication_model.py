@@ -41,6 +41,8 @@ class RepositoryModel:
 
     def __init__(self):
         self.packs: dict[str, Candidate] = {}
+        # Model-only history: never recycle an opaque physical identity.
+        self.used_pack_ids: set[str] = set()
         self.generations: dict[str, Generation] = {
             "g0": Generation(None, ())
         }
@@ -54,13 +56,14 @@ class RepositoryModel:
     def stage(self, pack_id: str, key: str, observed_key: str,
               expected_length: int, observed_length: int,
               fingerprint: str) -> None:
-        if pack_id in self.packs:
+        if pack_id in self.used_pack_ids:
             raise InvalidPublication("physical pack IDs must never be overwritten")
         if expected_length < 0 or observed_length < 0:
             raise InvalidChunk("negative length")
         self.packs[pack_id] = Candidate(
             key, observed_key, expected_length, observed_length, fingerprint
         )
+        self.used_pack_ids.add(pack_id)
         self.active_writers.add(pack_id)
 
     def verify(self, pack_id: str) -> None:
@@ -91,7 +94,8 @@ class RepositoryModel:
             previous_id = locations.get(candidate.key)
             if previous_id is not None:
                 previous = self.packs[previous_id]
-                if previous.fingerprint != candidate.fingerprint:
+                if (previous.fingerprint != candidate.fingerprint or
+                        previous.expected_length != candidate.expected_length):
                     raise ConflictingContent("same claimed key, different bytes")
                 # Logical dedup: retain the already-published primary location.
                 continue
@@ -141,6 +145,7 @@ class RepositoryModel:
         return (
             pack_id is not None
             and pack_id in self.packs
+            and self.packs[pack_id].key == key
             and self.packs[pack_id].verified
             and self.packs[pack_id].sealed
         )

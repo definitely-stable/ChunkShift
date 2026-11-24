@@ -149,13 +149,8 @@ public sealed class VerifiedStageSetTests
     }
 
     [Fact]
-    public async Task WindowsCleanupContinuesAfterOneFailureAndRetries()
+    public async Task CleanupContinuesAfterActiveReaderAndRetriesOnEveryPlatform()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
         using var fixture = new Fixture();
         using var set = new VerifiedStageSet(2);
         var first = await fixture.StageAsync("a"u8.ToArray(), HashSuiteIds.Sha256V1);
@@ -174,6 +169,22 @@ public sealed class VerifiedStageSetTests
         set.Dispose();
         Assert.Equal(0, set.Count);
         Assert.Empty(Directory.GetFiles(fixture.Root));
+    }
+
+    [Fact]
+    public async Task TransferredHandleCannotBeOwnedByTwoSetsOrDisposedByOldOwner()
+    {
+        using var fixture = new Fixture();
+        using var first = new VerifiedStageSet(2);
+        using var second = new VerifiedStageSet(2);
+        var stage = await fixture.StageAsync("abc"u8.ToArray(), HashSuiteIds.Sha256V1);
+        Assert.True(await TransferAsync(first, stage));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => second.TryAddAsync(stage));
+        Assert.Throws<InvalidOperationException>(stage.Dispose);
+        Assert.Throws<InvalidOperationException>(() => stage.OpenRead());
+        Assert.Equal(0, second.Count);
+        Assert.Equal(1, first.Count);
+        Assert.True(File.Exists(stage.Path));
     }
 
     [Fact]
