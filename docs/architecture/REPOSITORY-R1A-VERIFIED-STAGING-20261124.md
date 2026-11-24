@@ -1,6 +1,7 @@
 # REPO-133 / R1-A — verified bounded staging
 
-Status: **Implementation candidate; pending GitHub-hosted CI and review**  
+Status: **ACCEPTED in #476; staging only**
+Evidence: exact PR head `80bdb56c22e825c61358a1304100fbf0e8ff6670`, [CI #45350628834](https://github.com/definitely-stable/ChunkShift/actions/runs/45350628834), [Heavy #45350628533](https://github.com/definitely-stable/ChunkShift/actions/runs/45350628533), [CodeQL #45350628705](https://github.com/definitely-stable/ChunkShift/actions/runs/45350628705). Repository 26/26 Linux x64/ARM64 and Windows; existing package consumer gates pass. Merge `f805ecd89bbf616f007395bc958b96aac7da85b7`. #133 remains open.  
 Owner: [#133](https://github.com/definitely-stable/ChunkShift/issues/133), under [RFC-0001 §12](RFC-0001-target-architecture-2026.md) and [R0 preflight](REPOSITORY-R0-PREFLIGHT-20261124.md).  
 Date: 2026-11-24.
 
