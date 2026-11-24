@@ -33,17 +33,41 @@ frozen by this helper.
 
 | Scenario | Required outcome |
 | --- | --- |
-| Wrong suite/digest/length, empty or short input | No returned verified stage |
+| Wrong suite/digest/length, or input shorter than declared (including unexpected empty input) | No returned verified stage |
 | Trailing byte after expected length | Reject; remove stage |
 | Pre-cancel and mid-read cancellation | Reject; caller stream stays open |
 | Source read exception / invalid output path | No logical publication; pre-existing files preserved |
 | Eight concurrent identical stages | Separate temporary paths, same verified logical key |
-| Dispose temporary handle | Stage file removed; further reads rejected |
+| Dispose temporary handle | Stage file removed; further reads rejected; deletion failure is retryable |
 | Unsupported HashSuiteId | Fail before creating a stage |
 | Data larger than selected maximum | Reject before consuming source |
 
 Runtime behavior is checked with official `abc` SHA-256 and BLAKE3 conformance digests,
 plus empty/large chunks. The digest provider versions are unchanged.
+
+## R1-A hardening contract
+
+- Source is a standalone chunk stream ending at EOF, not a shared concatenated
+  stream. A non-cooperative read cannot be forcibly interrupted. Cancellation is
+  checked after reads (including EOF) and after file close, immediately before
+  ownership transfer. A later cancellation does not revoke a returned handle.
+- Read requests never exceed 64 KiB even if ArrayPool rents a larger array.
+  Invalid negative/oversized read counts fail explicitly.
+- The staging directory is trusted, exclusively controlled by the caller/repository.
+  A path-based OpenRead is not an integrity guarantee against external modification.
+  The pack builder must verify the exact bytes it consumes before sealing or
+  discard the private uncommitted pack on mismatch. No trust-by-filename.
+- A handle is single-owner and not thread-safe. Readers must close before Dispose.
+  Failed deletion prohibits new readers but remains retryable; successful deletion
+  is idempotent. Failed StageAsync cleanup is best effort and may leave an orphan.
+- Bounds are per operation only. R1-B owns the aggregate writer RAM/temp budget
+  and grouped resource ownership. A caller starting multiple StageAsync operations
+  must retain/dispose every successful result even if another task fails.
+- Tests include Core scanner identity parity for both suites with non-seekable
+  short reads, malformed read counts, cancellation at EOF and after close,
+  Windows delete-share retry and simulated write/flush/post-close exceptions.
+  The internal checkpoint callback simulates faults at those boundaries; it
+  does not establish real kernel write/flush/close fault or power-loss behavior.
 
 ## Next eligible slice
 

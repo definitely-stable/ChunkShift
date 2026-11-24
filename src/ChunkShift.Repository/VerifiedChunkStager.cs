@@ -13,23 +13,26 @@ internal sealed class VerifiedChunkStager
 
     private readonly string _stagingDirectory;
     private readonly long _maximumChunkBytes;
+    private readonly Action<StagingBoundary>? _checkpoint;
 
-    internal VerifiedChunkStager(string stagingDirectory, long maximumChunkBytes)
+    // Internal deterministic failure seam; the normal path has no callback.
+    internal VerifiedChunkStager(string stagingDirectory, long maximumChunkBytes,
+        Action<StagingBoundary>? checkpoint = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(stagingDirectory);
-        if (maximumChunkBytes < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(maximumChunkBytes));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegative(maximumChunkBytes);
 
         _stagingDirectory = System.IO.Path.GetFullPath(stagingDirectory);
         _maximumChunkBytes = maximumChunkBytes;
+        _checkpoint = checkpoint;
     }
 
     /// <summary>
     /// Verifies caller-owned source bytes against an expected suite, digest and exact length.
     /// The caller retains source ownership, also on exception/cancellation.
-    /// A successfully returned stage is temporary and not logically repository-visible.
+    /// Source must be a standalone chunk stream (EOF immediately after its declared length).
+    /// The directory must be exclusively controlled by the repository/caller; staged paths
+    /// are not an integrity boundary. A successful stage is not logically repository-visible.
     /// </summary>
     internal async Task<VerifiedStagedChunk> StageAsync(
         Stream source,
@@ -75,23 +78,38 @@ internal sealed class VerifiedChunkStager
                 while (remaining > 0)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    int requested = (int)Math.Min(buffer.Length, remaining);
+                    int requested = (int)Math.Min(BufferBytes, remaining);
                     int count = await source.ReadAsync(
                         buffer.AsMemory(0, requested), cancellationToken).ConfigureAwait(false);
+                    if ((uint)count > (uint)requested)
+                    {
+                        throw new InvalidOperationException("Source returned an invalid read count.");
+                    }
+
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (count == 0)
                     {
                         throw new EndOfStreamException("Chunk source ended before expected length.");
                     }
 
                     digest.Append(buffer.AsSpan(0, count));
+                    _checkpoint?.Invoke(StagingBoundary.BeforeWrite);
                     await output.WriteAsync(
                         buffer.AsMemory(0, count), cancellationToken).ConfigureAwait(false);
                     remaining -= count;
                 }
 
                 // A trailing byte is an identity/length mismatch, including for empty chunks.
-                if (await source.ReadAsync(
-                    buffer.AsMemory(0, 1), cancellationToken).ConfigureAwait(false) != 0)
+                cancellationToken.ThrowIfCancellationRequested();
+                int trailing = await source.ReadAsync(
+                    buffer.AsMemory(0, 1), cancellationToken).ConfigureAwait(false);
+                if ((uint)trailing > 1u)
+                {
+                    throw new InvalidOperationException("Source returned an invalid read count.");
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                if (trailing != 0)
                 {
                     throw new InvalidDataException("Chunk source exceeds expected length.");
                 }
@@ -103,9 +121,12 @@ internal sealed class VerifiedChunkStager
                 }
 
                 // FlushAsync is NOT a power-loss durability guarantee.
+                _checkpoint?.Invoke(StagingBoundary.BeforeFlush);
                 await output.FlushAsync(cancellationToken).ConfigureAwait(false);
             }
 
+            _checkpoint?.Invoke(StagingBoundary.AfterClose);
+            cancellationToken.ThrowIfCancellationRequested();
             return new VerifiedStagedChunk(path, expected, expectedLength);
         }
         catch
@@ -133,4 +154,12 @@ internal sealed class VerifiedChunkStager
             ArrayPool<byte>.Shared.Return(buffer);
         }
     }
+}
+
+// Simulates failures at real staging boundaries, not actual kernel I/O failures.
+internal enum StagingBoundary
+{
+    BeforeWrite,
+    BeforeFlush,
+    AfterClose,
 }

@@ -194,19 +194,23 @@ public sealed class VerifiedChunkStagerTests
         byte[] bytes = Enumerable.Range(0, 8192).Select(i => (byte)i).ToArray();
         var stager = new VerifiedChunkStager(root.DirectoryName, bytes.Length);
         ChunkObjectKey key = KeyFor(bytes, HashSuiteIds.Blake3256V1);
-        VerifiedStagedChunk[] stages = await Task.WhenAll(
-            Enumerable.Range(0, 8).Select(_ => stager.StageAsync(
-                new MemoryStream(bytes, writable: false), key, bytes.Length)));
+        Task<VerifiedStagedChunk>[] tasks = Enumerable.Range(0, 8)
+            .Select(_ => StageOwnedInputAsync(stager, bytes, key)).ToArray();
         try
         {
+            VerifiedStagedChunk[] stages = await Task.WhenAll(tasks);
             Assert.Equal(8, stages.Select(s => s.Path).Distinct().Count());
             Assert.All(stages, s => Assert.Equal(key, s.Key));
         }
         finally
         {
-            foreach (VerifiedStagedChunk stage in stages)
+            // WhenAll has settled all tasks even if one failed.
+            foreach (Task<VerifiedStagedChunk> task in tasks)
             {
-                stage.Dispose();
+                if (task.IsCompletedSuccessfully)
+                {
+                    (await task).Dispose();
+                }
             }
         }
 
@@ -225,6 +229,142 @@ public sealed class VerifiedChunkStagerTests
         staged.Dispose(); // idempotent
         Assert.Throws<ObjectDisposedException>(() => staged.OpenRead());
         Assert.Empty(Directory.GetFiles(root.DirectoryName, "*.stage"));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CoreScannerIdentitiesSurviveNonSeekableShortReads(bool blake)
+    {
+        using var root = new TempRoot();
+        byte[] bytes = new byte[768 * 1024];
+        new Random(133).NextBytes(bytes);
+        HashSuiteId suite = blake ? HashSuiteIds.Blake3256V1 : HashSuiteIds.Sha256V1;
+        var stager = new VerifiedChunkStager(root.DirectoryName, bytes.Length);
+        using var input = new MemoryStream(bytes, writable: false);
+        int chunks = 0;
+        await ChunkScanner.ScanAsync(input, async (chunk, content, ct) =>
+        {
+            using var shortReads = new ShortReadStream(content.ToArray());
+            using var staged = await stager.StageAsync(shortReads,
+                new ChunkObjectKey(suite, chunk.Id), chunk.Length, ct);
+            using var reader = staged.OpenRead();
+            using var mirror = new MemoryStream();
+            await reader.CopyToAsync(mirror, ct);
+            Assert.Equal(content.ToArray(), mirror.ToArray());
+            Assert.True(shortReads.CanRead);
+            chunks++;
+        }, new ChunkScanOptions { HashSuite = suite });
+        Assert.True(chunks > 1);
+        Assert.Empty(Directory.GetFiles(root.DirectoryName, "*.stage"));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task BoundaryFailureCleansStageAndKeepsSourceOpen(int boundary)
+    {
+        using var root = new TempRoot();
+        byte[] bytes = new byte[VerifiedChunkStager.BufferBytes + 1];
+        int writes = 0;
+        var stager = new VerifiedChunkStager(root.DirectoryName, bytes.Length, point =>
+        {
+            if (point == StagingBoundary.BeforeWrite && ++writes == 1)
+            {
+                return; // Inject after at least one successful write.
+            }
+
+            if ((int)point == boundary)
+            {
+                throw new IOException("Injected staging boundary fault.");
+            }
+        });
+        using var source = new MemoryStream(bytes, writable: false);
+        await Assert.ThrowsAsync<IOException>(() => stager.StageAsync(source,
+            KeyFor(bytes, HashSuiteIds.Sha256V1), bytes.Length));
+        Assert.True(source.CanRead);
+        Assert.Empty(Directory.GetFiles(root.DirectoryName, "*.stage"));
+    }
+
+    [Fact]
+    public async Task CancellationAfterCloseDoesNotTransferStageOwnership()
+    {
+        using var root = new TempRoot();
+        byte[] bytes = "abc"u8.ToArray();
+        using var cancellation = new CancellationTokenSource();
+        using var source = new MemoryStream(bytes, writable: false);
+        var stager = new VerifiedChunkStager(root.DirectoryName, bytes.Length, point =>
+        {
+            if (point == StagingBoundary.AfterClose)
+            {
+                cancellation.Cancel();
+            }
+        });
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => stager.StageAsync(
+            source, KeyFor(bytes, HashSuiteIds.Sha256V1), bytes.Length, cancellation.Token));
+        Assert.True(source.CanRead);
+        Assert.Empty(Directory.GetFiles(root.DirectoryName, "*.stage"));
+    }
+
+    [Fact]
+    public async Task CancellationAtEofFromUncooperativeSourceIsObserved()
+    {
+        using var root = new TempRoot();
+        byte[] bytes = "abc"u8.ToArray();
+        using var cancellation = new CancellationTokenSource();
+        using var source = new CancelAtEofStream(bytes, cancellation);
+        var stager = new VerifiedChunkStager(root.DirectoryName, bytes.Length);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => stager.StageAsync(
+            source, KeyFor(bytes, HashSuiteIds.Sha256V1), bytes.Length, cancellation.Token));
+        Assert.True(source.CanRead);
+        Assert.Empty(Directory.GetFiles(root.DirectoryName, "*.stage"));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(2)]
+    public async Task InvalidStreamReadCountIsRejected(int count)
+    {
+        using var root = new TempRoot();
+        using var source = new InvalidReadCountStream(count);
+        var stager = new VerifiedChunkStager(root.DirectoryName, 1);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => stager.StageAsync(
+            source, KeyFor("a"u8, HashSuiteIds.Sha256V1), 1));
+        Assert.True(source.CanRead);
+        Assert.Empty(Directory.GetFiles(root.DirectoryName, "*.stage"));
+    }
+
+    [Fact]
+    public async Task WindowsDeleteShareFailureCanBeRetried()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var root = new TempRoot();
+        byte[] bytes = "stage"u8.ToArray();
+        var stager = new VerifiedChunkStager(root.DirectoryName, bytes.Length);
+        using var source = new MemoryStream(bytes, writable: false);
+        using var staged = await stager.StageAsync(source,
+            KeyFor(bytes, HashSuiteIds.Sha256V1), bytes.Length);
+        using (Stream reader = staged.OpenRead())
+        {
+            Assert.ThrowsAny<IOException>(staged.Dispose);
+            Assert.Throws<ObjectDisposedException>(() => staged.OpenRead());
+            Assert.True(File.Exists(staged.Path));
+        }
+
+        staged.Dispose();
+        Assert.False(File.Exists(staged.Path));
+    }
+
+    private static async Task<VerifiedStagedChunk> StageOwnedInputAsync(
+        VerifiedChunkStager stager, byte[] bytes, ChunkObjectKey key)
+    {
+        using var input = new MemoryStream(bytes, writable: false);
+        return await stager.StageAsync(input, key, bytes.Length);
     }
 
     private static ChunkObjectKey KeyFor(ReadOnlySpan<byte> bytes, HashSuiteId suite)
@@ -283,6 +423,49 @@ public sealed class VerifiedChunkStagerTests
 
             base.Dispose(disposing);
         }
+    }
+
+    private sealed class ShortReadStream : DelegatingReadStream
+    {
+        internal ShortReadStream(byte[] bytes) : base(bytes) { }
+
+        public override ValueTask<int> ReadAsync(
+            Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            Assert.InRange(buffer.Length, 1, VerifiedChunkStager.BufferBytes);
+            return Source.ReadAsync(buffer[..Math.Min(buffer.Length, 1023)], cancellationToken);
+        }
+    }
+
+    private sealed class CancelAtEofStream : DelegatingReadStream
+    {
+        private readonly CancellationTokenSource _cancellation;
+
+        internal CancelAtEofStream(byte[] bytes, CancellationTokenSource cancellation)
+            : base(bytes) => _cancellation = cancellation;
+
+        public override async ValueTask<int> ReadAsync(
+            Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            int count = await Source.ReadAsync(buffer, CancellationToken.None);
+            if (count == 0)
+            {
+                _cancellation.Cancel();
+            }
+
+            return count;
+        }
+    }
+
+    private sealed class InvalidReadCountStream : DelegatingReadStream
+    {
+        private readonly int _count;
+
+        internal InvalidReadCountStream(int count) : base(Array.Empty<byte>()) => _count = count;
+
+        public override ValueTask<int> ReadAsync(
+            Memory<byte> buffer, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(_count);
     }
 
     private sealed class TriggerAfterFirstReadStream : DelegatingReadStream
