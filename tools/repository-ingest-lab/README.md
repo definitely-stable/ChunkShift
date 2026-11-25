@@ -1,8 +1,8 @@
 # R1-B4e.1 — research ingestion harness
 
-Status: candidate for hosted smoke qualification after #487 acceptance.
-Do not execute decision-bearing runs until the harness passes both hosted
-smoke lanes and all applicable exact-head gates. Smoke is not a benchmark result.
+Status: hosted harness correctness ACCEPTED in #488 (56/56 smoke samples).
+Full screening is separate from smoke and sealed holdout. See screen-lock.json
+and report.py. Only descriptive paired results, no adoption decision.
 
 - Dedicated .NET 10 JIT console outside solution; no new package, Core API or
   production behavior. One narrow Repository friend assembly for lab access.
@@ -39,3 +39,7 @@ smoke lanes and all applicable exact-head gates. Smoke is not a benchmark result
   No benchmark claim until hosted qualification.
 - No holdout, performance measurement or adoption claim. Proposed thresholds
   remain subject to preregistration before confirmation.
+
+## Frozen screening
+
+`screen-lock.json` binds parameters and corpus SHA-256 before timing; `run.py --screen-lock` fails closed on any mismatch. `report.py` independently checks the exact inventory, schedule, stdout/JSONL agreement and all sample contracts, then emits five paired Ready ratios (baseline/candidate) per applicable comparison, median/range and per-candidate metrics. Warmups excluded. Workflow uses one isolated job per platform, no same-runner simultaneous samples. No inference or holdout promotion. Raw data retained even on failure.

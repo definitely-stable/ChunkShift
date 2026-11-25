@@ -1,9 +1,6 @@
 # R1-B4e — preregistered serial ingestion screening protocol
 
-Status: proposed screening protocol, no runs, no decision-bearing evidence.
-Correctness prerequisites #485/#486/#487 accepted. Run screening only after
-both hosted lab smoke lanes and applicable exact-head gates pass. Do not add
-optimization candidates before screen.
+Status: full first-screen definition frozen after #488 smoke acceptance; no full-screen results yet. Exact source hashes and parameters in tools/repository-ingest-lab/screen-lock.json. Correctness prerequisites #485–#488 accepted. Screening only; no adoption/holdout rule frozen. Do not add optimization candidates before screen.
 
 ## Matched work and timing boundaries
 
@@ -83,3 +80,7 @@ raw sample serialization and a dedicated hosted workflow. Avoid benchmark
 logic in production API, dependencies or mandatory correctness CI. Follow
 docs/research/README.md for RunId/EvidenceId and decision records. No
 measurement, acceptance or cache/worker design is claimed by this document.
+
+## Screening implementation (R1-B4e.3)
+
+The actual accepted finite A adapter materializes copies; do not generalize to an optimized staging adapter. Current counters are modeled payload I/O, active/closed hit counts and process-lifetime peak memory at Ready; no per-comparison latency, flush instrumentation, or stage high-water yet. 84 raw samples/lane (14 warmups, 70 measured), exact candidate order verified, five within-round wall-time ratios per comparison. ABC rotations are not perfectly balanced across five measured rounds; report individual pairs, avoid significance claims. Separate hosted lanes; never pair across machines. Source digests preregistered independently before timing. A screen may identify a hypothesis, not prove adoption.
