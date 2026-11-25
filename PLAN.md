@@ -409,6 +409,8 @@ Key gates:
 - [#144](https://github.com/definitely-stable/ChunkShift/issues/144) — Pack v1: separate PackId/PackDigest, self-index, fixed tail, bounded writer/rebuild;
 - [#146](https://github.com/definitely-stable/ChunkShift/issues/146) — locality/multi-location evidence before physical layout assumptions freeze.
 
+Implementation sequence and gates: [Repository execution roadmap (2026-11-25)](docs/architecture/REPOSITORY-EXECUTION-ROADMAP-20261125.md). Finite stage session is the correctness baseline; prioritize private raw pack construction and measured elimination of loose staging before continuous scheduler tuning. R1-C durability probes can proceed independently, but durable promotion is gated.
+
 Exit: immutable Pack v1 is independently readable, hostile-input hardened and sufficient to rebuild derived location data.
 
 ### M5 — Global index/catalog

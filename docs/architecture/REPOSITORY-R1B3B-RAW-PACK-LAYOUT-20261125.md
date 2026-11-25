@@ -1,9 +1,8 @@
 # R1-B3b — provisional raw pack layout and admission
 
 Status: **Candidate, not a frozen wire format**. Owners #144 / #133 / #10.
-Independent arithmetic/policy slice, no writer dependency. R1-B3a #480 must
-pass its own exact-head CI before integration. R1-B3b does not merge ahead of
-that gate. See #144 for layout alternatives, compression, locality and freeze.
+Independent arithmetic/policy slice, no writer dependency. R1-B3a #480 accepted;
+combined-head CI required before R1-B3b acceptance. See #144 for layout alternatives, compression, locality and freeze.
 
 ## Provisional experiment: raw layout P0
 
