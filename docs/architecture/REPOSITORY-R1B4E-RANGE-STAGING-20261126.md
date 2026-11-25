@@ -1,6 +1,11 @@
 # REPO-INGEST-002 — bounded source-range staging sensitivity
 
-Status: qualification candidate; no performance evidence. Refs #133 #144 #139 #10.
+Status: correctness qualification ACCEPTED in #491; no performance evidence.
+Exact qualified head dfb6ef8a26538653dac273822a6770f27f998fe1; merge 0f2ea91377e9a460e537c353af1f9925402c7a1f.
+CI 45715703285, Heavy 45715703352, CodeQL 45715703324 PASS; Repository
+233/233 on all four lanes, 3731/3731 Windows solution. Range smoke 45715703279
+72/72, both C# self-tests; original smoke 45715703286 56/56. See the
+[full-screen launch and smoke audit](REPOSITORY-R1B4E-RANGE-SCREEN-REVIEW-20261126.md). Refs #133 #144 #139 #10.
 Prior REPO-INGEST-001 evidence found C faster than materializing A on 60/60
 pairs; that is not evidence against a lower-allocation file-stage adapter.
 
