@@ -1,6 +1,6 @@
 # R1-B4a.3 — logical occurrences before verified reuse
 
-Status: candidate for hosted qualification after #485 acceptance. Not a CSM writer,
+Status: **ACCEPTED in #486**. Exact head `fde07a4ad1d2d4ccaf98dd2227bcfc3c448e2390`; [CI](https://github.com/definitely-stable/ChunkShift/actions/runs/45625365221), [Heavy](https://github.com/definitely-stable/ChunkShift/actions/runs/45625365503), [CodeQL](https://github.com/definitely-stable/ChunkShift/actions/runs/45625365586) PASS; Repository 221/221 Windows/Linux x64/ARM64, Windows solution 3719/3719. Merge `20c9d6b7c54bdc33b52cb19d17ba06dc7574329a`. Not a CSM writer,
 persistent manifest, global index, Catalog root or dedup implementation.
 
 ## Contract

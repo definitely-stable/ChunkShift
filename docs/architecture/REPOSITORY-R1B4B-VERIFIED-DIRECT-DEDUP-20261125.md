@@ -1,7 +1,6 @@
 # R1-B4b.2–5 — serial transaction-local verified duplicate reuse
 
-Status: unqualified separate child experiment. #485 accepted; depends on
-#486 logical-occurrences/comparator qualification. No PR or additional CI yet.
+Status: candidate for hosted qualification after #485/#486 acceptance.
 
 ## Ownership and admission
 
