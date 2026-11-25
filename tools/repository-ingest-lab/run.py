@@ -92,9 +92,17 @@ def main():
                 cache="uncontrolled; common post-ready oracle and paired order", isolation="one child per sample")
     (output / "manifest.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     try:
-        with (output / "build.log").open("w", encoding="utf-8") as log:
-            subprocess.run(["dotnet", "build", str(PROJECT), "-c", "Release"], cwd=ROOT,
-                           stdout=log, stderr=subprocess.STDOUT, check=True)
+        build_log = output / "build.log"
+        try:
+            with build_log.open("w", encoding="utf-8") as log:
+                subprocess.run(["dotnet", "build", str(PROJECT), "-c", "Release"], cwd=ROOT,
+                               stdout=log, stderr=subprocess.STDOUT, check=True)
+        except subprocess.CalledProcessError:
+            # Surface compiler/analyzer diagnostics directly in the job log.
+            # Preserve the complete original file and fail with the same error.
+            print(build_log.read_text(encoding="utf-8", errors="replace")[-16000:],
+                  file=sys.stderr, flush=True)
+            raise
         private = output / "private"
         private.mkdir()
         sample_id = 0

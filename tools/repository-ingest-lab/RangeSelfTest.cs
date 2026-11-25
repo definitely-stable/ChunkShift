@@ -26,7 +26,7 @@ internal static class RangeSelfTest
                       buffer[0] == 20, "first range read");
                 Check(b.Read(buffer.AsSpan()) == 3 && buffer.AsSpan(0, 3).SequenceEqual(original.AsSpan(3)),
                       "independent second range and clipping");
-                Check(await a.ReadAsync(buffer, 0, buffer.Length, CancellationToken.None).ConfigureAwait(false) == 2 &&
+                Check(await a.ReadAsync(buffer.AsMemory(), CancellationToken.None).ConfigureAwait(false) == 2 &&
                       buffer.AsSpan(0, 2).SequenceEqual(original.AsSpan(2, 2)), "first range cursor");
                 Check(a.ReadByte() == -1 && b.ReadByte() == -1 && empty.ReadByte() == -1 &&
                       a.ConsumedBytes == 3 && b.ConsumedBytes == 3 && owner.Position == 1, "bounded EOF and owner cursor");

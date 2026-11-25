@@ -35,3 +35,17 @@ next real/adversarial holdout with independent runners/ARM64 and frozen
 thresholds. D adds reread cost and changes source access pattern; cannot
 interpret A/D as pure allocation cost or generalize to nonseekable inputs.
 No algorithm, public API, dependency, pack format or durability change.
+
+## Qualification correction
+
+Initial exact head `e83bcd16ad36b4584d178f418fa1ba31f0469509`: range smoke 45714733752 and regression smoke
+45714733617 failed before sample execution on Windows and Linux. Python 13/13
+passed on each lane. Original build.log artifacts 15069052334 (Windows) and
+15069526332 (Ubuntu) have matching GitHub ZIP SHA256 and identical CA1835
+at RangeSelfTest.cs:29. TreatWarningsAsErrors correctly stopped the build.
+Replace only the legacy array ReadAsync call with the Memory<byte> overload;
+retain the independent-cursor assertion, cancellation, range and failure
+checks. No analyzer suppression or production changes. Also expose bounded
+build-log tail on nonzero dotnet build exit while preserving the original
+log, inventory and failure propagation. Fresh exact-head smoke and all
+applicable gates required; no timed full sensitivity until qualified.
