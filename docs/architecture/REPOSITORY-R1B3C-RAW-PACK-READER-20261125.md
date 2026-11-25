@@ -1,6 +1,6 @@
 # R1-B3c-R — independent bounded P0 reader/verifier
 
-Status: candidate on #482, #481 accepted; refreshed combined CI required.
+Status: **ACCEPTED in #482; experimental P0 only**. Exact head `a0d1d197fac1f4f4da6c633e6fd45210dbe98808`: [CI rerun](https://github.com/definitely-stable/ChunkShift/actions/runs/45570644013), [Heavy](https://github.com/definitely-stable/ChunkShift/actions/runs/45570644010), [CodeQL](https://github.com/definitely-stable/ChunkShift/actions/runs/45570644057) PASS; Repository 142/142 Windows/Linux x64/ARM64. Merge `dd6df1b12710a10caf0147aa65a741ceba6741b0`.
 No Pack v1 freeze, publication, crash durability or verification cache authorization.
 
 ## Decoder contract
