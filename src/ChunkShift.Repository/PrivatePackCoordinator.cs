@@ -3,7 +3,7 @@ using ChunkShift.Primitives;
 namespace ChunkShift.Repository;
 
 /// <summary>
-/// Sequential finite private pack set. Caller owns the Ready ingest session
+/// Sequential private pack set. Caller owns the Ready ingest session or source stream
 /// and exclusively controls a distinct output directory. This coordinator owns
 /// only its created pack files and stream handles, not the directory or staging.
 /// </summary>
@@ -12,6 +12,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
     private readonly object _gate = new();
     private readonly string _directory;
     private readonly RawPackPolicy _policy;
+    private readonly long _targetPhysicalBytes;
     private readonly RawPackReadLimits _limits;
     private readonly long _maximumTotalBytes;
     private readonly int _maximumPacks;
@@ -29,6 +30,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumPacks);
         _directory = Path.GetFullPath(directory);
         _limits = limits;
+        _targetPhysicalBytes = targetPhysicalBytes;
         // Writer and reader share the same physical, count and index ceilings.
         _policy = new RawPackPolicy(targetPhysicalBytes, limits.MaximumPhysicalBytes,
             limits.MaximumFrames, Math.Min(limits.MaximumIndexBytes, Array.MaxLength));
@@ -74,6 +76,50 @@ internal sealed class PrivatePackCoordinator : IDisposable
     internal async Task BuildAsync(IngestSession session, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
+        await BuildCoreAsync(async ct =>
+        {
+            IngestEntry[] entries = session.GetEntries();
+            List<PackPlan> plans = Preflight(entries, ct);
+            EnsureEmptyDirectory();
+            if (plans.Count != 0)
+            {
+                Directory.CreateDirectory(_directory);
+            }
+
+            var ids = new HashSet<RawPackId>();
+            foreach (PackPlan plan in plans)
+            {
+                ct.ThrowIfCancellationRequested();
+                OwnedPack pack = await BuildPackAsync(session, entries, plan, ct).ConfigureAwait(false);
+                RegisterVerifiedId(ids, pack);
+            }
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Sequential direct ingestion of one Core scan. Unknown total length;
+    /// reserves incrementally. Unique-only research path: repeated keys abort
+    /// the entire set rather than granting unverified deduplication.
+    /// </summary>
+    internal Task BuildDirectAsync(Stream source, HashSuiteId suite, long maximumLogicalBytes,
+        int maximumUniqueChunks, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(suite);
+        ArgumentOutOfRangeException.ThrowIfNegative(maximumLogicalBytes);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumUniqueChunks);
+        if (!source.CanRead)
+        {
+            throw new ArgumentException("Source must be readable.", nameof(source));
+        }
+
+        _ = RawPackWire.SuiteCode(suite);
+        return BuildCoreAsync(ct => BuildDirectCoreAsync(source, suite, maximumLogicalBytes,
+            maximumUniqueChunks, ct), cancellationToken);
+    }
+
+    private async Task BuildCoreAsync(Func<CancellationToken, Task> build, CancellationToken cancellationToken)
+    {
         lock (_gate)
         {
             if (_state != State.Created)
@@ -87,30 +133,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            IngestEntry[] entries = session.GetEntries();
-            List<PackPlan> plans = Preflight(entries, cancellationToken);
-            if (File.Exists(_directory) ||
-                (Directory.Exists(_directory) && Directory.EnumerateFileSystemEntries(_directory).Any()))
-            {
-                throw new IOException("Private pack directory must be empty and exclusively owned.");
-            }
-
-            if (plans.Count != 0)
-            {
-                Directory.CreateDirectory(_directory);
-            }
-
-            var ids = new HashSet<RawPackId>();
-            foreach (PackPlan plan in plans)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                OwnedPack pack = await BuildPackAsync(session, entries, plan, cancellationToken)
-                    .ConfigureAwait(false);
-                if (!ids.Add(pack.Verified!.Descriptor.PackId))
-                {
-                    throw new InvalidDataException("Repeated PackId within private pack set.");
-                }
-            }
+            await build(cancellationToken).ConfigureAwait(false);
 
             lock (_gate)
             {
@@ -128,6 +151,129 @@ internal sealed class PrivatePackCoordinator : IDisposable
             }
 
             throw;
+        }
+    }
+
+    private void EnsureEmptyDirectory()
+    {
+        if (File.Exists(_directory) ||
+            (Directory.Exists(_directory) && Directory.EnumerateFileSystemEntries(_directory).Any()))
+        {
+            throw new IOException("Private pack directory must be empty and exclusively owned.");
+        }
+    }
+
+    private static void RegisterVerifiedId(HashSet<RawPackId> ids, OwnedPack pack)
+    {
+        if (!ids.Add(pack.Verified!.Descriptor.PackId))
+        {
+            throw new InvalidDataException("Repeated PackId within private pack set.");
+        }
+    }
+
+    private async Task BuildDirectCoreAsync(Stream source, HashSuiteId suite, long maximumLogicalBytes,
+        int maximumUniqueChunks, CancellationToken ct)
+    {
+        EnsureEmptyDirectory();
+        var ledger = new IncrementalRawPackAdmission(_targetPhysicalBytes, _limits,
+            _maximumTotalBytes, _maximumPacks, maximumLogicalBytes, maximumUniqueChunks);
+        var ids = new HashSet<RawPackId>();
+        var entries = new List<IngestEntry>();
+        OwnedPack? current = null;
+        PrivateRawPackWriter? writer = null;
+        long logicalOffset = 0;
+        long logicalIndex = 0;
+        try
+        {
+            await ChunkScanner.ScanAsync(source, ConsumeAsync,
+                new ChunkScanOptions { HashSuite = suite }, ct).ConfigureAwait(false);
+            await FinishCurrentAsync(ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            long physical = 0;
+            foreach (OwnedPack pack in _owned)
+            {
+                physical = checked(physical + pack.ReservedBytes);
+            }
+
+            if (physical != ledger.Budget.PhysicalBytes || _owned.Count != ledger.Budget.Packs ||
+                logicalOffset != ledger.Budget.LogicalBytes || logicalIndex != ledger.Budget.UniqueChunks)
+            {
+                throw new InvalidOperationException("Direct build diverged from incremental budget.");
+            }
+        }
+        finally
+        {
+            // Active append/complete has already reached a terminal state.
+            // The writer must be disposed before BuildCoreAsync aborts files.
+            writer?.Dispose();
+        }
+
+        async ValueTask ConsumeAsync(ChunkInfo chunk, ReadOnlyMemory<byte> content, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            if (chunk.Index != logicalIndex || chunk.Offset != logicalOffset ||
+                chunk.Length != content.Length || content.IsEmpty)
+            {
+                throw new InvalidDataException("Unexpected Core chunk sequence.");
+            }
+
+            var key = new ChunkObjectKey(suite, chunk.Id);
+            IncrementalPackReservation reservation = ledger.ReserveUnique(key, content.Length);
+            if (reservation.StartsNewPack)
+            {
+                // The borrowed buffer remains live across close/readback:
+                // the scanner awaits this callback before reusing its memory.
+                await FinishCurrentAsync(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                if (reservation.PackOrdinal != _owned.Count)
+                {
+                    throw new InvalidOperationException("Direct pack ordinal mismatch.");
+                }
+
+                Directory.CreateDirectory(_directory);
+                current = CreatePack(reservation.ProjectedPackBytes);
+                writer = new PrivateRawPackWriter(current.Stream!, _policy, suite);
+            }
+            else
+            {
+                if (current is null || writer is null ||
+                    reservation.PackOrdinal != _owned.Count - 1 ||
+                    reservation.ProjectedPackBytes - current.ReservedBytes != reservation.AdditionalPhysicalBytes)
+                {
+                    throw new InvalidOperationException("Direct append reservation mismatch.");
+                }
+
+                // Increase retained file credit before the new append.
+                current.ReservedBytes = reservation.ProjectedPackBytes;
+            }
+
+            if (reservation.FrameOrdinal != entries.Count)
+            {
+                throw new InvalidOperationException("Direct frame ordinal mismatch.");
+            }
+
+            RawPackPlacement placement = await writer!.AppendMemoryAsync(content, key, token).ConfigureAwait(false);
+            EnsureAppended(placement);
+            entries.Add(new IngestEntry(key, content.Length));
+            logicalIndex = checked(logicalIndex + 1);
+            logicalOffset = checked(logicalOffset + content.Length);
+        }
+
+        async Task FinishCurrentAsync(CancellationToken token)
+        {
+            if (writer is null)
+            {
+                return;
+            }
+
+            OwnedPack pack = current ?? throw new InvalidOperationException("Missing active pack.");
+            RawPackDescriptor expected = await writer.CompleteAsync(token).ConfigureAwait(false);
+            writer.Dispose();
+            writer = null;
+            await VerifyPackAsync(pack, expected, suite, entries, 0, entries.Count, token).ConfigureAwait(false);
+            RegisterVerifiedId(ids, pack);
+            entries.Clear();
+            current = null;
         }
     }
 
@@ -201,18 +347,10 @@ internal sealed class PrivatePackCoordinator : IDisposable
     private async Task<OwnedPack> BuildPackAsync(IngestSession session, IngestEntry[] entries,
         PackPlan plan, CancellationToken ct)
     {
-        // Register the full reservation before CreateNew. If creation throws,
-        // ownership is uncertain: retain diagnostic credit and never delete it.
-        var pack = new OwnedPack(Path.Combine(_directory, Guid.NewGuid().ToString("N") + ".pack-private"),
-            plan.PhysicalBytes);
-        _checkpoint?.Invoke(PrivatePackBoundary.BeforeCreate, pack.Path);
-        _owned.Add(pack);
-        pack.Stream = new FileStream(pack.Path, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-            16 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
-        pack.Created = true;
+        OwnedPack pack = CreatePack(plan.PhysicalBytes);
 
         RawPackDescriptor expected;
-        using (var writer = new PrivateRawPackWriter(pack.Stream, _policy, plan.Suite))
+        using (var writer = new PrivateRawPackWriter(pack.Stream!, _policy, plan.Suite))
         {
             for (int i = plan.Start; i < plan.Start + plan.Count; i++)
             {
@@ -221,17 +359,45 @@ internal sealed class PrivatePackCoordinator : IDisposable
                 using Stream source = session.OpenRead(entry.Key);
                 RawPackPlacement placement = await writer.AppendAsync(source, entry.Key, entry.Length, ct)
                     .ConfigureAwait(false);
-                if (placement is not (RawPackPlacement.Append or RawPackPlacement.AppendDedicated))
-                {
-                    throw new InvalidOperationException("Actual append diverged from admitted plan.");
-                }
+                EnsureAppended(placement);
             }
 
             expected = await writer.CompleteAsync(ct).ConfigureAwait(false);
         }
 
-        if (expected.PhysicalBytes != plan.PhysicalBytes || expected.FrameCount != plan.Count ||
-            expected.HashSuite != plan.Suite)
+        await VerifyPackAsync(pack, expected, plan.Suite, entries, plan.Start, plan.Count, ct)
+            .ConfigureAwait(false);
+        return pack;
+    }
+
+    private OwnedPack CreatePack(long reservedBytes)
+    {
+        // Register the full reservation before CreateNew. If creation throws,
+        // ownership is uncertain: retain diagnostic credit and never delete it.
+        var pack = new OwnedPack(Path.Combine(_directory, Guid.NewGuid().ToString("N") + ".pack-private"),
+            reservedBytes);
+        _checkpoint?.Invoke(PrivatePackBoundary.BeforeCreate, pack.Path);
+        _owned.Add(pack);
+        pack.Stream = new FileStream(pack.Path, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+            16 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        pack.Created = true;
+
+        return pack;
+    }
+
+    private static void EnsureAppended(RawPackPlacement placement)
+    {
+        if (placement is not (RawPackPlacement.Append or RawPackPlacement.AppendDedicated))
+        {
+            throw new InvalidOperationException("Actual append diverged from admitted plan.");
+        }
+    }
+
+    private async Task VerifyPackAsync(OwnedPack pack, RawPackDescriptor expected, HashSuiteId suite,
+        IReadOnlyList<IngestEntry> entries, int start, int count, CancellationToken ct)
+    {
+        if (expected.PhysicalBytes != pack.ReservedBytes || expected.FrameCount != count ||
+            expected.HashSuite != suite)
         {
             throw new InvalidOperationException("Writer descriptor diverged from admitted plan.");
         }
@@ -249,7 +415,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
         for (int i = 0; i < locations.Length; i++)
         {
             ct.ThrowIfCancellationRequested();
-            IngestEntry entry = entries[plan.Start + i];
+            IngestEntry entry = entries[start + i];
             if (locations[i].Key != entry.Key || locations[i].Length != entry.Length)
             {
                 throw new InvalidDataException("Readback locations diverged from admitted input.");
@@ -259,7 +425,6 @@ internal sealed class PrivatePackCoordinator : IDisposable
         await CloseStreamAsync(pack).ConfigureAwait(false);
         pack.Verified = verified;
         _checkpoint?.Invoke(PrivatePackBoundary.AfterVerified, pack.Path);
-        return pack;
     }
 
     internal VerifiedRawPack[] GetPacks()
@@ -411,7 +576,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
     private sealed class OwnedPack(string path, long reservedBytes)
     {
         internal string Path { get; } = path;
-        internal long ReservedBytes { get; } = reservedBytes;
+        internal long ReservedBytes { get; set; } = reservedBytes;
         internal bool Created { get; set; }
         internal FileStream? Stream { get; set; }
         internal VerifiedRawPack? Verified { get; set; }

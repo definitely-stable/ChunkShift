@@ -1,6 +1,6 @@
 # R1-B3d — independent physical location rebuild (P0)
 
-Status: candidate; #482 and #483 accepted; fresh main-target CI required. Owners #144/#133/#10.
+Status: **ACCEPTED in #484; physical rebuild only**. Exact head `294a34620ca6fec4db0e5d419374a86bddbadb76`; [CI retry](https://github.com/definitely-stable/ChunkShift/actions/runs/45595671573), [Heavy](https://github.com/definitely-stable/ChunkShift/actions/runs/45595671426), [CodeQL](https://github.com/definitely-stable/ChunkShift/actions/runs/45595671579) PASS; Repository 167/167 Windows/Linux x64/ARM64. Merge `3e205ca9a675ca05b1385f45787ad55aa78535ab`. Owners #144/#133/#10.
 This is the packs-alone correctness baseline, not GlobalIndex (#145), Catalog
 recovery, durable publication, or a Pack v1 freeze.
 
