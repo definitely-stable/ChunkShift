@@ -1,7 +1,7 @@
 # R1-B4b.1 — bounded positional duplicate comparator
 
-Status: unqualified child experiment; depends on #485 unique-only direct
-qualification and R1-B4a.3 logical sequence. No duplicate ingestion enabled.
+Status: candidate for hosted qualification after #485 acceptance, alongside
+R1-B4a.3 logical sequence. No duplicate ingestion enabled.
 
 ## Contract and rationale
 
