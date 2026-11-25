@@ -55,3 +55,34 @@ pass, then independent download audit.
 If any correctness or evidence audit fails, STOP and preserve original raw
 diagnostics; no cherry-picking or post-hoc parameter changes. Smoke results
 are qualification only, never included in the timed dataset.
+
+## #491 smoke evidence verified before full-screen launch
+
+Exact parent candidate dfb6ef8a26538653dac273822a6770f27f998fe1.
+Range smoke [45715703279](https://github.com/definitely-stable/ChunkShift/actions/runs/45715703279)
+both lanes PASS; 36/36 each, 13 Python tests each, targeted C# range
+self-test PASS on Windows and Ubuntu. Original regression smoke
+[45715703286](https://github.com/definitely-stable/ChunkShift/actions/runs/45715703286)
+28/28 each and 13 Python tests each. CodeQL 45715703324 PASS.
+Full CI 45715703285 and Heavy 45715703352 still in progress at this checkpoint;
+smoke acceptance is not merge acceptance.
+
+Original range smoke artifacts independently downloaded:
+- [Ubuntu 15070410277](https://github.com/definitely-stable/ChunkShift/actions/runs/45715703279/artifacts/15070410277):
+  SHA256 1fc229817428bf90b617b8618e6431b7a938ac15cb6fb728dba2754e156c4e85.
+  RunId REPO-INGEST-002/RUN-20261125-457157032791-dfb6ef8a2653-ubuntu-24-04.
+- [Windows 15070151162](https://github.com/definitely-stable/ChunkShift/actions/runs/45715703279/artifacts/15070151162):
+  SHA256 5a393d282f7a131ef3a62fe290e8df0487230ff6c36b6e9ceaa74b04da0bafe8.
+  RunId REPO-INGEST-002/RUN-20261125-457157032791-dfb6ef8a2653-windows-2025.
+
+Independent audit: outer ZIP SHA256, CRC, exact file inventory and 75 file
+checksums per archive pass. All 72 records identity, stdout/JSONL agreement,
+restore/source/corpus digest equality, geometry P=U+68N+168K and A/D/C
+accounting pass. 12 A, 12 D, 12 C per lane; D read 8,388,608 range bytes in
+every sample, no modeled materialized request copy, same staging payload as A.
+Cross-platform and both-suite occurrence counts unique 101/101, recent 68/53,
+cross 65/51 (logical/unique); per-family/suite layout fingerprint and physical
+geometry equal across all candidates and both lanes. No smoke timings used.
+Next: finish #491 required gates, merge only exact qualified head, refresh
+this launch branch on accepted main and open full-screen PR. Do not rerun
+full screen merely to improve timing results.
