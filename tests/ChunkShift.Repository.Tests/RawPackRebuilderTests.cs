@@ -39,8 +39,10 @@ public sealed class RawPackRebuilderTests
         Assert.Equal(c, result.GetPacks()[0].Descriptor);
         Assert.Equal(b, result.GetPacks()[1].Descriptor);
         Assert.Equal(a, result.GetPacks()[2].Descriptor);
-        Assert.Equal(2, observed.Count(l => l.Key == Key([1, 2], Sha)));
-        Assert.Single(observed.Where(l => l.Key == Key([1, 2], Blake)));
+        ChunkObjectKey shaKey = Key([1, 2], Sha);
+        ChunkObjectKey blakeKey = Key([1, 2], Blake);
+        Assert.Equal(2, observed.Count(l => l.Key == shaKey));
+        Assert.Single(observed, l => l.Key == blakeKey);
         Assert.Equal(c.PackId, observed[0].PackId);
 
         RebuiltPhysicalIndex reversed = await RawPackRebuilder.RebuildAsync([first, second, third], Limits);
