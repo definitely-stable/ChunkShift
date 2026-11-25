@@ -1,0 +1,61 @@
+name: Repository range staging smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/repository-range-staging-smoke.yml'
+      - 'tools/repository-ingest-lab/SourceRangeStream.cs'
+      - 'tools/repository-ingest-lab/RangeSelfTest.cs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.14"
+      - name: Test driver
+        run: python -B -m unittest discover -s tools/repository-ingest-lab -p "test_*.py"
+      - name: Run range staging smoke and targeted range checks
+        shell: pwsh
+        run: |
+          $short = (git rev-parse --short=12 HEAD).Trim()
+          $date = (Get-Date).ToUniversalTime().ToString("yyyyMMdd")
+          $lane = "${{ matrix.os }}".Replace(".", "-")
+          $sequence = "${{ github.run_id }}${{ github.run_attempt }}"
+          $runId = "REPO-INGEST-002/RUN-$date-$sequence-$short-$lane"
+          python -B tools/repository-ingest-lab/run.py --output "$env:RUNNER_TEMP/range-smoke/raw" --run-id $runId --range-sensitivity --mib 8 --target-mib 1 --rounds 1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $rows = @(Get-Content "$env:RUNNER_TEMP/range-smoke/raw/samples.jsonl" | ForEach-Object { $_ | ConvertFrom-Json })
+          if ($rows.Count -ne 36 -or @($rows | Where-Object { $_.outcome -ne "pass" }).Count -ne 0 -or @($rows | Where-Object { $_.candidate -eq "D" }).Count -ne 12) { throw "Range smoke sample mismatch" }
+          dotnet tools/repository-ingest-lab/bin/Release/net10.0/ChunkShift.Repository.IngestLab.dll --range-self-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload original range smoke evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: range-staging-smoke-${{ matrix.os }}
+          path: ${{ runner.temp }}/range-smoke/
+          if-no-files-found: warn
+          retention-days: 30
