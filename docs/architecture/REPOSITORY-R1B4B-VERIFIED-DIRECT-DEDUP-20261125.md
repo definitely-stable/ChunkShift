@@ -1,6 +1,6 @@
 # R1-B4b.2–5 — serial transaction-local verified duplicate reuse
 
-Status: candidate for hosted qualification after #485/#486 acceptance.
+Status: **ACCEPTED in #487; opt-in private correctness only**. Exact head `92be26b7814603dc09bd288bd549d5f16e492e85`; [CI](https://github.com/definitely-stable/ChunkShift/actions/runs/45633393300), [Heavy](https://github.com/definitely-stable/ChunkShift/actions/runs/45633393399), [CodeQL](https://github.com/definitely-stable/ChunkShift/actions/runs/45633393119) PASS; Repository 233/233 Windows/Ubuntu/Linux x64/ARM64, Windows 3731/3731, both package smokes. Merge `87c9756d0105b960880e5868476e682ce2e45602`.
 
 ## Ownership and admission
 
@@ -33,23 +33,21 @@ unique payload extent and distinct logical keys.
 Snapshot only in Ready. Any fault/cancellation aborts all owned files; no
 partial logical sequence. Existing unique-only path remains unchanged.
 
-## Evidence to qualify
+## Accepted correctness evidence
 
 Both suites, deterministic long zero/random/zero corpus, actual active and
 closed reuse, compare scanner logical sequence, one physical frame per key,
 exact physical budget and reconstruct every byte. Constant-source exact quota
 without duplicate rotation. Logical byte/count cap, closed payload corruption,
 cancellation at active duplicate, writer committed-ordinal guard and poison.
-Twelve test cases written; no execution evidence. Added both-suite physical
+Twelve integration test cases passed on all four CI lanes. Added both-suite physical
 layout/rotation/budget differential against actual accepted finite staging
 oracle using independent source slices, cancellation before closed-pack read,
 and empty deduplicated input. Source slices use the immutable original array,
 not direct pack payload or locations. This is correctness evidence design,
-not timed benchmark. Corpus shape and platform
-I/O behavior must be confirmed by hosted CI. Existing unique-only tests must
-stay green. No mid-read cancellation fault injection yet.
+not timed benchmark. Corpus shape and platform I/O behavior for these fixtures confirmed by hosted CI; existing unique-only tests passed. No mid-read cancellation fault injection yet.
 
-Next: qualify #486, then this opt-in integration on accepted main.
+Next: qualify the ingestion research harness, then execute the screening protocol.
 Benchmark file staging vs unique-only direct vs verified reuse (matched input
 semantics); capture active/closed hit counts, comparison/flush cost, logical I/O,
 RSS/allocations and restore correctness. No performance, global dedup, durable
