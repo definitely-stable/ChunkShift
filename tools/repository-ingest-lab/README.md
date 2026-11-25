@@ -29,8 +29,13 @@ This is an executable first screen, not a benchmark result.
   A cross case at smoke scale should rotate; actual hit counts still measured.
 - Invocation after qualification (new directory outside checkout):
   python tools/repository-ingest-lab/run.py --output /path/to/new-result --run-id <assigned-run-id>
-- Dedicated hosted workflow and run registry records are next; current branch
-  intentionally has no automatic CI trigger. Run IDs/evidence records must be
-  assigned before a retained evidence run, not inferred from raw output.
+- Dedicated hosted smoke workflow runs on lab PRs or manual dispatch, on
+  Windows and Linux x64 with pinned actions; 28 samples per platform, not
+  decision-bearing performance evidence. It assigns RunIds before execution
+  from workflow run/attempt, date, exact checkout SHA and runner lane.
+- Strict driver record validation rejects absent/nonfinite/negative timings,
+  invalid count types, wrong identity/digests, inconsistent geometry or missing
+  intended CDC reuse (recent active/cross closed). Seven validator unit tests.
+  No benchmark claim until hosted qualification.
 - No holdout, performance measurement or adoption claim. Proposed thresholds
   remain subject to preregistration before confirmation.

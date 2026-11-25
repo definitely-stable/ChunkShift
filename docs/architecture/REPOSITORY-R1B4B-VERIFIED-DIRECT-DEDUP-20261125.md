@@ -1,7 +1,6 @@
 # R1-B4b.2–5 — serial transaction-local verified duplicate reuse
 
-Status: unqualified separate child experiment. Depends on #485 and the
-logical-occurrences/comparator child. No PR or additional CI yet.
+Status: candidate for hosted qualification after #485/#486 acceptance.
 
 ## Ownership and admission
 
@@ -41,11 +40,16 @@ closed reuse, compare scanner logical sequence, one physical frame per key,
 exact physical budget and reconstruct every byte. Constant-source exact quota
 without duplicate rotation. Logical byte/count cap, closed payload corruption,
 cancellation at active duplicate, writer committed-ordinal guard and poison.
-Eight new test cases written; no execution evidence. Corpus shape and platform
+Twelve test cases written; no execution evidence. Added both-suite physical
+layout/rotation/budget differential against actual accepted finite staging
+oracle using independent source slices, cancellation before closed-pack read,
+and empty deduplicated input. Source slices use the immutable original array,
+not direct pack payload or locations. This is correctness evidence design,
+not timed benchmark. Corpus shape and platform
 I/O behavior must be confirmed by hosted CI. Existing unique-only tests must
 stay green. No mid-read cancellation fault injection yet.
 
-Next: qualify #485, then logical/comparator child, then this opt-in integration.
+Next: qualify #486, then this opt-in integration on accepted main.
 Benchmark file staging vs unique-only direct vs verified reuse (matched input
 semantics); capture active/closed hit counts, comparison/flush cost, logical I/O,
 RSS/allocations and restore correctness. No performance, global dedup, durable

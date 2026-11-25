@@ -1,7 +1,6 @@
 # R1-B4b.1 — bounded positional duplicate comparator
 
-Status: unqualified child experiment; depends on #485 unique-only direct
-qualification and R1-B4a.3 logical sequence. No duplicate ingestion enabled.
+Status: **ACCEPTED in #486**. Exact head `fde07a4ad1d2d4ccaf98dd2227bcfc3c448e2390`; [CI](https://github.com/definitely-stable/ChunkShift/actions/runs/45625365221), [Heavy](https://github.com/definitely-stable/ChunkShift/actions/runs/45625365503), [CodeQL](https://github.com/definitely-stable/ChunkShift/actions/runs/45625365586) PASS; Repository 221/221 Windows/Linux x64/ARM64, Windows solution 3719/3719. Merge `20c9d6b7c54bdc33b52cb19d17ba06dc7574329a`. No duplicate ingestion enabled.
 
 ## Contract and rationale
 

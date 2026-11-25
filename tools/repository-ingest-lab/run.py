@@ -10,6 +10,8 @@ import subprocess
 import re
 import sys
 
+from validate import validate
+
 MIB = 1024 * 1024
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "tools" / "repository-ingest-lab" / "ChunkShift.Repository.IngestLab.csproj"
@@ -71,6 +73,7 @@ def main():
                 host=platform.platform(), machine=platform.machine(),
                 sdk=run(["dotnet", "--version"]), dotnet_info=run(["dotnet", "--info"]),
                 protocol_sha256=digest(Path(__file__)),
+                validator_sha256=digest(Path(__file__).with_name("validate.py")),
                 executable_source_sha256=digest(PROJECT.parent / "Program.cs"),
                 definition_sha256=digest(ROOT / "docs/architecture/REPOSITORY-R1B4E-INGEST-EVIDENCE-PROTOCOL-20261125.md"),
                 command=sys.argv,
@@ -113,13 +116,8 @@ def main():
                                 if child.returncode != 0:
                                     raise RuntimeError("sample process failed")
                                 result = json.loads(stdout_path.read_text(encoding="utf-8"))
-                                if result["verdict"] != "pass" or result["restore_sha256"] != source_hash:
-                                    raise ValueError("sample verdict/digest mismatch")
-                                if result["candidate"] != candidate or result["suite"] != suite:
-                                    raise ValueError("sample identity mismatch")
-                                signature = tuple(result[key] for key in
-                                    ("layout_sha256", "logical_bytes", "logical_occurrences",
-                                     "unique_frames", "unique_payload_bytes", "pack_bytes", "pack_count"))
+                                signature = validate(result, candidate, suite, family, source_hash,
+                                                     args.mib * MIB, args.target_mib)
                                 if reference is None:
                                     reference = signature
                                 if reference != signature:
@@ -128,7 +126,7 @@ def main():
                                     raise ValueError("sample private directory not empty")
                                 record.update(result)
                                 record["outcome"] = "pass"
-                            except (OSError, ValueError, KeyError, RuntimeError, subprocess.TimeoutExpired) as error:
+                            except (OSError, ValueError, KeyError, TypeError, OverflowError, RuntimeError, subprocess.TimeoutExpired) as error:
                                 record.update(outcome="fail", error=str(error))
                             raw.write(json.dumps(record, sort_keys=True) + "\n")
                             raw.flush()
