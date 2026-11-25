@@ -1,6 +1,6 @@
 # R1-B3c-W — provisional forward-only raw pack writer
 
-Status: **Candidate; dependent on R1-B3b #481 combined-head acceptance**.
+Status: **Candidate; R1-B3b #481 accepted, refreshed combined CI required**.
 Owners #144 / #133 / #10. This is actual P0 serialization, not a Pack v1 freeze.
 The independent reader, actual multi-pack coordinator and rebuild follow.
 Do not treat writer completion as durable storage, verified readback or publication.
@@ -59,4 +59,4 @@ reader/parser or corruption/fuzz evidence. Next R1-B3c-R: independent bounded
 parser, exact sections, flags, ordinal bijection and index order, frame CRC,
 logical digest and trusted expected descriptor verification, negative corpus.
 Then private file/rotation ownership and R1-B3d rebuild. Exact-head hosted CI
-required on combined head; no merge ahead of #481.
+required on combined head; no merge without fresh full gates.

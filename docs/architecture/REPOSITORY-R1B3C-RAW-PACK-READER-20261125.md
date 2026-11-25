@@ -1,6 +1,6 @@
 # R1-B3c-R — independent bounded P0 reader/verifier
 
-Status: candidate on #482, dependent on #481 acceptance and refreshed combined CI.
+Status: candidate on #482, #481 accepted; refreshed combined CI required.
 No Pack v1 freeze, publication, crash durability or verification cache authorization.
 
 ## Decoder contract
