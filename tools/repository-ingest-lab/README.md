@@ -28,7 +28,7 @@ This is an executable first screen, not a benchmark result.
   Smoke 8 MiB / 1 MiB / 1 measured round = 28 samples; not acceptance evidence.
   A cross case at smoke scale should rotate; actual hit counts still measured.
 - Invocation after qualification (new directory outside checkout):
-  python tools/repository-ingest-lab/run.py --output /path/to/new-result
+  python tools/repository-ingest-lab/run.py --output /path/to/new-result --run-id <assigned-run-id>
 - Dedicated hosted workflow and run registry records are next; current branch
   intentionally has no automatic CI trigger. Run IDs/evidence records must be
   assigned before a retained evidence run, not inferred from raw output.

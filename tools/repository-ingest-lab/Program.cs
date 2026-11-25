@@ -34,17 +34,11 @@ internal static class Program
             Directory.CreateDirectory(parent);
             string root = Path.Combine(parent, Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
-            try
-            {
-                await RunAsync(args[0], args[1], targetMiB, sourcePath, length, args[4], root)
-                    .ConfigureAwait(false);
-            }
-            finally
-            {
-                // Only the randomly named, caller-private sample directory is ours.
-                // Do not recursively erase unexpected leftovers and hide cleanup failures.
-                Directory.Delete(root, recursive: false);
-            }
+            await RunAsync(args[0], args[1], targetMiB, sourcePath, length, args[4], root)
+                .ConfigureAwait(false);
+            // Preserve primary exceptions and any failed sample's remaining
+            // artifacts for diagnosis; delete only an empty successful root.
+            Directory.Delete(root, recursive: false);
 
             return 0;
         }
