@@ -1,6 +1,6 @@
 # R1-B3c-C — private multi-pack coordinator
 
-Status: **Candidate; #482 accepted; combined-head CI required**.
+Status: **ACCEPTED in #483; private lifecycle only**. Exact head `0a96428f8f740becc9a5eed2c55cebb4f4cf1591`; [CI](https://github.com/definitely-stable/ChunkShift/actions/runs/45591992390), [Heavy](https://github.com/definitely-stable/ChunkShift/actions/runs/45591992484), [CodeQL](https://github.com/definitely-stable/ChunkShift/actions/runs/45591992649) PASS; Repository 155/155 Windows/Linux x64/ARM64. Merge `ff223281140c699b6b8c3ee93babde9bc7b3d35b`.
 Owners #144 / #133 / #10. No Pack v1 freeze, durable promotion or publication.
 
 ## Contract
