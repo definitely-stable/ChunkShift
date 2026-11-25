@@ -29,7 +29,8 @@ append only after comparison succeeds. IncrementalRawPackAdmission remains
 unique-only (its LogicalBytes field now represents unique payload on this
 path); total logical bytes and occurrences are controlled independently by
 sequence. No duplicate physical reservations. At EOF independently verify
-every pack, reconcile exact physical budget/count and distinct logical keys.
+every pack, reconcile exact physical budget/count, independently decoded frame count,
+unique payload extent and distinct logical keys.
 Snapshot only in Ready. Any fault/cancellation aborts all owned files; no
 partial logical sequence. Existing unique-only path remains unchanged.
 

@@ -211,12 +211,25 @@ internal sealed class PrivatePackCoordinator : IDisposable
             await FinishCurrentAsync(ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
             long physical = 0;
+            long uniquePayload = 0;
+            int uniqueFrames = 0;
             foreach (OwnedPack pack in _owned)
             {
-                physical = checked(physical + pack.ReservedBytes);
+                ct.ThrowIfCancellationRequested();
+                RawPackDescriptor descriptor = pack.Verified!.Descriptor;
+                if (descriptor.PhysicalBytes != pack.ReservedBytes)
+                {
+                    throw new InvalidDataException("Verified pack size diverged from retained reservation.");
+                }
+
+                physical = checked(physical + descriptor.PhysicalBytes);
+                uniqueFrames = checked(uniqueFrames + descriptor.FrameCount);
+                uniquePayload = checked(uniquePayload + descriptor.PhysicalBytes -
+                    (RawPackLayout.FixedBytes + (long)descriptor.FrameCount * RawPackLayout.IndexBytesPerFrame));
             }
 
             if (physical != ledger.Budget.PhysicalBytes || _owned.Count != ledger.Budget.Packs ||
+                uniqueFrames != ledger.Budget.UniqueChunks || uniquePayload != ledger.Budget.LogicalBytes ||
                 (!allowVerifiedReuse && (sequence.LogicalBytes != ledger.Budget.LogicalBytes ||
                     sequence.Count != ledger.Budget.UniqueChunks)) ||
                 (allowVerifiedReuse && committed.Count != ledger.Budget.UniqueChunks))
@@ -279,6 +292,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
                     }
 
                     _checkpoint?.Invoke(PrivatePackBoundary.BeforeClosedDuplicate, existing.Pack.Path);
+                    token.ThrowIfCancellationRequested();
                     // Current writer can remain open. One extra owned read
                     // handle, tracked for retryable cleanup if closing fails.
                     existing.Pack.Stream = new FileStream(existing.Pack.Path, FileMode.Open,
