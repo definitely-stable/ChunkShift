@@ -225,8 +225,10 @@ internal sealed class PrivatePackCoordinator : IDisposable
             }
 
             var key = new ChunkObjectKey(suite, chunk.Id);
-            sequence.CheckNext(chunk.Index, chunk.Offset, key, content.Length);
             IncrementalPackReservation reservation = ledger.ReserveUnique(key, content.Length);
+            // Preserve the existing unique-ledger rejection contract. A later
+            // occurrence refusal aborts this whole session; no file work yet.
+            sequence.CheckNext(chunk.Index, chunk.Offset, key, content.Length);
             if (reservation.StartsNewPack)
             {
                 // The borrowed buffer remains live across close/readback:

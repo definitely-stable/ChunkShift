@@ -12,7 +12,10 @@ chunk is one logical occurrence; empty scan has none. LogicalOccurrenceBuilder
 stores (index, offset, suite-qualified key, length) in order, no PackId. Independent
 occurrence and logical-byte caps are checked before physical work; subtraction
 proves no overflow. Current direct unique-only overload defaults occurrence cap
-to unique cap; explicit overload permits independent limits. AppendAccepted
+to unique cap; explicit overload permits independent limits. Unique ledger
+admission runs first to preserve its existing typed rejection contract. If
+occurrence admission then fails, the whole transaction aborts before any new
+physical work; the temporary successful reservation is discarded. AppendAccepted
 records only after the caller's append completes; this metadata builder does
 not verify content, authorize duplicate reuse or bypass the unique ledger.
 
