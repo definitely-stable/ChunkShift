@@ -1,6 +1,7 @@
 # REPO-133 / R1-B2b — bounded finite ingest session
 
-Status: **Candidate; exact-head hosted CI and review required**
+Status: **ACCEPTED in #479 — finite correctness baseline only**
+Exact head `791c022ca0b8db862dea466d53f0ea0c76194931`: [CI](https://github.com/definitely-stable/ChunkShift/actions/runs/45492146910), [Heavy](https://github.com/definitely-stable/ChunkShift/actions/runs/45492146817), [CodeQL](https://github.com/definitely-stable/ChunkShift/actions/runs/45492146877) PASS; 66/66 Repository on Windows/Linux x64/ARM64. Merge `97ff8f43d094f0286413ca274ed00e7c98fa9229`.
 Owners: #133 / #10. Prerequisite R1-B2a/H and R0.1 accepted in #478.
 
 ## Decision
