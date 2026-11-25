@@ -59,7 +59,7 @@ entries or power-loss guarantee. Fault injection is internal/trusted only.
 Actual rotation by target/suite, exact aggregate sizes, dedicated oversized
 frame, empty frame/batch, aggregate rejection before creation, dirty directory,
 corruption between close/readback, cancellation, bounded verified reads after
-source disposal, cleanup retry under Windows file lock, active operation
+source disposal, cleanup retry under Windows file lock, injected CreateNew conflict preserving foreign file and uncertain credit, active operation
 guards. Exact-head hosted CI required; do not merge ahead of #482.
 
 Next R1-B3d: independent rebuild from pack files alone, exact physical location

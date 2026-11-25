@@ -201,6 +201,28 @@ public sealed class PrivatePackCoordinatorTests
     }
 
     [Fact]
+    public async Task CreateNewConflictNeverDeletesUnownedPathOrReleasesUncertainCredit()
+    {
+        using var fixture = new Fixture();
+        using var session = await fixture.StageAsync(([1], Sha));
+        using var coordinator = fixture.Create(300, 1000, 4, (boundary, path) =>
+        {
+            if (boundary == PrivatePackBoundary.BeforeCreate)
+            {
+                File.WriteAllText(path, "foreign winner");
+            }
+        });
+        await Assert.ThrowsAsync<IOException>(() => coordinator.BuildAsync(session));
+        string uncertain = Assert.Single(coordinator.GetUncertainPaths());
+        Assert.Equal("foreign winner", File.ReadAllText(uncertain));
+        Assert.Equal(new PrivatePackBudget(237, 1, 1), coordinator.GetBudget());
+        coordinator.Dispose();
+        Assert.Equal("foreign winner", File.ReadAllText(uncertain));
+        Assert.Equal(new PrivatePackBudget(237, 1, 1), coordinator.GetBudget());
+        Assert.Throws<InvalidOperationException>(() => coordinator.GetPacks());
+    }
+
+    [Fact]
     public async Task ActiveBuildRejectsDisposeAndSnapshotAndSecondBuild()
     {
         using var fixture = new Fixture();

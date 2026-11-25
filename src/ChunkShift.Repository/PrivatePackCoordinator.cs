@@ -31,7 +31,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
         _limits = limits;
         // Writer and reader share the same physical, count and index ceilings.
         _policy = new RawPackPolicy(targetPhysicalBytes, limits.MaximumPhysicalBytes,
-            limits.MaximumFrames, limits.MaximumIndexBytes);
+            limits.MaximumFrames, Math.Min(limits.MaximumIndexBytes, Array.MaxLength));
         _maximumTotalBytes = maximumTotalBytes;
         _maximumPacks = maximumPacks;
         _checkpoint = checkpoint;
@@ -205,6 +205,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
         // ownership is uncertain: retain diagnostic credit and never delete it.
         var pack = new OwnedPack(Path.Combine(_directory, Guid.NewGuid().ToString("N") + ".pack-private"),
             plan.PhysicalBytes);
+        _checkpoint?.Invoke(PrivatePackBoundary.BeforeCreate, pack.Path);
         _owned.Add(pack);
         pack.Stream = new FileStream(pack.Path, FileMode.CreateNew, FileAccess.Write, FileShare.None,
             16 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
@@ -418,7 +419,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
 }
 
 internal readonly record struct PrivatePackBudget(long ReservedBytes, int ReservedFiles, int UncertainFiles);
-internal enum PrivatePackBoundary { AfterCloseBeforeReadback, AfterVerified }
+internal enum PrivatePackBoundary { BeforeCreate, AfterCloseBeforeReadback, AfterVerified }
 
 internal sealed class PrivatePackCapacityException : InvalidOperationException
 {
