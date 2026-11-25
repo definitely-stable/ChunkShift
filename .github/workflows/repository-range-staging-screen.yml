@@ -1,0 +1,65 @@
+name: Repository range staging screening
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/repository-range-staging-screen.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repo-ingest-screen
+  cancel-in-progress: false
+
+jobs:
+  screen:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Validate analysis tools
+        run: python -B -m unittest discover -s tools/repository-ingest-lab -p "test_*.py"
+      - name: Execute frozen A/D/C sensitivity (not holdout)
+        shell: pwsh
+        run: |
+          $commit = (git rev-parse HEAD).Trim()
+          $short = $commit.Substring(0, 12)
+          $date = (Get-Date).ToUniversalTime().ToString("yyyyMMdd")
+          $lane = "${{ matrix.os }}".Replace(".", "-")
+          $sequence = "${{ github.run_id }}${{ github.run_attempt }}"
+          $runId = "REPO-INGEST-002/RUN-$date-$sequence-$short-$lane"
+          python -B tools/repository-ingest-lab/run.py --output "$env:RUNNER_TEMP/range-screen/raw" --run-id $runId --range-sensitivity --screen-lock --mib 128 --target-mib 32 --rounds 6 --seed 144
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -B tools/repository-ingest-lab/report.py --range-sensitivity --raw "$env:RUNNER_TEMP/range-screen/raw" --commit $commit --summary "$env:RUNNER_TEMP/range-screen/summary.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $summary = Get-Content "$env:RUNNER_TEMP/range-screen/summary.json" -Raw | ConvertFrom-Json
+          if ($summary.experiment -ne "REPO-INGEST-002" -or $summary.decision -ne "SCREEN_ONLY" -or $summary.commit -ne $commit -or $summary.run_id -ne $runId -or $summary.raw_samples -ne 126 -or $summary.measured_samples -ne 108 -or $summary.warmups -ne 18 -or @($summary.groups).Count -ne 6) { throw "Range screening summary identity/count mismatch" }
+          "### REPO-INGEST-002: 126/126 raw samples, 108 measured, SCREEN_ONLY" >> $env:GITHUB_STEP_SUMMARY
+      - name: Archive original evidence and paired summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: repository-range-screen-${{ matrix.os }}
+          path: ${{ runner.temp }}/range-screen/
+          if-no-files-found: error
+          retention-days: 90
