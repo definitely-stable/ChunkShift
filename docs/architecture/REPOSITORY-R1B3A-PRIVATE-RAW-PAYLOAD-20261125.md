@@ -1,6 +1,6 @@
 # R1-B3a / #144 — private raw payload append
 
-Status: **Candidate; exact-head CI and review required**. Owners: #133, #144, #10.
+Status: **ACCEPTED in #480**. Exact head `32c278009c0f8974595b9537b46d8c483dcb6e80`; [CI rerun](https://github.com/definitely-stable/ChunkShift/actions/runs/45564516518), [Heavy](https://github.com/definitely-stable/ChunkShift/actions/runs/45564516217), [CodeQL](https://github.com/definitely-stable/ChunkShift/actions/runs/45564516413) PASS; Repository 76/76 Windows/Linux x64/ARM64. Initial Windows VSTest connection timeout resolved without code/config changes. Merge `f13127d6b9fbf50e7e2f46c698ddb5fcb80f89e6`. Owners: #133, #144, #10.
 
 This slice creates ONE private payload spool for many verified chunks, not a
 persisted Pack v1 candidate. It contains raw concatenated payload bytes and
