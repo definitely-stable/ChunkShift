@@ -1,8 +1,8 @@
 # R1-B4e.1 — research ingestion harness
 
-Status: unqualified experiment. Do not execute decision-bearing runs until
-#485, logical/comparator and verified dedup have accepted exact-head gates.
-This is an executable first screen, not a benchmark result.
+Status: candidate for hosted smoke qualification after #487 acceptance.
+Do not execute decision-bearing runs until the harness passes both hosted
+smoke lanes and all applicable exact-head gates. Smoke is not a benchmark result.
 
 - Dedicated .NET 10 JIT console outside solution; no new package, Core API or
   production behavior. One narrow Repository friend assembly for lab access.

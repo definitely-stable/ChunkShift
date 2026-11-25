@@ -50,6 +50,9 @@ jobs:
           $runId = "REPO-INGEST-001/RUN-$date-$sequence-$commit-$lane"
           python -B tools/repository-ingest-lab/run.py --output "$env:RUNNER_TEMP/ingest-smoke" --run-id $runId --mib 8 --target-mib 1 --rounds 1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $rows = @(Get-Content "$env:RUNNER_TEMP/ingest-smoke/samples.jsonl" | ForEach-Object { $_ | ConvertFrom-Json })
+          if ($rows.Count -ne 28 -or @($rows | Where-Object { $_.outcome -ne "pass" }).Count -ne 0) { throw "Smoke sample count/verdict mismatch" }
+          "### Repository ingest smoke: 28/28 PASS (not performance evidence)" >> $env:GITHUB_STEP_SUMMARY
       - name: Upload smoke raw evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

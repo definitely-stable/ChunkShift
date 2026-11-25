@@ -1,8 +1,9 @@
 # R1-B4e — preregistered serial ingestion screening protocol
 
 Status: proposed screening protocol, no runs, no decision-bearing evidence.
-Run only after #485, logical/comparator child and verified reuse qualify on
-exact main-derived heads. Do not add optimization candidates before screen.
+Correctness prerequisites #485/#486/#487 accepted. Run screening only after
+both hosted lab smoke lanes and applicable exact-head gates pass. Do not add
+optimization candidates before screen.
 
 ## Matched work and timing boundaries
 
