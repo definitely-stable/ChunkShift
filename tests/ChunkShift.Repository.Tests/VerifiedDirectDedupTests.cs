@@ -175,6 +175,109 @@ public sealed class VerifiedDirectDedupTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => writer.CompleteAsync());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DuplicateWorkloadMatchesAcceptedFiniteStagingOracle(bool blake)
+    {
+        HashSuiteId suite = blake ? HashSuiteIds.Blake3256V1 : Sha;
+        using var root = new Fixture();
+        byte[] bytes = Corpus();
+        using var source = new MemoryStream(bytes);
+        using var direct = root.Create();
+        LogicalOccurrence[] expected = await ScanAsync(bytes, suite);
+        int unique = expected.Select(o => o.Key).Distinct().Count();
+        Assert.True(unique < expected.Length);
+        await direct.BuildDeduplicatedAsync(source, suite, bytes.Length, unique, expected.Length);
+
+        string stage = Path.Combine(root.Output, "..", "stage");
+        string baselinePath = Path.Combine(root.Output, "..", "baseline");
+        using var session = new IngestSession(stage, 256 * 1024, bytes.Length, expected.Length, 1);
+        using var baseline = new PrivatePackCoordinator(baselinePath, 300 * 1024,
+            Limits, 16 * 1024 * 1024, 128);
+        var requests = new List<IngestRequest>();
+        try
+        {
+            // Slice the original immutable source array for the independent
+            // staged oracle. No direct pack bytes or direct metadata involved.
+            foreach (LogicalOccurrence occurrence in expected)
+            {
+                requests.Add(new IngestRequest(new MemoryStream(bytes, checked((int)occurrence.Offset),
+                    occurrence.Length, writable: false), occurrence.Key, occurrence.Length));
+            }
+
+            await session.IngestAsync(requests);
+            await baseline.BuildAsync(session);
+            VerifiedRawPack[] a = baseline.GetPacks();
+            VerifiedRawPack[] b = direct.GetPacks();
+            Assert.True(a.Length > 1);
+            Assert.Equal(a.Length, b.Length);
+            Assert.Equal(baseline.GetBudget(), direct.GetBudget());
+            for (int i = 0; i < a.Length; i++)
+            {
+                Assert.Equal(a[i].Descriptor.PhysicalBytes, b[i].Descriptor.PhysicalBytes);
+                Assert.Equal(a[i].Descriptor.HashSuite, b[i].Descriptor.HashSuite);
+                Assert.Equal(a[i].GetLocations(), b[i].GetLocations());
+            }
+
+            var byKey = a.SelectMany(p => p.GetLocations().Select(l =>
+                (l.Key, Pack: p.Descriptor.PackId))).ToDictionary(l => l.Key);
+            using var reconstructed = new MemoryStream();
+            foreach (LogicalOccurrence occurrence in expected)
+            {
+                byte[] payload = await baseline.ReadFrameAsync(byKey[occurrence.Key].Pack,
+                    occurrence.Key, occurrence.Length);
+                await reconstructed.WriteAsync(payload);
+            }
+
+            Assert.Equal(bytes, reconstructed.ToArray());
+            Assert.Equal(expected, direct.GetDirectSequence().GetOccurrences());
+        }
+        finally
+        {
+            foreach (IngestRequest request in requests)
+            {
+                request.Source.Dispose();
+            }
+        }
+    }
+
+    [Fact]
+    public async Task CancellationAtClosedDuplicateAbortsWithNoResult()
+    {
+        using var root = new Fixture();
+        using var source = new MemoryStream(Corpus());
+        using var cancel = new CancellationTokenSource();
+        int compared = 0;
+        using var coordinator = root.Create((boundary, _) =>
+        {
+            if (boundary == PrivatePackBoundary.BeforeClosedDuplicate)
+            {
+                compared++;
+                cancel.Cancel();
+            }
+        });
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            coordinator.BuildDeduplicatedAsync(source, Sha, source.Length, 128, 256, cancel.Token));
+        Assert.Equal(1, compared);
+        Assert.Equal(default, coordinator.GetBudget());
+        Assert.Empty(Directory.GetFiles(root.Output));
+        Assert.Throws<InvalidOperationException>(() => coordinator.GetDirectSequence());
+    }
+
+    [Fact]
+    public async Task EmptyDeduplicatedInputDoesNotCreatePack()
+    {
+        using var root = new Fixture();
+        using var source = new MemoryStream();
+        using var coordinator = new PrivatePackCoordinator(root.Output, 300 * 1024, Limits, 0, 1);
+        await coordinator.BuildDeduplicatedAsync(source, Sha, 0, 1, 1);
+        Assert.Empty(coordinator.GetPacks());
+        Assert.Empty(coordinator.GetDirectSequence().GetOccurrences());
+        Assert.Equal(default, coordinator.GetBudget());
+        Assert.False(Directory.Exists(root.Output));
+    }
+
     private static async Task<LogicalOccurrence[]> ScanAsync(byte[] bytes, HashSuiteId suite)
     {
         using var source = new MemoryStream(bytes);

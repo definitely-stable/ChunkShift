@@ -1,7 +1,6 @@
 # R1-B4a.3 — logical occurrences before verified reuse
 
-Status: unqualified child experiment of direct-to-pack at 61ff10d. No PR/CI
-until #484 and unique-only direct baseline are qualified. Not a CSM writer,
+Status: candidate for hosted qualification after #485 acceptance. Not a CSM writer,
 persistent manifest, global index, Catalog root or dedup implementation.
 
 ## Contract
