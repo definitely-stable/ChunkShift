@@ -47,7 +47,9 @@ public sealed class PrivatePackCoordinatorTests
         await coordinator.BuildAsync(session);
         VerifiedRawPack[] packs = coordinator.GetPacks();
         Assert.Equal(new long[] { 305, 736, 237 }, packs.Select(p => p.Descriptor.PhysicalBytes));
-        Assert.Equal(new[] { 2, 1, 1 }, packs.Select(p => p.Descriptor.FrameCount));
+        Assert.Equal(2, packs[0].Descriptor.FrameCount);
+        Assert.Equal(1, packs[1].Descriptor.FrameCount);
+        Assert.Equal(1, packs[2].Descriptor.FrameCount);
         Assert.Equal(session.GetEntries().Select(e => e.Key),
             packs.SelectMany(p => p.GetLocations()).Select(l => l.Key));
         Assert.Equal(new PrivatePackBudget(1278, 3, 0), coordinator.GetBudget());
