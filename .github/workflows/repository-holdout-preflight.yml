@@ -1,0 +1,49 @@
+name: Repository holdout corpus preflight
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/repository-ingest-lab/prepare_holdout.py'
+      - 'tools/repository-ingest-lab/test_prepare_holdout.py'
+      - '.github/workflows/repository-holdout-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  acquire:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.14"
+      - name: Test acquisition and member bounds
+        run: python -B -m unittest discover -s tools/repository-ingest-lab -p "test_prepare_holdout.py"
+      - name: Prepare real corpora without running candidates
+        shell: bash
+        run: |
+          python -B tools/repository-ingest-lab/prepare_holdout.py --output "$RUNNER_TEMP/holdout-preflight"
+          git rev-parse HEAD > "$RUNNER_TEMP/holdout-preflight/commit.txt"
+          cd "$RUNNER_TEMP/holdout-preflight"
+          sha256sum holdout-preflight.json release-metadata.json commit.txt > sha256.txt
+      - name: Retain provenance only (no redistributed binaries)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: repository-holdout-preflight
+          path: |
+            ${{ runner.temp }}/holdout-preflight/holdout-preflight.json
+            ${{ runner.temp }}/holdout-preflight/release-metadata.json
+            ${{ runner.temp }}/holdout-preflight/commit.txt
+            ${{ runner.temp }}/holdout-preflight/sha256.txt
+          if-no-files-found: warn
+          retention-days: 90

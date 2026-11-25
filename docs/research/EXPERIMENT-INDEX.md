@@ -58,7 +58,8 @@ This table is the human-readable research index. Machine-readable experiment def
 | REPO-INDEX-003 | Repository index/pack | #145, #144 | Direct location vs PackOrdinal+FrameOrdinal indirection | PLANNED | — |
 | REPO-INDEX-004 | Repository index | #145 | NoFilter/Bloom/Binary Fuse/Ribbon L0 bake-off | PLANNED | — |
 | REPO-INGEST-001 | Repository ingest | #133, #144, #10 | Matched finite staging vs direct verified ingestion screening | EVIDENCE_READY | [EVIDENCE-20261126-001](results/REPO-INGEST-001-EVIDENCE-20261126-001.md) — SCREEN_ONLY; default DEFER |
-| REPO-INGEST-002 | Repository ingest | #133, #144, #10 | Source-range staging adapter sensitivity (A/D/C) | PLANNED | — |
+| REPO-INGEST-002 | Repository ingest | #133, #144, #10 | Source-range staging adapter sensitivity (A/D/C) | EVIDENCE_READY | [EVIDENCE-20261126-001](results/REPO-INGEST-002-EVIDENCE-20261126-001.md) — SCREEN_ONLY; default DEFER |
+| REPO-INGEST-003 | Repository ingest | #133, #144, #10 | Independent real/versioned artifact holdout (D/C) | PLANNED | [Acquisition and proposed rule](../architecture/REPOSITORY-R1B4E-HOLDOUT-PREFLIGHT-20261126.md) |
 | REPO-PACK-001 | Repository pack | #144, #145 | FrameDirectory and compressed monotone offsets | PLANNED | — |
 | REPO-COMP-001 | Repository compression | #138, #144 | Seekable/bounded logical-chunk compression groups | PLANNED | — |
 | REPO-COMP-002 | Repository compression | #138 | Dictionary aging / version holdout | PLANNED | — |
