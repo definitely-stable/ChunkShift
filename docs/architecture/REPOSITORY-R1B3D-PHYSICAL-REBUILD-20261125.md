@@ -1,6 +1,6 @@
 # R1-B3d — independent physical location rebuild (P0)
 
-Status: candidate; #482 accepted, refreshed #483 combined-head acceptance pending. Owners #144/#133/#10.
+Status: candidate; #482 and #483 accepted; fresh main-target CI required. Owners #144/#133/#10.
 This is the packs-alone correctness baseline, not GlobalIndex (#145), Catalog
 recovery, durable publication, or a Pack v1 freeze.
 
@@ -53,10 +53,7 @@ serialized pack files, dispose staging and original private coordinator,
 rebuild solely from copied files, compare exact original physical multiset.
 Pre-cancelled and empty candidate sets covered.
 
-CI-first: this stacked candidate deliberately targets #483 branch until
-parents accepted, because Heavy validation has a repo-wide concurrency group
-with only one pending run; retarget to main and requalify on fresh combined
-head after #483 acceptance. No workflow gate is disabled.
+CI-first: #482 and #483 are accepted; retarget to main and qualify the combined head. No workflow gate is disabled. No workflow gate is disabled.
 
 Next: accept writer/reader/coordinator and rebuild, then R1-B4a verified
 owned-memory/direct append comparisons. Start R1-C crash/durability probes
