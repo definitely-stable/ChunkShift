@@ -1,6 +1,6 @@
 # Repository R0 — architecture, publication and evidence preflight
 
-Status: **R0 accepted (#475); R0.1 model corrections pending exact-head CI; not a Pack v1 or public API freeze**  
+Status: **R0 accepted (#475); R0.1 model corrections accepted (#478); not a Pack v1 or public API freeze**  
 Date: 2026-11-24  
 Owners: [#10](https://github.com/definitely-stable/ChunkShift/issues/10), [#133](https://github.com/definitely-stable/ChunkShift/issues/133), [#144](https://github.com/definitely-stable/ChunkShift/issues/144), [#145](https://github.com/definitely-stable/ChunkShift/issues/145)  
 Higher authority: [RFC-0001 §12](RFC-0001-target-architecture-2026.md), [PLAN.md](../../PLAN.md), [ROADMAP.md](../../ROADMAP.md).
@@ -119,6 +119,8 @@ All decisions use source-locked deterministic corpora, fixed environment metadat
 After R0 is accepted, **next production code**: #133 pack-independent bounded ingest and real SHA-256/BLAKE3 verification with injected failures. R0 neither closes #133 nor freezes Pack v1. No physical device, TV or phone is required: GitHub-hosted CI is the acceptance venue.
 
 ## R0.1 review corrections
+
+Exact head `ee826e7fb8a5cdb39944a711e5d5ec72b31f61aa`: [CI](https://github.com/definitely-stable/ChunkShift/actions/runs/45489323577), [Heavy](https://github.com/definitely-stable/ChunkShift/actions/runs/45489323930), [CodeQL](https://github.com/definitely-stable/ChunkShift/actions/runs/45489323574), [R0.1](https://github.com/definitely-stable/ChunkShift/actions/runs/45489323582) PASS; Repository 55/55 on Windows/Linux x64/ARM64, model 16/16 on Windows/Linux. Merge `463b53b99ec80d5b16be311f7e3a2100cfd09b5f`.
 
 Model-only used-PackId history rejects physical identity reuse after GC/restart.
 Same-key reconciliation compares symbolic fingerprint and declared length;

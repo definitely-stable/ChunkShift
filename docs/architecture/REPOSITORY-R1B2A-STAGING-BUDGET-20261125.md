@@ -1,6 +1,7 @@
 # REPO-133 / R1-B2a — aggregate staging admission
 
-Status: **Candidate — exact-head CI and review required**
+Status: **ACCEPTED in #478 (including hardening)**
+Exact head `ee826e7fb8a5cdb39944a711e5d5ec72b31f61aa`: [CI](https://github.com/definitely-stable/ChunkShift/actions/runs/45489323577), [Heavy](https://github.com/definitely-stable/ChunkShift/actions/runs/45489323930), [CodeQL](https://github.com/definitely-stable/ChunkShift/actions/runs/45489323574), [R0.1](https://github.com/definitely-stable/ChunkShift/actions/runs/45489323582) PASS; Repository 55/55 on Windows/Linux x64/ARM64, model 16/16 on Windows/Linux. Merge `463b53b99ec80d5b16be311f7e3a2100cfd09b5f`.
 Owners: #133 / #10. R1-B1 accepted in #477.
 
 ## Contract
