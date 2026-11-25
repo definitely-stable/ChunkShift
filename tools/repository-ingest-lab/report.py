@@ -35,13 +35,16 @@ def inventory(root):
         require(digest(root / name) == sha, f"checksum mismatch: {name}")
 
 
-def expected_schedule(rounds):
+def expected_schedule(rounds, range_sensitivity=False):
     for family in ("unique", "recent", "cross"):
         for suite in ("sha256", "blake3"):
-            candidates = "ABC" if family == "unique" else "AC"
+            candidates = "ADC" if range_sensitivity else ("ABC" if family == "unique" else "AC")
             for round_no in range(rounds + 1):
                 shift = round_no % len(candidates)
-                for order, candidate in enumerate(candidates[shift:] + candidates[:shift]):
+                sequence = candidates[shift:] + candidates[:shift]
+                if range_sensitivity:
+                    sequence = ("ADC", "DCA", "CAD", "ACD", "CDA", "DAC")[(round_no - 1) % 6] if round_no else "ADC"
+                for order, candidate in enumerate(sequence):
                     yield family, suite, round_no, order, candidate
 
 
@@ -49,13 +52,13 @@ def spread(values):
     return dict(median=statistics.median(values), minimum=min(values), maximum=max(values))
 
 
-def summarize(rows, rounds):
+def summarize(rows, rounds, range_sensitivity=False):
     groups = []
     for family in ("unique", "recent", "cross"):
         for suite in ("sha256", "blake3"):
             all_rows = [r for r in rows if r["family"] == family and r["suite"] == suite]
             measured = [r for r in all_rows if not r["warmup"]]
-            candidates = "ABC" if family == "unique" else "AC"
+            candidates = "ADC" if range_sensitivity else ("ABC" if family == "unique" else "AC")
             by_pair = {(r["round"], r["candidate"]): r for r in measured}
             require(len(by_pair) == len(measured) == rounds * len(candidates),
                     "missing or duplicated measured pairs")
@@ -65,7 +68,9 @@ def summarize(rows, rounds):
                 values[candidate] = {key: spread([r[key] for r in series]) for key in METRICS}
             pairs = {}
             comparisons = [("A", "C")]
-            if family == "unique":
+            if range_sensitivity:
+                comparisons.extend([("A", "D"), ("D", "C")])
+            elif family == "unique":
                 comparisons.extend([("A", "B"), ("B", "C")])
             for baseline, candidate in comparisons:
                 ratios = [by_pair[(i, baseline)]["wall_ms_ready"] /
@@ -93,7 +98,8 @@ def audit(root, lock_path, commit):
     for key in ("mib", "target_mib", "rounds", "seed"):
         require(manifest[key] == lock[key], f"manifest parameter mismatch: {key}")
     rows = [json.loads(line) for line in (root / "samples.jsonl").read_text(encoding="utf-8").splitlines()]
-    schedule = list(expected_schedule(lock["rounds"]))
+    range_sensitivity = lock["experiment"] == "REPO-INGEST-002"
+    schedule = list(expected_schedule(lock["rounds"], range_sensitivity))
     require(len(rows) == len(schedule) == lock["samples_per_lane"], "incomplete matrix")
     require(sum(r["warmup"] is True for r in rows) == lock["warmup_per_lane"], "wrong warmup count")
     signatures = {}
@@ -121,7 +127,7 @@ def audit(root, lock_path, commit):
                 decision="SCREEN_ONLY", sdk=manifest["sdk"], environment=list(environment)[0],
                 raw_samples=len(rows), warmups=lock["warmup_per_lane"],
                 measured_samples=lock["measured_per_lane"],
-                groups=summarize(rows, lock["rounds"]))
+                groups=summarize(rows, lock["rounds"], range_sensitivity))
 
 
 def main():
@@ -129,8 +135,9 @@ def main():
     p.add_argument("--raw", type=Path, required=True)
     p.add_argument("--commit", required=True)
     p.add_argument("--summary", type=Path, required=True)
+    p.add_argument("--range-sensitivity", action="store_true")
     args = p.parse_args()
-    result = audit(args.raw, Path(__file__).with_name("screen-lock.json"), args.commit)
+    result = audit(args.raw, Path(__file__).with_name("range-screen-lock.json" if args.range_sensitivity else "screen-lock.json"), args.commit)
     with args.summary.open("x", encoding="utf-8") as out:
         json.dump(result, out, indent=2, allow_nan=False)
     print(f"Screen audit PASS: {result['raw_samples']} raw, {result['measured_samples']} measured; SCREEN_ONLY")

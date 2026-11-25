@@ -49,12 +49,14 @@ def main():
     p.add_argument("--run-id", required=True, help="Assigned REPO-INGEST-001/RUN-YYYYMMDD-NNN-shortcommit-platform")
     p.add_argument("--timeout", type=int, default=600)
     p.add_argument("--screen-lock", action="store_true", help="Require frozen full-screen parameters and corpus hashes")
+    p.add_argument("--range-sensitivity", action="store_true", help="A/D/C sensitivity, distinct experiment")
     args = p.parse_args()
     if not 4 <= args.mib <= 256 or args.mib % 4 or not 1 <= args.target_mib <= 128:
         p.error("mib must be divisible by 4 in [4,256]; target-mib in [1,128]")
     if not 1 <= args.rounds <= 30 or not 1 <= args.timeout <= 1800:
         p.error("rounds/timeout out of bounds")
-    lock_path = Path(__file__).with_name("screen-lock.json")
+    experiment = "REPO-INGEST-002" if args.range_sensitivity else "REPO-INGEST-001"
+    lock_path = Path(__file__).with_name("range-screen-lock.json" if args.range_sensitivity else "screen-lock.json")
     locked = json.loads(lock_path.read_text(encoding="utf-8")) if args.screen_lock else None
     if locked is not None and any(getattr(args, key) != locked[key] for key in ("mib", "target_mib", "rounds", "seed")):
         p.error("screen parameters differ from frozen lock")
@@ -64,14 +66,14 @@ def main():
     if run(["git", "status", "--porcelain"]):
         raise SystemExit("dirty source tree; refusing evidence run")
     commit = run(["git", "rev-parse", "HEAD"])
-    if not re.fullmatch(r"REPO-INGEST-001/RUN-\d{8}-\d{3,}-[0-9a-f]{7,40}-[a-z0-9-]+", args.run_id):
+    if not re.fullmatch(rf"{experiment}/RUN-\d{{8}}-\d{{3,}}-[0-9a-f]{{7,40}}-[a-z0-9-]+", args.run_id):
         p.error("invalid evidence registry RunId")
     # The regex above validates structure; bind the embedded commit explicitly.
     short = re.search(r"/RUN-\d{8}-\d{3,}-([0-9a-f]{7,40})-", args.run_id).group(1)
     if not commit.startswith(short):
         p.error("RunId commit does not match HEAD")
     output.mkdir(parents=True, exist_ok=False)
-    meta = dict(experiment="REPO-INGEST-001", run_id=args.run_id, commit=commit, dirty=False,
+    meta = dict(experiment=experiment, run_id=args.run_id, commit=commit, dirty=False,
                 started_utc=dt.datetime.now(dt.timezone.utc).isoformat(),
                 github_run_id=os.getenv("GITHUB_RUN_ID"), github_run_attempt=os.getenv("GITHUB_RUN_ATTEMPT"),
                 runner_image=os.getenv("ImageOS"), runner_image_version=os.getenv("ImageVersion"),
@@ -82,6 +84,7 @@ def main():
                 protocol_sha256=digest(Path(__file__)),
                 validator_sha256=digest(Path(__file__).with_name("validate.py")),
                 executable_source_sha256=digest(PROJECT.parent / "Program.cs"),
+                range_source_sha256=digest(PROJECT.parent / "SourceRangeStream.cs"),
                 definition_sha256=digest(ROOT / "docs/architecture/REPOSITORY-R1B4E-INGEST-EVIDENCE-PROTOCOL-20261125.md"),
                 command=sys.argv,
                 private_storage_path=str(output / "private"),
@@ -89,9 +92,17 @@ def main():
                 cache="uncontrolled; common post-ready oracle and paired order", isolation="one child per sample")
     (output / "manifest.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     try:
-        with (output / "build.log").open("w", encoding="utf-8") as log:
-            subprocess.run(["dotnet", "build", str(PROJECT), "-c", "Release"], cwd=ROOT,
-                           stdout=log, stderr=subprocess.STDOUT, check=True)
+        build_log = output / "build.log"
+        try:
+            with build_log.open("w", encoding="utf-8") as log:
+                subprocess.run(["dotnet", "build", str(PROJECT), "-c", "Release"], cwd=ROOT,
+                               stdout=log, stderr=subprocess.STDOUT, check=True)
+        except subprocess.CalledProcessError:
+            # Surface compiler/analyzer diagnostics directly in the job log.
+            # Preserve the complete original file and fail with the same error.
+            print(build_log.read_text(encoding="utf-8", errors="replace")[-16000:],
+                  file=sys.stderr, flush=True)
+            raise
         private = output / "private"
         private.mkdir()
         sample_id = 0
@@ -102,11 +113,14 @@ def main():
                 if locked is not None and source_hash != locked["families"][family]:
                     raise SystemExit("STOP: generated source differs from preregistered digest")
                 for suite in ("sha256", "blake3"):
-                    order = "ABC" if family == "unique" else "AC"
+                    order = "ADC" if args.range_sensitivity else ("ABC" if family == "unique" else "AC")
                     reference = None
                     for round_no in range(args.rounds + 1):
                         shift = round_no % len(order)
-                        for position, candidate in enumerate(order[shift:] + order[:shift]):
+                        sequence = order[shift:] + order[:shift]
+                        if args.range_sensitivity:
+                            sequence = ("ADC", "DCA", "CAD", "ACD", "CDA", "DAC")[(round_no - 1) % 6] if round_no else "ADC"
+                        for position, candidate in enumerate(sequence):
                             sample_id += 1
                             record = dict(sample_id=sample_id, family=family, suite=suite,
                                           candidate=candidate, corpus_sha256=source_hash,

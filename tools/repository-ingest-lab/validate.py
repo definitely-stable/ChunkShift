@@ -51,14 +51,17 @@ def validate(result, candidate, suite, family, source_hash, source_bytes, target
             raise ValueError("unique corpus contains duplicate chunks")
     elif n == u or payload == logical:
         raise ValueError("duplicate corpus did not produce CDC reuse")
-    if candidate == "A":
+    if candidate in ("A", "D"):
         if (result["stage_files_completed"] != n or
                 result["modeled_stage_payload_bytes"] != logical or
-                result["modeled_request_copy_bytes"] != logical):
+                result["modeled_request_copy_bytes"] != (logical if candidate == "A" else 0)):
             raise ValueError("staging accounting mismatch")
     elif any(result[k] != 0 for k in ("stage_files_completed",
                                       "modeled_stage_payload_bytes", "modeled_request_copy_bytes")):
         raise ValueError("unexpected staging in direct path")
+    range_bytes = result.get("range_source_read_bytes", 0)
+    if type(range_bytes) is not int or range_bytes != (logical if candidate == "D" else 0):
+        raise ValueError("range source read accounting mismatch")
     if candidate == "C":
         if active + closed != n - u or result["modeled_duplicate_comparison_bytes"] != logical - payload:
             raise ValueError("duplicate accounting mismatch")

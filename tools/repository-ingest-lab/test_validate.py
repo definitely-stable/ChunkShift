@@ -70,6 +70,18 @@ class ValidationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.check(self.result, candidate="A")
 
+    def test_range_staging_accounting(self):
+        self.result.update(candidate="D", stage_files_completed=4,
+                           modeled_stage_payload_bytes=1024, modeled_request_copy_bytes=0,
+                           range_source_read_bytes=1024, active_duplicate_count=0,
+                           closed_duplicate_count=0, modeled_duplicate_comparison_bytes=0)
+        self.check(self.result, candidate="D")
+        for key, value in (("range_source_read_bytes", 0), ("modeled_request_copy_bytes", 1024)):
+            record = copy.copy(self.result)
+            record[key] = value
+            with self.assertRaises(ValueError):
+                self.check(record, candidate="D")
+
 
 if __name__ == "__main__":
     unittest.main()

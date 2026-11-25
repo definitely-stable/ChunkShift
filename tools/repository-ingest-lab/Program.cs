@@ -6,18 +6,25 @@ using System.Text.Json;
 using ChunkShift;
 using ChunkShift.Primitives;
 using ChunkShift.Repository;
+using ChunkShift.Repository.IngestLab;
 
 internal static class Program
 {
     private const int MiB = 1024 * 1024;
     private static async Task<int> Main(string[] args)
     {
-        if (args.Length != 6 || args[0] is not ("A" or "B" or "C") ||
+        if (args is ["--range-self-test"])
+        {
+            await RangeSelfTest.RunAsync().ConfigureAwait(false);
+            return 0;
+        }
+
+        if (args.Length != 6 || args[0] is not ("A" or "B" or "C" or "D") ||
             args[1] is not ("sha256" or "blake3") ||
             !int.TryParse(args[2], NumberStyles.None, CultureInfo.InvariantCulture, out int targetMiB) ||
             targetMiB is < 1 or > 128)
         {
-            Console.Error.WriteLine("Usage: A|B|C sha256|blake3 targetMiB source expectedSha256 privateParent");
+            Console.Error.WriteLine("Usage: A|B|C|D sha256|blake3 targetMiB source expectedSha256 privateParent");
             return 2;
         }
 
@@ -61,6 +68,8 @@ internal static class Program
         int active = 0;
         int closed = 0;
         int stagedFiles = 0;
+        long rangeReadBytes = 0;
+        bool staged = mode is "A" or "D";
         using var coordinator = new PrivatePackCoordinator(packPath, (long)targetMiB * MiB,
             limits, totalCap, cap, (boundary, _) =>
             {
@@ -77,20 +86,42 @@ internal static class Program
         var watch = Stopwatch.StartNew();
         using (var source = OpenSource(path))
         {
-            if (mode == "A")
+            if (staged)
             {
                 try
                 {
                     await ChunkScanner.ScanAsync(source, (chunk, content, _) =>
                     {
                         var key = new ChunkObjectKey(suite, chunk.Id);
-                        if (requests.Count == cap) throw new InvalidDataException("Request cap exceeded.");
+                        if (stagedSequence.Count == cap) throw new InvalidDataException("Request cap exceeded.");
                         stagedSequence.Add(new LogicalOccurrence(chunk.Index, chunk.Offset, key, chunk.Length));
-                        requests.Add(new IngestRequest(new MemoryStream(content.ToArray(), writable: false),
-                            key, chunk.Length));
+                        if (mode == "A")
+                        {
+                            requests.Add(new IngestRequest(new MemoryStream(content.ToArray(), writable: false),
+                                key, chunk.Length));
+                        }
                         return ValueTask.CompletedTask;
                     }, new ChunkScanOptions { HashSuite = suite }).ConfigureAwait(false);
+                    if (mode == "D")
+                    {
+                        // Bind all independent range views to this exact open
+                        // source after scanning; no path reopen or payload-wide copy.
+                        var handle = source.SafeFileHandle;
+                        Require(RandomAccess.GetLength(handle) == length, "Source length changed after scan.");
+                        foreach (LogicalOccurrence occurrence in stagedSequence)
+                        {
+                            requests.Add(new IngestRequest(new SourceRangeStream(handle, length,
+                                occurrence.Offset, occurrence.Length), occurrence.Key, occurrence.Length));
+                        }
+                    }
+
                     await session.IngestAsync(requests).ConfigureAwait(false);
+                    if (mode == "D")
+                    {
+                        rangeReadBytes = requests.Sum(r => (long)((SourceRangeStream)r.Source).ConsumedBytes);
+                        Require(rangeReadBytes == length && RandomAccess.GetLength(source.SafeFileHandle) == length,
+                            "Range source accounting or extent mismatch.");
+                    }
                 }
                 finally
                 {
@@ -115,7 +146,7 @@ internal static class Program
         long allocated = GC.GetTotalAllocatedBytes(precise: true) - startAlloc;
         process.Refresh();
         long peakAtReady = process.PeakWorkingSet64;
-        LogicalOccurrence[] actual = mode == "A" ? stagedSequence.ToArray() :
+        LogicalOccurrence[] actual = staged ? stagedSequence.ToArray() :
             coordinator.GetDirectSequence().GetOccurrences();
 
         // Common post-timing oracle, not a substitute for timed integrity checks.
@@ -137,7 +168,7 @@ internal static class Program
         int duplicates = actual.Length - unique.Count;
         Require(mode != "B" || duplicates == 0, "Unique-only mode has duplicates.");
         Require(mode != "C" || active + closed == duplicates, "Duplicate checkpoint count mismatch.");
-        Require(mode != "A" || stagedFiles == actual.Length, "Staging file count mismatch.");
+        Require(!staged || stagedFiles == actual.Length, "Staging file count mismatch.");
 
         VerifiedRawPack[] packs = coordinator.GetPacks();
         var locations = packs.SelectMany(p => p.GetLocations().Select(l =>
@@ -212,7 +243,8 @@ internal static class Program
             wall_ms_ready = readyMs, cpu_ms_ready = cpuMs, allocated_bytes_delta_ready = allocated,
             process_peak_working_set_bytes_at_ready = peakAtReady,
             stage_files_completed = stagedFiles,
-            modeled_stage_payload_bytes = mode == "A" ? length : 0,
+            modeled_stage_payload_bytes = staged ? length : 0,
+            range_source_read_bytes = rangeReadBytes,
             modeled_request_copy_bytes = mode == "A" ? length : 0,
             active_duplicate_count = active, closed_duplicate_count = closed,
             modeled_duplicate_comparison_bytes = mode == "C" ? length - uniqueBytes : 0,

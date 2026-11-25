@@ -43,3 +43,15 @@ and report.py. Only descriptive paired results, no adoption decision.
 ## Frozen screening
 
 `screen-lock.json` binds parameters and corpus SHA-256 before timing; `run.py --screen-lock` fails closed on any mismatch. `report.py` independently checks the exact inventory, schedule, stdout/JSONL agreement and all sample contracts, then emits five paired Ready ratios (baseline/candidate) per applicable comparison, median/range and per-candidate metrics. Warmups excluded. Workflow uses one isolated job per platform, no same-runner simultaneous samples. No inference or holdout promotion. Raw data retained even on failure.
+
+## Range staging sensitivity (REPO-INGEST-002)
+
+Candidate D = A′, one source handle, independent forward-only positional views,
+no payload-wide materialization, same accepted IngestSession and pack coordinator.
+D rereads all logical bytes after scan; actual range read count separately recorded.
+A/D/C paired on all three original corpus families and both suites. Six measured
+rounds cover all permutations, 126 samples/lane (108 measured, 18 warmup).
+First run hosted 36-sample/lane correctness smoke plus range self-test; no full
+screen before acceptance. `--range-sensitivity --screen-lock --rounds 6` selects
+separate frozen lock, RunId REPO-INGEST-002. `report.py --range-sensitivity` audits
+that full dataset; original REPO-INGEST-001 format remains readable.

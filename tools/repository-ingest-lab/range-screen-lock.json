@@ -1,0 +1,26 @@
+{
+  "experiment": "REPO-INGEST-002",
+  "phase": "screening",
+  "mib": 128,
+  "target_mib": 32,
+  "rounds": 6,
+  "seed": 144,
+  "suites": [
+    "sha256",
+    "blake3"
+  ],
+  "families": {
+    "unique": "27df71219827bfb51949cc9edfcde370caacaf0e39d847891b6175d47a0a6422",
+    "recent": "25f969d6444623ba6f21939642e2d44bb0130d2c7248267d8df683e9b1c1a9cf",
+    "cross": "3be0ba8843b1e555cddaac82c7973d539b4f3e7e0965148ef2b5e1cb93e756fc"
+  },
+  "samples_per_lane": 126,
+  "warmup_per_lane": 18,
+  "measured_per_lane": 108,
+  "decision": "SCREEN_ONLY",
+  "candidates": [
+    "A",
+    "D",
+    "C"
+  ]
+}

@@ -37,6 +37,31 @@ class ReportTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             summarize(rows[:-1], 5)
 
+    def test_range_schedule_balanced(self):
+        rows = list(expected_schedule(6, True))
+        self.assertEqual(126, len(rows))
+        self.assertEqual(18, sum(r[2] == 0 for r in rows))
+        for candidate in "ADC":
+            for position in range(3):
+                self.assertEqual(2, sum(r[:2] == ("unique", "sha256") and r[2] > 0
+                                        and r[3:] == (position, candidate) for r in rows))
+        self.assertEqual(36, len(list(expected_schedule(1, True))))
+
+    def test_range_pairing(self):
+        rows = []
+        for family, suite, round_no, order, candidate in expected_schedule(6, True):
+            metrics = {key: 10 for key in METRICS}
+            metrics["wall_ms_ready"] = 10000 if round_no == 0 else {"A": 30, "D": 20, "C": 10}[candidate]
+            rows.append(dict(family=family, suite=suite, round=round_no, candidate=candidate,
+                             warmup=round_no == 0, corpus_sha256="a", layout_sha256="b",
+                             logical_bytes=100, logical_occurrences=10, unique_payload_bytes=100,
+                             unique_frames=10, pack_bytes=948, pack_count=1,
+                             active_duplicate_count=0, closed_duplicate_count=0, **metrics))
+        summary = summarize(rows, 6, True)
+        self.assertEqual(6, len(summary))
+        self.assertEqual([1.5] * 6, summary[0]["paired_ready_speedup"]["A/D"]["round_ratios"])
+        self.assertEqual([2] * 6, summary[0]["paired_ready_speedup"]["D/C"]["round_ratios"])
+
 
 if __name__ == "__main__":
     unittest.main()
