@@ -1,7 +1,6 @@
 # R1-B4a.2-A — incremental admission for direct pack ingestion
 
-Status: isolated unqualified experiment, no PR/CI yet. Depends on accepted
-physical foundation and borrowed append qualification. Not a coordinator.
+Status: candidate for hosted qualification alongside borrowed append. Physical foundation accepted. Not a coordinator.
 
 Unknown-length sources cannot preflight every frame before reading. The serial
 owner must reserve each unique chunk before appending; earlier closed packs
