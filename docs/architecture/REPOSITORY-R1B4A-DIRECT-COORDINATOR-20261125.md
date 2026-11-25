@@ -1,7 +1,6 @@
 # R1-B4a.2-B/C/D — direct multi-pack candidate
 
-Status: isolated unqualified experiment after #483 accepted; #484 acceptance
-and exact-head CI required before merging. No performance or durability claim.
+Status: candidate for hosted qualification after #484 acceptance; exact-head CI required before merging. No performance or durability claim.
 
 ## Decision
 

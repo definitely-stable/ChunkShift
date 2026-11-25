@@ -1,7 +1,6 @@
 # R1-B4a.1 — borrowed-memory direct append research candidate
 
-Status: unqualified experiment branch, no PR until physical baseline gates
-#482/#483/#484 are accepted. Not a production default or performance claim.
+Status: candidate for hosted qualification; physical baseline #482/#483/#484 accepted. Not a production default or performance claim.
 
 ## Source audit at main 15a492130ff890d3cc64e284df59b6c9617c3895
 
