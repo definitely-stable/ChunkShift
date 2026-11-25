@@ -1,6 +1,6 @@
 # R1-B4e — preregistered serial ingestion screening protocol
 
-Status: full first-screen definition frozen after #488 smoke acceptance; no full-screen results yet. Exact source hashes and parameters in tools/repository-ingest-lab/screen-lock.json. Correctness prerequisites #485–#488 accepted. Screening only; no adoption/holdout rule frozen. Do not add optimization candidates before screen.
+Status: first screen completed and independently audited; [reviewed evidence](../research/results/REPO-INGEST-001-EVIDENCE-20261126-001.md). SCREEN_ONLY; default DEFER. Exact source hashes and parameters in tools/repository-ingest-lab/screen-lock.json. Correctness prerequisites #485–#488 accepted. Screening only; no adoption/holdout rule frozen. Next isolate staging materialization cost with bounded source-range sensitivity before frozen holdout; no cache/worker candidate without measured evidence.
 
 ## Matched work and timing boundaries
 
