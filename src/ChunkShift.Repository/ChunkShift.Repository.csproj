@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="ChunkShift.Repository.Tests" />
+    <InternalsVisibleTo Include="ChunkShift.Repository.IngestLab" />
     <ProjectReference Include="..\ChunkShift\ChunkShift.csproj" />
     <PackageReference Include="Blake3" />
   </ItemGroup>
