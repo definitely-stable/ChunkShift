@@ -1,6 +1,6 @@
 # R1-B4a.2-B/C/D — direct multi-pack candidate
 
-Status: candidate for hosted qualification after #484 acceptance; exact-head CI required before merging. No performance or durability claim.
+Status: **ACCEPTED in #485; unique-only correctness path**. Exact head `9f1d3cacbdb777f4880f4f68392c9c095f7840c4`; [CI](https://github.com/definitely-stable/ChunkShift/actions/runs/45621107752), [Heavy](https://github.com/definitely-stable/ChunkShift/actions/runs/45621107537), [CodeQL](https://github.com/definitely-stable/ChunkShift/actions/runs/45621107949) PASS; Repository 198/198 all platforms, Windows 3696/3696, both package smokes. Merge `141301f716c043346aa4d9d102c4834163ea3bd8`. No performance or durability claim.
 
 ## Decision
 

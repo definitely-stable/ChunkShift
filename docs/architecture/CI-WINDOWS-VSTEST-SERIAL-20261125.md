@@ -1,6 +1,6 @@
 # Hosted Windows VSTest startup reliability — 2026-11-25
 
-Status: mitigation candidate in #485, not a proven root-cause fix.
+Status: accepted mitigation in #485, not a proven root-cause fix. New exact head `9f1d3cacbdb777f4880f4f68392c9c095f7840c4` passed full CI #45621107752, Windows job 139229171924: 3696/3696, five TRX reports, sequential starts after preceding assembly PASS (13:12:37–13:14:26 UTC). Both package smoke jobs, Heavy and CodeQL PASS. Observe subsequent runs; one successful run does not establish long-term stability.
 
 Exact #485 head 4fe6db3c3e4b161051918ce6081a0be211b3761e:
 CI run 45616661901 Windows original job 139213708144 and retry

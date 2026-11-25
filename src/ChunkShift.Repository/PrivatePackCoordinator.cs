@@ -19,6 +19,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
     private readonly Action<PrivatePackBoundary, string>? _checkpoint;
     private readonly List<OwnedPack> _owned = new();
     private State _state;
+    private DirectLogicalSequence? _directSequence;
 
     internal PrivatePackCoordinator(string directory, long targetPhysicalBytes,
         RawPackReadLimits limits, long maximumTotalBytes, int maximumPacks,
@@ -102,12 +103,18 @@ internal sealed class PrivatePackCoordinator : IDisposable
     /// the entire set rather than granting unverified deduplication.
     /// </summary>
     internal Task BuildDirectAsync(Stream source, HashSuiteId suite, long maximumLogicalBytes,
-        int maximumUniqueChunks, CancellationToken cancellationToken = default)
+        int maximumUniqueChunks, CancellationToken cancellationToken = default) =>
+        BuildDirectAsync(source, suite, maximumLogicalBytes, maximumUniqueChunks,
+            maximumUniqueChunks, cancellationToken);
+
+    internal Task BuildDirectAsync(Stream source, HashSuiteId suite, long maximumLogicalBytes,
+        int maximumUniqueChunks, int maximumOccurrences, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(suite);
         ArgumentOutOfRangeException.ThrowIfNegative(maximumLogicalBytes);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumUniqueChunks);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumOccurrences);
         if (!source.CanRead)
         {
             throw new ArgumentException("Source must be readable.", nameof(source));
@@ -115,7 +122,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
 
         _ = RawPackWire.SuiteCode(suite);
         return BuildCoreAsync(ct => BuildDirectCoreAsync(source, suite, maximumLogicalBytes,
-            maximumUniqueChunks, ct), cancellationToken);
+            maximumUniqueChunks, maximumOccurrences, ct), cancellationToken);
     }
 
     private async Task BuildCoreAsync(Func<CancellationToken, Task> build, CancellationToken cancellationToken)
@@ -172,7 +179,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
     }
 
     private async Task BuildDirectCoreAsync(Stream source, HashSuiteId suite, long maximumLogicalBytes,
-        int maximumUniqueChunks, CancellationToken ct)
+        int maximumUniqueChunks, int maximumOccurrences, CancellationToken ct)
     {
         EnsureEmptyDirectory();
         var ledger = new IncrementalRawPackAdmission(_targetPhysicalBytes, _limits,
@@ -181,8 +188,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
         var entries = new List<IngestEntry>();
         OwnedPack? current = null;
         PrivateRawPackWriter? writer = null;
-        long logicalOffset = 0;
-        long logicalIndex = 0;
+        var sequence = new LogicalOccurrenceBuilder(maximumLogicalBytes, maximumOccurrences);
         try
         {
             await ChunkScanner.ScanAsync(source, ConsumeAsync,
@@ -196,10 +202,12 @@ internal sealed class PrivatePackCoordinator : IDisposable
             }
 
             if (physical != ledger.Budget.PhysicalBytes || _owned.Count != ledger.Budget.Packs ||
-                logicalOffset != ledger.Budget.LogicalBytes || logicalIndex != ledger.Budget.UniqueChunks)
+                sequence.LogicalBytes != ledger.Budget.LogicalBytes || sequence.Count != ledger.Budget.UniqueChunks)
             {
                 throw new InvalidOperationException("Direct build diverged from incremental budget.");
             }
+
+            _directSequence = sequence.Seal(_owned.Select(p => p.Verified!).ToArray(), ct);
         }
         finally
         {
@@ -211,14 +219,16 @@ internal sealed class PrivatePackCoordinator : IDisposable
         async ValueTask ConsumeAsync(ChunkInfo chunk, ReadOnlyMemory<byte> content, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
-            if (chunk.Index != logicalIndex || chunk.Offset != logicalOffset ||
-                chunk.Length != content.Length || content.IsEmpty)
+            if (chunk.Length != content.Length || content.IsEmpty)
             {
                 throw new InvalidDataException("Unexpected Core chunk sequence.");
             }
 
             var key = new ChunkObjectKey(suite, chunk.Id);
             IncrementalPackReservation reservation = ledger.ReserveUnique(key, content.Length);
+            // Preserve the existing unique-ledger rejection contract. A later
+            // occurrence refusal aborts this whole session; no file work yet.
+            sequence.CheckNext(chunk.Index, chunk.Offset, key, content.Length);
             if (reservation.StartsNewPack)
             {
                 // The borrowed buffer remains live across close/readback:
@@ -255,8 +265,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
             RawPackPlacement placement = await writer!.AppendMemoryAsync(content, key, token).ConfigureAwait(false);
             EnsureAppended(placement);
             entries.Add(new IngestEntry(key, content.Length));
-            logicalIndex = checked(logicalIndex + 1);
-            logicalOffset = checked(logicalOffset + content.Length);
+            sequence.AppendAccepted(chunk.Index, chunk.Offset, key, content.Length);
         }
 
         async Task FinishCurrentAsync(CancellationToken token)
@@ -427,6 +436,15 @@ internal sealed class PrivatePackCoordinator : IDisposable
         _checkpoint?.Invoke(PrivatePackBoundary.AfterVerified, pack.Path);
     }
 
+    internal DirectLogicalSequence GetDirectSequence()
+    {
+        lock (_gate)
+        {
+            EnsureReady();
+            return _directSequence ?? throw new InvalidOperationException("Not a direct scan.");
+        }
+    }
+
     internal VerifiedRawPack[] GetPacks()
     {
         lock (_gate)
@@ -507,6 +525,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
         lock (_gate)
         {
             _state = State.Faulted;
+            _directSequence = null;
             return Cleanup();
         }
     }
@@ -561,6 +580,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
         {
             EnsureIdle();
             _state = State.Disposed;
+            _directSequence = null;
             List<Exception>? failures = Cleanup();
             if (failures is not null)
             {
