@@ -57,30 +57,10 @@ internal sealed class PrivateRawPackWriter : IDisposable
             throw new ArgumentException("Source must be independently readable.", nameof(source));
         }
 
-        RawPackPlacement placement;
-        lock (_gate)
+        RawPackPlacement placement = BeginAppend(key, length, cancellationToken);
+        if (placement is not (RawPackPlacement.Append or RawPackPlacement.AppendDedicated))
         {
-            EnsureBuilding();
-            cancellationToken.ThrowIfCancellationRequested();
-            // This writer's suite is fixed even before the first frame.
-            placement = _policy.Evaluate(_frames.Count == 0 ? null : _suite,
-                _payloadBytes, _frames.Count, key.HashSuite, length);
-            if (placement is not (RawPackPlacement.Append or RawPackPlacement.AppendDedicated))
-            {
-                return placement;
-            }
-
-            if (key.HashSuite != _suite)
-            {
-                return RawPackPlacement.RotateHashSuite;
-            }
-
-            if (_seen.Contains(key.ChunkId))
-            {
-                throw new InvalidOperationException("Unverified duplicate logical key.");
-            }
-
-            _state = State.Appending;
+            return placement;
         }
 
         byte[]? buffer = null;
@@ -162,6 +142,105 @@ internal sealed class PrivateRawPackWriter : IDisposable
         }
 
         return placement;
+    }
+
+    /// <summary>
+    /// Borrowed memory append: the caller must keep the exact memory stable
+    /// until this operation reaches a terminal state. No payload copy, pooled
+    /// payload buffer or Stream wrapper is required here. The destination must
+    /// obey Stream.WriteAsync's buffer lifetime contract. Admission refusal does
+    /// not consume memory; an admitted failure poisons the whole destination.
+    /// </summary>
+    internal async Task<RawPackPlacement> AppendMemoryAsync(ReadOnlyMemory<byte> content,
+        ChunkObjectKey key, CancellationToken cancellationToken = default)
+    {
+        RawPackPlacement placement = BeginAppend(key, content.Length, cancellationToken);
+        if (placement is not (RawPackPlacement.Append or RawPackPlacement.AppendDedicated))
+        {
+            return placement;
+        }
+
+        try
+        {
+            if (_frames.Count == 0)
+            {
+                // Only the fixed header needs a separate writable buffer.
+                byte[] header = new byte[RawPackLayout.HeaderBytes];
+                RawPackWire.Header(header, _suite, _packId);
+                await WriteAsync(header, cancellationToken).ConfigureAwait(false);
+            }
+
+            long offset = _writtenBytes;
+            uint crc = uint.MaxValue;
+            using var digest = new ChunkDigest(_suite);
+            int position = 0;
+            while (position < content.Length)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                int take = Math.Min(VerifiedChunkStager.BufferBytes, content.Length - position);
+                ReadOnlyMemory<byte> window = content.Slice(position, take);
+                digest.Append(window.Span);
+                crc = RawPackCrc32C.Append(crc, window.Span);
+                await WriteAsync(window, cancellationToken).ConfigureAwait(false);
+                position += take;
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!key.ChunkId.Value.FixedTimeEquals(digest.Finish().Value))
+            {
+                throw new InvalidDataException("Raw frame digest mismatch.");
+            }
+
+            _frames.Add(new RawPackWrittenFrame(key.ChunkId, _frames.Count, offset,
+                content.Length, ~crc));
+            _seen.Add(key.ChunkId);
+            _payloadBytes = checked(_payloadBytes + content.Length);
+        }
+        catch
+        {
+            lock (_gate)
+            {
+                _state = State.Faulted;
+            }
+
+            throw;
+        }
+
+        lock (_gate)
+        {
+            _state = State.Building;
+        }
+
+        return placement;
+    }
+
+    private RawPackPlacement BeginAppend(ChunkObjectKey key, long length, CancellationToken ct)
+    {
+        lock (_gate)
+        {
+            EnsureBuilding();
+            ct.ThrowIfCancellationRequested();
+            // This writer's suite is fixed even before the first frame.
+            RawPackPlacement placement = _policy.Evaluate(_frames.Count == 0 ? null : _suite,
+                _payloadBytes, _frames.Count, key.HashSuite, length);
+            if (placement is not (RawPackPlacement.Append or RawPackPlacement.AppendDedicated))
+            {
+                return placement;
+            }
+
+            if (key.HashSuite != _suite)
+            {
+                return RawPackPlacement.RotateHashSuite;
+            }
+
+            if (_seen.Contains(key.ChunkId))
+            {
+                throw new InvalidOperationException("Unverified duplicate logical key.");
+            }
+
+            _state = State.Appending;
+            return placement;
+        }
     }
 
     internal async Task<RawPackDescriptor> CompleteAsync(CancellationToken cancellationToken = default)
