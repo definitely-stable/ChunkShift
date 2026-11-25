@@ -108,7 +108,21 @@ internal sealed class PrivatePackCoordinator : IDisposable
             maximumUniqueChunks, cancellationToken);
 
     internal Task BuildDirectAsync(Stream source, HashSuiteId suite, long maximumLogicalBytes,
-        int maximumUniqueChunks, int maximumOccurrences, CancellationToken cancellationToken = default)
+        int maximumUniqueChunks, int maximumOccurrences, CancellationToken cancellationToken = default) =>
+        StartDirectAsync(source, suite, maximumLogicalBytes, maximumUniqueChunks, maximumOccurrences,
+            allowVerifiedReuse: false, cancellationToken);
+
+    /// <summary>
+    /// Opt-in serial, transaction-local verified duplicate reuse.
+    /// No global index, concurrent single-flight or publication.
+    /// </summary>
+    internal Task BuildDeduplicatedAsync(Stream source, HashSuiteId suite, long maximumLogicalBytes,
+        int maximumUniqueChunks, int maximumOccurrences, CancellationToken cancellationToken = default) =>
+        StartDirectAsync(source, suite, maximumLogicalBytes, maximumUniqueChunks, maximumOccurrences,
+            allowVerifiedReuse: true, cancellationToken);
+
+    private Task StartDirectAsync(Stream source, HashSuiteId suite, long maximumLogicalBytes,
+        int maximumUniqueChunks, int maximumOccurrences, bool allowVerifiedReuse, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(suite);
@@ -122,7 +136,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
 
         _ = RawPackWire.SuiteCode(suite);
         return BuildCoreAsync(ct => BuildDirectCoreAsync(source, suite, maximumLogicalBytes,
-            maximumUniqueChunks, maximumOccurrences, ct), cancellationToken);
+            maximumUniqueChunks, maximumOccurrences, allowVerifiedReuse, ct), cancellationToken);
     }
 
     private async Task BuildCoreAsync(Func<CancellationToken, Task> build, CancellationToken cancellationToken)
@@ -179,7 +193,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
     }
 
     private async Task BuildDirectCoreAsync(Stream source, HashSuiteId suite, long maximumLogicalBytes,
-        int maximumUniqueChunks, int maximumOccurrences, CancellationToken ct)
+        int maximumUniqueChunks, int maximumOccurrences, bool allowVerifiedReuse, CancellationToken ct)
     {
         EnsureEmptyDirectory();
         var ledger = new IncrementalRawPackAdmission(_targetPhysicalBytes, _limits,
@@ -189,6 +203,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
         OwnedPack? current = null;
         PrivateRawPackWriter? writer = null;
         var sequence = new LogicalOccurrenceBuilder(maximumLogicalBytes, maximumOccurrences);
+        var committed = new Dictionary<ChunkObjectKey, (OwnedPack Pack, int Ordinal, int Length)>();
         try
         {
             await ChunkScanner.ScanAsync(source, ConsumeAsync,
@@ -196,18 +211,39 @@ internal sealed class PrivatePackCoordinator : IDisposable
             await FinishCurrentAsync(ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
             long physical = 0;
+            long uniquePayload = 0;
+            int uniqueFrames = 0;
             foreach (OwnedPack pack in _owned)
             {
-                physical = checked(physical + pack.ReservedBytes);
+                ct.ThrowIfCancellationRequested();
+                RawPackDescriptor descriptor = pack.Verified!.Descriptor;
+                if (descriptor.PhysicalBytes != pack.ReservedBytes)
+                {
+                    throw new InvalidDataException("Verified pack size diverged from retained reservation.");
+                }
+
+                physical = checked(physical + descriptor.PhysicalBytes);
+                uniqueFrames = checked(uniqueFrames + descriptor.FrameCount);
+                uniquePayload = checked(uniquePayload + descriptor.PhysicalBytes -
+                    (RawPackLayout.FixedBytes + (long)descriptor.FrameCount * RawPackLayout.IndexBytesPerFrame));
             }
 
             if (physical != ledger.Budget.PhysicalBytes || _owned.Count != ledger.Budget.Packs ||
-                sequence.LogicalBytes != ledger.Budget.LogicalBytes || sequence.Count != ledger.Budget.UniqueChunks)
+                uniqueFrames != ledger.Budget.UniqueChunks || uniquePayload != ledger.Budget.LogicalBytes ||
+                (!allowVerifiedReuse && (sequence.LogicalBytes != ledger.Budget.LogicalBytes ||
+                    sequence.Count != ledger.Budget.UniqueChunks)) ||
+                (allowVerifiedReuse && committed.Count != ledger.Budget.UniqueChunks))
             {
                 throw new InvalidOperationException("Direct build diverged from incremental budget.");
             }
 
-            _directSequence = sequence.Seal(_owned.Select(p => p.Verified!).ToArray(), ct);
+            DirectLogicalSequence snapshot = sequence.Seal(_owned.Select(p => p.Verified!).ToArray(), ct);
+            if (snapshot.UniqueChunks != ledger.Budget.UniqueChunks)
+            {
+                throw new InvalidDataException("Logical sequence unique count diverged from physical ledger.");
+            }
+
+            _directSequence = snapshot;
         }
         finally
         {
@@ -225,6 +261,53 @@ internal sealed class PrivatePackCoordinator : IDisposable
             }
 
             var key = new ChunkObjectKey(suite, chunk.Id);
+            if (allowVerifiedReuse && committed.TryGetValue(key, out var existing))
+            {
+                // Admit the logical occurrence before any duplicate I/O, but
+                // register it only after exact byte comparison succeeds.
+                sequence.CheckNext(chunk.Index, chunk.Offset, key, content.Length);
+                if (existing.Length != content.Length)
+                {
+                    throw new InvalidDataException("Conflicting lengths for one logical key.");
+                }
+
+                if (ReferenceEquals(existing.Pack, current))
+                {
+                    if (writer is null)
+                    {
+                        throw new InvalidOperationException("Missing active pack writer.");
+                    }
+
+                    _checkpoint?.Invoke(PrivatePackBoundary.BeforeActiveDuplicate, existing.Pack.Path);
+                    await writer.VerifyDuplicateAsync(existing.Ordinal, key, content, token).ConfigureAwait(false);
+                }
+                else
+                {
+                    VerifiedRawPack verified = existing.Pack.Verified ??
+                        throw new InvalidOperationException("Missing independently verified closed pack.");
+                    if (!verified.TryLocate(key, out RawPackLocation location) ||
+                        location.Ordinal != existing.Ordinal || location.Length != existing.Length)
+                    {
+                        throw new InvalidDataException("Committed duplicate location diverged from readback.");
+                    }
+
+                    _checkpoint?.Invoke(PrivatePackBoundary.BeforeClosedDuplicate, existing.Pack.Path);
+                    token.ThrowIfCancellationRequested();
+                    // Current writer can remain open. One extra owned read
+                    // handle, tracked for retryable cleanup if closing fails.
+                    existing.Pack.Stream = new FileStream(existing.Pack.Path, FileMode.Open,
+                        FileAccess.Read, FileShare.Read, 16 * 1024,
+                        FileOptions.Asynchronous | FileOptions.RandomAccess);
+                    await RawPackDuplicateComparator.VerifyClosedAsync(existing.Pack.Stream,
+                        verified, key, content, token).ConfigureAwait(false);
+                    await CloseStreamAsync(existing.Pack).ConfigureAwait(false);
+                }
+
+                token.ThrowIfCancellationRequested();
+                sequence.AppendAccepted(chunk.Index, chunk.Offset, key, content.Length);
+                return;
+            }
+
             IncrementalPackReservation reservation = ledger.ReserveUnique(key, content.Length);
             // Preserve the existing unique-ledger rejection contract. A later
             // occurrence refusal aborts this whole session; no file work yet.
@@ -241,7 +324,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
                 }
 
                 Directory.CreateDirectory(_directory);
-                current = CreatePack(reservation.ProjectedPackBytes);
+                current = CreatePack(reservation.ProjectedPackBytes, allowVerifiedReuse);
                 writer = new PrivateRawPackWriter(current.Stream!, _policy, suite);
             }
             else
@@ -265,6 +348,13 @@ internal sealed class PrivatePackCoordinator : IDisposable
             RawPackPlacement placement = await writer!.AppendMemoryAsync(content, key, token).ConfigureAwait(false);
             EnsureAppended(placement);
             entries.Add(new IngestEntry(key, content.Length));
+            if (allowVerifiedReuse)
+            {
+                // Actual writer append succeeded. The writer owns the
+                // metadata for this ordinal; closed readback binds it later.
+                committed.Add(key, (current!, reservation.FrameOrdinal, content.Length));
+            }
+
             sequence.AppendAccepted(chunk.Index, chunk.Offset, key, content.Length);
         }
 
@@ -379,7 +469,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
         return pack;
     }
 
-    private OwnedPack CreatePack(long reservedBytes)
+    private OwnedPack CreatePack(long reservedBytes, bool readWrite = false)
     {
         // Register the full reservation before CreateNew. If creation throws,
         // ownership is uncertain: retain diagnostic credit and never delete it.
@@ -387,7 +477,8 @@ internal sealed class PrivatePackCoordinator : IDisposable
             reservedBytes);
         _checkpoint?.Invoke(PrivatePackBoundary.BeforeCreate, pack.Path);
         _owned.Add(pack);
-        pack.Stream = new FileStream(pack.Path, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+        pack.Stream = new FileStream(pack.Path, FileMode.CreateNew,
+            readWrite ? FileAccess.ReadWrite : FileAccess.Write, FileShare.None,
             16 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
         pack.Created = true;
 
@@ -604,7 +695,10 @@ internal sealed class PrivatePackCoordinator : IDisposable
 }
 
 internal readonly record struct PrivatePackBudget(long ReservedBytes, int ReservedFiles, int UncertainFiles);
-internal enum PrivatePackBoundary { BeforeCreate, AfterCloseBeforeReadback, AfterVerified }
+internal enum PrivatePackBoundary
+{
+    BeforeCreate, AfterCloseBeforeReadback, AfterVerified, BeforeActiveDuplicate, BeforeClosedDuplicate,
+}
 
 internal sealed class PrivatePackCapacityException : InvalidOperationException
 {

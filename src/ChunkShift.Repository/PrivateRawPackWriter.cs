@@ -214,6 +214,60 @@ internal sealed class PrivateRawPackWriter : IDisposable
         return placement;
     }
 
+    /// <summary>
+    /// Compare only a frame already committed by this writer, on its own
+    /// active read/write file. No externally supplied offsets or CRCs.
+    /// Any admitted comparison failure poisons the pack.
+    /// </summary>
+    internal async Task VerifyDuplicateAsync(int ordinal, ChunkObjectKey key,
+        ReadOnlyMemory<byte> candidate, CancellationToken cancellationToken = default)
+    {
+        RawPackLocation location;
+        FileStream file;
+        long end;
+        lock (_gate)
+        {
+            EnsureBuilding();
+            cancellationToken.ThrowIfCancellationRequested();
+            if (_destination is not FileStream destination || !destination.CanRead)
+            {
+                throw new InvalidOperationException("Duplicate comparison requires a read/write file.");
+            }
+
+            if ((uint)ordinal >= (uint)_frames.Count)
+            {
+                throw new InvalidDataException("Duplicate frame ordinal is not committed.");
+            }
+
+            RawPackWrittenFrame frame = _frames[ordinal];
+            location = new RawPackLocation(new ChunkObjectKey(_suite, frame.ChunkId),
+                frame.Ordinal, frame.Offset, frame.Length, frame.Crc32C);
+            file = destination;
+            end = _writtenBytes;
+            _state = State.Comparing;
+        }
+
+        try
+        {
+            await RawPackDuplicateComparator.VerifyActiveAsync(file, end, location, key,
+                candidate, cancellationToken).ConfigureAwait(false);
+            lock (_gate)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                _state = State.Building;
+            }
+        }
+        catch
+        {
+            lock (_gate)
+            {
+                _state = State.Faulted;
+            }
+
+            throw;
+        }
+    }
+
     private RawPackPlacement BeginAppend(ChunkObjectKey key, long length, CancellationToken ct)
     {
         lock (_gate)
@@ -359,7 +413,7 @@ internal sealed class PrivateRawPackWriter : IDisposable
     {
         lock (_gate)
         {
-            if (_state is State.Appending or State.Completing)
+            if (_state is State.Appending or State.Comparing or State.Completing)
             {
                 throw new InvalidOperationException("Await active operation before disposing writer.");
             }
@@ -376,6 +430,7 @@ internal sealed class PrivateRawPackWriter : IDisposable
     {
         Building,
         Appending,
+        Comparing,
         Completing,
         Completed,
         Faulted,
