@@ -181,6 +181,26 @@ public sealed class RawPackReaderTests
         await Assert.ThrowsAsync<InvalidDataException>(() => RawPackReader.VerifyAsync(badLength, Limits));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task ResourceRejectionDoesNotReadForbiddenSections(int variant)
+    {
+        byte[] bytes = Fixture();
+        RawPackReadLimits limits = variant switch
+        {
+            0 => new RawPackReadLimits(306, 2, 136, 3),
+            1 => new RawPackReadLimits(307, 1, 136, 3),
+            2 => new RawPackReadLimits(307, 2, 135, 3),
+            _ => new RawPackReadLimits(307, 2, 136, 2),
+        };
+        using var source = new AdmissionGuardStream(bytes, variant);
+        await Assert.ThrowsAsync<InvalidDataException>(() => RawPackReader.VerifyAsync(source, limits));
+        Assert.Equal(variant switch { 0 => 0, 1 or 2 => 104, _ => 304 }, source.ReadBytes);
+    }
+
     [Fact]
     public async Task TruncationAndTrailingBytesRejected()
     {
@@ -287,6 +307,28 @@ public sealed class RawPackReaderTests
         }
 
         return ~crc;
+    }
+
+    private sealed class AdmissionGuardStream(byte[] bytes, int variant) : MemoryStream(bytes)
+    {
+        internal int ReadBytes { get; private set; }
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            long start = Position;
+            long end = start + buffer.Length;
+            // Physical limit rejects even the trailer. Count/index limits permit
+            // only the tail; frame-length limit permits all metadata, not payload.
+            bool allowed = variant switch
+            {
+                0 => false,
+                1 or 2 => start >= 203 && end <= 307,
+                _ => (start >= 0 && end <= 64) || (start >= 67 && end <= 307),
+            };
+            Assert.True(allowed, "Read reached a section forbidden by the admission limit.");
+            ReadBytes += buffer.Length;
+            return base.ReadAsync(buffer, cancellationToken);
+        }
     }
 
     private sealed class ShortReadStream(byte[] bytes) : MemoryStream(bytes)
