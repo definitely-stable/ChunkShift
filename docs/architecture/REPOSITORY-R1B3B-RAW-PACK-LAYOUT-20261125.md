@@ -1,8 +1,8 @@
 # R1-B3b — provisional raw pack layout and admission
 
-Status: **Candidate, not a frozen wire format**. Owners #144 / #133 / #10.
+Status: **ACCEPTED in #481; not a frozen wire format**. Exact head `9e41998a2b96ebca0768a88179ee96d03a68dac0`: [CI](https://github.com/definitely-stable/ChunkShift/actions/runs/45568377266), [Heavy](https://github.com/definitely-stable/ChunkShift/actions/runs/45568377302), CodeQL and host PASS; Repository 86/86 on Windows/Linux x64/ARM64. Merge `15a492130ff890d3cc64e284df59b6c9617c3895`. Owners #144 / #133 / #10.
 Independent arithmetic/policy slice, no writer dependency. R1-B3a #480 accepted;
-combined-head CI required before R1-B3b acceptance. See #144 for layout alternatives, compression, locality and freeze.
+combined-head CI passed. See #144 for layout alternatives, compression, locality and freeze.
 
 ## Provisional experiment: raw layout P0
 
