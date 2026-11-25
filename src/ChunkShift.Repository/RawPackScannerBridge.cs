@@ -23,6 +23,7 @@ internal static class RawPackScannerBridge
         cancellationToken.ThrowIfCancellationRequested();
         using var writer = new PrivateRawPackWriter(destination, policy, suite);
         long count = 0;
+        long offset = 0;
         await ChunkScanner.ScanAsync(source, ConsumeAsync,
             new ChunkScanOptions { HashSuite = suite }, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
@@ -36,7 +37,8 @@ internal static class RawPackScannerBridge
 
         async ValueTask ConsumeAsync(ChunkInfo chunk, ReadOnlyMemory<byte> content, CancellationToken ct)
         {
-            if (chunk.Index != count || chunk.Length != content.Length || content.IsEmpty)
+            if (chunk.Index != count || chunk.Offset != offset ||
+                chunk.Length != content.Length || content.IsEmpty)
             {
                 throw new InvalidDataException("Unexpected Core chunk metadata.");
             }
@@ -53,6 +55,7 @@ internal static class RawPackScannerBridge
             }
 
             count = checked(count + 1);
+            offset = checked(offset + chunk.Length);
         }
     }
 }

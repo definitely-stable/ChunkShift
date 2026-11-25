@@ -21,7 +21,7 @@ public sealed class BorrowedRawPackAppendTests
         var policy = new RawPackPolicy(2 * 1024 * 1024, 2 * 1024 * 1024, 128, 8704);
         RawPackDescriptor? direct = await RawPackScannerBridge.WriteSinglePackAsync(
             directInput, directOutput, policy, suite);
-        Assert.True(direct.HasValue);
+        RawPackDescriptor directDescriptor = direct ?? throw new InvalidOperationException("Expected nonempty pack.");
 
         // Independent stream path consumes a copy inside the scanner callback.
         using var baselineInput = new MemoryStream(data);
@@ -37,10 +37,10 @@ public sealed class BorrowedRawPackAppendTests
                 await baselineWriter.AppendAsync(source, key, chunk.Length, ct));
         }, new ChunkScanOptions { HashSuite = suite });
         RawPackDescriptor baseline = await baselineWriter.CompleteAsync();
-        Assert.Equal(baseline.PhysicalBytes, direct.Value.PhysicalBytes);
+        Assert.Equal(baseline.PhysicalBytes, directDescriptor.PhysicalBytes);
 
         VerifiedRawPack a = await RawPackReader.VerifyAsync(baselineOutput, Limits, baseline);
-        VerifiedRawPack b = await RawPackReader.VerifyAsync(directOutput, Limits, direct);
+        VerifiedRawPack b = await RawPackReader.VerifyAsync(directOutput, Limits, directDescriptor);
         Assert.Equal(a.GetLocations(), b.GetLocations());
         Assert.Equal(expected, b.GetLocations().Select(l => l.Key));
         Assert.True(b.Descriptor.FrameCount > 1);
