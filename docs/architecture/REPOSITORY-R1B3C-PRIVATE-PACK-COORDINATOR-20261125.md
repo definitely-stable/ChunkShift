@@ -1,6 +1,6 @@
 # R1-B3c-C — private multi-pack coordinator
 
-Status: **Candidate; depends on #482 writer/reader acceptance**.
+Status: **Candidate; #482 accepted; combined-head CI required**.
 Owners #144 / #133 / #10. No Pack v1 freeze, durable promotion or publication.
 
 ## Contract
