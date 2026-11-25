@@ -48,11 +48,16 @@ def main():
     p.add_argument("--seed", type=int, default=144)
     p.add_argument("--run-id", required=True, help="Assigned REPO-INGEST-001/RUN-YYYYMMDD-NNN-shortcommit-platform")
     p.add_argument("--timeout", type=int, default=600)
+    p.add_argument("--screen-lock", action="store_true", help="Require frozen full-screen parameters and corpus hashes")
     args = p.parse_args()
     if not 4 <= args.mib <= 256 or args.mib % 4 or not 1 <= args.target_mib <= 128:
         p.error("mib must be divisible by 4 in [4,256]; target-mib in [1,128]")
     if not 1 <= args.rounds <= 30 or not 1 <= args.timeout <= 1800:
         p.error("rounds/timeout out of bounds")
+    lock_path = Path(__file__).with_name("screen-lock.json")
+    locked = json.loads(lock_path.read_text(encoding="utf-8")) if args.screen_lock else None
+    if locked is not None and any(getattr(args, key) != locked[key] for key in ("mib", "target_mib", "rounds", "seed")):
+        p.error("screen parameters differ from frozen lock")
     output = args.output.resolve()
     if output == ROOT or ROOT in output.parents:
         p.error("output must be outside repository")
@@ -72,6 +77,8 @@ def main():
                 runner_image=os.getenv("ImageOS"), runner_image_version=os.getenv("ImageVersion"),
                 host=platform.platform(), machine=platform.machine(),
                 sdk=run(["dotnet", "--version"]), dotnet_info=run(["dotnet", "--info"]),
+                phase="screening" if locked is not None else "unlocked",
+                screen_lock_sha256=digest(lock_path) if locked is not None else None,
                 protocol_sha256=digest(Path(__file__)),
                 validator_sha256=digest(Path(__file__).with_name("validate.py")),
                 executable_source_sha256=digest(PROJECT.parent / "Program.cs"),
@@ -92,6 +99,8 @@ def main():
             for family in ("unique", "recent", "cross"):
                 source = output / (family + ".bin")
                 source_hash = corpus(source, family, args.mib, args.seed)
+                if locked is not None and source_hash != locked["families"][family]:
+                    raise SystemExit("STOP: generated source differs from preregistered digest")
                 for suite in ("sha256", "blake3"):
                     order = "ABC" if family == "unique" else "AC"
                     reference = None

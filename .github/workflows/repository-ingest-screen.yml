@@ -1,0 +1,63 @@
+name: Repository ingest screening
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/repository-ingest-screen.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repo-ingest-screen
+  cancel-in-progress: false
+
+jobs:
+  screen:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Validate analysis tools
+        run: python -B -m unittest discover -s tools/repository-ingest-lab -p "test_*.py"
+      - name: Execute frozen full screening (not holdout)
+        shell: pwsh
+        run: |
+          $commit = (git rev-parse HEAD).Trim()
+          $short = $commit.Substring(0, 12)
+          $date = (Get-Date).ToUniversalTime().ToString("yyyyMMdd")
+          $lane = "${{ matrix.os }}".Replace(".", "-")
+          $sequence = "${{ github.run_id }}${{ github.run_attempt }}"
+          $runId = "REPO-INGEST-001/RUN-$date-$sequence-$short-$lane"
+          python -B tools/repository-ingest-lab/run.py --output "$env:RUNNER_TEMP/ingest-screen/raw" --run-id $runId --screen-lock --mib 128 --target-mib 32 --rounds 5 --seed 144
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -B tools/repository-ingest-lab/report.py --raw "$env:RUNNER_TEMP/ingest-screen/raw" --commit $commit --summary "$env:RUNNER_TEMP/ingest-screen/summary.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "### REPO-INGEST-001: 84/84 raw samples, 70 measured, SCREEN_ONLY" >> $env:GITHUB_STEP_SUMMARY
+      - name: Archive original evidence and paired summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: repository-ingest-screen-${{ matrix.os }}
+          path: ${{ runner.temp }}/ingest-screen/
+          if-no-files-found: error
+          retention-days: 90
