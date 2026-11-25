@@ -350,7 +350,7 @@ internal sealed class PrivatePackCoordinator : IDisposable
         OwnedPack pack = CreatePack(plan.PhysicalBytes);
 
         RawPackDescriptor expected;
-        using (var writer = new PrivateRawPackWriter(pack.Stream, _policy, plan.Suite))
+        using (var writer = new PrivateRawPackWriter(pack.Stream!, _policy, plan.Suite))
         {
             for (int i = plan.Start; i < plan.Start + plan.Count; i++)
             {

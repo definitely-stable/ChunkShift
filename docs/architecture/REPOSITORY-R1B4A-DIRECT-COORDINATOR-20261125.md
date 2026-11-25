@@ -45,7 +45,7 @@ same coordinator. Compare exact physical pack boundaries and all locations
 excluding random PackIds, reconstruct original bytes from direct verified reads,
 compare total reservations. Negative tests for aggregate physical/file/logical/
 unique limits, constant-stream duplicate, later readback corruption, cancellation
-between packs and ambiguous CreateNew. Empty scan. Existing coordinator tests
+between packs and ambiguous CreateNew. Empty scan, forward-only unknown-length short reads and late source failure. Existing coordinator tests
 must remain green (including Windows cleanup retry and active-operation guards).
 All tests written but no CI for this branch yet.
 

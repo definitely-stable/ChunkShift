@@ -182,6 +182,82 @@ public sealed class DirectPrivatePackCoordinatorTests
         Assert.Equal("foreign", File.ReadAllText(path));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnknownLengthShortReadsAndLateSourceFailure(bool fail)
+    {
+        using var root = new Fixture();
+        byte[] bytes = Corpus();
+        using var source = new ForwardOnlySource(bytes, fail);
+        using var direct = root.Create("direct");
+        if (fail)
+        {
+            await Assert.ThrowsAsync<IOException>(() =>
+                direct.BuildDirectAsync(source, Sha, bytes.Length, 128));
+            Assert.Equal(default, direct.GetBudget());
+            Assert.Throws<InvalidOperationException>(() => direct.GetPacks());
+            Assert.True(Directory.Exists(root.PathFor("direct")));
+            Assert.Empty(Directory.GetFiles(root.PathFor("direct")));
+        }
+        else
+        {
+            await direct.BuildDirectAsync(source, Sha, bytes.Length, 128);
+            using var reconstructed = new MemoryStream();
+            foreach (VerifiedRawPack pack in direct.GetPacks())
+            {
+                foreach (RawPackLocation frame in pack.GetLocations())
+                {
+                    byte[] payload = await direct.ReadFrameAsync(pack.Descriptor.PackId, frame.Key,
+                        (int)frame.Length);
+                    await reconstructed.WriteAsync(payload);
+                }
+            }
+
+            Assert.Equal(bytes, reconstructed.ToArray());
+        }
+
+        Assert.True(source.CanRead);
+    }
+
+    private sealed class ForwardOnlySource(byte[] bytes, bool fail) : Stream
+    {
+        private readonly MemoryStream _inner = new(bytes);
+        public override bool CanRead => _inner.CanRead;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (fail && _inner.Position >= 600 * 1024)
+            {
+                return ValueTask.FromException<int>(new IOException("Injected late source failure."));
+            }
+
+            return _inner.ReadAsync(buffer[..Math.Min(buffer.Length, 8191)], cancellationToken);
+        }
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _inner.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
+    }
+
     private static byte[] Corpus()
     {
         var bytes = new byte[900 * 1024 + 17];
