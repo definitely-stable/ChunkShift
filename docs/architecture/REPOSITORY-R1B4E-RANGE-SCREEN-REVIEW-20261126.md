@@ -1,8 +1,7 @@
 # REPO-INGEST-002 — full sensitivity launch and review checklist
 
-Status: launch candidate, no timed evidence. Requires accepted #491 on main
-before opening the full-screen PR. This branch does not initiate workflow runs
-by itself. Refs #133 #144 #139 #10; prior REPO-INGEST-001/EVIDENCE-20261126-001.
+Status: full-screen launch candidate after #491 acceptance, no timed evidence.
+The full-screen PR triggers the dedicated hosted workflow. Refs #133 #144 #139 #10; prior REPO-INGEST-001/EVIDENCE-20261126-001.
 
 ## Frozen run
 
@@ -64,8 +63,10 @@ both lanes PASS; 36/36 each, 13 Python tests each, targeted C# range
 self-test PASS on Windows and Ubuntu. Original regression smoke
 [45715703286](https://github.com/definitely-stable/ChunkShift/actions/runs/45715703286)
 28/28 each and 13 Python tests each. CodeQL 45715703324 PASS.
-Full CI 45715703285 and Heavy 45715703352 still in progress at this checkpoint;
-smoke acceptance is not merge acceptance.
+Full CI 45715703285 and Heavy 45715703352 subsequently PASS. Original logs
+confirm Repository 233/233 on Windows, Ubuntu, Linux x64 and ARM64, Windows
+solution 3731/3731, both package smokes and cross-architecture determinism.
+#491 ACCEPT/MERGED at 0f2ea91377e9a460e537c353af1f9925402c7a1f.
 
 Original range smoke artifacts independently downloaded:
 - [Ubuntu 15070410277](https://github.com/definitely-stable/ChunkShift/actions/runs/45715703279/artifacts/15070410277):
@@ -83,6 +84,5 @@ every sample, no modeled materialized request copy, same staging payload as A.
 Cross-platform and both-suite occurrence counts unique 101/101, recent 68/53,
 cross 65/51 (logical/unique); per-family/suite layout fingerprint and physical
 geometry equal across all candidates and both lanes. No smoke timings used.
-Next: finish #491 required gates, merge only exact qualified head, refresh
-this launch branch on accepted main and open full-screen PR. Do not rerun
-full screen merely to improve timing results.
+Next: execute this full-screen PR and audit its original artifacts. Do not
+rerun full screen merely to improve timing results.
