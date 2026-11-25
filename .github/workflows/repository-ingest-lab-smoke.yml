@@ -45,7 +45,7 @@ jobs:
         run: |
           $commit = (git rev-parse --short=12 HEAD).Trim()
           $date = (Get-Date).ToUniversalTime().ToString("yyyyMMdd")
-          $lane = "${{ matrix.os }}"
+          $lane = "${{ matrix.os }}".Replace(".", "-")
           $sequence = "${{ github.run_id }}${{ github.run_attempt }}"
           $runId = "REPO-INGEST-001/RUN-$date-$sequence-$commit-$lane"
           python -B tools/repository-ingest-lab/run.py --output "$env:RUNNER_TEMP/ingest-smoke" --run-id $runId --mib 8 --target-mib 1 --rounds 1
