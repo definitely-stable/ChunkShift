@@ -60,7 +60,8 @@ This table is the human-readable research index. Machine-readable experiment def
 | REPO-INGEST-001 | Repository ingest | #133, #144, #10 | Matched finite staging vs direct verified ingestion screening | EVIDENCE_READY | [EVIDENCE-20261126-001](results/REPO-INGEST-001-EVIDENCE-20261126-001.md) — SCREEN_ONLY; default DEFER |
 | REPO-INGEST-002 | Repository ingest | #133, #144, #10 | Source-range staging adapter sensitivity (A/D/C) | EVIDENCE_READY | [EVIDENCE-20261126-001](results/REPO-INGEST-002-EVIDENCE-20261126-001.md) — SCREEN_ONLY; default DEFER |
 | REPO-INGEST-003 | Repository ingest | #133, #144, #10 | Independent real/versioned artifact holdout (D/C) | EVIDENCE_READY | [EVIDENCE-20261126-001](results/REPO-INGEST-003-EVIDENCE-20261126-001.md) — PERFORMANCE_ELIGIBLE; default DEFER |
-| REPO-CRASH-001 | Repository durability | #133, #139, #144, #10 | Real process termination at private pack checkpoints | PLANNED | [R1-C.1 protocol](../architecture/REPOSITORY-R1C-PROCESS-CRASH-20261126.md) |
+| REPO-CRASH-001 | Repository durability | #133, #139, #144, #10 | Real process termination at private pack checkpoints | ADOPT | [EVIDENCE-20261126-001](results/REPO-CRASH-001-EVIDENCE-20261126-001.md) — process termination only; default DEFER |
+| REPO-FLUSH-001 | Repository durability | #133, #139, #144, #10 | Platform file/directory flush capability and native negative controls | EVIDENCE_READY | [EVIDENCE-20261126-001](results/REPO-FLUSH-001-EVIDENCE-20261126-001.md) — CAPABILITY_ONLY; default DEFER; crash ordering UNQUALIFIED |
 | REPO-PACK-001 | Repository pack | #144, #145 | FrameDirectory and compressed monotone offsets | PLANNED | — |
 | REPO-COMP-001 | Repository compression | #138, #144 | Seekable/bounded logical-chunk compression groups | PLANNED | — |
 | REPO-COMP-002 | Repository compression | #138 | Dictionary aging / version holdout | PLANNED | — |

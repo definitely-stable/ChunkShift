@@ -759,9 +759,26 @@
         10
       ],
       "area": "repository-durability",
-      "status": "PLANNED",
+      "status": "ADOPT",
       "question": "Real process termination at private pack checkpoints",
-      "protocol": "docs/architecture/REPOSITORY-R1C-PROCESS-CRASH-20261126.md"
+      "protocol": "docs/architecture/REPOSITORY-R1C-PROCESS-CRASH-20261126.md",
+      "evidence": "docs/research/results/REPO-CRASH-001-EVIDENCE-20261126-001.md",
+      "decision": "Process termination baseline accepted only; production default DEFER"
+    },
+    {
+      "id": "REPO-FLUSH-001",
+      "issues": [
+        133,
+        139,
+        144,
+        10
+      ],
+      "area": "repository-durability",
+      "status": "EVIDENCE_READY",
+      "question": "Platform file/directory flush capability and native negative controls",
+      "protocol": "docs/architecture/REPOSITORY-R1C-FLUSH-CAPABILITIES-20261126.md",
+      "evidence": "docs/research/results/REPO-FLUSH-001-EVIDENCE-20261126-001.md",
+      "decision": "CAPABILITY_ONLY; production default DEFER; crash ordering UNQUALIFIED"
     }
   ]
 }

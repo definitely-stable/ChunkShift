@@ -1,6 +1,6 @@
 # R1-C.1 — REPO-CRASH-001 private pack process termination baseline
 
-Status: PLANNED, qualification candidate; Refs #10 #133 #139 #144.
+Status: ACCEPTED in #498; [reviewed evidence](../research/results/REPO-CRASH-001-EVIDENCE-20261126-001.md). Refs #10 #133 #139 #144.
 REPO-INGEST-003 PERFORMANCE_ELIGIBLE, production default DEFER. Current
 coordinator is single-use, transaction-local and owns only files in a
 caller-controlled private directory. No durable intent record, Catalog,
