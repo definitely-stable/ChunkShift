@@ -6,6 +6,8 @@ on:
     paths:
       - 'tools/repository-crash-lab/FlushProbe.cs'
       - 'tools/repository-crash-lab/flush_probe.py'
+      - 'tools/repository-crash-lab/filesystem_provenance.py'
+      - 'tools/repository-crash-lab/test_filesystem_provenance.py'
       - '.github/workflows/repository-flush-capabilities.yml'
   workflow_dispatch:
 
@@ -35,6 +37,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.14"
+      - name: Test handle-bound filesystem attribution
+        run: python -B -m unittest discover -s tools/repository-crash-lab -p test_filesystem_provenance.py -v
       - name: Observe bounded persistence APIs and native negative controls
         shell: pwsh
         run: |
@@ -44,6 +48,10 @@ jobs:
           if ($s.decision -ne "CAPABILITY_ONLY" -or $s.production_default -ne "DEFER" -or $s.crash_ordering -ne "UNQUALIFIED" -or -not $s.fixture_empty) { throw "Unexpected capability verdict" }
           $expectedArch = if ("${{ matrix.os }}" -eq "ubuntu-24.04-arm") { "Arm64" } else { "X64" }
           if ($s.managed.arch -ne $expectedArch) { throw "Incorrect process architecture" }
+          if ($s.provenance_status -ne "HANDLE_BOUND" -or $s.managed_attribution -ne "TRUSTED_FIXTURE_REOPEN_ONLY") { throw "Incomplete filesystem provenance" }
+          $expectedMethod = if ("${{ matrix.os }}" -eq "windows-2025") { "windows-handle-volume" } else { "linux-fdinfo-mountinfo" }
+          $attributed = @($s.observations | Where-Object { $_.provenance })
+          if ($attributed.Count -ne 4 -or @($attributed | Where-Object { $_.provenance.method -ne $expectedMethod }).Count -ne 0) { throw "Incorrect handle provenance" }
       - name: Preserve original capability evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

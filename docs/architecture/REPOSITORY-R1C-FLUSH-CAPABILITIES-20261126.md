@@ -56,3 +56,26 @@ success. No production adoption. Next R1-C.2b explicit persistence backend
 contract with fault propagation and fail-closed ordering, native EIO/late
 ENOSPC research where safe. R1-C.3 durable intent design only after capability
 review. No format freeze or public API changes.
+
+## AUDIT-002 — handle-bound provenance correction (pending qualification)
+
+Original evidence recorded DriveInfo(GetPathRoot(path)).DriveFormat, which
+identifies the path root, not necessarily the actual mounted filesystem.
+Preserve original return-code observations; do not treat those labels as
+fixture-bound filesystem identification. The corrective rerun records the
+actual native flush handle: Linux /proc/self/fdinfo mnt_id joined to the unique
+/proc/self/mountinfo row with fstat device cross-check; Windows
+GetVolumeInformationByHandleW, GetFinalPathNameByHandleW (volume GUID),
+GetFileInformationByHandleEx (FileIdInfo). Positive Windows handles also
+request FILE_READ_ATTRIBUTES; this is an explicitly revised probe, not a
+bit-for-bit replay. No extra access on the read-only negative control.
+Record mount and superblock options on Linux; Windows filesystem flags are
+not mount options. No fallback to root, longest-prefix guess, or drive letter.
+File and all directory observations must identify the same mount/volume;
+three directory observations must refer to the same directory object. Failed
+open cannot provide handle attribution; incomplete provenance fails the new
+hosted gate. The managed flush precedes the native reopen in a trusted private
+fixture, not the same handle. Neither storage locality, device cache behavior,
+filesystem durability guarantees nor power-loss ordering is established.
+No format/API/default changes. See kernel proc documentation and Microsoft
+Win32 API documentation linked in the provenance protocol.

@@ -35,8 +35,6 @@ internal static class FlushProbe
             throw new InvalidDataException("Managed flush fixture mismatch.");
         }
 
-        string root = Path.GetPathRoot(Path.GetFullPath(path))
-            ?? throw new InvalidOperationException("Missing volume root.");
         Console.WriteLine(JsonSerializer.Serialize(new
         {
             kind = "managed-flush", bytes = bytes.Length,
@@ -44,8 +42,7 @@ internal static class FlushProbe
             flush_to_disk = true, create_collision_hresult = collisionHResult,
             runtime = RuntimeInformation.FrameworkDescription,
             os = RuntimeInformation.OSDescription,
-            arch = RuntimeInformation.ProcessArchitecture.ToString(),
-            filesystem = new DriveInfo(root).DriveFormat
+            arch = RuntimeInformation.ProcessArchitecture.ToString()
         }));
     }
 }

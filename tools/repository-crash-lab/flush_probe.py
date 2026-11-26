@@ -11,6 +11,8 @@ import stat
 import subprocess
 import sys
 
+from filesystem_provenance import linux_handle, WindowsProvenance, volume_key
+
 LAB = Path(__file__).resolve().parent
 ROOT = LAB.parents[1]
 DLL = LAB / "bin/Release/net10.0/ChunkShift.Repository.CrashLab.dll"
@@ -39,6 +41,7 @@ def posix_sync(path, directory):
     except OSError as e:
         return result(operation, "open", e.errno)
     try:
+        provenance = linux_handle(fd)
         try:
             os.fsync(fd)
             observed = result(operation, "fsync")
@@ -46,7 +49,7 @@ def posix_sync(path, directory):
             observed = result(operation, "fsync", e.errno)
     finally:
         os.close(fd)  # close error is a hard failure, not a capability success
-    return observed
+    return dict(observed, provenance=provenance)
 
 
 class WindowsNative:
@@ -64,6 +67,7 @@ class WindowsNative:
         self.close.argtypes = [wintypes.HANDLE]
         self.close.restype = wintypes.BOOL
         self.invalid = ctypes.c_void_p(-1).value
+        self.provenance = WindowsProvenance(self.kernel)
 
     def flush_handle(self, handle, operation):
         ctypes.set_last_error(0)
@@ -75,7 +79,7 @@ class WindowsNative:
     def sync(self, path, directory=False, read_only=False):
         operation = "directory_flush" if directory else "readonly_flush" if read_only else "file_flush"
         ctypes.set_last_error(0)
-        handle = self.open(str(path), 0x80000000 if read_only else 0x40000000,
+        handle = self.open(str(path), 0x80000000 if read_only else (0x40000000 | 0x80),
                            7, None, 3, 0x02000000 if directory else 0, None)
         if handle == self.invalid:
             error = ctypes.get_last_error()
@@ -83,7 +87,10 @@ class WindowsNative:
             return result(operation, "CreateFileW", error)
         require(handle is not None, "unexpected null handle")
         try:
-            return self.flush_handle(handle, operation)
+            if read_only:
+                return self.flush_handle(handle, operation)
+            provenance = self.provenance.observe(handle)
+            return dict(self.flush_handle(handle, operation), provenance=provenance)
         finally:
             if not self.close(handle):
                 raise ctypes.WinError(ctypes.get_last_error())
@@ -197,11 +204,23 @@ def main():
         record("after_delete", sync(fixture, True))
         directory_rows = [r for r in rows if r["stage"].startswith("after_")]
         require(len(directory_rows) == 3, "missing directory observations")
+        file_provenance = regular["provenance"]
+        attributed = [r["provenance"] for r in directory_rows if "provenance" in r]
+        require(all("provenance" in r for r in directory_rows if r["ok"]),
+                "successful directory flush lacks handle attribution")
+        require(all(volume_key(x) == volume_key(file_provenance) for x in attributed),
+                "file and directory mount/volume differ")
+        require(len({x["object_id"] for x in attributed}) <= 1, "directory identity changed")
+        provenance_status = "HANDLE_BOUND" if len(attributed) == 3 else "INCOMPLETE"
+        # Managed Flush(true) ran in a separate process on the trusted fixture
+        # before this native open; do not claim the same handle was measured.
         fixture.rmdir()
         summary = dict(experiment="REPO-FLUSH-001", decision="CAPABILITY_ONLY",
                        production_default="DEFER", managed=managed, observations=rows,
                        directory_observed="SUCCESS" if all(r["ok"] for r in directory_rows) else "DEFER",
-                       crash_ordering="UNQUALIFIED", fixture_empty=True)
+                       crash_ordering="UNQUALIFIED", fixture_empty=True,
+                       provenance_status=provenance_status,
+                       managed_attribution="TRUSTED_FIXTURE_REOPEN_ONLY")
         (evidence / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
         print("Persistence capability probe complete; no crash-ordering or power-loss claim")
     finally:
