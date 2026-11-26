@@ -97,6 +97,12 @@ def main():
             require(digest(sources / spec["file"]) == spec["sha256"], "source changed after samples")
         private.rmdir()
         require(not git("status", "--porcelain"), "checkout changed")
+        completion = dict(commit=commit, run_id=identity, samples=112, measured=96,
+                          source_sha256={f: spec["sha256"] for f, spec in lock["corpora"].items()},
+                          private_empty=True, checkout_clean=True,
+                          samples_sha256=digest(raw / "samples.jsonl"))
+        with (raw / "completion.json").open("x", encoding="utf-8") as done:
+            json.dump(completion, done, indent=2, allow_nan=False)
         print("Sealed holdout lane: 112/112 samples; independent aggregate audit required.")
     finally:
         with (raw / "sha256.txt").open("x", encoding="utf-8") as index:

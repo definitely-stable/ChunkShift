@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 from statistics import median
 
-from holdout_contract import check_definition, validate_external, EXPECTED_ARCH
+from holdout_contract import check_definition, validate_external, EXPECTED_ARCH, QUALIFICATION_KEYS
 from prepare_holdout import digest, require, verify_asset
 
 LAB = Path(__file__).resolve().parent
@@ -96,6 +96,7 @@ def verify_replay(replay, lock, qualified):
 
 
 def validate_result(result, lock, geometry, qualified, family, suite, candidate, lane):
+    require(set(result) == set(QUALIFICATION_KEYS) | set(METRICS), "unexpected sample fields")
     validate_external(result, lock, geometry, family, suite, candidate, lane)
     require(result["layout_sha256"] == qualified["layouts"][family][suite],
             "qualified physical layout changed")
@@ -166,7 +167,7 @@ def inventory(raw):
             {p.name for p in files} == set(expected) | {"sha256.txt"}, "inventory file set mismatch")
     for name, sha in expected.items():
         require(digest(raw / name) == sha, "inventory hash mismatch")
-    names = {"manifest.json", "replay.json", "build.log", "samples.jsonl"}
+    names = {"manifest.json", "replay.json", "build.log", "samples.jsonl", "completion.json"}
     names |= {f"sample-{n:03d}.{ext}" for n in range(1, 113) for ext in ("stdout", "stderr")}
     require(set(expected) == names, "incomplete timed inventory")
 
@@ -187,6 +188,11 @@ def audit_lane(raw, commit, run_id, attempt, lock, geometry, qualified):
                  "started_utc", "runner_name")), "missing runner provenance")
     verify_replay(read_json(raw / "replay.json"), lock, qualified)
     rows = [strict_json(line) for line in (raw / "samples.jsonl").read_text(encoding="utf-8").splitlines()]
+    completion = read_json(raw / "completion.json")
+    require(completion == dict(commit=commit, run_id=meta["run_id"], samples=112, measured=96,
+                               source_sha256={f: spec["sha256"] for f, spec in lock["corpora"].items()},
+                               private_empty=True, checkout_clean=True,
+                               samples_sha256=digest(raw / "samples.jsonl")), "invalid completion seal")
     expected = list(schedule(lock))
     require(len(rows) == len(expected) == 112, "wrong sample count")
     env = set()

@@ -1,9 +1,13 @@
 import copy
+import json
+from unittest.mock import patch
 from pathlib import Path
 import tempfile
 import unittest
 
-from holdout_evaluate import definitions, schedule, paired_metrics, combine, strict_json, inventory
+from holdout_evaluate import (definitions, schedule, paired_metrics, combine, strict_json,
+                              inventory, audit_lane, identities, fingerprints)
+from prepare_holdout import digest
 
 
 class DecisionTests(unittest.TestCase):
@@ -62,10 +66,20 @@ class DecisionTests(unittest.TestCase):
         rows = self.rows(120, 100)
         for r in rows:
             if r["round"] > 0:
-                v = [1, 2, 3, 100, 101, 102][r["round"]-1]
-                r["result"]["wall_ms_ready"] = v if r["candidate"] == "D" else v/2
+                d = [2, 4, 6, 8, 100, 100]
+                c = [1, 2, 3, 4, 100, 100]
+                r["result"]["wall_ms_ready"] = (d if r["candidate"] == "D" else c)[r["round"]-1]
         result = paired_metrics(rows, self.lock)
         self.assertEqual(result["groups"][0]["D_over_C_ready_median"], 2.0)
+        # Ratio of separate medians is also 2 here; change one large D
+        # to a small value in the same pair, making the two estimators differ.
+        for r in rows:
+            if r["round"] == 5 and r["candidate"] == "D":
+                r["result"]["wall_ms_ready"] = 1
+        result = paired_metrics(rows, self.lock)
+        self.assertEqual(result["groups"][0]["D_over_C_ready_median"], 2.0)
+        self.assertNotEqual(result["groups"][0]["metrics"]["wall_ms_ready"]["D_median"] /
+                            result["groups"][0]["metrics"]["wall_ms_ready"]["C_median"], 2.0)
 
     def test_missing_pair(self):
         with self.assertRaises(ValueError):
@@ -108,6 +122,81 @@ class DecisionTests(unittest.TestCase):
             (path / "extra").write_text("x", encoding="utf-8")
             with self.assertRaises(ValueError):
                 inventory(path)
+
+    def test_complete_lane_audit_and_completion_seal(self):
+        commit = "a"*40
+        lane = "ubuntu-24.04"
+        identity = f"REPO-INGEST-003/RUN-123-1-{commit[:12]}-{lane}-1"
+        with tempfile.TemporaryDirectory() as directory:
+            raw = Path(directory)
+            def write(name, value):
+                (raw / name).write_text(json.dumps(value), encoding="utf-8")
+            def checksums():
+                (raw / "sha256.txt").write_text("".join(
+                    f"{digest(p)}  {p.name}\n" for p in sorted(raw.iterdir())
+                    if p.name != "sha256.txt"), encoding="utf-8")
+            meta = dict(experiment=self.lock["experiment"], phase="sealed-holdout",
+                        commit=commit, dirty=False, lane=lane, replica=1, run_id=identity,
+                        github_run_id="123", github_run_attempt="1", sdk="synthetic",
+                        dotnet_info="synthetic", host="Linux", machine="x64", runner_image="test",
+                        runner_image_version="test", started_utc="test", runner_name="test",
+                        **identities(), fingerprints=fingerprints(self.qualified))
+            write("manifest.json", meta)
+            write("replay.json", {})
+            (raw / "build.log").write_text("synthetic", encoding="utf-8")
+            rows = []
+            for n, (family, suite, rnd, pos, candidate) in enumerate(schedule(self.lock), 1):
+                expected = self.geometry["families"][family]
+                l = expected["logical_bytes"]
+                sha = self.lock["corpora"][family]["sha256"]
+                result = dict(expected, candidate=candidate, suite=suite, target_mib=32,
+                              source_sha256=sha, restore_sha256=sha, verdict="pass",
+                              layout_sha256=self.qualified["layouts"][family][suite],
+                              runtime=".NET synthetic", os="Linux", arch="X64", processors=4,
+                              stage_files_completed=expected["logical_occurrences"] if candidate=="D" else 0,
+                              modeled_stage_payload_bytes=l if candidate=="D" else 0,
+                              modeled_request_copy_bytes=0, range_source_read_bytes=l if candidate=="D" else 0,
+                              modeled_duplicate_comparison_bytes=l-expected["unique_payload_bytes"] if candidate=="C" else 0,
+                              wall_ms_ready=120 if candidate=="D" else 100,
+                              cpu_ms_ready=100, allocated_bytes_delta_ready=100,
+                              process_peak_working_set_bytes_at_ready=100, restore_ms=100,
+                              rebuild_ms=100, cleanup_ms=0)
+                if candidate=="D":
+                    result.update(active_duplicate_count=0, closed_duplicate_count=0)
+                write(f"sample-{n:03d}.stdout", result)
+                (raw / f"sample-{n:03d}.stderr").write_text("", encoding="utf-8")
+                rows.append(dict(sample_id=n, family=family, suite=suite, round=rnd, order=pos,
+                                 candidate=candidate, warmup=rnd==0, commit=commit, run_id=identity,
+                                 lane=lane, replica=1, exit_code=0, outcome="pass", result=result))
+            (raw / "samples.jsonl").write_text("".join(json.dumps(row)+"\n" for row in rows), encoding="utf-8")
+            completion = dict(commit=commit, run_id=identity, samples=112, measured=96,
+                              source_sha256={f: spec["sha256"] for f, spec in self.lock["corpora"].items()},
+                              private_empty=True, checkout_clean=True,
+                              samples_sha256=digest(raw / "samples.jsonl"))
+            write("completion.json", completion)
+            checksums()
+            # Only replay is mocked: official member metadata is not a unit-test fixture.
+            # Actual acquisition/replay was separately qualified by #494/#495.
+            with patch("holdout_evaluate.verify_replay"):
+                def audit():
+                    return audit_lane(raw, commit, "123", "1", self.lock, self.geometry, self.qualified)
+                self.assertEqual(audit()["decision"], "PERFORMANCE_ELIGIBLE")
+                (raw / "completion.json").unlink()
+                checksums()
+                with self.assertRaises(ValueError):
+                    audit()
+                write("completion.json", dict(completion, private_empty=False))
+                checksums()
+                with self.assertRaises(ValueError):
+                    audit()
+                write("completion.json", completion)
+                checksums()
+                (raw / "sample-001.stdout").write_text("{}", encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    audit()
+                checksums()
+                with self.assertRaises(ValueError):
+                    audit()
 
 
 if __name__ == "__main__":
