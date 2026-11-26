@@ -278,7 +278,7 @@ public sealed class CspApplyFuzzTests : IDisposable
         Assert.Equal(789, donor.Patch.Length);
         Assert.Equal(expected, donor.ExpectedOutputSha256);
         Assert.NotEqual(origin.TargetManifestId, donor.TargetManifestId);
-        Assert.NotEqual(origin.ExpectedOutputSha256, expected);
+        Assert.NotEqual(expected, origin.ExpectedOutputSha256);
 
         string destination = Path.Combine(_directory, "output.bin");
         (PatchApplyResult? result, Exception? failure, _) =
