@@ -57,6 +57,22 @@ prefix, attempted/completed markers, terminal state, exception identity and
 no continued operations. Codes are modeled EIO/ENOSPC, not native errors.
 No timing or performance claim.
 
+AUDIT-010 adds 44 cases (80 total): 24 suspended faults before/after effects,
+12 suspended cancellations (cooperative vs ignored until completion), six
+suspended successes with duplicate-call rejection, a backend aggregate
+primary/cleanup exception, and a failing capability query. Task completion
+gates force an actual incomplete await; no sleep or timing-based scheduling.
+A cooperative cancellation watchdog bounds test failure only. A noncooperative
+operation must settle before the attempt returns; completed markers describe
+acknowledged operations, not effects or durability. A cancellation request
+racing after the final cancellation check may lose to successful completion.
+Aggregate exception tests verify pass-through only; actual cleanup and native
+error propagation remain concrete-backend gates.
+
+Original PR #501 head `3f411b00fdb16f2c7c681f2fb72015c55cc7fb23` passed CI
+45878923721 and Heavy 45878923747. The expanded matrix requires a fresh
+exact-head qualification; no claim of passing added tests before that run.
+
 Next R1-C.2b.2: concrete trusted-private-directory file backend, explicit
 handle ownership and cleanup error reporting, actual file and directory
 barriers with platform-specific capability policy. Linux and Windows native
