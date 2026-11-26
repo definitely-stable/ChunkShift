@@ -15,10 +15,12 @@ internal sealed class VerifiedChunkStager
     private readonly long _maximumChunkBytes;
     private readonly Action<StagingBoundary>? _checkpoint;
     private readonly StagingBudget? _budget;
+    private readonly StagingFileHooks? _fileHooks;
 
     // Internal deterministic failure seam; the normal path has no callback.
     internal VerifiedChunkStager(string stagingDirectory, long maximumChunkBytes,
-        Action<StagingBoundary>? checkpoint = null, StagingBudget? budget = null)
+        Action<StagingBoundary>? checkpoint = null, StagingBudget? budget = null,
+        StagingFileHooks? fileHooks = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(stagingDirectory);
         ArgumentOutOfRangeException.ThrowIfNegative(maximumChunkBytes);
@@ -27,6 +29,7 @@ internal sealed class VerifiedChunkStager
         _maximumChunkBytes = maximumChunkBytes;
         _checkpoint = checkpoint;
         _budget = budget;
+        _fileHooks = fileHooks;
     }
 
     /// <summary>
@@ -63,6 +66,9 @@ internal sealed class VerifiedChunkStager
         string? path = null;
         bool creationAttempted = false;
         bool created = false;
+        FileStream? output = null;
+        bool closeAttempted = false;
+        bool closed = false;
         byte[]? buffer = null;
         bool failed = false;
         bool removed = false;
@@ -78,61 +84,64 @@ internal sealed class VerifiedChunkStager
                 _stagingDirectory, Guid.NewGuid().ToString("N") + ".stage");
             buffer = ArrayPool<byte>.Shared.Rent(BufferBytes);
             creationAttempted = true;
-            await using (var output = new FileStream(
-                path, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                16 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
+            output = _fileHooks?.Create is { } create
+                ? create(path)
+                : new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                    16 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            created = true;
+            long remaining = expectedLength;
+            while (remaining > 0)
             {
-                created = true;
-                long remaining = expectedLength;
-                while (remaining > 0)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    int requested = (int)Math.Min(BufferBytes, remaining);
-                    int count = await source.ReadAsync(
-                        buffer.AsMemory(0, requested), cancellationToken).ConfigureAwait(false);
-                    if ((uint)count > (uint)requested)
-                    {
-                        throw new InvalidOperationException("Source returned an invalid read count.");
-                    }
-
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (count == 0)
-                    {
-                        throw new EndOfStreamException("Chunk source ended before expected length.");
-                    }
-
-                    digest.Append(buffer.AsSpan(0, count));
-                    _checkpoint?.Invoke(StagingBoundary.BeforeWrite);
-                    await output.WriteAsync(
-                        buffer.AsMemory(0, count), cancellationToken).ConfigureAwait(false);
-                    remaining -= count;
-                }
-
-                // A trailing byte is an identity/length mismatch, including for empty chunks.
                 cancellationToken.ThrowIfCancellationRequested();
-                int trailing = await source.ReadAsync(
-                    buffer.AsMemory(0, 1), cancellationToken).ConfigureAwait(false);
-                if ((uint)trailing > 1u)
+                int requested = (int)Math.Min(BufferBytes, remaining);
+                int count = await source.ReadAsync(
+                    buffer.AsMemory(0, requested), cancellationToken).ConfigureAwait(false);
+                if ((uint)count > (uint)requested)
                 {
                     throw new InvalidOperationException("Source returned an invalid read count.");
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
-                if (trailing != 0)
+                if (count == 0)
                 {
-                    throw new InvalidDataException("Chunk source exceeds expected length.");
+                    throw new EndOfStreamException("Chunk source ended before expected length.");
                 }
 
-                ChunkId observed = digest.Finish();
-                if (!expected.ChunkId.Value.FixedTimeEquals(observed.Value))
-                {
-                    throw new InvalidDataException("ChunkId mismatch.");
-                }
-
-                // FlushAsync is NOT a power-loss durability guarantee.
-                _checkpoint?.Invoke(StagingBoundary.BeforeFlush);
-                await output.FlushAsync(cancellationToken).ConfigureAwait(false);
+                digest.Append(buffer.AsSpan(0, count));
+                _checkpoint?.Invoke(StagingBoundary.BeforeWrite);
+                await output.WriteAsync(
+                    buffer.AsMemory(0, count), cancellationToken).ConfigureAwait(false);
+                remaining -= count;
             }
+
+            // A trailing byte is an identity/length mismatch, including for empty chunks.
+            cancellationToken.ThrowIfCancellationRequested();
+            int trailing = await source.ReadAsync(
+                buffer.AsMemory(0, 1), cancellationToken).ConfigureAwait(false);
+            if ((uint)trailing > 1u)
+            {
+                throw new InvalidOperationException("Source returned an invalid read count.");
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            if (trailing != 0)
+            {
+                throw new InvalidDataException("Chunk source exceeds expected length.");
+            }
+
+            ChunkId observed = digest.Finish();
+            if (!expected.ChunkId.Value.FixedTimeEquals(observed.Value))
+            {
+                throw new InvalidDataException("ChunkId mismatch.");
+            }
+
+            // FlushAsync is NOT a power-loss durability guarantee.
+            _checkpoint?.Invoke(StagingBoundary.BeforeFlush);
+            await output.FlushAsync(cancellationToken).ConfigureAwait(false);
+
+            closeAttempted = true;
+            await CloseAsync(output).ConfigureAwait(false);
+            closed = true;
 
             _checkpoint?.Invoke(StagingBoundary.AfterClose);
             cancellationToken.ThrowIfCancellationRequested();
@@ -142,22 +151,53 @@ internal sealed class VerifiedChunkStager
         {
             failed = true;
             cleanupErrorType = failure.GetType().Name;
-            // Release storage credit only when no create was attempted or deletion succeeded.
-            // An ambiguous constructor failure is conservatively quarantined: never delete a
-            // path that we cannot prove we created.
-            removed = !creationAttempted;
-            if (created)
+            Exception? cleanupFailure = null;
+
+            // A failed write/verification still needs one close attempt. Do
+            // not let close replace the primary error, or retry a failed close.
+            if (output is not null && !closeAttempted)
             {
                 try
                 {
-                    File.Delete(path!);
-                    removed = true;
+                    await CloseAsync(output).ConfigureAwait(false);
+                    closed = true;
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (Exception ex)
                 {
-                    // Preserve the original error. The unpublished orphan remains charged.
+                    cleanupFailure = ex;
                     cleanupErrorType = ex.GetType().Name;
                 }
+            }
+
+            // Never delete an ambiguous CreateNew winner. Even known ownership
+            // is insufficient if closing failed: Unix unlink can hide retained
+            // storage behind an open descriptor. Require positive close.
+            removed = !creationAttempted;
+            if (created && closed)
+            {
+                try
+                {
+                    if (_fileHooks?.Delete is { } delete)
+                    {
+                        delete(path!);
+                    }
+                    else
+                    {
+                        File.Delete(path!);
+                    }
+
+                    removed = true;
+                }
+                catch (Exception ex)
+                {
+                    cleanupFailure = ex;
+                    cleanupErrorType = ex.GetType().Name;
+                }
+            }
+
+            if (cleanupFailure is not null)
+            {
+                throw new AggregateException("Stage and cleanup failed; storage quarantined.", failure, cleanupFailure);
             }
 
             throw;
@@ -178,11 +218,23 @@ internal sealed class VerifiedChunkStager
                 }
                 else
                 {
-                    reservation.QuarantineStorage(path!, created, cleanupErrorType!);
+                    reservation.QuarantineStorage(path!, created, cleanupErrorType!, closed);
                 }
             }
         }
     }
+    private ValueTask CloseAsync(FileStream output) =>
+        _fileHooks?.Close is { } close ? close(output) : output.DisposeAsync();
+}
+
+// Internal test-only operations. A successful create must exclusively own
+// the path; close/delete return only after the corresponding operation settles.
+// No production caller provides hooks. A throw may occur before or after effect.
+internal sealed class StagingFileHooks
+{
+    internal Func<string, FileStream>? Create { get; init; }
+    internal Func<FileStream, ValueTask>? Close { get; init; }
+    internal Action<string>? Delete { get; init; }
 }
 
 // Simulates failures at real staging boundaries, not actual kernel I/O failures.

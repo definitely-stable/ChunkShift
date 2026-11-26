@@ -27,7 +27,7 @@ internal sealed class StagingBudget
     }
 
     internal readonly record struct QuarantinedStage(
-        string Path, long ReservedBytes, bool OwnershipConfirmed, string ErrorType);
+        string Path, long ReservedBytes, bool OwnershipConfirmed, string ErrorType, bool CloseConfirmed);
 
     internal StagingBudget(long maximumBytes, int maximumFiles, int maximumWriters)
     {
@@ -135,7 +135,8 @@ internal sealed class StagingBudget
             }
         }
 
-        internal void QuarantineStorage(string path, bool ownershipConfirmed, string errorType)
+        internal void QuarantineStorage(string path, bool ownershipConfirmed, string errorType,
+            bool closeConfirmed = false)
         {
             lock (_owner._gate)
             {
@@ -146,7 +147,7 @@ internal sealed class StagingBudget
 
                 if (_state == ReservationState.Owned)
                 {
-                    _owner._quarantine.Add(new QuarantinedStage(path, _bytes, ownershipConfirmed, errorType));
+                    _owner._quarantine.Add(new QuarantinedStage(path, _bytes, ownershipConfirmed, errorType, closeConfirmed));
                     _state = ReservationState.Quarantined;
                     // Quarantined credit remains included in the reserved totals.
                     _owner._quarantinedBytes += _bytes;
