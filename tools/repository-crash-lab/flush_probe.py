@@ -94,12 +94,16 @@ def native_invalid(win):
         observed = win.flush_handle(win.invalid, "invalid_handle_flush")
         require(observed["error"] == 6, "expected ERROR_INVALID_HANDLE")
         return observed
-    try:
-        os.fsync(-1)
-    except OSError as e:
-        require(e.errno == errno.EBADF, "expected EBADF")
-        return result("invalid_fd_fsync", "fsync", e.errno)
-    raise ValueError("invalid fd accepted")
+    # CPython 3.14 rejects negative descriptors before entering libc.
+    # Exercise the actual native API; a Python ValueError is not EBADF evidence.
+    fsync = ctypes.CDLL(None, use_errno=True).fsync
+    fsync.argtypes = [ctypes.c_int]
+    fsync.restype = ctypes.c_int
+    ctypes.set_errno(0)
+    status = fsync(-1)
+    error = ctypes.get_errno()
+    require(status == -1 and error == errno.EBADF, "expected native fsync(-1) => -1/EBADF")
+    return result("invalid_fd_fsync", "fsync", error)
 
 
 def linux_full():
