@@ -1,7 +1,6 @@
 # REPO-INGEST-002 — full sensitivity launch and review checklist
 
-Status: full-screen launch candidate after #491 acceptance, no timed evidence.
-The full-screen PR triggers the dedicated hosted workflow. Refs #133 #144 #139 #10; prior REPO-INGEST-001/EVIDENCE-20261126-001.
+Status: screening ACCEPTED in #492; [reviewed evidence](../research/results/REPO-INGEST-002-EVIDENCE-20261126-001.md). SCREEN_ONLY, default DEFER. Refs #133 #144 #139 #10; prior REPO-INGEST-001/EVIDENCE-20261126-001.
 
 ## Frozen run
 
