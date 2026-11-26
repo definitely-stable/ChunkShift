@@ -54,3 +54,24 @@ probe and fault boundaries; then durable intent/commit protocol with explicit
 ownership, ordering, idempotent recovery, no deletion of unknown paths and
 real kill/restart tests at every transition. Do not freeze Pack v1 or promote
 production default on this baseline alone.
+
+## AUDIT-003 — locked crash oracle (qualification pending)
+
+Keep original seven actual termination boundaries and fixed 8 MiB source.
+Pin the previously accepted source SHA256 and both ordered geometry hashes;
+control exposes complete physical shape and logical occurrence order. Require
+exact valid/invalid counts and valid bytes at each boundary (including 4/1
+at BeforeClosedDuplicate). Match every verified orphan pack to the expected
+closed prefix, ignoring only random PackId/name and directory enumeration
+order. Rebuild emits actual physical descriptors and ordered locations.
+Independent Python oracle checks raw P0 header, directory, hash index, footer,
+trailer fields and physical SHA256, and compares each payload byte to its
+source occurrence. At Ready reconstruct the entire source from orphan frames
+using the clean control logical sequence; verify pinned SHA256. This uses an
+external fixture oracle, not a recovered durable logical ledger. CRC/BLAKE3
+validation still uses the C# reader; not a general independent parser.
+Preserve per-frame SHA256 witnesses and actual observed descriptors in JSONL;
+original orphan files remain on runner only. No automatic adoption or deletion,
+no host-crash or power-loss guarantee. Tests include rehashed corrupt payload,
+metadata, wrong geometry and weak closed-duplicate oracle negative controls.
+New exact-head three-lane qualification and independent evidence review required.

@@ -113,7 +113,12 @@ internal static class Program
         Console.WriteLine(JsonSerializer.Serialize(new
         {
             kind = "complete", restore_sha256 = restoreHash, layout_sha256 = layout,
-            occurrences = occurrences.Length, frames, packs = packs.Length, bytes
+            occurrences = occurrences.Length, frames, packs = packs.Length, bytes,
+            geometry = shape,
+            logical = occurrences.Select(o => new
+            {
+                index = o.Index, offset = o.Offset, length = o.Length, key = o.Key.ChunkId.Value.ToHexLower()
+            }).ToArray()
         }));
     }
 
@@ -151,9 +156,22 @@ internal static class Program
 
         Require(allAccepted == (invalid.Count == 0), "Full candidate set did not fail closed.");
         RebuiltPhysicalIndex rebuilt = await RawPackRebuilder.RebuildAsync(valid, limits).ConfigureAwait(false);
+        var rebuiltLocations = rebuilt.GetLocations().ToLookup(l => l.PackId);
+        var physical = rebuilt.GetPacks().Select(p => new
+        {
+            name = Path.GetFileName(p.Path),
+            pack_id = p.Descriptor.PackId.Value.ToHexLower(),
+            pack_digest = p.Descriptor.PackDigest.Value.ToHexLower(),
+            bytes = p.Descriptor.PhysicalBytes,
+            frames = rebuiltLocations[p.Descriptor.PackId].OrderBy(l => l.FrameOrdinal).Select(l => new
+            {
+                key = l.Key.ChunkId.Value.ToHexLower(), Ordinal = l.FrameOrdinal,
+                Offset = l.PhysicalOffset, Length = l.RawLength, Crc32C = l.PhysicalChecksum
+            }).ToArray()
+        }).ToArray();
         Console.WriteLine(JsonSerializer.Serialize(new
         {
-            kind = "inspection", valid = valid.Select(Path.GetFileName).ToArray(),
+            kind = "inspection", physical, valid = valid.Select(Path.GetFileName).ToArray(),
             invalid = invalid.Select(Path.GetFileName).ToArray(), all_accepted = allAccepted,
             packs = rebuilt.GetPacks().Length, frames = rebuilt.GetLocations().Length,
             bytes = rebuilt.TotalPhysicalBytes
