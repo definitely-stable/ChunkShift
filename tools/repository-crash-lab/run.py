@@ -7,6 +7,8 @@ import queue
 import subprocess
 import threading
 
+from crash_oracle import control_payloads, check_condition, raw_witness
+
 LAB = Path(__file__).resolve().parent
 ROOT = LAB.parents[1]
 DLL = LAB / "bin/Release/net10.0/ChunkShift.Repository.CrashLab.dll"
@@ -73,25 +75,6 @@ def kill_at(suite, source, orphan, boundary, evidence, name):
                 reader.join(timeout=5)
 
 
-def check_condition(boundary, state, control):
-    valid, invalid = len(state["valid"]), len(state["invalid"])
-    require(state["kind"] == "inspection" and state["packs"] == valid and
-            state["all_accepted"] == (invalid == 0), "inspection reconciliation")
-    if boundary == "BeforeCreate:1":
-        require(valid == invalid == 0, "unexpected pre-create files")
-    elif boundary in ("BeforeCreate:2", "AfterCloseBeforeReadback:1", "AfterVerified:1"):
-        require(valid == 1 and invalid == 0, "expected exactly one complete pack")
-    elif boundary == "BeforeActiveDuplicate:1":
-        require(valid == 0 and invalid == 1, "expected incomplete active pack")
-    elif boundary == "BeforeClosedDuplicate:1":
-        require(valid >= 1, "expected closed pack")
-    elif boundary == "Ready:1":
-        require(invalid == 0 and all(state[k] == control[k] for k in ("packs", "frames", "bytes")),
-                "Ready physical geometry mismatch")
-    else:
-        raise ValueError("unknown boundary")
-
-
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--output", required=True, type=Path)
@@ -109,7 +92,7 @@ def main():
             out.write(bytes(MIB) if index < 2 or index >= 6 else hashlib.shake_256(
                 f"chunkshift-crash-v1:{index}".encode("ascii")).digest(MIB))
     sha = digest(source)
-    meta = dict(experiment="REPO-CRASH-001", phase="process-termination-only",
+    meta = dict(experiment="REPO-CRASH-001", phase="process-termination-only", oracle="AUDIT-003-v1",
                 commit=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
                 source_sha256=sha, source_bytes=8*MIB, boundaries=BOUNDARIES,
                 sdk=subprocess.check_output(["dotnet", "--version"], text=True).strip())
@@ -125,6 +108,7 @@ def main():
                 control = invoke(["build", suite, source, control_dir, "none"], evidence, suite+"-control")
                 require(control["kind"] == "complete" and control["restore_sha256"] == sha and
                         control["packs"] >= 2 and not snapshot(control_dir), "control failed")
+                payloads = control_payloads(control, source.read_bytes(), suite)
                 for n, boundary in enumerate(BOUNDARIES, 1):
                     case = f"{suite}-{n:02d}"
                     orphan = root / (case+"-orphan")
@@ -134,13 +118,14 @@ def main():
                     state = invoke(["inspect", *(orphan / name for name in before)], evidence, case+"-inspect")
                     require(sorted(state["valid"]+state["invalid"]) == sorted(before), "missing classification")
                     check_condition(boundary, state, control)
+                    witness = raw_witness(boundary, state, control, payloads, orphan, before, suite)
                     require(snapshot(orphan) == before, "inspection modified orphans")
                     fresh = invoke(["build", suite, source, retry, "none"], evidence, case+"-retry")
                     require(fresh == control and not snapshot(retry) and digest(source) == sha and
                             snapshot(orphan) == before, "restart diverged or modified orphans")
                     rows.write(json.dumps(dict(suite=suite, boundary=boundary, marker=marker,
                                                killed_exit=exit_code, snapshot=before, inspection=state,
-                                               restart=fresh, outcome="pass"), sort_keys=True)+"\n")
+                                               raw_witness=witness, restart=fresh, outcome="pass"), sort_keys=True)+"\n")
                     rows.flush()
                     count += 1
         require(count == 14, "incomplete crash matrix")

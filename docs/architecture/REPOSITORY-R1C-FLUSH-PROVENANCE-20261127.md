@@ -1,6 +1,6 @@
 # AUDIT-002 — handle-bound filesystem provenance
 
-Status: IMPLEMENTED / hosted qualification pending. Refs #10 #133 #139 #144.
+Status: ACCEPTED in #502, exact head `cd1f03bc5bff6dd387d80babcc470ca2095079e1`, merge `948d655c4b2aff5cea2c8b8d81ac95434fccc63d`; [reviewed evidence](../research/results/REPO-FLUSH-PROVENANCE-001-EVIDENCE-20261127-001.md). Refs #10 #133 #139 #144.
 Corrects REPO-FLUSH-001 attribution; no new durability experiment or production adoption.
 Original evidence remains immutable in its numerical observations; the root filesystem
 label is explicitly qualified rather than retroactively replaced.
