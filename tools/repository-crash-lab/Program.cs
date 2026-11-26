@@ -15,6 +15,12 @@ internal static class Program
     {
         try
         {
+            if (args is ["flush-probe", var fixture])
+            {
+                FlushProbe.Run(fixture);
+                return 0;
+            }
+
             if (args is ["build", var suite, var source, var directory, var boundary])
             {
                 await BuildAsync(suite, source, directory, boundary).ConfigureAwait(false);

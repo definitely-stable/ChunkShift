@@ -1,0 +1,54 @@
+name: Repository flush capabilities
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/repository-crash-lab/FlushProbe.cs'
+      - 'tools/repository-crash-lab/flush_probe.py'
+      - '.github/workflows/repository-flush-capabilities.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.14"
+      - name: Observe bounded persistence APIs and native negative controls
+        shell: pwsh
+        run: |
+          python -B tools/repository-crash-lab/flush_probe.py --output "$env:RUNNER_TEMP/repository-flush"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $s = Get-Content "$env:RUNNER_TEMP/repository-flush/evidence/summary.json" -Raw | ConvertFrom-Json
+          if ($s.decision -ne "CAPABILITY_ONLY" -or $s.production_default -ne "DEFER" -or $s.crash_ordering -ne "UNQUALIFIED" -or -not $s.fixture_empty) { throw "Unexpected capability verdict" }
+          $expectedArch = if ("${{ matrix.os }}" -eq "ubuntu-24.04-arm") { "Arm64" } else { "X64" }
+          if ($s.managed.arch -ne $expectedArch) { throw "Incorrect process architecture" }
+      - name: Preserve original capability evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: repository-flush-capabilities-${{ matrix.os }}
+          path: ${{ runner.temp }}/repository-flush/evidence/
+          if-no-files-found: warn
+          retention-days: 90
