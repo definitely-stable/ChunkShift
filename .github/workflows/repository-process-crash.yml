@@ -1,0 +1,51 @@
+name: Repository process crash baseline
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/repository-crash-lab/**'
+      - '.github/workflows/repository-process-crash.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  crash:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.14"
+      - name: Kill at actual private-pack boundaries and inspect from new process
+        shell: pwsh
+        run: |
+          python -B tools/repository-crash-lab/run.py --output "$env:RUNNER_TEMP/repository-crash"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $rows = @(Get-Content "$env:RUNNER_TEMP/repository-crash/evidence/cases.jsonl" | ForEach-Object { $_ | ConvertFrom-Json })
+          if ($rows.Count -ne 14 -or @($rows | Where-Object { $_.outcome -ne "pass" }).Count -ne 0) { throw "Crash matrix incomplete" }
+      - name: Preserve diagnostics and structural evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: repository-process-crash-${{ matrix.os }}
+          path: ${{ runner.temp }}/repository-crash/evidence/
+          if-no-files-found: warn
+          retention-days: 90
