@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'tools/repository-crash-lab/**'
+      - 'src/ChunkShift.Repository/**'
       - '.github/workflows/repository-process-crash.yml'
   workflow_dispatch:
 
@@ -34,6 +35,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.14"
+      - name: Test locked crash oracle negative controls
+        run: python -B -m unittest discover -s tools/repository-crash-lab -p test_crash_oracle.py -v
       - name: Kill at actual private-pack boundaries and inspect from new process
         shell: pwsh
         run: |
@@ -41,6 +44,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $rows = @(Get-Content "$env:RUNNER_TEMP/repository-crash/evidence/cases.jsonl" | ForEach-Object { $_ | ConvertFrom-Json })
           if ($rows.Count -ne 14 -or @($rows | Where-Object { $_.outcome -ne "pass" }).Count -ne 0) { throw "Crash matrix incomplete" }
+          $ready = @($rows | Where-Object { $_.boundary -eq "Ready:1" })
+          if ($ready.Count -ne 2 -or @($ready | Where-Object { $_.raw_witness.restored_sha256 -ne "79df7a3236a66a983fc9fbf3a921c2a017fd6310267bf296d150f749d9c54e96" }).Count -ne 0) { throw "Missing Ready reconstruction witness" }
       - name: Preserve diagnostics and structural evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
