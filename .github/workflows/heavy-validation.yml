@@ -131,6 +131,10 @@ jobs:
           # differs from the CSM step so the two lanes never share a stream.
           base=$(( ${{ github.run_number }} * 16 + 8 ))
           export CHUNKSHIFT_FUZZ_SEEDS="$base,$((base + 1)),$((base + 2)),$((base + 3))"
+          # Preserve the actual failing seed in addition to fresh exploration.
+          if [[ ",$CHUNKSHIFT_FUZZ_SEEDS," != *,22058,* ]]; then
+            export CHUNKSHIFT_FUZZ_SEEDS="$CHUNKSHIFT_FUZZ_SEEDS,22058"
+          fi
           echo "fuzz seeds: $CHUNKSHIFT_FUZZ_SEEDS"
           dotnet test tests/ChunkShift.Patching.Tests -c Release --no-build --no-restore \
             --filter "FullyQualifiedName~ChunkShift.Patching.Tests.Fuzzing"
@@ -138,6 +142,15 @@ jobs:
           python tools/csp-fixtures/forward_apply.py --compare "$CHUNKSHIFT_FUZZ_DUMP"
           # Mutated zstd frames alone: ZstdSharp against the runner's libzstd.
           python tools/csp-fixtures/decode.py --compare-frames "$CHUNKSHIFT_FUZZ_DUMP"
+
+      - name: Preserve CSP fuzz failure reproducers
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: csp-fuzz-failures-${{ matrix.rid }}
+          path: ${{ runner.temp }}/csp-fuzz/failures/
+          if-no-files-found: warn
+          retention-days: 90
 
       - name: Verify external fastcdc-rs 5.0.0 vector
         if: matrix.rid == 'linux-x64'

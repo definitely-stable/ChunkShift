@@ -1,6 +1,6 @@
 # R1-C.2a — REPO-FLUSH-001 platform persistence capability baseline
 
-Status: PLANNED. Refs #10 #133 #139 #144.
+Status: EVIDENCE_READY — [reviewed capability evidence](../research/results/REPO-FLUSH-001-EVIDENCE-20261126-001.md); acceptance subject to PR #499 integration gates. Refs #10 #133 #139 #144.
 Predecessor REPO-CRASH-001 accepted. REPO-INGEST-003 performance eligible,
 production default DEFER. Scope: observed return codes on test-owned local
 runner files, not a durable storage contract or crash simulation.

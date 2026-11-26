@@ -1,6 +1,6 @@
 {
   "schema": "chunkshift.experiment-registry.v1",
-  "updated": "2026-11-17",
+  "updated": "2026-11-26",
   "status_values": [
     "PLANNED",
     "RUNNING",
@@ -707,6 +707,78 @@
       "firstReleaseEvidence": "docs/research/results/PATCH-EXEC-001-FIRST-RELEASE-DEFER-20261117-001.md",
       "firstReleaseLedger": "benchmarks/experiments/patch-exec-001-first-release-defer-20261117.json",
       "firstReleaseSourceEvidence": "docs/research/results/PATCH-EXEC-001-G2A-EVIDENCE-20261015-001.md"
+    },
+    {
+      "id": "REPO-INGEST-001",
+      "issues": [
+        133,
+        144,
+        10
+      ],
+      "area": "repository-ingest",
+      "status": "EVIDENCE_READY",
+      "question": "Matched finite staging vs direct verified ingestion screening",
+      "protocol": "docs/architecture/REPOSITORY-R1B4E-INGEST-EVIDENCE-PROTOCOL-20261125.md",
+      "evidence": "docs/research/results/REPO-INGEST-001-EVIDENCE-20261126-001.md",
+      "decision": "SCREEN_ONLY; production default DEFER"
+    },
+    {
+      "id": "REPO-INGEST-002",
+      "issues": [
+        133,
+        144,
+        10
+      ],
+      "area": "repository-ingest",
+      "status": "EVIDENCE_READY",
+      "question": "Source-range staging adapter sensitivity (A/D/C)",
+      "protocol": "docs/architecture/REPOSITORY-R1B4E-RANGE-STAGING-20261126.md",
+      "evidence": "docs/research/results/REPO-INGEST-002-EVIDENCE-20261126-001.md",
+      "decision": "SCREEN_ONLY; production default DEFER"
+    },
+    {
+      "id": "REPO-INGEST-003",
+      "issues": [
+        133,
+        144,
+        10
+      ],
+      "area": "repository-ingest",
+      "status": "EVIDENCE_READY",
+      "question": "Independent real/versioned artifact holdout (D/C)",
+      "protocol": "docs/architecture/REPOSITORY-R1B4E-HOLDOUT-PREFLIGHT-20261126.md",
+      "evidence": "docs/research/results/REPO-INGEST-003-EVIDENCE-20261126-001.md",
+      "decision": "PERFORMANCE_ELIGIBLE; production default DEFER"
+    },
+    {
+      "id": "REPO-CRASH-001",
+      "issues": [
+        133,
+        139,
+        144,
+        10
+      ],
+      "area": "repository-durability",
+      "status": "ADOPT",
+      "question": "Real process termination at private pack checkpoints",
+      "protocol": "docs/architecture/REPOSITORY-R1C-PROCESS-CRASH-20261126.md",
+      "evidence": "docs/research/results/REPO-CRASH-001-EVIDENCE-20261126-001.md",
+      "decision": "Process termination baseline accepted only; production default DEFER"
+    },
+    {
+      "id": "REPO-FLUSH-001",
+      "issues": [
+        133,
+        139,
+        144,
+        10
+      ],
+      "area": "repository-durability",
+      "status": "EVIDENCE_READY",
+      "question": "Platform file/directory flush capability and native negative controls",
+      "protocol": "docs/architecture/REPOSITORY-R1C-FLUSH-CAPABILITIES-20261126.md",
+      "evidence": "docs/research/results/REPO-FLUSH-001-EVIDENCE-20261126-001.md",
+      "decision": "CAPABILITY_ONLY; production default DEFER; crash ordering UNQUALIFIED"
     }
   ]
 }

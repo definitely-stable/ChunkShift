@@ -31,8 +31,10 @@ namespace ChunkShift.Patching.Tests.Fuzzing;
 /// iteration, whatever lengths the patch declares;</item>
 /// <item>a non-valid outcome leaves the destination directory empty, and a
 /// valid outcome holds exactly the destination file;</item>
-/// <item>a valid outcome of a corpus entry created from a creation scenario
-/// reproduces that scenario's target bytes.</item>
+/// <item>a valid outcome targeting any known corpus ManifestId reproduces
+/// that target's independently pinned bytes, not the mutation donor's target;
+/// successful novel targets are included in the differential dump even if
+/// larger than the normal small-case limit.</item>
 /// </list>
 /// <para>
 /// The default run is small enough for every CI build. Heavy validation runs
@@ -185,16 +187,7 @@ public sealed class CspApplyFuzzTests : IDisposable
                             string outputSha256 = Sha256File(destination);
                             verdict = "valid:" + outputSha256;
 
-                            if (entry.ExpectedOutputSha256 is not null &&
-                                !string.Equals(
-                                    outputSha256,
-                                    entry.ExpectedOutputSha256,
-                                    StringComparison.Ordinal))
-                            {
-                                problem =
-                                    "the output SHA-256 differs from the corpus target " +
-                                    entry.ExpectedOutputSha256;
-                            }
+                            problem = CheckKnownTarget(result.Target?.ManifestId, outputSha256, corpus);
                         }
                     }
                     else if (entries.Length != 0)
@@ -218,6 +211,7 @@ public sealed class CspApplyFuzzTests : IDisposable
 
             if (problem is not null)
             {
+                dump?.WriteFailure(patch, verdict, entry, iteration, trace.ToString(), problem, detail);
                 failures.Add(Describe(seed, iteration, entry, trace, patch, problem, detail));
                 if (failures.Count >= MaximumReportedFailures)
                 {
@@ -232,7 +226,11 @@ public sealed class CspApplyFuzzTests : IDisposable
                 : verdict.Split(':')[0];
             outcomes[bucket] = outcomes.GetValueOrDefault(bucket) + 1;
             maximumAllocated = Math.Max(maximumAllocated, allocated);
-            dump?.Write(patch, verdict, entry, iteration);
+            // A successful novel target has no pinned corpus digest. Do not
+            // omit it from the independent decoder merely because it is large.
+            bool novelTarget = result is { IsApplied: true, Target: { } target } &&
+                !corpus.Any(candidate => candidate.TargetManifestId == target.ManifestId);
+            dump?.Write(patch, verdict, entry, iteration, force: novelTarget);
         }
 
         TimeSpan elapsed = Stopwatch.GetElapsedTime(started);
@@ -243,6 +241,60 @@ public sealed class CspApplyFuzzTests : IDisposable
         Assert.True(
             failures.Count == 0,
             string.Join(Environment.NewLine + Environment.NewLine, failures));
+    }
+
+    private static string? CheckKnownTarget(
+        ManifestId? targetId, string outputSha256, IReadOnlyList<CorpusEntry> corpus)
+    {
+        if (targetId is null)
+        {
+            return "a successful apply did not return a target manifest identity";
+        }
+
+        // Splicing can replace the entire target with another valid CSP.
+        // Retain the strong byte oracle for every known target identity.
+        foreach (CorpusEntry candidate in corpus)
+        {
+            if (candidate.TargetManifestId == targetId &&
+                !string.Equals(outputSha256, candidate.ExpectedOutputSha256, StringComparison.Ordinal))
+            {
+                return $"the output SHA-256 {outputSha256} differs from known target " +
+                    candidate.ExpectedOutputSha256;
+            }
+        }
+
+        return null;
+    }
+
+    [Fact]
+    public void ValidReplacementTarget_UsesItsOwnPinnedDigest()
+    {
+        // Heavy validation 45800817961, seed 0x562a, iteration 1475:
+        // the mutated bytes were exactly the existing 789-byte fixture.
+        List<CorpusEntry> corpus = Corpus.Value;
+        CorpusEntry origin = corpus.Single(entry => entry.Name == "scenario-xor-region");
+        CorpusEntry donor = corpus.Single(entry => entry.Name == "zstd-no-dictionary");
+        const string expected = "967dcabb78ed6db5d8911bb78c322b35be9293c96d5d5981fa540c4adde19b0c";
+        Assert.Equal(789, donor.Patch.Length);
+        Assert.Equal(expected, donor.ExpectedOutputSha256);
+        Assert.NotEqual(origin.TargetManifestId, donor.TargetManifestId);
+        Assert.NotEqual(expected, origin.ExpectedOutputSha256);
+
+        string destination = Path.Combine(_directory, "output.bin");
+        (PatchApplyResult? result, Exception? failure, _) =
+            Apply(origin, donor.Patch, destination, CspApplier.DefaultChunkingCheck);
+        Assert.Null(failure);
+        Assert.NotNull(result);
+        Assert.True(result!.IsApplied);
+        Assert.NotNull(result.Target);
+        Assert.Equal(donor.TargetManifestId, result.Target!.ManifestId);
+        Assert.Equal(900L, new FileInfo(destination).Length);
+        string actual = Sha256File(destination);
+        Assert.Equal(expected, actual);
+        Assert.Null(CheckKnownTarget(result.Target.ManifestId, actual, corpus));
+        Assert.NotNull(CheckKnownTarget(origin.TargetManifestId, actual, corpus));
+        Assert.NotNull(CheckKnownTarget(donor.TargetManifestId, origin.ExpectedOutputSha256, corpus));
+        Assert.Null(CompareOtherCheck(origin, donor.Patch, _directory, Outcome(result, failure, destination)));
     }
 
     private static int ReadIterations()
@@ -366,7 +418,7 @@ public sealed class CspApplyFuzzTests : IDisposable
                 .CreateManifestAsync(scenario.TargetContent, HashSuiteIds.Sha256V1)
                 .GetAwaiter()
                 .GetResult();
-            (byte[] patch, _) = CreationTestSupport
+            (byte[] patch, PatchInfo info) = CreationTestSupport
                 .CreatePatchAsync(scenario, baseManifest, targetManifest)
                 .GetAwaiter()
                 .GetResult();
@@ -382,6 +434,7 @@ public sealed class CspApplyFuzzTests : IDisposable
                 patch,
                 scenario.SelfContained ? null : baseManifest,
                 baseContent,
+                info.TargetManifestId,
                 Convert.ToHexStringLower(SHA256.HashData(scenario.TargetContent))));
         }
 
@@ -404,12 +457,16 @@ public sealed class CspApplyFuzzTests : IDisposable
                 continue;
             }
 
+            byte[] patch = CspApplyVectors.ReadPatch(vector.Name);
+            using var readerStream = new MemoryStream(patch, writable: false);
+            CspReader reader = CspReader.OpenAsync(readerStream).GetAwaiter().GetResult();
             corpus.Add(new CorpusEntry(
                 Path.GetFileNameWithoutExtension(vector.Name),
-                CspApplyVectors.ReadPatch(vector.Name),
+                patch,
                 baseManifest,
                 baseContent,
-                ExpectedOutputSha256: null));
+                reader.TargetManifest.Manifest.ManifestId,
+                vector.OutputSha256 ?? throw new InvalidDataException("Valid vector lacks its output digest.")));
         }
 
         return corpus;
@@ -542,7 +599,8 @@ public sealed class CspApplyFuzzTests : IDisposable
         byte[] Patch,
         byte[]? BaseManifest,
         byte[]? BaseContent,
-        string? ExpectedOutputSha256);
+        ManifestId TargetManifestId,
+        string ExpectedOutputSha256);
 
     /// <summary>
     /// Writes small mutated patches, the base files each corpus entry needs
@@ -575,9 +633,37 @@ public sealed class CspApplyFuzzTests : IDisposable
             return string.IsNullOrWhiteSpace(directory) ? null : new DumpWriter(directory, seed);
         }
 
-        internal void Write(byte[] patch, string verdict, CorpusEntry entry, int iteration)
+        internal void WriteFailure(byte[] patch, string verdict, CorpusEntry entry,
+            int iteration, string trace, string problem, string? detail)
         {
-            if (patch.Length > MaximumDumpedCaseBytes)
+            // A maximum of MaximumReportedFailures per seed; the finite
+            // mutator corpus bounds input sizes. Keep failures separate from
+            // the successful differential listing and never omit a large repro.
+            string directory = Path.Combine(_directory, "failures", $"{_seed:x}-{iteration}");
+            Directory.CreateDirectory(directory);
+            File.WriteAllBytes(Path.Combine(directory, "case.csp"), patch);
+            if (entry.BaseManifest is not null)
+            {
+                File.WriteAllBytes(Path.Combine(directory, "base.csm"), entry.BaseManifest);
+            }
+
+            if (entry.BaseContent is not null)
+            {
+                File.WriteAllBytes(Path.Combine(directory, "base.bin"), entry.BaseContent);
+            }
+
+            File.WriteAllText(Path.Combine(directory, "failure.json"), JsonSerializer.Serialize(new
+            {
+                seed = _seed, iteration, entry = entry.Name, trace, problem, detail, verdict,
+                originalTarget = entry.TargetManifestId.ToString(),
+                originalTargetSha256 = entry.ExpectedOutputSha256,
+                patchSha256 = Convert.ToHexStringLower(SHA256.HashData(patch)),
+            }));
+        }
+
+        internal void Write(byte[] patch, string verdict, CorpusEntry entry, int iteration, bool force)
+        {
+            if (!force && patch.Length > MaximumDumpedCaseBytes)
             {
                 return;
             }
