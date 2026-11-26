@@ -1,0 +1,51 @@
+{
+  "experiment": "REPO-INGEST-003",
+  "phase": "accepted-qualification",
+  "head": "2bce1b39371d9108a5495c385a756075b21ea3dc",
+  "merge": "21e73ca7098fb2d7ad758f8820b8419388fb0416",
+  "run": 45771295672,
+  "source_lock_sha256": "e1bf44f06a90d7c20dfa149b78601a7c300a2f836547130bdb03746b95fea9f9",
+  "geometry_lock_sha256": "a34a647908b76574d1670ea65c2410fa819fb752ba52a816ce74f963772d8f31",
+  "artifacts": [
+    {
+      "lane": "windows-2025",
+      "id": 15093892586,
+      "sha256": "e5fb21fd7e21915cc8ff43f613017f0edaee4c6d31510fe93ed551bb8c35e5b1"
+    },
+    {
+      "lane": "ubuntu-24.04",
+      "id": 15093807689,
+      "sha256": "74f41d6b53f8a75cd7fbcfd7e207c21c98ade1360169045a22f0b5236f7e2a70"
+    },
+    {
+      "lane": "ubuntu-24.04-arm",
+      "id": 15093394378,
+      "sha256": "df75875efe80190b41eccea1d154508e5b1f5f330af4eb09b0a1af7a5da14268"
+    }
+  ],
+  "fingerprints": {
+    "Program.cs": "d8a7b85f751dedf1002cf83543697563903643c25e82d39683614c8820d769dc",
+    "SourceRangeStream.cs": "897d3d8446941682a37ef41029b2232c7ea61f816cf685e0fe3dd42cb40d7667",
+    "prepare_holdout.py": "cc60821ca0ec75c5305456fc1832c7a8788c9c25c24a0e1f00df10be4e868c4f",
+    "holdout_contract.py": "a4ef825321b677ed45b7cf3be84b86e6cd4d49bef621a15cc56cca6990730cad",
+    "validate.py": "f05932380d5f7292f37991e8b923558f0cec58619f6bde97def92b32cb356aa9"
+  },
+  "layouts": {
+    "win-versioned": {
+      "sha256": "615732e08430c6b9ea98cb41e7c94bbfc2d88f9b86d5583b47a3c291a1184a25",
+      "blake3": "33b107d9ec8c66d01f0428dccf0c5f60903a719917b641513e59a51aec0f3328"
+    },
+    "linux-versioned": {
+      "sha256": "edd0973792fa4e56170264ab24c29af37f301f32590be94da50e611c99b9f5b0",
+      "blake3": "f0b71561f1bf202cb50c13373788a0c7472d90d02e89f1bb9acac692be1b55f6"
+    },
+    "compressed": {
+      "sha256": "c1a662478b1a66c1b01ed7cb35c361d9e8dc344c84736a9b10bdca5059c37dc4",
+      "blake3": "3caa8e9a2dbdd8bc11139309079b1fcd0198cd49a63fe7bc9c47031447ddb3a0"
+    },
+    "adverse-repeat": {
+      "sha256": "463d60241296ceb36581eca9c20da370a46d3443a04e6e22c0723cedf70b9d74",
+      "blake3": "59e9d5f7fa774506db886251ddecd12957e75e1a88a91e5ef753d89a12beac11"
+    }
+  }
+}

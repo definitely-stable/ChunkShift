@@ -64,3 +64,11 @@ holdout_qualify.py replays the exact corpus lock and exercises D/C once per
 family/suite on each of three platforms; structural evidence only, no timing
 metrics retained. Check exact geometry, locality and physical layout, source
 restore, rebuild and cleanup. Full holdout not launched by qualification.
+
+## Sealed holdout evaluator
+
+After #495, holdout-qualification-lock.json binds eight actual cross-platform
+layout fingerprints and qualified source files. holdout_run.py requires explicit
+hosted execution. holdout_evaluate.py requires six original evidence directories
+and audits exact schedule, identity, raw checksums, source replay and layout before
+applying the unchanged rule. No decision-bearing workflow in evaluator qualification.
