@@ -72,3 +72,11 @@ layout fingerprints and qualified source files. holdout_run.py requires explicit
 hosted execution. holdout_evaluate.py requires six original evidence directories
 and audits exact schedule, identity, raw checksums, source replay and layout before
 applying the unchanged rule. No decision-bearing workflow in evaluator qualification.
+
+## Decision-bearing sealed holdout
+
+#496 accepted. Dedicated repository-sealed-holdout.yml launches six hosted
+lanes on one exact PR head; first attempt only. Archives original evidence
+only (no corpora/packs), and a separate aggregate job verifies all six lanes
+with holdout_evaluate.py. Valid DEFER is not an infrastructure failure. Any
+incomplete/invalid evidence is STOP. Independent original ZIP review required.

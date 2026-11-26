@@ -1,0 +1,127 @@
+name: Repository sealed holdout
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/repository-sealed-holdout.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repo-ingest-screen
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    name: measure (${{ matrix.os }}, replica ${{ matrix.replica }})
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, ubuntu-24.04, ubuntu-24.04-arm]
+        replica: [1, 2]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Require first attempt
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_RUN_ATTEMPT -ne "1") { throw "STOP: no holdout retry or partial rerun; review original evidence" }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Validate sealed analysis tools
+        run: python -B -m unittest discover -s tools/repository-ingest-lab -p "test_*.py"
+      - name: Execute sealed D/C holdout
+        shell: pwsh
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          HOLDOUT_LANE: ${{ matrix.os }}
+          HOLDOUT_REPLICA: ${{ matrix.replica }}
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne $env:EXPECTED_HEAD) { throw "Wrong checkout HEAD" }
+          python -B tools/repository-ingest-lab/holdout_run.py --output "$env:RUNNER_TEMP/sealed-holdout" --lane $env:HOLDOUT_LANE --replica $env:HOLDOUT_REPLICA --execute-sealed-holdout
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Preserve original lane evidence (no runtime binaries)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sealed-holdout-${{ matrix.os }}-r${{ matrix.replica }}-attempt${{ github.run_attempt }}
+          path: ${{ runner.temp }}/sealed-holdout/evidence/
+          if-no-files-found: error
+          retention-days: 90
+
+  audit:
+    name: audit all six sealed lanes
+    needs: measure
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      MEASURE_RESULT: ${{ needs.measure.result }}
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Require all six lanes successful
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/sealed-audit"
+          if [[ "$MEASURE_RESULT" != success || "$GITHUB_RUN_ATTEMPT" != 1 ]]; then
+            echo "STOP: timed matrix incomplete or invalid attempt; original evidence retained" | tee "$RUNNER_TEMP/sealed-audit/audit.log"
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Download all original lane artifacts from this run and attempt
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: sealed-holdout-*-r*-attempt${{ github.run_attempt }}
+          path: ${{ runner.temp }}/sealed-raw
+          merge-multiple: false
+      - name: Audit exact evidence and apply frozen rule
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+            base="$RUNNER_TEMP/sealed-raw"
+            test "$(find "$base" -mindepth 1 -maxdepth 1 | wc -l)" -eq 6
+            roots=()
+            for lane in windows-2025 ubuntu-24.04 ubuntu-24.04-arm; do
+              for replica in 1 2; do
+                raw="$base/sealed-holdout-$lane-r$replica-attempt$GITHUB_RUN_ATTEMPT"
+                test -d "$raw"
+                roots+=("$raw")
+              done
+            done
+            python -B tools/repository-ingest-lab/holdout_evaluate.py --raw "${roots[@]}" --commit "$EXPECTED_HEAD" --github-run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" --summary "$RUNNER_TEMP/sealed-audit/summary.json"
+            python -B -c 'import json,sys; s=json.load(open(sys.argv[1],encoding="utf-8")); assert s["raw_samples"]==672 and s["measured_samples"]==576 and len(s["lanes"])==6 and s["decision"] in ("PERFORMANCE_ELIGIBLE","DEFER") and s["production_default"]=="DEFER"; print("672/672 raw, 576 measured; " + s["decision"] + "; production default DEFER")' "$RUNNER_TEMP/sealed-audit/summary.json"
+          } 2>&1 | tee "$RUNNER_TEMP/sealed-audit/audit.log"
+          cat "$RUNNER_TEMP/sealed-audit/audit.log" >> "$GITHUB_STEP_SUMMARY"
+      - name: Archive aggregate audit and decision
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sealed-holdout-audit-attempt${{ github.run_attempt }}
+          path: ${{ runner.temp }}/sealed-audit/
+          if-no-files-found: error
+          retention-days: 90
