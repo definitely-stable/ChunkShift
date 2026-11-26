@@ -119,22 +119,51 @@ def describe(path):
     return dict(file=path.name, bytes=size, sha256=digest(path))
 
 
-def prepare(root):
+def member_fingerprint(members):
+    return hashlib.sha256(json.dumps(members, sort_keys=True, separators=(",", ":"),
+                                     ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
+def verify_asset(record, locked):
+    members = record["members"]
+    compact = {k: v for k, v in record.items() if k != "members"}
+    compact.update(member_count=len(members), member_bytes=sum(m["bytes"] for m in members),
+                   member_inventory_sha256=member_fingerprint(members))
+    require(compact == locked, "locked asset/member inventory mismatch")
+
+
+def prepare(root, lock=None):
     root.mkdir(parents=True, exist_ok=False)
-    with open_url(METADATA_URL) as response:
-        metadata_bytes = response.read(16 * MIB + 1)
-    require(len(metadata_bytes) <= 16 * MIB, "release metadata cap")
-    metadata = json.loads(metadata_bytes)
-    (root / "release-metadata.json").write_bytes(metadata_bytes)
+    if lock is None:
+        with open_url(METADATA_URL) as response:
+            metadata_bytes = response.read(16 * MIB + 1)
+        require(len(metadata_bytes) <= 16 * MIB, "release metadata cap")
+        metadata = json.loads(metadata_bytes)
+        (root / "release-metadata.json").write_bytes(metadata_bytes)
+        metadata_sha = digest(root / "release-metadata.json")
+    else:
+        require(lock["experiment"] == "REPO-INGEST-003" and
+                lock["phase"] == "sealed-holdout-definition", "wrong source lock")
+        metadata_sha = lock["provenance"]["metadata_sha256"]
+        locked_assets = {(a["rid"], a["version"]): a for a in lock["assets"]}
+        require(len(lock["assets"]) == len(locked_assets) == 4 and
+                set(locked_assets) == {(rid, version) for rid in RIDS for version in VERSIONS},
+                "wrong locked asset set")
     assets = []
     paths = {}
     for rid in RIDS:
         for version in VERSIONS:
-            url, expected = choose(metadata, version, rid)
+            if lock is None:
+                url, expected = choose(metadata, version, rid)
+            else:
+                locked = locked_assets[rid, version]
+                url, expected = checked_url(locked["url"]), locked["sha512"]
             path = root / f"{rid}-{version}{'.zip' if rid == 'win-x64' else '.tar.gz'}"
             with open_url(url) as source, path.open("xb") as out:
                 size, actual = copy_bounded(source, out, ARCHIVE_CAP, "sha512")
             require(actual == expected, "archive SHA512 mismatch")
+            if lock is not None:
+                require(size == locked["bytes"], "locked archive length mismatch")
             paths[rid, version] = path
             assets.append(dict(version=version, rid=rid, url=url, bytes=size, sha512=actual))
     corpora = {}
@@ -164,8 +193,12 @@ def prepare(root):
         for _ in range(10):
             out.write(prefix)
     corpora["adverse-repeat"] = describe(path)
-    manifest = dict(experiment="REPO-INGEST-003", phase="acquisition-only",
-                    metadata_url=METADATA_URL, metadata_sha256=digest(root / "release-metadata.json"),
+    if lock is not None:
+        for asset in assets:
+            verify_asset(asset, locked_assets[asset["rid"], asset["version"]])
+        require(corpora == lock["corpora"], "locked corpus identity mismatch")
+    manifest = dict(experiment="REPO-INGEST-003", phase="acquisition-only" if lock is None else "locked-replay",
+                    metadata_url=METADATA_URL, metadata_sha256=metadata_sha,
                     generator_sha256=digest(Path(__file__)), assets=assets, corpora=corpora)
     (root / "holdout-preflight.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print("Acquisition complete; four source-bound corpora. No candidate timing.")
@@ -174,11 +207,13 @@ def prepare(root):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--lock", type=Path, help="Replay exact committed asset URLs and identities")
     args = p.parse_args()
     root = args.output.resolve()
     checkout = Path(__file__).resolve().parents[2]
     require(root != checkout and checkout not in root.parents, "output must be outside checkout")
-    prepare(root)
+    lock = json.loads(args.lock.read_text(encoding="utf-8")) if args.lock else None
+    prepare(root, lock)
 
 
 if __name__ == "__main__":

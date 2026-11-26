@@ -5,7 +5,7 @@ import tempfile
 import unittest
 import zipfile
 
-from prepare_holdout import append_members, checked_url, choose, copy_bounded
+from prepare_holdout import append_members, checked_url, choose, copy_bounded, member_fingerprint, verify_asset
 
 
 class HoldoutPreparationTests(unittest.TestCase):
@@ -57,6 +57,18 @@ class HoldoutPreparationTests(unittest.TestCase):
                 archive.writestr("shared/Microsoft.NETCore.App/8.0.0/../bad", b"X")
             with self.assertRaises(ValueError):
                 append_members(path, "8.0.0", io.BytesIO(), 8)
+
+    def test_locked_member_inventory(self):
+        members = [dict(name="a", bytes=2, sha256="a" * 64)]
+        asset = dict(version="8.0.0", rid="win-x64", url="test", bytes=3,
+                     sha512="b" * 128, members=members)
+        locked = {k: v for k, v in asset.items() if k != "members"}
+        locked.update(member_count=1, member_bytes=2,
+                      member_inventory_sha256=member_fingerprint(members))
+        verify_asset(asset, locked)
+        members[0]["sha256"] = "c" * 64
+        with self.assertRaises(ValueError):
+            verify_asset(asset, locked)
 
 
 if __name__ == "__main__":

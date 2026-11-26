@@ -13,6 +13,12 @@ internal static class Program
     private const int MiB = 1024 * 1024;
     private static async Task<int> Main(string[] args)
     {
+        if (args is ["--geometry", var geometrySuite, var geometryPath])
+        {
+            await HoldoutGeometry.RunAsync(geometrySuite, geometryPath).ConfigureAwait(false);
+            return 0;
+        }
+
         if (args is ["--range-self-test"])
         {
             await RangeSelfTest.RunAsync().ConfigureAwait(false);
