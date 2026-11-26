@@ -55,3 +55,12 @@ First run hosted 36-sample/lane correctness smoke plus range self-test; no full
 screen before acceptance. `--range-sensitivity --screen-lock --rounds 6` selects
 separate frozen lock, RunId REPO-INGEST-002. `report.py --range-sensitivity` audits
 that full dataset; original REPO-INGEST-001 format remains readable.
+
+## Real-artifact holdout qualification
+
+After #494 accepted, holdout-geometry-lock.json records the accepted 24-cell
+geometry and original artifact hashes without changing holdout-lock.json.
+holdout_qualify.py replays the exact corpus lock and exercises D/C once per
+family/suite on each of three platforms; structural evidence only, no timing
+metrics retained. Check exact geometry, locality and physical layout, source
+restore, rebuild and cleanup. Full holdout not launched by qualification.
