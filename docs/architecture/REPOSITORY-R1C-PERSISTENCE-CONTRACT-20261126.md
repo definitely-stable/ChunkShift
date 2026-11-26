@@ -1,6 +1,6 @@
 # R1-C.2b.1 — private persistence preparation contract
 
-Status: IMPLEMENTED_MODEL_ONLY / acceptance pending exact-head CI. Refs #10 #133 #139 #144.
+Status: ACCEPTED_MODEL_ONLY in #501 (80 cases; exact head `7e087d8fe7f3fdbaf83c1f7ea038d360f7e5978f`, CI 45882185987, Heavy 45882185904; merged `a388faf0191c1549129c6f3e091b10617f3f7e29`). Refs #10 #133 #139 #144.
 Predecessor [R1-C.2a](REPOSITORY-R1C-FLUSH-CAPABILITIES-20261126.md) accepted by #499
 (merged `4170dc2f709eabaf2bc9400a75de9c612b9c94a6`, integration CI 45828255205, Heavy 45828254975,
 flush 45828255120, 3/3 hosted lanes). See [RFC-0001 §12.6](RFC-0001-target-architecture-2026.md):
@@ -73,7 +73,7 @@ Original PR #501 head `3f411b00fdb16f2c7c681f2fb72015c55cc7fb23` passed CI
 45878923721 and Heavy 45878923747. The expanded matrix requires a fresh
 exact-head qualification; no claim of passing added tests before that run.
 
-Next R1-C.2b.2: concrete trusted-private-directory file backend, explicit
+Before R1-C.2b.2, qualify AUDIT-002 handle-bound filesystem provenance, AUDIT-003 crash oracle and AUDIT-001 staging failure handling. Next concrete trusted-private-directory file backend, explicit
 handle ownership and cleanup error reporting, actual file and directory
 barriers with platform-specific capability policy. Linux and Windows native
 observations do not alone qualify power-loss behavior. Model contract remains

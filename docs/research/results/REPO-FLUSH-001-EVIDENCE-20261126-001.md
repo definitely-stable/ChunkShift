@@ -23,7 +23,12 @@ Matches managed and manifest records on all lanes. Actual fixture bytes were int
 
 SDK 10.0.404 / runtime .NET 10.0.15 on all lanes.
 Windows image 20261116.315.1, Linux x64 20261116.133.1, ARM64 20261116.188.1.
-| Observation | Windows x64 NTFS | Linux x64 ext4 | Linux ARM64 ext4 |
+AUDIT-002 caveat: filesystem names below are the root DriveInfo labels, not
+verified mount/volume identity of the fixture. Original native return codes
+and hashes remain valid; filesystem-specific attribution is unqualified until
+a handle-bound rerun is accepted. Do not retroactively relabel these results.
+
+| Observation | Windows x64 (root: NTFS) | Linux x64 (root: ext4) | Linux ARM64 (root: ext4) |
 |---|---|---|---|
 | Managed Flush(true), byte identity | PASS | PASS | PASS |
 | Exclusive CreateNew collision HResult | -2147024816 | 17 | 17 |
@@ -39,4 +44,4 @@ Measured head workflow gates: CI 45817064354, Heavy 45817064486, CodeQL 45817064
 
 ## Boundaries and next step
 
-Directory flush success on NTFS is not a documented POSIX-equivalent crash-ordering guarantee. No native EIO, delayed writeback ENOSPC, host crash, power interruption, transaction publication, or storage backend qualification. Linux /dev/full is immediate ENOSPC negative control only. Do not promote production defaults or freeze Pack v1. R1-C.2b must separate platform capability from ordering contract, propagate storage errors and unknown outcomes, and require fail-closed fault-injection coverage before durable intent work. CSP corrective PR #500 accepted at `ce1c71a6cfc7b3d9ffefde02c1190c901d27fb55` (Heavy 45819767238; both architectures, seed 22058, zero differential mismatches). Registry reconciliation and exact integrated-head gates remain prerequisites to accepting #499.
+Directory flush success on NTFS is not a documented POSIX-equivalent crash-ordering guarantee. No native EIO, delayed writeback ENOSPC, host crash, power interruption, transaction publication, or storage backend qualification. Linux /dev/full is immediate ENOSPC negative control only. Do not promote production defaults or freeze Pack v1. R1-C.2b must separate platform capability from ordering contract, propagate storage errors and unknown outcomes, and require fail-closed fault-injection coverage before durable intent work. CSP corrective PR #500 accepted at `ce1c71a6cfc7b3d9ffefde02c1190c901d27fb55` (Heavy 45819767238; both architectures, seed 22058, zero differential mismatches). Registry reconciliation and exact integrated-head gates subsequently passed and #499 was merged. AUDIT-002 corrects provenance separately.
