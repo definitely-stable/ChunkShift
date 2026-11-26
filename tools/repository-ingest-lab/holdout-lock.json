@@ -1,0 +1,139 @@
+{
+  "experiment": "REPO-INGEST-003",
+  "phase": "sealed-holdout-definition",
+  "provenance": {
+    "head": "88533db86b585f75710dd523bcfe6706637cb2e2",
+    "run": 45721453289,
+    "artifact": 15072681600,
+    "zip_sha256": "40c8d55e77637bbdc92e4529a121b71a49c67056e332f6de509032ae29d038ef",
+    "manifest_sha256": "a6ea33d3bd2d22b3c71667dd54c4588f64cef5f55b395aa092813b1f3c60d162",
+    "metadata_sha256": "bda39c64671bf3a5ce51c28fc61301a9ce53b1c6bc02e1669f8a9137ab692635",
+    "generator_sha256": "902d4a9adce41c093e29166b5ab30c47182a4cbee73b2443580f10e251254a7f"
+  },
+  "assets": [
+    {
+      "version": "8.0.0",
+      "rid": "win-x64",
+      "url": "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.0/dotnet-runtime-8.0.0-win-x64.zip",
+      "bytes": 33177718,
+      "sha512": "b786869739c87ea286ee494fbf72cc92cf0cd91c1f22ede0133a523aa150740dd89cdca6a1530bd1f39d24db4f34939e17e2b0dce3d7efd06e4eced30b530643",
+      "member_count": 184,
+      "member_bytes": 73107342,
+      "member_inventory_sha256": "3ffea6b13eff7108c64bec6ef5417f43e438b77c93261824eb200af3e22ffbb1"
+    },
+    {
+      "version": "8.0.1",
+      "rid": "win-x64",
+      "url": "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.1/dotnet-runtime-8.0.1-win-x64.zip",
+      "bytes": 33131472,
+      "sha512": "21608914ccb6d872ce8a9a66ab37af1fed4e52e01f0b2a1f7fbea077f8d8cfc287d2d7a761049727d948c25dfc5bfbfa0aace8541d553a67ef8bd06fc215b803",
+      "member_count": 184,
+      "member_bytes": 73067066,
+      "member_inventory_sha256": "f002a9cfe557ac9f247dc4dd7d61b23564fa8092487ff0a3e96ebbe1788fc3c3"
+    },
+    {
+      "version": "8.0.0",
+      "rid": "linux-x64",
+      "url": "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.0/dotnet-runtime-8.0.0-linux-x64.tar.gz",
+      "bytes": 31389185,
+      "sha512": "16a93af328bcf61775875f4007c23081e2cb7aa8e2fba724aea6a61bc7ecf7466cc368121b08b58ac3b72f68cb67801c68c6505591eb35f18461db856bb08b37",
+      "member_count": 184,
+      "member_bytes": 72124259,
+      "member_inventory_sha256": "72e099f8470646eae98cd32421ad83058c91b360bd7686e641a7725e8c4f5094"
+    },
+    {
+      "version": "8.0.1",
+      "rid": "linux-x64",
+      "url": "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.1/dotnet-runtime-8.0.1-linux-x64.tar.gz",
+      "bytes": 31269898,
+      "sha512": "cbd03325280ff93cd0edab71c5564a50bb2423980f63d04602914db917c9c811a0068d848cab07d82e3260bff6684ad7cffacc2f449c06fc0b0aa8f845c399b6",
+      "member_count": 184,
+      "member_bytes": 71870715,
+      "member_inventory_sha256": "c7dbc715870112b75a3fc07dc1c1aa5107eaa9b30d45d1c9033753b8fb9efa46"
+    }
+  ],
+  "corpora": {
+    "win-versioned": {
+      "file": "win-versioned.bin",
+      "bytes": 146174408,
+      "sha256": "05e19dbfe3672dc7cddb6ae3602c079a3f7aa801830b1e816492faa9a059164a"
+    },
+    "linux-versioned": {
+      "file": "linux-versioned.bin",
+      "bytes": 143994974,
+      "sha256": "9bb1631e5919d8e2a3181178972e876b36ac4bc1511cb318208aca321fd8f466"
+    },
+    "compressed": {
+      "file": "compressed.bin",
+      "bytes": 66309190,
+      "sha256": "db1132da60e0b6ada01698949d0bd1b9a306199520037eade11144014bb46d20"
+    },
+    "adverse-repeat": {
+      "file": "adverse-repeat.bin",
+      "bytes": 88080384,
+      "sha256": "3983f22b3f85d24e55cdb8cb1712b4e52a437a031aa16b008a0d3b5002020185"
+    }
+  },
+  "design": {
+    "target_mib": 32,
+    "suites": [
+      "sha256",
+      "blake3"
+    ],
+    "candidates": [
+      "D",
+      "C"
+    ],
+    "families": [
+      "win-versioned",
+      "linux-versioned",
+      "compressed",
+      "adverse-repeat"
+    ],
+    "rounds": 6,
+    "warmups": 1,
+    "measured_order": [
+      "DC",
+      "CD",
+      "DC",
+      "CD",
+      "DC",
+      "CD"
+    ],
+    "platforms": [
+      "windows-2025",
+      "ubuntu-24.04",
+      "ubuntu-24.04-arm"
+    ],
+    "replicas": 2,
+    "raw_per_lane": 112,
+    "measured_per_lane": 96
+  },
+  "rule": {
+    "primary_families": [
+      "win-versioned",
+      "linux-versioned",
+      "compressed"
+    ],
+    "min_geomean_paired_median_d_over_c_ready": 1.1,
+    "max_paired_median_c_over_d": {
+      "wall_ms_ready": 1.05,
+      "cpu_ms_ready": 1.05,
+      "allocated_bytes_delta_ready": 1.05,
+      "process_peak_working_set_bytes_at_ready": 1.05,
+      "restore_ms": 1.1,
+      "rebuild_ms": 1.1
+    },
+    "required_adverse_hits": [
+      "active",
+      "closed"
+    ],
+    "require_each_runner_suite": true,
+    "invalid_or_missing": "STOP",
+    "coverage_gap": "DEFER",
+    "valid_below_rule": "DEFER",
+    "pass": "PERFORMANCE_ELIGIBLE",
+    "production_default": "DEFER",
+    "cleanup": "report_only"
+  }
+}

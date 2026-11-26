@@ -1,6 +1,6 @@
 # R1-B4e.5 — REPO-INGEST-003 holdout preflight
 
-Status: PLANNED, acquisition-only; no timed measurements. Refs #133 #144 #139 #10.
+Status: acquisition ACCEPTED (#493); source/rule lock candidate, untimed geometry qualification; no candidate timing. Refs #133 #144 #139 #10.
 Predecessors REPO-INGEST-001 and 002 reviewed, C leading candidate, default DEFER.
 This is a distinct experiment. Holdout may not start until source manifest
 and rule are reviewed and committed, harness qualified and actual corpus
@@ -38,7 +38,7 @@ archive URL/version/rid/hash and member name/size/SHA256. Inputs can be
 regenerated on any runner with byte equality checked before timing. Output
 outside checkout. Preparation only, no production/API changes.
 
-## Proposed decision rule to freeze before measurement
+## Decision rule for pre-measurement lock review
 
 Candidate C vs accepted D; A stays historical reference. Same source file,
 suite, limits, final pack geometry, byte verification, independent restore
@@ -63,7 +63,7 @@ target or guardrail => DEFER and targeted profiling; all gates pass =>
 performance eligibility only, not publication or durability ADOPT. Repeat
 independent runner instances must each pass; no averaging away failures.
 Thresholds are a proposed engineering rule, not statistical significance.
-Acquire then seal exact lock plus rule and review before timing.
+Exact source identities and rule are in tools/repository-ingest-lab/holdout-lock.json; require acceptance before timed holdout. Invalid/zero denominators STOP; no threshold changes after results.
 No p95/p99 claims from six pairs; record all raw, variability, runtime,
 runner image, file size, source provenance, exact HEAD and RunIds. Separate
 R1-C mandatory before production default; large-source scaling beyond
@@ -78,3 +78,7 @@ R1-C mandatory before production default; large-source scaling beyond
 4. Only then launch timed holdout; audit artifacts independently.
 No holdout measurement on this PR. If source acquisition fails, diagnose
 without changing decision thresholds or selecting based on timings.
+
+## Acquisition evidence and replay
+
+#493 ACCEPT/MERGED 68b4ab3e88f26667c145525ce008a64cb2596538, acquisition head 88533db86b585f75710dd523bcfe6706637cb2e2; run 45721453289, artifact 15072681600, ZIP SHA256 40c8d55e77637bbdc92e4529a121b71a49c67056e332f6de509032ae29d038ef. CI 45721453029, Heavy 45721453023, CodeQL 45721453297 PASS; five acquisition tests PASS. Independently checked archive digest, ZIP CRC, all three inventory checksums, exact commit, four URL/SHA512 pairs against archived release metadata, 736 member entries and aggregate sizes. No raw binaries retained, so do not claim independent payload regeneration yet. Total derived corpus bytes 444558956 (423.964 MiB). Lock stores exact archive lengths/SHA512, member count and total bytes, SHA256 of canonical UTF-8 JSON member inventory (sorted object keys, compact separators, ensure_ascii=false), and four exact derived source SHA256. Full member list is in original artifact; replay preserves and verifies it against the compact commitment. Locked replay does not fetch mutable release metadata; provenance binds the previously archived metadata digest. No source substitutions. New geometry-only executable uses actual Core scanner and accepted IncrementalRawPackAdmission to model first-placement and active/closed hits on all four corpora and two suites, on Windows x64/Linux x64/Linux ARM64. No candidate pack write, comparison or timing; predicted geometry is not verified duplicate reuse. Require cross-platform match and adverse active/closed coverage. If gap, DEFER, preserve evidence; do not alter corpus after candidate timing. Qualify actual D/C external-source harness only after this source/rule lock passes; no production/default or durability claim.
