@@ -1,6 +1,6 @@
 # R1-C.2a — REPO-FLUSH-001 platform persistence capability baseline
 
-Status: EVIDENCE_READY — [reviewed capability evidence](../research/results/REPO-FLUSH-001-EVIDENCE-20261126-001.md); acceptance subject to PR #499 integration gates. Refs #10 #133 #139 #144.
+Status: ACCEPTED in #499 — [reviewed capability evidence](../research/results/REPO-FLUSH-001-EVIDENCE-20261126-001.md); CAPABILITY_ONLY, default DEFER, crash ordering UNQUALIFIED. Exact integration head `28786d99484b8fb3f54ab30698f63a8ae2666d56`, [flush](https://github.com/definitely-stable/ChunkShift/actions/runs/45828255120), [CI](https://github.com/definitely-stable/ChunkShift/actions/runs/45828255205), [Heavy](https://github.com/definitely-stable/ChunkShift/actions/runs/45828254975), all applicable workflows PASS; merged `4170dc2f709eabaf2bc9400a75de9c612b9c94a6`. Refs #10 #133 #139 #144.
 Predecessor REPO-CRASH-001 accepted. REPO-INGEST-003 performance eligible,
 production default DEFER. Scope: observed return codes on test-owned local
 runner files, not a durable storage contract or crash simulation.

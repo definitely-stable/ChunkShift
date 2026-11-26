@@ -83,4 +83,4 @@ No package publication, Core/CSM/CSP changes, adaptive remote tuning or
 destructive GC in current slice. No per-chunk staging optimization without
 a measured bottleneck in the actual pack path.
 
-R1-B4e.5 sealed holdout ACCEPTED (#497; PERFORMANCE_ELIGIBLE, default DEFER). Next [R1-C.1 process termination baseline](REPOSITORY-R1C-PROCESS-CRASH-20261126.md); no cache/worker change without targeted evidence. No durability claim from process kill alone.
+R1-B4e.5 sealed holdout ACCEPTED (#497; PERFORMANCE_ELIGIBLE, default DEFER). R1-C.1 process termination ACCEPTED (#498); R1-C.2a platform capabilities ACCEPTED (#499; CAPABILITY_ONLY). Next [R1-C.2b.1 private persistence preparation contract](REPOSITORY-R1C-PERSISTENCE-CONTRACT-20261126.md), model only; no cache/worker change without targeted evidence. No durability claim from process kill or native flush success alone.
