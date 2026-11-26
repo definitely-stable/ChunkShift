@@ -1,6 +1,6 @@
 # R1-B4e.5 — REPO-INGEST-003 holdout preflight
 
-Status: acquisition (#493) and source/rule lock plus geometry (#494) ACCEPTED; actual D/C qualification (#495) ACCEPTED; evaluator qualification (#496) ACCEPTED; sealed holdout launch candidate. No accepted decision-bearing measurements. Refs #133 #144 #139 #10.
+Status: acquisition (#493) and source/rule lock plus geometry (#494) ACCEPTED; actual D/C qualification (#495) ACCEPTED; evaluator qualification (#496) ACCEPTED; sealed holdout (#497) ACCEPTED; [reviewed evidence](../research/results/REPO-INGEST-003-EVIDENCE-20261126-001.md): PERFORMANCE_ELIGIBLE, default DEFER. Refs #133 #144 #139 #10.
 Predecessors REPO-INGEST-001 and 002 reviewed, C leading candidate, default DEFER.
 This is a distinct experiment. Holdout may not start until source manifest
 and rule are reviewed and committed, harness qualified and actual corpus
