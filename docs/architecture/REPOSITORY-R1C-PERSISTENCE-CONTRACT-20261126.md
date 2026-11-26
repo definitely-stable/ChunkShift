@@ -52,7 +52,7 @@ durable intent ledger.
 36 cases: ordered model success and reuse rejection; unqualified/unknown
 capability; pre-cancellation; 24 injected IOExceptions at six boundaries
 (before/after effect, codes 5/28); cancellation after each of six effects;
-concurrent duplicate call. Record calls and effects separately; assert exact
+invalid readback and concurrent duplicate call. Record calls and effects separately; assert exact
 prefix, attempted/completed markers, terminal state, exception identity and
 no continued operations. Codes are modeled EIO/ENOSPC, not native errors.
 No timing or performance claim.

@@ -137,6 +137,27 @@ public sealed class PrivatePersistenceAttemptTests
     }
 
     [Fact]
+    public async Task InvalidReadbackNeverReachesDirectoryBarrier()
+    {
+        var failure = new InvalidDataException("Physical digest mismatch.");
+        var operations = new RecordingOperations
+        {
+            FailureStage = PersistencePreparationStage.VerifyClosedObject,
+            Failure = failure,
+        };
+        var attempt = new PrivatePersistenceAttempt();
+
+        var observed = await Assert.ThrowsAsync<InvalidDataException>(() => attempt.PrepareAsync(operations));
+
+        Assert.Same(failure, observed);
+        Assert.Equal(Order[..5], operations.Calls);
+        Assert.Equal(Order[..4], operations.Effects);
+        Assert.Equal(PersistencePreparationStage.VerifyClosedObject, attempt.LastAttempted);
+        Assert.Equal(PersistencePreparationStage.CloseWriter, attempt.LastCompleted);
+        Assert.Equal(PersistencePreparationState.ReconciliationRequired, attempt.State);
+    }
+
+    [Fact]
     public async Task ConcurrentSecondAttemptCannotEnterBackendOrChangeFirstOutcome()
     {
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -166,7 +187,7 @@ public sealed class PrivatePersistenceAttemptTests
         internal List<PersistencePreparationStage> Calls { get; } = new();
         internal List<PersistencePreparationStage> Effects { get; } = new();
         internal PersistencePreparationStage FailureStage { get; init; }
-        internal IOException? Failure { get; init; }
+        internal Exception? Failure { get; init; }
         internal bool FailAfterEffect { get; init; }
         internal PersistencePreparationStage CancelStage { get; init; }
         internal CancellationTokenSource? Cancellation { get; init; }
