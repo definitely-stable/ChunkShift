@@ -40,6 +40,7 @@ internal sealed class ExperimentalParentPreparation
         OwnershipConfirmed = true;
         cancellationToken.ThrowIfCancellationRequested();
         _operations.ValidateDirectory(_handle);
+        cancellationToken.ThrowIfCancellationRequested();
         _initial = NativeFilesystemProvenance.ObserveOwnedHandle(_handle);
         if (_initial.Identity.Kind != HandleObjectKind.Directory)
         {

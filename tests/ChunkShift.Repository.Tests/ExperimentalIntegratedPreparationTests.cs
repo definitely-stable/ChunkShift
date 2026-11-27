@@ -111,7 +111,14 @@ public sealed class ExperimentalIntegratedPreparationTests
         Assert.Equal(operation != "open", attempt.ParentOwnershipConfirmed);
         Assert.Equal(operation != "open", attempt.ParentCloseAttempted);
         Assert.Equal(operation is not ("open" or "close"), attempt.ParentCloseConfirmed);
-        Assert.Equal(operation == "open" ? 0 : 1, parent.Calls.Count(x => x == "close"));
+        if (operation == "open")
+        {
+            Assert.DoesNotContain("close", parent.Calls);
+        }
+        else
+        {
+            Assert.Single(parent.Calls, x => x == "close");
+        }
         if (!beforeCreate)
         {
             Assert.Equal(PersistencePreparationStage.FlushParentDirectory, attempt.LastAttempted);
@@ -150,8 +157,33 @@ public sealed class ExperimentalIntegratedPreparationTests
         Assert.Equal(ExperimentalFilePreparationState.ReconciliationRequired, attempt.State);
         Assert.True(attempt.ParentCloseConfirmed);
         Assert.Equal(afterFlush, parent.Calls.Contains("flush"));
-        Assert.Equal(1, parent.Calls.Count(x => x == "close"));
+        Assert.Single(parent.Calls, x => x == "close");
         Assert.Equal(new byte[] { 1 }, File.ReadAllBytes(fixture.Path));
+    }
+
+    [Fact]
+    public async Task CancellationAfterParentOpenRejectsBeforeFileCreate()
+    {
+        if (!NativeDirectoryBarrier.IsSupportedPlatform)
+        {
+            return;
+        }
+
+        using var fixture = new Fixture();
+        using var cts = new CancellationTokenSource();
+        var parent = new ParentOperations { AfterOpen = cts.Cancel };
+        var attempt = new ExperimentalFilePreparation(new FilePreparationHooks { ParentOperations = parent });
+        using var source = new MemoryStream([1]);
+        var error = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Run(attempt, fixture, source, cts.Token));
+        Assert.Equal(cts.Token, error.CancellationToken);
+        Assert.Equal(ExperimentalFilePreparationState.RejectedBeforeCreate, attempt.State);
+        Assert.Equal(PersistencePreparationStage.None, attempt.LastAttempted);
+        Assert.False(attempt.OwnershipConfirmed);
+        Assert.True(attempt.ParentOwnershipConfirmed && attempt.ParentCloseConfirmed);
+        Assert.Equal(new[] { "open", "close" }, parent.Calls);
+        Assert.Empty(Directory.GetFileSystemEntries(fixture.Root));
+        Assert.Equal(0, source.Position);
+        Assert.True(source.CanRead);
     }
 
     [Fact]
@@ -231,12 +263,14 @@ public sealed class ExperimentalIntegratedPreparationTests
         internal bool AfterEffect { get; init; }
         internal IOException? Failure { get; init; }
         internal Action? AfterFlush { get; init; }
+        internal Action? AfterOpen { get; init; }
 
         public nint Open(string path)
         {
             Calls.Add("open");
             Fail("open", false);
             _held = NativeDirectoryOperations.Instance.Open(path);
+            AfterOpen?.Invoke();
             return _held;
         }
 
