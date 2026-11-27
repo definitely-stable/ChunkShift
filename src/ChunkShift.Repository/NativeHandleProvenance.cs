@@ -30,9 +30,9 @@ internal readonly record struct NativeHandleIdentity(
 {
     internal bool SameMountOrVolume(NativeHandleIdentity other) =>
         Platform == other.Platform &&
-        Kind is HandleObjectKind.RegularFile or HandleObjectKind.Directory &&
-        other.Kind is HandleObjectKind.RegularFile or HandleObjectKind.Directory &&
-        Platform switch
+        (Kind is HandleObjectKind.RegularFile or HandleObjectKind.Directory) &&
+        (other.Kind is HandleObjectKind.RegularFile or HandleObjectKind.Directory) &&
+        (Platform switch
         {
             HandleIdentityPlatform.Linux => MountOrVolumeSerial != 0 &&
                 MountOrVolumeSerial == other.MountOrVolumeSerial &&
@@ -40,7 +40,7 @@ internal readonly record struct NativeHandleIdentity(
             HandleIdentityPlatform.Windows => VolumeGuid != Guid.Empty &&
                 VolumeGuid == other.VolumeGuid && MountOrVolumeSerial == other.MountOrVolumeSerial,
             _ => false,
-        };
+        });
 
     internal bool SameObject(NativeHandleIdentity other) =>
         SameMountOrVolume(other) && Kind == other.Kind &&
