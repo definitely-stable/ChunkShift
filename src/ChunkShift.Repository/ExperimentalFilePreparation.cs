@@ -11,6 +11,7 @@ internal enum ExperimentalFilePreparationState
     RejectedBeforeCreate,
     ReconciliationRequired,
     ExperimentalFileVerified,
+    ExperimentalPackVerified,
 }
 
 /// <summary>
@@ -39,9 +40,24 @@ internal sealed class ExperimentalFilePreparation
 
     // A deliberately narrow, portable temporary basename; not a PackId or
     // a format contract. An existing file is never opened for writing.
-    internal async Task PrepareAsync(string parentDirectory, string basename, Stream source,
+    internal Task PrepareAsync(string parentDirectory, string basename, Stream source,
         long expectedLength, Hash256 expectedSha256, long maximumBytes,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        PrepareCoreAsync(parentDirectory, basename, source, expectedLength, expectedSha256,
+            maximumBytes, null, null, cancellationToken);
+
+    // A distinct success state requires full RawPackReader verification tied
+    // to the caller-pinned descriptor. Never infer a descriptor from the file.
+    internal Task PreparePackAsync(string parentDirectory, string basename, Stream source,
+        RawPackDescriptor expected, RawPackReadLimits limits,
+        CancellationToken cancellationToken = default) =>
+        PrepareCoreAsync(parentDirectory, basename, source, expected.PhysicalBytes,
+            expected.PackDigest.Value, limits?.MaximumPhysicalBytes ?? 0,
+            expected, limits, cancellationToken);
+
+    private async Task PrepareCoreAsync(string parentDirectory, string basename, Stream source,
+        long expectedLength, Hash256 expectedSha256, long maximumBytes,
+        RawPackDescriptor? expectedPack, RawPackReadLimits? packLimits, CancellationToken cancellationToken)
     {
         if (Interlocked.CompareExchange(ref _started, 1, 0) != 0)
         {
@@ -60,6 +76,12 @@ internal sealed class ExperimentalFilePreparation
             ArgumentException.ThrowIfNullOrWhiteSpace(parentDirectory);
             ArgumentException.ThrowIfNullOrWhiteSpace(basename);
             ArgumentNullException.ThrowIfNull(source);
+            if (expectedPack is { } pack)
+            {
+                ArgumentNullException.ThrowIfNull(packLimits);
+                ValidatePackAdmission(pack, packLimits);
+            }
+
             ArgumentOutOfRangeException.ThrowIfNegative(maximumBytes);
             ArgumentOutOfRangeException.ThrowIfNegative(expectedLength);
             ArgumentOutOfRangeException.ThrowIfGreaterThan(expectedLength, maximumBytes);
@@ -130,16 +152,33 @@ internal sealed class ExperimentalFilePreparation
 
             Begin(PersistencePreparationStage.VerifyClosedObject, cancellationToken);
             reader = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
-                16 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
-            await CopyAndVerifyAsync(reader, null, buffer, expectedLength, expectedSha256,
-                cancellationToken).ConfigureAwait(false);
+                16 * 1024, FileOptions.Asynchronous |
+                    (expectedPack.HasValue ? FileOptions.RandomAccess : FileOptions.SequentialScan));
+            if (expectedPack is { } descriptor)
+            {
+                // RawPackReader independently validates the exact physical SHA-256,
+                // structure, descriptor and all logical frames in this handle.
+                // It uses its own bounded payload window and count-bounded metadata.
+                // Release the copy window before that operation, not during I/O.
+                ArrayPool<byte>.Shared.Return(buffer);
+                buffer = null;
+                _ = await RawPackReader.VerifyAsync(reader, packLimits!, descriptor, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                await CopyAndVerifyAsync(reader, null, buffer, expectedLength, expectedSha256,
+                    cancellationToken).ConfigureAwait(false);
+            }
             readerCloseAttempted = true;
             await CloseAsync(reader, isReader: true).ConfigureAwait(false);
             ReaderCloseConfirmed = true;
             Complete(PersistencePreparationStage.VerifyClosedObject);
 
             cancellationToken.ThrowIfCancellationRequested();
-            State = ExperimentalFilePreparationState.ExperimentalFileVerified;
+            State = expectedPack.HasValue
+                ? ExperimentalFilePreparationState.ExperimentalPackVerified
+                : ExperimentalFilePreparationState.ExperimentalFileVerified;
         }
         catch (Exception primary)
         {
@@ -177,6 +216,30 @@ internal sealed class ExperimentalFilePreparation
             {
                 ArrayPool<byte>.Shared.Return(buffer);
             }
+        }
+    }
+
+    private static void ValidatePackAdmission(RawPackDescriptor expected, RawPackReadLimits limits)
+    {
+        if (expected.HashSuite != HashSuiteIds.Sha256V1 && expected.HashSuite != HashSuiteIds.Blake3256V1)
+        {
+            throw new NotSupportedException("Unsupported expected raw pack hash suite.");
+        }
+
+        if (expected.FrameCount <= 0 || expected.FrameCount > limits.MaximumFrames ||
+            expected.FrameCount > Array.MaxLength ||
+            expected.PhysicalBytes > limits.MaximumPhysicalBytes)
+        {
+            throw new ArgumentException("Expected raw pack descriptor exceeds admission limits.", nameof(expected));
+        }
+
+        // Only cheap descriptor geometry here. Actual footer, frame extents
+        // and hashes must be independently verified after closing the writer.
+        if (!RawPackLayout.TryMeasure(0, expected.FrameCount, out RawPackSections minimum) ||
+            minimum.PhysicalBytes > expected.PhysicalBytes ||
+            minimum.IndexBytes > limits.MaximumIndexBytes || minimum.IndexBytes > Array.MaxLength)
+        {
+            throw new ArgumentException("Expected raw pack descriptor has impossible or excessive geometry.", nameof(expected));
         }
     }
 
