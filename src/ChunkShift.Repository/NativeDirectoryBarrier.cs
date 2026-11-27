@@ -116,7 +116,7 @@ internal sealed class NativeDirectoryBarrier
         LastAttempted = stage;
     }
 
-    private static string ValidatePath(string directory)
+    internal static string ValidatePath(string directory)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
         if (!Path.IsPathFullyQualified(directory))

@@ -12,13 +12,16 @@ internal enum ExperimentalFilePreparationState
     ReconciliationRequired,
     ExperimentalFileVerified,
     ExperimentalPackVerified,
+    ExperimentalFilePrepared,
+    ExperimentalPackPrepared,
 }
 
 /// <summary>
-/// R1-C.2b.2a: one private physical file, not a repository publication or a
+/// One private physical file, optionally with experimental parent barrier, not a repository publication or a
 /// durability receipt. The caller exclusively controls a stable existing parent
 /// directory and supplies an independently expected physical SHA-256. No path
-/// is a security boundary; no directory barrier, adoption, rename or deletion.
+/// is a security boundary; no adoption, rename or deletion. The optional
+/// barrier mode is observation only under the same trusted-parent assumption.
 /// Observe diagnostics only after the task settles.
 /// </summary>
 internal sealed class ExperimentalFilePreparation
@@ -27,6 +30,7 @@ internal sealed class ExperimentalFilePreparation
 
     private readonly FilePreparationHooks? _hooks;
     private int _started;
+    private ExperimentalParentPreparation? _parent;
 
     internal ExperimentalFilePreparation(FilePreparationHooks? hooks = null) => _hooks = hooks;
 
@@ -37,6 +41,9 @@ internal sealed class ExperimentalFilePreparation
     internal bool OwnershipConfirmed { get; private set; }
     internal bool WriterCloseConfirmed { get; private set; }
     internal bool ReaderCloseConfirmed { get; private set; }
+    internal bool ParentOwnershipConfirmed => _parent?.OwnershipConfirmed == true;
+    internal bool ParentCloseAttempted => _parent?.CloseAttempted == true;
+    internal bool ParentCloseConfirmed => _parent?.CloseConfirmed == true;
 
     // A deliberately narrow, portable temporary basename; not a PackId or
     // a format contract. An existing file is never opened for writing.
@@ -44,7 +51,7 @@ internal sealed class ExperimentalFilePreparation
         long expectedLength, Hash256 expectedSha256, long maximumBytes,
         CancellationToken cancellationToken = default) =>
         PrepareCoreAsync(parentDirectory, basename, source, expectedLength, expectedSha256,
-            maximumBytes, null, null, cancellationToken);
+            maximumBytes, null, null, false, cancellationToken);
 
     // A distinct success state requires full RawPackReader verification tied
     // to the caller-pinned descriptor. Never infer a descriptor from the file.
@@ -53,11 +60,24 @@ internal sealed class ExperimentalFilePreparation
         CancellationToken cancellationToken = default) =>
         PrepareCoreAsync(parentDirectory, basename, source, expected.PhysicalBytes,
             expected.PackDigest.Value, limits?.MaximumPhysicalBytes ?? 0,
-            expected, limits, cancellationToken);
+            expected, limits, false, cancellationToken);
+
+    internal Task PrepareWithDirectoryBarrierAsync(string parentDirectory, string basename, Stream source,
+        long expectedLength, Hash256 expectedSha256, long maximumBytes,
+        CancellationToken cancellationToken = default) =>
+        PrepareCoreAsync(parentDirectory, basename, source, expectedLength, expectedSha256,
+            maximumBytes, null, null, true, cancellationToken);
+
+    internal Task PreparePackWithDirectoryBarrierAsync(string parentDirectory, string basename, Stream source,
+        RawPackDescriptor expected, RawPackReadLimits limits, CancellationToken cancellationToken = default) =>
+        PrepareCoreAsync(parentDirectory, basename, source, expected.PhysicalBytes,
+            expected.PackDigest.Value, limits?.MaximumPhysicalBytes ?? 0,
+            expected, limits, true, cancellationToken);
 
     private async Task PrepareCoreAsync(string parentDirectory, string basename, Stream source,
         long expectedLength, Hash256 expectedSha256, long maximumBytes,
-        RawPackDescriptor? expectedPack, RawPackReadLimits? packLimits, CancellationToken cancellationToken)
+        RawPackDescriptor? expectedPack, RawPackReadLimits? packLimits, bool directoryBarrier,
+        CancellationToken cancellationToken)
     {
         if (Interlocked.CompareExchange(ref _started, 1, 0) != 0)
         {
@@ -70,6 +90,8 @@ internal sealed class ExperimentalFilePreparation
         bool writerCloseAttempted = false;
         bool readerCloseAttempted = false;
         byte[]? buffer = null;
+        NativeFilesystemObservation? writerObservation = null;
+        NativeFilesystemObservation? readerObservation = null;
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -108,10 +130,18 @@ internal sealed class ExperimentalFilePreparation
                 throw new ArgumentException("Expected canonical lowercase GUID basename with .prepare suffix.", nameof(basename));
             }
 
-            string parent = Path.GetFullPath(parentDirectory);
+            string parent = directoryBarrier
+                ? NativeDirectoryBarrier.ValidatePath(parentDirectory)
+                : Path.GetFullPath(parentDirectory);
             if (!Directory.Exists(parent))
             {
                 throw new DirectoryNotFoundException("Private parent must already exist.");
+            }
+
+            if (directoryBarrier)
+            {
+                _parent = new ExperimentalParentPreparation(_hooks?.ParentOperations);
+                _parent.Open(parent, cancellationToken);
             }
 
             string path = Path.Combine(parent, basename);
@@ -143,6 +173,11 @@ internal sealed class ExperimentalFilePreparation
                 writer.Flush(flushToDisk: true);
             }
             Complete(PersistencePreparationStage.FlushFile);
+            if (_parent is not null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                writerObservation = _parent.ObserveChild(writer.SafeFileHandle);
+            }
 
             Begin(PersistencePreparationStage.CloseWriter, cancellationToken);
             writerCloseAttempted = true;
@@ -154,6 +189,16 @@ internal sealed class ExperimentalFilePreparation
             reader = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
                 16 * 1024, FileOptions.Asynchronous |
                     (expectedPack.HasValue ? FileOptions.RandomAccess : FileOptions.SequentialScan));
+            if (_parent is not null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                readerObservation = _parent.ObserveChild(reader.SafeFileHandle);
+                if (writerObservation != readerObservation)
+                {
+                    throw new InvalidDataException("Writer and readback observations differ.");
+                }
+            }
+
             if (expectedPack is { } descriptor)
             {
                 // RawPackReader independently validates the exact physical SHA-256,
@@ -170,21 +215,39 @@ internal sealed class ExperimentalFilePreparation
                 await CopyAndVerifyAsync(reader, null, buffer, expectedLength, expectedSha256,
                     cancellationToken).ConfigureAwait(false);
             }
+            if (_parent is not null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (readerObservation != _parent.ObserveChild(reader.SafeFileHandle))
+                {
+                    throw new InvalidDataException("Readback observation changed during verification.");
+                }
+            }
             readerCloseAttempted = true;
             await CloseAsync(reader, isReader: true).ConfigureAwait(false);
             ReaderCloseConfirmed = true;
             Complete(PersistencePreparationStage.VerifyClosedObject);
 
+            if (_parent is not null)
+            {
+                Begin(PersistencePreparationStage.FlushParentDirectory, cancellationToken);
+                _parent.FlushAndClose(cancellationToken);
+                Complete(PersistencePreparationStage.FlushParentDirectory);
+            }
+
             cancellationToken.ThrowIfCancellationRequested();
-            State = expectedPack.HasValue
-                ? ExperimentalFilePreparationState.ExperimentalPackVerified
-                : ExperimentalFilePreparationState.ExperimentalFileVerified;
+            State = directoryBarrier
+                ? (expectedPack.HasValue ? ExperimentalFilePreparationState.ExperimentalPackPrepared
+                    : ExperimentalFilePreparationState.ExperimentalFilePrepared)
+                : (expectedPack.HasValue ? ExperimentalFilePreparationState.ExperimentalPackVerified
+                    : ExperimentalFilePreparationState.ExperimentalFileVerified);
         }
         catch (Exception primary)
         {
             State = LastAttempted == PersistencePreparationStage.None
                 ? ExperimentalFilePreparationState.RejectedBeforeCreate
                 : ExperimentalFilePreparationState.ReconciliationRequired;
+            List<Exception> failures = [primary];
             try
             {
                 // Never retry an attempted close with an unknown outcome.
@@ -205,7 +268,21 @@ internal sealed class ExperimentalFilePreparation
             }
             catch (Exception cleanup)
             {
-                throw new AggregateException("File preparation and handle cleanup failed.", primary, cleanup);
+                failures.Add(cleanup);
+            }
+
+            try
+            {
+                _parent?.CloseIfNeeded();
+            }
+            catch (Exception cleanup)
+            {
+                failures.Add(cleanup);
+            }
+
+            if (failures.Count > 1)
+            {
+                throw new AggregateException("File preparation and handle cleanup failed.", failures);
             }
 
             throw;
@@ -327,4 +404,5 @@ internal sealed class FilePreparationHooks
     internal Func<FileStream, ReadOnlyMemory<byte>, CancellationToken, ValueTask>? Write { get; init; }
     internal Action<FileStream>? Flush { get; init; }
     internal Func<FileStream, bool, ValueTask>? Close { get; init; }
+    internal IDirectoryBarrierOperations? ParentOperations { get; init; }
 }
