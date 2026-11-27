@@ -212,7 +212,10 @@ public sealed class StagingBudgetTests
         });
         try
         {
-            await Assert.ThrowsAsync<IOException>(() => StageAsync(stager, "abc"u8.ToArray()));
+            var failure = await Assert.ThrowsAsync<AggregateException>(() => StageAsync(stager, "abc"u8.ToArray()));
+            Assert.Collection(failure.InnerExceptions,
+                primary => Assert.Equal("Injected post-close error", primary.Message),
+                cleanup => Assert.IsAssignableFrom<IOException>(cleanup));
             Assert.Equal(new StagingBudget.Snapshot(3, 1, 0, 3, 1), budget.Current);
             await Assert.ThrowsAsync<StagingCapacityException>(
                 () => StageAsync(stager, "abc"u8.ToArray()));
@@ -226,6 +229,7 @@ public sealed class StagingBudgetTests
         Assert.Equal(1, budget.Current.QuarantinedFiles);
         var orphan = Assert.Single(budget.GetQuarantineSnapshot());
         Assert.True(orphan.OwnershipConfirmed);
+        Assert.True(orphan.CloseConfirmed);
         Assert.Equal(3, orphan.ReservedBytes);
         Assert.True(File.Exists(orphan.Path));
     }
