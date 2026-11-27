@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.IO.Pipes;
 
 namespace ChunkShift.Repository.Tests;
 
@@ -59,6 +60,47 @@ public sealed class NativeHandleProvenanceTests
         using var handle = File.OpenHandle(path, FileMode.CreateNew, FileAccess.Write);
         handle.Dispose();
         Assert.Throws<ObjectDisposedException>(() => NativeHandleProvenance.Observe(handle));
+    }
+
+    [Theory]
+    [InlineData(-100)]
+    [InlineData(-1)]
+    public void LinuxPseudoDescriptorsAreRejectedBeforeStatx(int fd)
+    {
+        if (!OperatingSystem.IsLinux() || !NativeDirectoryBarrier.IsSupportedPlatform)
+        {
+            return;
+        }
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => NativeHandleProvenance.ObserveOwnedHandle(fd));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void WindowsInvalidHandleSentinelsAreRejected(int handle)
+    {
+        if (!OperatingSystem.IsWindows() || !NativeDirectoryBarrier.IsSupportedPlatform)
+        {
+            return;
+        }
+
+        Assert.Throws<ArgumentException>(() => NativeHandleProvenance.ObserveOwnedHandle(handle));
+    }
+
+    [Fact]
+    public void WindowsPipeIsNotADiskObject()
+    {
+        if (!OperatingSystem.IsWindows() || !NativeDirectoryBarrier.IsSupportedPlatform)
+        {
+            return;
+        }
+
+        using var pipe = new AnonymousPipeServerStream(PipeDirection.Out);
+        // Test owns the live pipe handle for the synchronous observation.
+        Assert.Throws<InvalidDataException>(() =>
+            NativeHandleProvenance.ObserveOwnedHandle(pipe.SafePipeHandle.DangerousGetHandle()));
+        Assert.False(pipe.SafePipeHandle.IsClosed);
     }
 
     [Fact]

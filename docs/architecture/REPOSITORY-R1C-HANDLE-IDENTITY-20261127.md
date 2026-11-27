@@ -38,3 +38,18 @@ References:
 - https://github.com/torvalds/linux/blob/master/include/uapi/linux/stat.h
 - https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_id_info
 - https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfinalpathnamebyhandlew
+
+## Prequalification review
+
+Reject negative Linux descriptors before statx, including AT_FDCWD (-100),
+which with AT_EMPTY_PATH would otherwise observe the current working directory.
+Reject Windows NULL/INVALID_HANDLE_VALUE and require GetFileType FILE_TYPE_DISK
+before file identity/attribute observations. Preserve GetFileType native error
+when type is UNKNOWN and last error is nonzero. A pipe is not a disk object.
+Five additional scenario rows (22 total); platform-specific controls execute
+on their corresponding hosted lane. See https://man7.org/linux/man-pages/man2/statx.2.html
+and https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfiletype.
+No claim of hostile-path security or native durability. #509 accepted at
+66aa5313d4c80a61217667f04f099f13e582c79c, exact tree equals tested head;
+CI 46023551148, Heavy 46023551455, process crash 46023551294, seven workflows
+PASS, 421 repository tests per hosted lane.

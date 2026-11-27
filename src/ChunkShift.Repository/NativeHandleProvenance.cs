@@ -63,6 +63,7 @@ internal static partial class NativeHandleProvenance
     private const int FileIdInfo = 18;
     private const int FileAttributeTagInfo = 9;
     private const uint VolumeNameGuid = 1;
+    private const uint FileTypeDisk = 1;
     private const int MaximumFinalPathChars = 32768;
 
     internal static NativeHandleIdentity Observe(SafeFileHandle handle)
@@ -95,9 +96,21 @@ internal static partial class NativeHandleProvenance
             throw new PlatformNotSupportedException("No experimental native handle identity for this ABI.");
         }
 
-        return OperatingSystem.IsLinux()
-            ? ObserveLinux(checked((int)handle))
-            : ObserveWindows(handle);
+        if (OperatingSystem.IsLinux())
+        {
+            int fd = checked((int)handle);
+            // AT_FDCWD (-100) with AT_EMPTY_PATH identifies the current
+            // working directory. It is not an owned file descriptor.
+            ArgumentOutOfRangeException.ThrowIfNegative(fd);
+            return ObserveLinux(fd);
+        }
+
+        if (handle == 0 || handle == -1)
+        {
+            throw new ArgumentException("Invalid native file handle.", nameof(handle));
+        }
+
+        return ObserveWindows(handle);
     }
 
     private static unsafe NativeHandleIdentity ObserveLinux(int fd)
@@ -146,6 +159,18 @@ internal static partial class NativeHandleProvenance
 
     private static unsafe NativeHandleIdentity ObserveWindows(nint handle)
     {
+        uint type = WindowsGetFileType(handle);
+        int typeError = Marshal.GetLastPInvokeError();
+        if (type == 0 && typeError != 0)
+        {
+            throw new NativeDirectoryBarrierException("GetFileType", "Win32", typeError);
+        }
+
+        if (type != FileTypeDisk)
+        {
+            throw new InvalidDataException("Native handle is not a disk file or directory.");
+        }
+
         // FILE_ID_INFO = ULONGLONG volume serial + FILE_ID_128.
         // FILE_ATTRIBUTE_TAG_INFO = two DWORDs.
         Span<byte> id = stackalloc byte[24];
@@ -227,6 +252,10 @@ internal static partial class NativeHandleProvenance
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [LibraryImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true)]
     private static unsafe partial int WindowsGetInfo(nint handle, int infoClass, byte* info, uint size);
+
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [LibraryImport("kernel32.dll", EntryPoint = "GetFileType", SetLastError = true)]
+    private static partial uint WindowsGetFileType(nint handle);
 
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [LibraryImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW", SetLastError = true)]
