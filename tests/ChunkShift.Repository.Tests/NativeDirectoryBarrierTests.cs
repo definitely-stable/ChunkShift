@@ -170,7 +170,7 @@ public sealed class NativeDirectoryBarrierTests
         Assert.True(attempt.OwnershipConfirmed && attempt.CloseAttempted);
         Assert.False(attempt.CloseConfirmed);
         Assert.Equal(DirectoryBarrierState.FailedAfterOpenAttempt, attempt.State);
-        Assert.Single(model.Calls.Where(stage => stage == DirectoryBarrierStage.Close));
+        Assert.Single(model.Calls, stage => stage == DirectoryBarrierStage.Close);
     }
 
     [Theory]

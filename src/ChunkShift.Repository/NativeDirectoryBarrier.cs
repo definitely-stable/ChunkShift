@@ -292,16 +292,20 @@ internal sealed partial class NativeDirectoryOperations : IDirectoryBarrierOpera
     [LibraryImport("libc", EntryPoint = "close", SetLastError = true)]
     private static partial int LinuxClose(int fd);
 
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
     private static partial nint WindowsOpen(string path, uint access, uint share, nint security,
         uint disposition, uint flags, nint template);
 
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [LibraryImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true)]
     private static partial int WindowsGetInfo(nint handle, int infoClass, out ulong info, uint size);
 
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [LibraryImport("kernel32.dll", EntryPoint = "FlushFileBuffers", SetLastError = true)]
     private static partial int WindowsFlush(nint handle);
 
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [LibraryImport("kernel32.dll", EntryPoint = "CloseHandle", SetLastError = true)]
     private static partial int WindowsClose(nint handle);
 }
