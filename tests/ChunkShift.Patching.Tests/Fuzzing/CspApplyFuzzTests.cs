@@ -27,8 +27,8 @@ namespace ChunkShift.Patching.Tests.Fuzzing;
 /// (malformed) and <see cref="NotSupportedException"/> (unsupported); anything
 /// else, such as an index, overflow or null-reference exception, is an applier
 /// bug;</item>
-/// <item>apply allocates at most <see cref="AllocationBudgetBytes"/> per
-/// iteration, whatever lengths the patch declares;</item>
+/// <item>each enabled mode has a calling-thread allocation budget of
+/// <see cref="AllocationBudgetBytes"/> per apply, whatever lengths the patch declares;</item>
 /// <item>a non-valid outcome leaves the destination directory empty, and a
 /// valid outcome holds exactly the destination file;</item>
 /// <item>a valid outcome targeting any known corpus ManifestId reproduces
@@ -127,91 +127,15 @@ public sealed class CspApplyFuzzTests : IDisposable
                 _directory,
                 iteration.ToString(CultureInfo.InvariantCulture));
             Directory.CreateDirectory(destinationDirectory);
-            string destination = Path.GetFullPath(
-                Path.Combine(destinationDirectory, "output.bin"));
-
-            (PatchApplyResult? result, Exception? failure, long allocated) =
-                Apply(entry, patch, destination, CspApplier.DefaultChunkingCheck);
-
-            string verdict;
-            string? detail = null;
-            string? problem = null;
-
-            if (failure is InvalidDataException)
-            {
-                verdict = "malformed";
-            }
-            else if (failure is NotSupportedException)
-            {
-                verdict = "unsupported";
-            }
-            else if (failure is not null)
-            {
-                verdict = "rejected";
-                detail = failure.ToString();
-                problem = $"apply threw {failure.GetType().FullName}";
-            }
-            else if (result!.IsApplied)
-            {
-                verdict = "valid";
-            }
-            else if ((result.Failures & PatchApplyFailure.ResourceLimit) != 0)
-            {
-                verdict = "limit";
-            }
-            else
-            {
-                verdict = "verification:" + string.Join(",", FailureNames(result.Failures));
-            }
-
-            if (problem is null)
-            {
-                if (allocated > AllocationBudgetBytes)
-                {
-                    problem = $"allocated {allocated} bytes (budget {AllocationBudgetBytes})";
-                }
-                else
-                {
-                    string[] entries = Directory.GetFileSystemEntries(destinationDirectory);
-
-                    if (result is not null && result.IsApplied)
-                    {
-                        if (entries.Length != 1 ||
-                            !string.Equals(entries[0], destination, StringComparison.Ordinal))
-                        {
-                            problem =
-                                $"a valid outcome left {entries.Length} entries in the destination directory";
-                        }
-                        else
-                        {
-                            string outputSha256 = Sha256File(destination);
-                            verdict = "valid:" + outputSha256;
-
-                            problem = CheckKnownTarget(result.Target?.ManifestId, outputSha256, corpus);
-                        }
-                    }
-                    else if (entries.Length != 0)
-                    {
-                        problem =
-                            $"a {verdict} outcome left {entries.Length} entries in the destination directory";
-                    }
-                }
-            }
-
-            if (problem is null)
-            {
-                // The other way of running the re-chunk check reaches the
-                // same outcome and output for the same case.
-                problem = CompareOtherCheck(
-                    entry,
-                    patch,
-                    destinationDirectory,
-                    Outcome(result, failure, destination));
-            }
+            List<ModeObservation> observations = ObserveAllModes(entry, patch, destinationDirectory, corpus);
+            ModeObservation primary = observations[0];
+            string verdict = primary.Verdict;
+            string? problem = CheckModes(observations);
+            string? detail = problem is null ? null : JsonSerializer.Serialize(observations);
 
             if (problem is not null)
             {
-                dump?.WriteFailure(patch, verdict, entry, iteration, trace.ToString(), problem, detail);
+                dump?.WriteFailure(patch, verdict, entry, iteration, trace.ToString(), problem, detail, observations);
                 failures.Add(Describe(seed, iteration, entry, trace, patch, problem, detail));
                 if (failures.Count >= MaximumReportedFailures)
                 {
@@ -225,12 +149,15 @@ public sealed class CspApplyFuzzTests : IDisposable
                 ? verdict
                 : verdict.Split(':')[0];
             outcomes[bucket] = outcomes.GetValueOrDefault(bucket) + 1;
-            maximumAllocated = Math.Max(maximumAllocated, allocated);
+            maximumAllocated = Math.Max(maximumAllocated, observations.Max(mode => mode.Allocated));
             // A successful novel target has no pinned corpus digest. Do not
             // omit it from the independent decoder merely because it is large.
-            bool novelTarget = result is { IsApplied: true, Target: { } target } &&
-                !corpus.Any(candidate => candidate.TargetManifestId == target.ManifestId);
+            bool novelTarget = primary.Verdict.StartsWith("valid:", StringComparison.Ordinal) &&
+                !corpus.Any(candidate => candidate.TargetManifestId.ToString() == primary.TargetId);
             dump?.Write(patch, verdict, entry, iteration, force: novelTarget);
+            // Retain failed mode directories until fixture teardown. Remove
+            // successful cases only after all independent observations.
+            Directory.Delete(destinationDirectory, recursive: true);
         }
 
         TimeSpan elapsed = Stopwatch.GetElapsedTime(started);
@@ -294,7 +221,14 @@ public sealed class CspApplyFuzzTests : IDisposable
         Assert.Null(CheckKnownTarget(result.Target.ManifestId, actual, corpus));
         Assert.NotNull(CheckKnownTarget(origin.TargetManifestId, actual, corpus));
         Assert.NotNull(CheckKnownTarget(donor.TargetManifestId, origin.ExpectedOutputSha256, corpus));
-        Assert.Null(CompareOtherCheck(origin, donor.Patch, _directory, Outcome(result, failure, destination)));
+        string modesDirectory = Path.Combine(_directory, "modes");
+        List<ModeObservation> observations = ObserveAllModes(origin, donor.Patch, modesDirectory, corpus);
+        Assert.Null(CheckModes(observations));
+        Assert.All(observations, mode =>
+        {
+            Assert.Equal("valid:" + expected, mode.Verdict);
+            Assert.Equal(donor.TargetManifestId.ToString(), mode.TargetId);
+        });
     }
 
     private static int ReadIterations()
@@ -305,58 +239,196 @@ public sealed class CspApplyFuzzTests : IDisposable
             : int.Parse(configured, NumberStyles.Integer, CultureInfo.InvariantCulture);
     }
 
-    /// <summary>
-    /// Applies one case and reports what it threw, if anything, and the bytes
-    /// this thread allocated around the call. Blocking keeps both counter
-    /// reads on the thread that starts the apply: MemoryStream completes every
-    /// read synchronously, so the reader's length-driven allocations are
-    /// measured where they happen, and work the library hands to the pool
-    /// after a real asynchronous hop is not charged to this iteration.
-    /// </summary>
-    /// <summary>
-    /// Applies the case again with every other way of running the re-chunk
-    /// check except none, and returns a problem when an outcome differs from
-    /// the default's.
-    /// </summary>
-    private static string? CompareOtherCheck(
-        CorpusEntry entry,
-        byte[] patch,
-        string destinationDirectory,
-        string expected)
+    private sealed record ModeObservation(
+        string Mode, string Verdict, string? TargetId, PatchApplyFailure? Flags,
+        long Allocated, string[] Entries, string? Problem, string? Detail);
+
+    // Every enabled mode receives a separate fresh destination directory.
+    // Off deliberately omits a verification check and is not equivalent.
+    private static List<ModeObservation> ObserveAllModes(
+        CorpusEntry entry, byte[] patch, string caseDirectory, IReadOnlyList<CorpusEntry> corpus)
     {
-        foreach (ChunkingCheck other in Enum.GetValues<ChunkingCheck>())
+        var observations = new List<ModeObservation>();
+        foreach (ChunkingCheck check in Enum.GetValues<ChunkingCheck>()
+                     .Where(check => check != ChunkingCheck.Off)
+                     .OrderBy(check => check == CspApplier.DefaultChunkingCheck ? 0 : 1))
         {
-            if (other == ChunkingCheck.Off || other == CspApplier.DefaultChunkingCheck)
+            string directory = Path.Combine(caseDirectory, check.ToString());
+            Directory.CreateDirectory(directory);
+            string destination = Path.GetFullPath(Path.Combine(directory, "output.bin"));
+            (PatchApplyResult? result, Exception? failure, long allocated) =
+                Apply(entry, patch, destination, check);
+            observations.Add(InspectMode(check, result, failure, allocated, destination, corpus));
+        }
+
+        return observations;
+    }
+
+    private static ModeObservation InspectMode(
+        ChunkingCheck check, PatchApplyResult? result, Exception? failure, long allocated,
+        string destination, IReadOnlyList<CorpusEntry> corpus)
+    {
+        string verdict = failure switch
+        {
+            InvalidDataException => "malformed",
+            NotSupportedException => "unsupported",
+            not null => "rejected",
+            _ when result is null => "rejected",
+            _ when result.IsApplied => "valid",
+            _ when (result.Failures & PatchApplyFailure.ResourceLimit) != 0 => "limit",
+            _ => "verification:" + string.Join(",", FailureNames(result.Failures)),
+        };
+        string? target = result?.Target?.ManifestId.ToString();
+        var problems = new List<string>();
+        string? detail = failure?.ToString();
+        string[] entries = [];
+        if (failure is not null and not InvalidDataException and not NotSupportedException)
+        {
+            problems.Add($"apply threw {failure.GetType().FullName}");
+        }
+
+        if (failure is null && result is null)
+        {
+            problems.Add("apply returned neither result nor exception");
+        }
+
+        if (allocated < 0 || allocated > AllocationBudgetBytes)
+        {
+            problems.Add($"allocated {allocated} bytes (budget {AllocationBudgetBytes})");
+        }
+
+        try
+        {
+            string[] paths = Directory.GetFileSystemEntries(Path.GetDirectoryName(destination)!);
+            entries = paths.Select(path => Path.GetFileName(path)!).Order(StringComparer.Ordinal).ToArray();
+            if (result is { IsApplied: true })
             {
-                continue;
+                if (paths.Length != 1 ||
+                    !string.Equals(paths[0], destination, StringComparison.Ordinal) ||
+                    !File.Exists(destination))
+                {
+                    problems.Add($"a valid outcome left {paths.Length} entries or no destination file");
+                }
+                else
+                {
+                    string sha = Sha256File(destination);
+                    verdict = "valid:" + sha;
+                    string? targetProblem = CheckKnownTarget(result.Target?.ManifestId, sha, corpus);
+                    if (targetProblem is not null)
+                    {
+                        problems.Add(targetProblem);
+                    }
+                }
+            }
+            else if (paths.Length != 0)
+            {
+                problems.Add($"a {verdict} outcome left {paths.Length} entries in the destination directory");
+            }
+        }
+        catch (Exception error)
+        {
+            // A failure in the oracle itself must still yield the exact case
+            // and mode evidence, rather than bypassing WriteFailure.
+            problems.Add($"output inspection threw {error.GetType().FullName}");
+            detail = detail is null ? error.ToString() : detail + Environment.NewLine + error;
+        }
+
+        return new ModeObservation(check.ToString(), verdict, target, result?.Failures, allocated, entries,
+            problems.Count == 0 ? null : string.Join("; ", problems), detail);
+    }
+
+    private static string? CheckModes(IReadOnlyList<ModeObservation> observations)
+    {
+        ModeObservation primary = observations[0];
+        foreach (ModeObservation mode in observations)
+        {
+            if (mode.Problem is not null)
+            {
+                return $"{mode.Mode}: {mode.Problem}";
             }
 
-            string otherDirectory = Path.Combine(destinationDirectory, "other");
-            Directory.CreateDirectory(otherDirectory);
-            string otherDestination = Path.Combine(otherDirectory, "output.bin");
-
-            (PatchApplyResult? result, Exception? failure, _) =
-                Apply(entry, patch, otherDestination, other);
-            string actual = Outcome(result, failure, otherDestination);
-            Directory.Delete(otherDirectory, recursive: true);
-
-            if (!string.Equals(expected, actual, StringComparison.Ordinal))
+            // Compare complete flags (including combinations containing
+            // ResourceLimit), not just the normalized Python verdict.
+            if (mode.Verdict != primary.Verdict || mode.Flags != primary.Flags ||
+                (primary.Verdict.StartsWith("valid:", StringComparison.Ordinal) && mode.TargetId != primary.TargetId))
             {
-                return $"the {other} re-chunk check reached {actual}, the default {expected}";
+                return $"{mode.Mode}: {mode.Verdict} / {mode.Flags} / {mode.TargetId}; " +
+                    $"default {primary.Mode}: {primary.Verdict} / {primary.Flags} / {primary.TargetId}";
             }
         }
 
         return null;
     }
 
-    /// <summary>Renders an outcome for comparison: exception type, failures or output digest.</summary>
-    private static string Outcome(PatchApplyResult? result, Exception? failure, string destination) =>
-        failure is not null
-            ? failure.GetType().Name
-            : result!.IsApplied
-                ? "applied:" + Sha256File(destination)
-                : "failed:" + result.Failures;
+    [Fact]
+    public void ModeOracleRejectsRejectedOutputAndAllocationExcess()
+    {
+        string directory = Path.Combine(_directory, "negative");
+        Directory.CreateDirectory(directory);
+        string destination = Path.Combine(directory, "output.bin");
+        File.WriteAllText(destination, "must not be published");
+        ModeObservation observed = InspectMode(ChunkingCheck.Sequential, null,
+            new InvalidDataException("injected"), AllocationBudgetBytes + 1, destination, Corpus.Value);
+        Assert.NotNull(observed.Problem);
+        Assert.Contains("allocated", observed.Problem!, StringComparison.Ordinal);
+        Assert.Contains("left 1 entries", observed.Problem!, StringComparison.Ordinal);
+        Assert.Equal("malformed", observed.Verdict);
+        Assert.Equal("output.bin", Assert.Single(observed.Entries));
+        Assert.True(File.Exists(destination));
+    }
 
+    [Fact]
+    public void ModeOracleRejectsValidOutputWithResidueOrMissingDestination()
+    {
+        List<CorpusEntry> corpus = Corpus.Value;
+        CorpusEntry entry = corpus.Single(e => e.Name == "zstd-no-dictionary");
+        string directory = Path.Combine(_directory, "negative");
+        Directory.CreateDirectory(directory);
+        string destination = Path.Combine(directory, "output.bin");
+        (PatchApplyResult? result, Exception? failure, long allocated) =
+            Apply(entry, entry.Patch, destination, CspApplier.DefaultChunkingCheck);
+        Assert.Null(failure);
+        Assert.True(result!.IsApplied);
+        Assert.Null(InspectMode(ChunkingCheck.Boundary, result, null, allocated, destination, corpus).Problem);
+        string residue = Path.Combine(directory, "extra.tmp");
+        File.WriteAllText(residue, "residue");
+        Assert.NotNull(InspectMode(ChunkingCheck.Boundary, result, null, allocated, destination, corpus).Problem);
+        File.Delete(residue);
+        File.Delete(destination);
+        Assert.NotNull(InspectMode(ChunkingCheck.Boundary, result, null, allocated, destination, corpus).Problem);
+        Directory.CreateDirectory(destination);
+        Assert.NotNull(InspectMode(ChunkingCheck.Boundary, result, null, allocated, destination, corpus).Problem);
+    }
+
+    [Fact]
+    public void ModeOracleCapturesInspectionException()
+    {
+        string destination = Path.Combine(_directory, "missing", "output.bin");
+        ModeObservation observed = InspectMode(ChunkingCheck.Overlapped, null,
+            new InvalidDataException("primary"), 0, destination, Corpus.Value);
+        Assert.Contains("output inspection threw", observed.Problem!, StringComparison.Ordinal);
+        Assert.Contains("primary", observed.Detail!, StringComparison.Ordinal);
+        Assert.Contains(nameof(DirectoryNotFoundException), observed.Detail!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ModeOracleRejectsSameNormalizedVerdictWithDifferentFlagsOrTarget()
+    {
+        var primary = new ModeObservation("Boundary", "limit", null,
+            PatchApplyFailure.ResourceLimit, 0, [], null, null);
+        var other = primary with { Mode = "Sequential", Flags = PatchApplyFailure.ResourceLimit | PatchApplyFailure.BaseMismatch };
+        Assert.NotNull(CheckModes([primary, other]));
+        Assert.Null(CheckModes([primary, other with { Flags = primary.Flags }]));
+        primary = primary with { Verdict = "valid:abc", Flags = PatchApplyFailure.None, TargetId = "first" };
+        other = primary with { Mode = "Overlapped", TargetId = "second" };
+        Assert.NotNull(CheckModes([primary, other]));
+    }
+
+    /// <summary>
+    /// Applies one case and reports the exception/result and allocations on the
+    /// calling thread. MemoryStream completes reads synchronously, but work
+    /// after an asynchronous hop is not charged to this counter.
+    /// </summary>
     private static (PatchApplyResult? Result, Exception? Failure, long Allocated) Apply(
         CorpusEntry entry,
         byte[] patch,
@@ -634,7 +706,7 @@ public sealed class CspApplyFuzzTests : IDisposable
         }
 
         internal void WriteFailure(byte[] patch, string verdict, CorpusEntry entry,
-            int iteration, string trace, string problem, string? detail)
+            int iteration, string trace, string problem, string? detail, IReadOnlyList<ModeObservation> modes)
         {
             // A maximum of MaximumReportedFailures per seed; the finite
             // mutator corpus bounds input sizes. Keep failures separate from
@@ -654,7 +726,7 @@ public sealed class CspApplyFuzzTests : IDisposable
 
             File.WriteAllText(Path.Combine(directory, "failure.json"), JsonSerializer.Serialize(new
             {
-                seed = _seed, iteration, entry = entry.Name, trace, problem, detail, verdict,
+                seed = _seed, iteration, entry = entry.Name, trace, problem, detail, verdict, modes,
                 originalTarget = entry.TargetManifestId.ToString(),
                 originalTargetSha256 = entry.ExpectedOutputSha256,
                 patchSha256 = Convert.ToHexStringLower(SHA256.HashData(patch)),

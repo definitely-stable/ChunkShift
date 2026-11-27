@@ -42,6 +42,8 @@ import struct
 import sys
 from pathlib import Path
 
+from differential_evidence import FailureBundles, exception_reason
+
 _DECODER_PATH = Path(__file__).resolve().parent / "decode.py"
 _spec = importlib.util.spec_from_file_location("csp_fixtures_decode", _DECODER_PATH)
 dec = importlib.util.module_from_spec(_spec)
@@ -623,18 +625,28 @@ def check_vectors(directory: Path) -> int:
 
 def compare(directory: Path) -> int:
     checked, mismatches = 0, []
+    bundles = FailureBundles(directory, "forward")
     for listing in sorted(directory.glob("verdicts-*.jsonl")):
-        for line in listing.read_text(encoding="utf-8").splitlines():
+        for line_number, line in enumerate(listing.read_text(encoding="utf-8").splitlines(), 1):
             if not line.strip():
                 continue
             case = json.loads(line)
             inputs = ((directory / case["file"]).read_bytes(),
                       (directory / case["baseManifest"]).read_bytes() if case.get("baseManifest") else None,
                       (directory / case["base"]).read_bytes() if case.get("base") else None)
-            expected = dec.verdict_text(dec.decode(*inputs))
-            actual = dec.verdict_text(apply(*inputs, seed=checked))
+            binary = dict(zip(("case.csp", "base.csm", "base.bin"), inputs))
+            seed = checked
+            expected = "not-evaluated"
+            try:
+                expected = dec.verdict_text(dec.decode(*inputs))
+                actual = dec.verdict_text(apply(*inputs, seed=seed))
+            except Exception as error:
+                bundles.record(listing, line_number, case, binary, expected,
+                               "exception:" + type(error).__name__, exception_reason(error), seed)
+                raise
             checked += 1
             if actual != expected:
+                bundles.record(listing, line_number, case, binary, expected, actual, forward_seed=seed)
                 mismatches.append(f"{case['file']}: forward {actual!r}, decode.py {expected!r}")
     for mismatch in mismatches[:50]:
         print(mismatch, file=sys.stderr)
