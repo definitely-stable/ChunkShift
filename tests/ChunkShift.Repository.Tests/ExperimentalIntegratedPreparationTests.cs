@@ -6,6 +6,9 @@ namespace ChunkShift.Repository.Tests;
 public sealed class ExperimentalIntegratedPreparationTests
 {
     private const string Name = "0123456789abcdef0123456789abcdef.prepare";
+    private static readonly string[] SuccessfulParentCalls = ["open", "validate", "flush", "close"];
+    private static readonly string[] UnflushedParentCalls = ["open", "validate", "close"];
+    private static readonly string[] CancelledParentCalls = ["open", "close"];
 
     [Theory]
     [InlineData(0)]
@@ -43,7 +46,7 @@ public sealed class ExperimentalIntegratedPreparationTests
         Assert.Equal(attempt.LastAttempted, attempt.LastCompleted);
         Assert.True(attempt.OwnershipConfirmed && attempt.WriterCloseConfirmed && attempt.ReaderCloseConfirmed);
         Assert.True(attempt.ParentOwnershipConfirmed && attempt.ParentCloseAttempted && attempt.ParentCloseConfirmed);
-        Assert.Equal(new[] { "open", "validate", "flush", "close" }, parent.Calls);
+        Assert.Equal(SuccessfulParentCalls, parent.Calls);
         Assert.Equal(bytes, File.ReadAllBytes(fixture.Path));
         Assert.True(source.CanRead);
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -80,7 +83,7 @@ public sealed class ExperimentalIntegratedPreparationTests
         Assert.Equal(PersistencePreparationStage.VerifyClosedObject, attempt.LastAttempted);
         Assert.Equal(PersistencePreparationStage.CloseWriter, attempt.LastCompleted);
         Assert.True(attempt.ReaderCloseConfirmed && attempt.ParentCloseConfirmed);
-        Assert.Equal(new[] { "open", "validate", "close" }, parent.Calls);
+        Assert.Equal(UnflushedParentCalls, parent.Calls);
         Assert.Equal(new byte[] { 1 }, File.ReadAllBytes(fixture.Path));
         Assert.Equal(new byte[] { 1 }, File.ReadAllBytes(retained));
     }
@@ -180,7 +183,7 @@ public sealed class ExperimentalIntegratedPreparationTests
         Assert.Equal(PersistencePreparationStage.None, attempt.LastAttempted);
         Assert.False(attempt.OwnershipConfirmed);
         Assert.True(attempt.ParentOwnershipConfirmed && attempt.ParentCloseConfirmed);
-        Assert.Equal(new[] { "open", "close" }, parent.Calls);
+        Assert.Equal(CancelledParentCalls, parent.Calls);
         Assert.Empty(Directory.GetFileSystemEntries(fixture.Root));
         Assert.Equal(0, source.Position);
         Assert.True(source.CanRead);
@@ -216,7 +219,7 @@ public sealed class ExperimentalIntegratedPreparationTests
         Assert.False(attempt.WriterCloseConfirmed);
         Assert.True(attempt.ParentCloseAttempted);
         Assert.False(attempt.ParentCloseConfirmed);
-        Assert.Equal(new[] { "open", "validate", "close" }, parent.Calls);
+        Assert.Equal(UnflushedParentCalls, parent.Calls);
         Assert.True(File.Exists(fixture.Path));
     }
 
@@ -237,7 +240,7 @@ public sealed class ExperimentalIntegratedPreparationTests
         Assert.Equal(ExperimentalFilePreparationState.ReconciliationRequired, attempt.State);
         Assert.False(attempt.OwnershipConfirmed);
         Assert.True(attempt.ParentCloseConfirmed);
-        Assert.Equal(new[] { "open", "validate", "close" }, parent.Calls);
+        Assert.Equal(UnflushedParentCalls, parent.Calls);
         Assert.Equal(new byte[] { 7 }, File.ReadAllBytes(fixture.Path));
         Assert.Equal(0, source.Position);
     }
