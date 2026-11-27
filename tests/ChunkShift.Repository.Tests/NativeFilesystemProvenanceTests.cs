@@ -23,6 +23,8 @@ public sealed class NativeFilesystemProvenanceTests
 
     [Theory]
     [InlineData("")]
+    [InlineData("bad\n")]
+    [InlineData("41 20 259:3 / /private rw\n")]
     [InlineData("40 20 259:3 / /private rw - ext4 /dev/sda rw\n")]
     [InlineData("41 20 259:4 / /private rw - ext4 /dev/sda rw\n")]
     [InlineData("41 20 259:3 / /private rw ext4 /dev/sda rw\n")]

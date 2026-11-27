@@ -135,7 +135,7 @@ internal static partial class NativeFilesystemProvenance
             }
 
             string[] fields = line.Split(' ');
-            int separator = Array.IndexOf(fields, "-", 6);
+            int separator = fields.Length >= 10 ? Array.IndexOf(fields, "-", 6) : -1;
             if (fields.Length < 10 || separator < 6 || separator != fields.Length - 4 ||
                 Array.Exists(fields, static field => field.Length == 0) ||
                 !TryId(fields[0], out ulong mountId) || !TryId(fields[1], out _) ||
