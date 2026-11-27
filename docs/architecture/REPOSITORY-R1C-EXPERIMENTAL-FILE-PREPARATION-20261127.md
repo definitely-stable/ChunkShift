@@ -41,3 +41,18 @@ budget, structural RawPack validation, same-parent handle identity proof,
 directory barrier or durable ledger in this slice. Trusted stable parent is
 a precondition, not defense against symlink/reparse/replacement attacks.
 Production default DEFER, no API or format freeze.
+
+## Asynchronous I/O and direct operation hardening
+
+Add 22 focused rows: four invalid read-count cases (copy vs EOF), four actually
+suspended source faults (copy vs EOF, cleanup succeeds/fails), eight suspended
+cancellation cases (copy vs EOF, cooperative/noncooperative, cleanup succeeds/
+fails), four direct write faults after partial/full effect with optional close
+fault, two direct file barrier faults before/after real Flush(true). Total 63
+rows. All source streams remain caller-owned. The tests use completion gates,
+not sleeps; cancellation cannot release a live operation or its buffer before
+settlement. Compare exact retained file bytes, original exception or ordered
+aggregate, token, stage markers, closure and no later stages. Direct Write and
+Flush delegates are internal test-only seams; normal backend still invokes
+FileStream.WriteAsync and Flush(true). No kernel-fault claim. Explicitly mark
+cleanup close attempted before calling it. Hosted qualification pending.

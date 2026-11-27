@@ -115,7 +115,14 @@ internal sealed class ExperimentalFilePreparation
             Begin(PersistencePreparationStage.FlushFile, cancellationToken);
             // This synchronous barrier cannot be forcibly cancelled. Do not
             // return while it is running, and do not infer power-loss durability.
-            writer.Flush(flushToDisk: true);
+            if (_hooks?.Flush is { } flush)
+            {
+                flush(writer);
+            }
+            else
+            {
+                writer.Flush(flushToDisk: true);
+            }
             Complete(PersistencePreparationStage.FlushFile);
 
             Begin(PersistencePreparationStage.CloseWriter, cancellationToken);
@@ -149,11 +156,13 @@ internal sealed class ExperimentalFilePreparation
                 // protocol markers. Only one handle can need cleanup here.
                 if (reader is not null && !readerCloseAttempted)
                 {
+                    readerCloseAttempted = true;
                     await CloseAsync(reader, isReader: true).ConfigureAwait(false);
                     ReaderCloseConfirmed = true;
                 }
                 else if (writer is not null && !writerCloseAttempted)
                 {
+                    writerCloseAttempted = true;
                     await CloseAsync(writer, isReader: false).ConfigureAwait(false);
                     WriterCloseConfirmed = true;
                 }
@@ -190,7 +199,7 @@ internal sealed class ExperimentalFilePreparation
     private ValueTask CloseAsync(FileStream file, bool isReader) =>
         _hooks?.Close is { } close ? close(file, isReader) : file.DisposeAsync();
 
-    private static async Task CopyAndVerifyAsync(Stream source, Stream? destination, byte[] buffer,
+    private async Task CopyAndVerifyAsync(Stream source, FileStream? destination, byte[] buffer,
         long expectedLength, Hash256 expectedSha256, CancellationToken cancellationToken)
     {
         using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -214,7 +223,15 @@ internal sealed class ExperimentalFilePreparation
             digest.AppendData(buffer.AsSpan(0, count));
             if (destination is not null)
             {
-                await destination.WriteAsync(buffer.AsMemory(0, count), cancellationToken).ConfigureAwait(false);
+                ReadOnlyMemory<byte> bytes = buffer.AsMemory(0, count);
+                if (_hooks?.Write is { } write)
+                {
+                    await write(destination, bytes, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await destination.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
+                }
             }
 
             remaining -= count;
@@ -247,5 +264,7 @@ internal sealed class FilePreparationHooks
 {
     internal Action<PersistencePreparationStage, bool>? Checkpoint { get; init; }
     internal Func<string, FileStream>? Create { get; init; }
+    internal Func<FileStream, ReadOnlyMemory<byte>, CancellationToken, ValueTask>? Write { get; init; }
+    internal Action<FileStream>? Flush { get; init; }
     internal Func<FileStream, bool, ValueTask>? Close { get; init; }
 }
