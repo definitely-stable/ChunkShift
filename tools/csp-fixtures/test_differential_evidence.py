@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import decode
 import forward_apply
-from differential_evidence import FailureBundles, MAX_BUNDLES, MAX_INPUT_BYTES
+from differential_evidence import FailureBundles, MAX_BUNDLES
 
 
 class EvidenceTests(unittest.TestCase):
@@ -76,11 +76,42 @@ class EvidenceTests(unittest.TestCase):
         self.binary("dict.bin", b"dictionary")
         row = dict(file="frame-abc-3.zst", dictionary="dict.bin", length=123, verdict="ok:abc")
         self.listing("frames-abc.jsonl", [row])
-        with patch.object(decode, "_decode_zstd", side_effect=decode.Malformed("injected")):
-            self.assertEqual(1, decode.compare_frames(self.root))
+        # Real malformed frame: exercise the actual envelope parser and
+        # its Malformed(rule, reason) contract, not an exception-shaped mock.
+        self.assertEqual(1, decode.compare_frames(self.root))
         meta = self.verify("frames", "ok:abc", "malformed",
                            {"frame.zst": b"frame", "dictionary.bin": b"dictionary"})
         self.assertEqual(123, meta["case"]["length"])
+        self.assertIn("do not start with a zstd frame", meta["reason"])
+        self.assertEqual(row, meta["case"])
+
+    def test_real_fixture_wrong_verdict_retains_replayable_patch(self):
+        fixture = (Path(__file__).resolve().parents[2] /
+                   "tests/ChunkShift.Patching.Tests/Fixtures/CspV1/zstd-no-dictionary.csp")
+        data = fixture.read_bytes()
+        expected = "valid:967dcabb78ed6db5d8911bb78c322b35be9293c96d5d5981fa540c4adde19b0c"
+        self.binary("case-abc-8.csp", data)
+        row = dict(file="case-abc-8.csp", baseManifest=None, base=None, verdict="malformed")
+        self.listing("verdicts-abc.jsonl", [row])
+        self.assertEqual(1, decode.compare(self.root))
+        self.verify("decode", "malformed", expected,
+                    {"case.csp": data, "base.csm": None, "base.bin": None})
+        stored = self.root / "failures/python-decode/01/case.csp"
+        self.assertEqual(expected, decode.verdict_text(decode.decode(stored.read_bytes())))
+        # The same real input agrees with the forward-only prototype.
+        self.assertEqual(0, forward_apply.compare(self.root))
+        self.assertFalse((self.root / "failures/python-forward").exists())
+
+    def test_real_frame_correct_verdict_has_no_artifact(self):
+        # A real valid frame emitted by the hosted Python libzstd encoder.
+        data = b"chunkshift frame evidence" * 20
+        stored = decode.zstd.compress(data)
+        expected = "ok:" + hashlib.sha256(data).hexdigest()
+        self.binary("frame-abc-4.zst", stored)
+        self.listing("frames-abc.jsonl", [
+            dict(file="frame-abc-4.zst", dictionary=None, length=len(data), verdict=expected)])
+        self.assertEqual(0, decode.compare_frames(self.root))
+        self.assertFalse((self.root / "failures").exists())
 
     def test_unexpected_exception_retains_and_reraises(self):
         self.patch_case()

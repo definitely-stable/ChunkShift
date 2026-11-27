@@ -36,3 +36,19 @@ artifact I/O failure. Real differential fuzz matrix must still pass on x64
 and ARM64; test assertions prove retention behavior, not a real decoder bug.
 Next AUDIT-005: common per-mode apply oracle, output residue, allocation
 budget and failure capture before alternate-output cleanup.
+
+## Qualification correction — hosted run 45902381900
+
+Both native jobs failed in negative controls before extended CSP fuzzing:
+linux-x64 140191010012, linux-arm64 140191010362. Seven of eight tests passed;
+`test_frame_mismatch_retains_dictionary_and_length` incorrectly instantiated
+`Malformed("injected")`, although its real constructor takes `(rule, reason)`.
+This was a test defect, not a product mismatch. The replacement uses an actual
+malformed frame, exercises the real envelope parser and checks the retained
+reason and original row. Two additional non-mocked controls use a committed
+valid CSP fixture with independently pinned target SHA256 and an actual valid
+libzstd frame. The CSP control intentionally supplies a wrong .NET listing
+verdict, verifies stored bytes and replays them, then requires real forward
+agreement. The frame control requires no failure artifact for an agreeing
+verdict. Ten tests now require fresh exact-head hosted qualification. No
+production decoder, acceptance rule, or evidence retention limit changed.
