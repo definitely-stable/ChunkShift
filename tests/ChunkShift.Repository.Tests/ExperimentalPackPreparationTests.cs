@@ -202,6 +202,53 @@ public sealed class ExperimentalPackPreparationTests
         Assert.Equal(bytes, File.ReadAllBytes(fixture.Path));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task IntegratedPackRequiresDescriptorAndParentBarrier(bool blake)
+    {
+        if (!NativeDirectoryBarrier.IsSupportedPlatform)
+        {
+            return;
+        }
+
+        using var fixture = new Fixture();
+        (byte[] bytes, RawPackDescriptor expected) = await BuildPackAsync(blake);
+        using var source = new MemoryStream(bytes, writable: false);
+        var attempt = new ExperimentalFilePreparation();
+        await attempt.PreparePackWithDirectoryBarrierAsync(fixture.Root, Name, source, expected, Limits);
+        Assert.Equal(ExperimentalFilePreparationState.ExperimentalPackPrepared, attempt.State);
+        Assert.Equal(PersistencePreparationStage.FlushParentDirectory, attempt.LastCompleted);
+        Assert.True(attempt.ParentCloseConfirmed && attempt.ReaderCloseConfirmed);
+        Assert.Equal(bytes, File.ReadAllBytes(fixture.Path));
+        Assert.True(source.CanRead);
+    }
+
+    [Fact]
+    public async Task IntegratedPackWrongDescriptorNeverCompletesParentBarrier()
+    {
+        if (!NativeDirectoryBarrier.IsSupportedPlatform)
+        {
+            return;
+        }
+
+        using var fixture = new Fixture();
+        (byte[] bytes, RawPackDescriptor expected) = await BuildPackAsync(false);
+        using var source = new MemoryStream(bytes, writable: false);
+        var attempt = new ExperimentalFilePreparation(new FilePreparationHooks
+        {
+            Checkpoint = (stage, _) =>
+            {
+                Assert.NotEqual(PersistencePreparationStage.FlushParentDirectory, stage);
+            },
+        });
+        await Assert.ThrowsAsync<InvalidDataException>(() => attempt.PreparePackWithDirectoryBarrierAsync(
+            fixture.Root, Name, source, expected with { PackId = new RawPackId(Digest([9])) }, Limits));
+        AssertReadbackFailure(attempt);
+        Assert.True(attempt.ParentCloseConfirmed);
+        Assert.Equal(bytes, File.ReadAllBytes(fixture.Path));
+    }
+
     private static void AssertReadbackFailure(ExperimentalFilePreparation attempt)
     {
         Assert.Equal(ExperimentalFilePreparationState.ReconciliationRequired, attempt.State);

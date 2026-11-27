@@ -12,6 +12,7 @@ internal sealed class ExperimentalParentPreparation
 {
     private readonly IDirectoryBarrierOperations _operations;
     private nint _handle;
+    private bool _started;
     private NativeFilesystemObservation? _initial;
 
     internal ExperimentalParentPreparation(IDirectoryBarrierOperations? operations) =>
@@ -23,6 +24,12 @@ internal sealed class ExperimentalParentPreparation
 
     internal void Open(string parent, CancellationToken cancellationToken)
     {
+        if (_started)
+        {
+            throw new InvalidOperationException("Parent preparation is single-use.");
+        }
+
+        _started = true;
         cancellationToken.ThrowIfCancellationRequested();
         if (!NativeDirectoryBarrier.IsSupportedPlatform)
         {
