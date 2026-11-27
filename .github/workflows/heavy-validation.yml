@@ -118,6 +118,10 @@ jobs:
             --filter "FullyQualifiedName~ChunkShift.Tests.Fuzzing"
           python3 tools/csm-fixtures/decode.py --compare "$CHUNKSHIFT_FUZZ_DUMP"
 
+      - name: Verify CSP differential reproducer retention (negative controls)
+        shell: bash
+        run: python -B -m unittest discover -s tools/csp-fixtures -p test_differential_evidence.py -v
+
       - name: Extended CSP apply fuzz with differential decoder check
         shell: bash
         env:
@@ -138,10 +142,15 @@ jobs:
           echo "fuzz seeds: $CHUNKSHIFT_FUZZ_SEEDS"
           dotnet test tests/ChunkShift.Patching.Tests -c Release --no-build --no-restore \
             --filter "FullyQualifiedName~ChunkShift.Patching.Tests.Fuzzing"
-          python tools/csp-fixtures/decode.py --compare "$CHUNKSHIFT_FUZZ_DUMP"
-          python tools/csp-fixtures/forward_apply.py --compare "$CHUNKSHIFT_FUZZ_DUMP"
+          # Run all comparators even when another comparator disagrees.
+          # Preserve the failure status; the artifact step uploads bounded
+          # exact-input bundles in the same failures/ tree as the C# harness.
+          status=0
+          python tools/csp-fixtures/decode.py --compare "$CHUNKSHIFT_FUZZ_DUMP" || status=1
+          python tools/csp-fixtures/forward_apply.py --compare "$CHUNKSHIFT_FUZZ_DUMP" || status=1
           # Mutated zstd frames alone: ZstdSharp against the runner's libzstd.
-          python tools/csp-fixtures/decode.py --compare-frames "$CHUNKSHIFT_FUZZ_DUMP"
+          python tools/csp-fixtures/decode.py --compare-frames "$CHUNKSHIFT_FUZZ_DUMP" || status=1
+          exit "$status"
 
       - name: Preserve CSP fuzz failure reproducers
         if: failure()
