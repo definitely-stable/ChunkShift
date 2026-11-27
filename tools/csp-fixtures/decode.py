@@ -63,6 +63,8 @@ import struct
 import sys
 from pathlib import Path
 
+from differential_evidence import FailureBundles, exception_reason
+
 try:
     from compression import zstd
 except ImportError:  # pragma: no cover - environment check
@@ -873,9 +875,10 @@ def compare(directory: Path) -> int:
 
     checked = 0
     mismatches: list[str] = []
+    bundles = FailureBundles(directory, "decode")
 
     for listing in sorted(directory.glob("verdicts-*.jsonl")):
-        for line in listing.read_text(encoding="utf-8").splitlines():
+        for line_number, line in enumerate(listing.read_text(encoding="utf-8").splitlines(), 1):
             if not line.strip():
                 continue
             case = json.loads(line)
@@ -885,14 +888,22 @@ def compare(directory: Path) -> int:
             base_content = (
                 (directory / case["base"]).read_bytes()
                 if case.get("base") else None)
-            verdict = decode(
-                (directory / case["file"]).read_bytes(), base_manifest, base_content)
+            patch = (directory / case["file"]).read_bytes()
+            inputs = {"case.csp": patch, "base.csm": base_manifest, "base.bin": base_content}
+            try:
+                verdict = decode(patch, base_manifest, base_content)
+                text = verdict_text(verdict)
+            except Exception as error:
+                bundles.record(listing, line_number, case, inputs, case["verdict"],
+                               "exception:" + type(error).__name__, exception_reason(error))
+                raise
             checked += 1
-            text = verdict_text(verdict)
             if text != case["verdict"]:
+                reason = str(verdict.get("reason", ""))
+                bundles.record(listing, line_number, case, inputs, case["verdict"], text, reason)
                 mismatches.append(
                     f"{case['file']}: .NET {case['verdict']!r}, "
-                    f"decoder {text!r} ({verdict.get('reason', '')})"
+                    f"decoder {text!r} ({reason})"
                 )
 
     for mismatch in mismatches[:50]:
@@ -917,25 +928,33 @@ def compare_frames(directory: Path) -> int:
     checked = 0
     mismatches: list[str] = []
     dictionaries: dict[str, bytes] = {}
+    bundles = FailureBundles(directory, "frames")
 
     for listing in sorted(directory.glob("frames-*.jsonl")):
-        for line in listing.read_text(encoding="utf-8").splitlines():
+        for line_number, line in enumerate(listing.read_text(encoding="utf-8").splitlines(), 1):
             if not line.strip():
                 continue
             case = json.loads(line)
             name = case.get("dictionary")
             if name and name not in dictionaries:
                 dictionaries[name] = (directory / name).read_bytes()
+            frame = (directory / case["file"]).read_bytes()
+            dictionary = dictionaries[name] if name else None
+            inputs = {"frame.zst": frame, "dictionary.bin": dictionary}
             try:
-                decoded = _decode_zstd(
-                    (directory / case["file"]).read_bytes(), case["length"], dictionaries.get(name, b""))
+                decoded = _decode_zstd(frame, case["length"], dictionary if dictionary is not None else b"")
                 text = "ok:" + hashlib.sha256(decoded).hexdigest()
             except Malformed as error:
                 text, reason = "malformed", str(error)
+            except Exception as error:
+                bundles.record(listing, line_number, case, inputs, case["verdict"],
+                               "exception:" + type(error).__name__, exception_reason(error))
+                raise
             else:
                 reason = ""
             checked += 1
             if text != case["verdict"]:
+                bundles.record(listing, line_number, case, inputs, case["verdict"], text, reason)
                 mismatches.append(f"{case['file']}: .NET {case['verdict']!r}, decoder {text!r} {reason}")
 
     for mismatch in mismatches[:50]:

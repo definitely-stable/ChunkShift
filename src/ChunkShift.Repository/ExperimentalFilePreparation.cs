@@ -84,10 +84,7 @@ internal sealed class ExperimentalFilePreparation
 
             ArgumentOutOfRangeException.ThrowIfNegative(maximumBytes);
             ArgumentOutOfRangeException.ThrowIfNegative(expectedLength);
-            if (expectedLength > maximumBytes)
-            {
-                throw new ArgumentOutOfRangeException(nameof(expectedLength));
-            }
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(expectedLength, maximumBytes);
 
             if (!source.CanRead)
             {
