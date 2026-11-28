@@ -15,6 +15,12 @@ internal static class Program
     {
         try
         {
+            if (args is ["integrated-fsync-eio", var flushPinned, var flushParent])
+            {
+                await IntegratedFsyncEioProbe.RunAsync(flushPinned, flushParent).ConfigureAwait(false);
+                return 0;
+            }
+
             if (args is ["integrated-readback-eio", var pinnedPack, var readbackParent])
             {
                 await IntegratedReadbackEioProbe.RunAsync(pinnedPack, readbackParent).ConfigureAwait(false);
