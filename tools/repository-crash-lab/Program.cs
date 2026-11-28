@@ -15,6 +15,12 @@ internal static class Program
     {
         try
         {
+            if (args is ["native-enospc", var pinned, var privateParent, var phase])
+            {
+                await NativeEnospcProbe.RunAsync(pinned, privateParent, phase).ConfigureAwait(false);
+                return 0;
+            }
+
             if (args.Length > 0 && args[0].StartsWith("integrated-", StringComparison.Ordinal))
             {
                 await IntegratedCrashProbe.RunAsync(args).ConfigureAwait(false);
