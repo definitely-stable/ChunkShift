@@ -76,7 +76,10 @@ internal static class IntegratedCrashProbe
 
     private static async Task BuildAsync(string sourcePath, string parent, string boundary)
     {
-        using var source = File.OpenRead(sourcePath);
+        // Fixed small fixture: pin a deterministic source read window for
+        // the first-write checkpoint, independently of short file reads.
+        Require(new FileInfo(sourcePath).Length == 65850, "Wrong integrated fixture extent.");
+        using var source = new MemoryStream(File.ReadAllBytes(sourcePath), writable: false);
         VerifiedRawPack verified = await RawPackReader.VerifyAsync(source, Limits).ConfigureAwait(false);
         source.Position = 0;
         ExperimentalFilePreparation? attempt = null;

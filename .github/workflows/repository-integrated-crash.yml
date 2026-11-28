@@ -1,0 +1,67 @@
+name: Repository integrated process crash
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/repository-crash-lab/**'
+      - 'src/**'
+      - 'Directory.Build.props'
+      - 'Directory.Build.targets'
+      - 'Directory.Packages.props'
+      - 'global.json'
+      - 'NuGet.config'
+      - 'NuGet.Config'
+      - 'nuget.config'
+      - '.github/workflows/repository-integrated-crash.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integrated-crash:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.14"
+      - name: Test independent oracle negative controls
+        run: python -B -m unittest discover -s tools/repository-crash-lab -p test_integrated_crash_oracle.py -v
+      - name: Kill integrated preparation at real boundaries and inspect independently
+        shell: pwsh
+        run: |
+          python -B tools/repository-crash-lab/run_integrated.py --output "$env:RUNNER_TEMP/repository-integrated-crash"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $rows = @(Get-Content "$env:RUNNER_TEMP/repository-integrated-crash/evidence/cases.jsonl" | ForEach-Object { $_ | ConvertFrom-Json })
+          if ($rows.Count -ne 28 -or @($rows | Where-Object { $_.outcome -ne "pass" -or $_.fresh -ne "pass" }).Count -ne 0) { throw "Incomplete integrated crash matrix" }
+          foreach ($suite in @("sha256", "blake3")) {
+            $suiteRows = @($rows | Where-Object { $_.suite -eq $suite })
+            if ($suiteRows.Count -ne 14 -or @($suiteRows.boundary | Sort-Object -Unique).Count -ne 14) { throw "Missing or duplicate boundaries" }
+            $ready = @($suiteRows | Where-Object { $_.boundary -eq "Prepared" -and $_.classification -eq "exact" -and $_.inspection.accepted -eq $true })
+            if ($ready.Count -ne 1) { throw "Prepared witness missing" }
+          }
+      - name: Preserve source, original observed bytes and structural evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: repository-integrated-crash-${{ matrix.os }}
+          path: ${{ runner.temp }}/repository-integrated-crash/evidence/
+          if-no-files-found: warn
+          retention-days: 90
