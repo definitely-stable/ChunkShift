@@ -10,6 +10,7 @@
     <InternalsVisibleTo Include="ChunkShift.Repository.Tests" />
     <InternalsVisibleTo Include="ChunkShift.Repository.IngestLab" />
     <InternalsVisibleTo Include="ChunkShift.Repository.CrashLab" />
+    <InternalsVisibleTo Include="ChunkShift.Repository.NativeAotProbe" />
     <ProjectReference Include="..\ChunkShift\ChunkShift.csproj" />
     <PackageReference Include="Blake3" />
   </ItemGroup>

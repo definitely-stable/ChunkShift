@@ -1,0 +1,99 @@
+name: Repository native AOT execution
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tools/repository-native-aot-probe/**'
+      - 'Directory.Build.props'
+      - 'Directory.Build.targets'
+      - 'Directory.Packages.props'
+      - 'global.json'
+      - 'NuGet.config'
+      - 'NuGet.Config'
+      - 'nuget.config'
+      - '.github/workflows/repository-native-aot.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-native-aot-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  execute:
+    name: execute (${{ matrix.rid }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            rid: win-x64
+            architecture: X64
+          - os: ubuntu-24.04
+            rid: linux-x64
+            architecture: X64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+            architecture: Arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      PROBE_RID: ${{ matrix.rid }}
+      PROBE_ARCHITECTURE: ${{ matrix.architecture }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          global-json-file: global.json
+      - name: Execute JIT reference
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = Join-Path $env:RUNNER_TEMP 'repository-native-aot-evidence'
+          New-Item -ItemType Directory -Path $evidence | Out-Null
+          git rev-parse HEAD | Set-Content (Join-Path $evidence 'head.txt')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet --info | Set-Content (Join-Path $evidence 'dotnet-info.txt')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $project = 'tools/repository-native-aot-probe/ChunkShift.Repository.NativeAotProbe.csproj'
+          dotnet run --project $project -c Release -- jit (Join-Path $evidence 'jit.txt') 2>&1 | Tee-Object -FilePath (Join-Path $evidence 'jit.log')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Publish NativeAOT
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $project = 'tools/repository-native-aot-probe/ChunkShift.Repository.NativeAotProbe.csproj'
+          $output = Join-Path $env:RUNNER_TEMP 'repository-native-aot-publish'
+          $evidence = Join-Path $env:RUNNER_TEMP 'repository-native-aot-evidence'
+          dotnet publish $project -c Release -r $env:PROBE_RID --self-contained true -p:PublishAot=true -p:PublishTrimmed=true -p:TreatWarningsAsErrors=true -p:ILLinkTreatWarningsAsErrors=true -o $output 2>&1 | Tee-Object -FilePath (Join-Path $evidence 'publish.log')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Execute native binary and verify both evidence sets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $output = Join-Path $env:RUNNER_TEMP 'repository-native-aot-publish'
+          $evidence = Join-Path $env:RUNNER_TEMP 'repository-native-aot-evidence'
+          $binary = Join-Path $output 'ChunkShift.Repository.NativeAotProbe'
+          if ($IsWindows) { $binary += '.exe' }
+          if (-not (Test-Path -LiteralPath $binary -PathType Leaf)) { throw 'Native executable missing' }
+          (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash | Set-Content (Join-Path $evidence 'native-binary-sha256.txt')
+          & $binary aot (Join-Path $evidence 'aot.txt') 2>&1 | Tee-Object -FilePath (Join-Path $evidence 'aot.log')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & ./tools/repository-native-aot-probe/verify-evidence.ps1 -Evidence $evidence -Architecture $env:PROBE_ARCHITECTURE
+      - name: Preserve qualification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: repository-native-aot-${{ matrix.rid }}
+          path: ${{ runner.temp }}/repository-native-aot-evidence/
+          if-no-files-found: error
+          retention-days: 90
