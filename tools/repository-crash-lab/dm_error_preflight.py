@@ -142,14 +142,18 @@ def main():
     work = Path(tempfile.mkdtemp(prefix="chunkshift-dm-", dir=root))
     image = work / "backing.img"
     loop = None
+    loop_attempted = False
+    mapper_attempted = False
     created = False
     try:
         with image.open("xb") as stream:
             stream.truncate(SIZE)
+        loop_attempted = True
         loop = run("sudo", "losetup", "--find", "--show", "--nooverlap", image)
         identity = owned_loop(loop, image)
         linear = f"0 {SECTORS} linear {identity} 0"
         error = f"0 {SECTORS} error"
+        mapper_attempted = True
         run("sudo", "dmsetup", "create", name, "--uuid", token, "--table", linear)
         created = True
         device = owned_mapper(name, token)
@@ -160,7 +164,11 @@ def main():
         run("sudo", "chown", f"{os.getuid()}:{os.getgid()}", "--", device)
         run("sudo", "chmod", "0600", "--", device)
         before = direct_control(device, True)
-        backing_before = digest(image.read_bytes())
+        initial_image = image.read_bytes()
+        require(len(initial_image) == SIZE and initial_image[OFFSET:OFFSET+BLOCK] == PAYLOAD and
+                initial_image[:OFFSET] == bytes(OFFSET) and
+                initial_image[OFFSET+BLOCK:] == bytes(SIZE-OFFSET-BLOCK), "unexpected backing image control")
+        backing_before = digest(initial_image)
         failed_table = switch(name, token, linear, error)
         errors = direct_errors(owned_mapper(name, token))
         restored_table = switch(name, token, error, linear)
@@ -175,13 +183,11 @@ def main():
     finally:
         # Never detach a loop while a mapping might still use it. No force
         # remove, wildcard names, lazy detach or recursive deletion.
-        try:
-            if created:
-                owned_mapper(name, token)
-                run("sudo", "dmsetup", "remove", name)
-        except Exception:
-            # Leave the backing fixture intact if mapping removal fails.
-            raise
+        require(not loop_attempted or loop is not None, "ambiguous loop allocation; fixture retained")
+        require(not mapper_attempted or created, "ambiguous mapper creation; fixture retained")
+        if created:
+            owned_mapper(name, token)
+            run("sudo", "dmsetup", "remove", name)
         if loop is not None:
             owned_loop(loop, image)
             run("sudo", "losetup", "--detach", loop)

@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   preflight:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     strategy:
       fail-fast: false
       matrix:
@@ -31,6 +32,11 @@ jobs:
           python-version: "3.14"
       - name: Prove isolated synthetic block device error and restoration
         run: python -B tools/repository-crash-lab/dm_error_preflight.py
+      - name: Verify exact EIO and restoration witnesses
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import hashlib,json,pathlib,sys; root=pathlib.Path(sys.argv[1]); r=json.loads((root/"result.json").read_text()); m=json.loads((root/"manifest.json").read_text()); payload=bytes((i*31+7)&255 for i in range(4096)); expected=hashlib.sha256(payload).hexdigest(); backing=hashlib.sha256(bytes(4096)+payload+bytes(16777216-8192)).hexdigest(); assert m["commit"]==sys.argv[2] and m["capacity"]==16777216 and r["errno"]=={"read":5,"write":5} and r["control_sha256"]==r["restored_sha256"]==expected and r["backing_sha256"]==backing and r["error_table"]=="0 32768 error" and r["linear"]==r["restored_table"] and r["outcome"]=="pass" and (root/"cleanup.txt").read_text().strip()=="mapping removed; loop detached; fixture removed"' "$RUNNER_TEMP/repository-dm-error-evidence" "$(git rev-parse HEAD)"
       - name: Preserve capability evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
