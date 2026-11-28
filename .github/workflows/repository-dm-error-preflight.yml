@@ -1,0 +1,41 @@
+name: Repository block EIO capability preflight
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/repository-crash-lab/dm_error_preflight.py'
+      - '.github/workflows/repository-dm-error-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.14"
+      - name: Prove isolated synthetic block device error and restoration
+        run: python -B tools/repository-crash-lab/dm_error_preflight.py
+      - name: Preserve capability evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: repository-dm-error-${{ matrix.os }}
+          path: ${{ runner.temp }}/repository-dm-error-evidence/
+          if-no-files-found: warn
+          retention-days: 90
