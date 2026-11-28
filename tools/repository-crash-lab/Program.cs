@@ -15,6 +15,12 @@ internal static class Program
     {
         try
         {
+            if (args is ["native-read-eio", var expectedPack, var faultedPack])
+            {
+                await NativeReadEioProbe.RunAsync(expectedPack, faultedPack).ConfigureAwait(false);
+                return 0;
+            }
+
             if (args is ["native-enospc", var pinned, var privateParent, var phase])
             {
                 await NativeEnospcProbe.RunAsync(pinned, privateParent, phase).ConfigureAwait(false);
