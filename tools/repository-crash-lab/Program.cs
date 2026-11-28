@@ -15,6 +15,12 @@ internal static class Program
     {
         try
         {
+            if (args.Length > 0 && args[0].StartsWith("integrated-", StringComparison.Ordinal))
+            {
+                await IntegratedCrashProbe.RunAsync(args).ConfigureAwait(false);
+                return 0;
+            }
+
             if (args is ["flush-probe", var fixture])
             {
                 FlushProbe.Run(fixture);
