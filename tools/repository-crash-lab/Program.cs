@@ -15,6 +15,12 @@ internal static class Program
     {
         try
         {
+            if (args is ["integrated-readback-eio", var pinnedPack, var readbackParent])
+            {
+                await IntegratedReadbackEioProbe.RunAsync(pinnedPack, readbackParent).ConfigureAwait(false);
+                return 0;
+            }
+
             if (args is ["native-read-eio", var expectedPack, var faultedPack])
             {
                 await NativeReadEioProbe.RunAsync(expectedPack, faultedPack).ConfigureAwait(false);
