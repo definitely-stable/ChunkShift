@@ -20,18 +20,20 @@ internal static class Program
         Require(NativeDirectoryBarrier.IsSupportedPlatform, "Unsupported native ABI.");
         Console.WriteLine($"mode={args[0]}; architecture={RuntimeInformation.ProcessArchitecture}; dynamic={RuntimeFeature.IsDynamicCodeSupported}");
         var rows = new List<string>();
-        using var fixture = new Fixture();
-        rows.Add(await FileCaseAsync(fixture.Case("file")));
-        rows.Add(await PackCaseAsync(fixture.Case("sha256"), false));
-        rows.Add(await PackCaseAsync(fixture.Case("blake3"), true));
-        rows.Add(await CollisionAsync(fixture.Case("collision")));
-        rows.Add(await WrongDescriptorAsync(fixture.Case("descriptor")));
-        rows.Add(await ReplacementAsync(fixture.Case("replacement")));
-        rows.Add(await CancellationAsync(fixture.Case("cancel")));
-        rows.Add(NativeOpenFailure(fixture.Case("native")));
+        using (var fixture = new Fixture())
+        {
+            rows.Add(await FileCaseAsync(fixture.Case("file")));
+            rows.Add(await PackCaseAsync(fixture.Case("sha256"), false));
+            rows.Add(await PackCaseAsync(fixture.Case("blake3"), true));
+            rows.Add(await CollisionAsync(fixture.Case("collision")));
+            rows.Add(await WrongDescriptorAsync(fixture.Case("descriptor")));
+            rows.Add(await ReplacementAsync(fixture.Case("replacement")));
+            rows.Add(await CancellationAsync(fixture.Case("cancel")));
+            rows.Add(NativeOpenFailure(fixture.Case("native")));
+        }
+
         // No success evidence is written until every case and fixture cleanup
         // completes. The workflow also checks the process exit code.
-        fixture.Dispose();
         File.WriteAllLines(args[1], rows);
     }
 
@@ -275,17 +277,9 @@ internal static class Program
     private sealed class Fixture : IDisposable
     {
         private readonly string _root = Directory.CreateTempSubdirectory("chunkshift-aot-probe-").FullName;
-        private bool _disposed;
 
         internal string Case(string name) => Directory.CreateDirectory(Path.Combine(_root, name)).FullName;
 
-        public void Dispose()
-        {
-            if (!_disposed)
-            {
-                _disposed = true;
-                Directory.Delete(_root, recursive: true);
-            }
-        }
+        public void Dispose() => Directory.Delete(_root, recursive: true);
     }
 }
